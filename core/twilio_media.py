@@ -463,14 +463,200 @@ def mp4_necesita_reencode_whatsapp(data: bytes) -> bool:
 
 # Límite práctico Meta/WhatsApp para video por MediaUrl (~16 MB).
 WHATSAPP_VIDEO_MAX_BYTES = 16 * 1024 * 1024
+# eki_wa_v2: mismo tope y codec (H.264 Main). El primer pase ya no es CRF 26.
+WA_ENCODE_PRESET = 'medium'
+WA_CRF_CABE = 20
+WA_CRF_TOPE = 21
+WA_WIDTH_MAX = 720
+WA_BPS_720 = 400_000
+WA_BPS_640 = 250_000
+WA_AUDIO_BPS = 96_000
+
+
+def _even_width(width: int) -> int:
+    w = int(width)
+    if w < 2:
+        return 2
+    if w % 2:
+        w -= 1
+    return w
+
+
+def _video_budget_bps(duration_s: float, max_bytes: int, audio_bps: int = WA_AUDIO_BPS) -> int:
+    """Bits/s de video para quedar ~14.5 MB (margen bajo el tope de 16 MB)."""
+    budget = int(max_bytes * 145 / 160)
+    total = (budget * 8) / float(duration_s)
+    return int(total - audio_bps)
+
+
+def plan_mp4_encodes_whatsapp(
+    nbytes: int,
+    duration_s: float,
+    width: int,
+    *,
+    max_bytes: int = WHATSAPP_VIDEO_MAX_BYTES,
+) -> list:
+    """
+    Pases ffmpeg en orden. El primero es el que debe usarse si el resultado cabe.
+
+    - Origen ≤16 MB: CRF 20, ancho min(origen, 720), sin bajar a 480.
+    - Origen >16 MB con duración: un pase CRF 21 con -maxrate según duración.
+      720 px si el presupuesto ≥400 kbps; si no, baja resolución antes que CRF 32.
+    """
+    src_w = int(width) if width and int(width) >= 2 else WA_WIDTH_MAX
+    quality_w = _even_width(min(src_w, WA_WIDTH_MAX))
+
+    def step(w, crf, audio='96k', video_bps=None):
+        return {
+            'max_width': _even_width(w),
+            'crf': int(crf),
+            'audio_bitrate': audio,
+            'maxrate_bps': int(video_bps) if video_bps else None,
+        }
+
+    if nbytes <= max_bytes:
+        return [
+            step(quality_w, WA_CRF_CABE),
+            step(quality_w, 23),
+            step(quality_w, 26),
+            step(min(quality_w, 640), 26, '64k'),
+            step(min(quality_w, 640), 28, '48k'),
+        ]
+
+    if duration_s and float(duration_s) > 0.5:
+        vbps = max(_video_budget_bps(float(duration_s), max_bytes), 64_000)
+        if vbps >= WA_BPS_720:
+            w, crf = WA_WIDTH_MAX, WA_CRF_TOPE
+        elif vbps >= WA_BPS_640:
+            w, crf = 640, 23
+        else:
+            w, crf = 480, 26
+        tighter = max(int(vbps * 0.85), 64_000)
+        if w >= WA_WIDTH_MAX:
+            fallbacks = [
+                step(720, 23, '96k', tighter),
+                step(720, 26, '64k', tighter),
+                step(640, 26, '64k', tighter),
+                step(480, 28, '48k', tighter),
+            ]
+        elif w >= 640:
+            fallbacks = [
+                step(640, 26, '64k', tighter),
+                step(480, 28, '48k', tighter),
+            ]
+        else:
+            fallbacks = [step(480, 28, '48k', max(int(vbps * 0.8), 64_000))]
+        return [step(w, crf, '96k', vbps)] + fallbacks
+
+    return [
+        step(720, WA_CRF_TOPE),
+        step(720, 23),
+        step(720, 26, '64k'),
+        step(640, 26, '64k'),
+        step(480, 28, '48k'),
+    ]
+
+
+def ffmpeg_wa_argv(
+    src: str,
+    dst: str,
+    *,
+    max_width: int = WA_WIDTH_MAX,
+    crf: int = WA_CRF_CABE,
+    audio_bitrate: str = '96k',
+    maxrate_bps: Optional[int] = None,
+    drop_audio: bool = False,
+) -> list:
+    """argv de un pase H.264 Main + AAC + faststart. Lista, nunca shell."""
+    width = int(max_width)
+    vf = f"scale='if(gt(iw,{width}),{width},iw)':-2:flags=lanczos"
+    cmd = [
+        'ffmpeg', '-y',
+        '-err_detect', 'ignore_err',
+        '-fflags', '+genpts+igndts+discardcorrupt',
+        '-i', src,
+        '-map', '0:v:0',
+    ]
+    if drop_audio:
+        cmd.append('-an')
+    else:
+        cmd.extend(['-map', '0:a:0?'])
+    cmd.extend([
+        '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
+        '-pix_fmt', 'yuv420p',
+        '-vf', vf,
+        '-preset', WA_ENCODE_PRESET, '-crf', str(int(crf)),
+    ])
+    if maxrate_bps:
+        k = max(int(maxrate_bps) // 1000, 64)
+        cmd.extend(['-maxrate', f'{k}k', '-bufsize', f'{k * 2}k'])
+    if not drop_audio:
+        cmd.extend([
+            '-c:a', 'aac', '-b:a', audio_bitrate, '-ac', '1', '-ar', '44100',
+        ])
+    cmd.extend(['-movflags', '+faststart', dst])
+    return cmd
+
+
+def probe_mp4_fuente(data: bytes) -> dict:
+    """Ancho y duración del MP4. Ceros si no hay ffprobe o el archivo no se lee."""
+    import json
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    empty = {'width': 0, 'height': 0, 'duration': 0.0}
+    if not data or not shutil.which('ffprobe'):
+        return empty
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            tmp.write(data)
+            path = tmp.name
+        r = subprocess.run(
+            [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_format', '-show_streams', path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if r.returncode != 0:
+            return empty
+        payload = json.loads(r.stdout or '{}')
+        width = height = 0
+        duration = 0.0
+        for st in payload.get('streams') or []:
+            if st.get('codec_type') != 'video' or width:
+                continue
+            width = int(st.get('width') or 0)
+            height = int(st.get('height') or 0)
+            if st.get('duration'):
+                duration = float(st['duration'])
+        fmt = payload.get('format') or {}
+        if fmt.get('duration'):
+            duration = float(fmt['duration'])
+        return {'width': width, 'height': height, 'duration': duration}
+    except Exception as exc:
+        logger.warning('ffprobe fuente: %s', exc)
+        return empty
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 def _ffmpeg_encode_wa(
     data: bytes,
     *,
-    max_width: int = 720,
-    crf: int = 26,
+    max_width: int = WA_WIDTH_MAX,
+    crf: int = WA_CRF_CABE,
     audio_bitrate: str = '96k',
+    maxrate_bps: Optional[int] = None,
 ) -> Optional[bytes]:
     """Un pase ffmpeg H.264 Main + AAC + faststart. None si falla o no hay ffmpeg."""
     import os
@@ -487,39 +673,25 @@ def _ffmpeg_encode_wa(
             src = tmp_in.name
         fd, dst = tempfile.mkstemp(suffix='.mp4')
         os.close(fd)
-        vf = f"scale='if(gt(iw,{max_width}),{max_width},iw)':-2"
-        cmd = [
-            'ffmpeg', '-y',
-            '-err_detect', 'ignore_err',
-            '-fflags', '+genpts+igndts+discardcorrupt',
-            '-i', src,
-            '-map', '0:v:0', '-map', '0:a:0?',
-            '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
-            '-pix_fmt', 'yuv420p',
-            '-vf', vf,
-            '-preset', 'fast', '-crf', str(crf),
-            '-c:a', 'aac', '-b:a', audio_bitrate, '-ac', '1', '-ar', '44100',
-            '-movflags', '+faststart',
-            dst,
-        ]
+        cmd = ffmpeg_wa_argv(
+            src, dst,
+            max_width=max_width,
+            crf=crf,
+            audio_bitrate=audio_bitrate,
+            maxrate_bps=maxrate_bps,
+        )
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if r.returncode == 0 and os.path.getsize(dst) > 64:
             with open(dst, 'rb') as f:
                 return f.read()
-        # Fallback: video sin audio (AAC roto es causa frecuente de 63021).
-        cmd_an = [
-            'ffmpeg', '-y',
-            '-err_detect', 'ignore_err',
-            '-fflags', '+genpts+igndts+discardcorrupt',
-            '-i', src,
-            '-map', '0:v:0', '-an',
-            '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
-            '-pix_fmt', 'yuv420p',
-            '-vf', vf,
-            '-preset', 'fast', '-crf', str(crf),
-            '-movflags', '+faststart',
-            dst,
-        ]
+        cmd_an = ffmpeg_wa_argv(
+            src, dst,
+            max_width=max_width,
+            crf=crf,
+            audio_bitrate=audio_bitrate,
+            maxrate_bps=maxrate_bps,
+            drop_audio=True,
+        )
         r2 = subprocess.run(cmd_an, capture_output=True, text=True, timeout=600)
         if r2.returncode == 0 and os.path.getsize(dst) > 64:
             with open(dst, 'rb') as f:
@@ -553,31 +725,56 @@ def optimizar_mp4_bytes_whatsapp(
 ) -> bytes:
     """
     Prepara bytes MP4 para MediaUrl WhatsApp (evita 63021 + tamaño).
-    - Con ffmpeg: H.264 Main + AAC + faststart; si sigue > max_bytes, comprime más.
+    - Con ffmpeg: H.264 Main + AAC + faststart (Lanczos, preset medium).
+      Si el origen ya cabe en 16 MB, CRF 20 sin bajar de 640 px.
+      Si no cabe, CRF 21 con techo de bitrate; 480 px solo al final.
     - Sin ffmpeg: solo remux moov al inicio (no cambia codec).
     """
+    import shutil
+
     if not data:
         return data
-
-    out = _ffmpeg_encode_wa(data, max_width=720, crf=26)
-    if out is None:
+    if not shutil.which('ffmpeg'):
         if mp4_necesita_faststart(data):
             return remux_mp4_faststart(data)
         return data
 
-    if len(out) > max_bytes:
-        harder = _ffmpeg_encode_wa(data, max_width=640, crf=28, audio_bitrate='64k')
-        if harder and len(harder) < len(out):
-            out = harder
-            logger.info('🎬 MP4 re-comprimido 640/crf28 | out=%s', len(out))
-    if len(out) > max_bytes:
-        harder = _ffmpeg_encode_wa(data, max_width=480, crf=32, audio_bitrate='48k')
-        if harder and len(harder) < len(out):
-            out = harder
-            logger.info('🎬 MP4 re-comprimido 480/crf32 | out=%s', len(out))
-
-    logger.info('🎬 MP4 optimizado ffmpeg | in=%s out=%s', len(data), len(out))
-    return out
+    meta = probe_mp4_fuente(data)
+    plan = plan_mp4_encodes_whatsapp(
+        len(data),
+        meta.get('duration') or 0,
+        meta.get('width') or 0,
+        max_bytes=max_bytes,
+    )
+    best = None
+    for step in plan:
+        out = _ffmpeg_encode_wa(
+            data,
+            max_width=step['max_width'],
+            crf=step['crf'],
+            audio_bitrate=step['audio_bitrate'],
+            maxrate_bps=step.get('maxrate_bps'),
+        )
+        if not out:
+            continue
+        if best is None or len(out) < len(best):
+            best = out
+        if len(out) <= max_bytes:
+            logger.info(
+                '🎬 MP4 optimizado ffmpeg | in=%s out=%s w=%s crf=%s',
+                len(data), len(out), step['max_width'], step['crf'],
+            )
+            return out
+        logger.info(
+            '🎬 MP4 pase aún grande | out=%s w=%s crf=%s',
+            len(out), step['max_width'], step['crf'],
+        )
+    if best is not None:
+        logger.info('🎬 MP4 mejor esfuerzo | in=%s out=%s', len(data), len(best))
+        return best
+    if mp4_necesita_faststart(data):
+        return remux_mp4_faststart(data)
+    return data
 
 
 def evaluar_mp4_listo_whatsapp(

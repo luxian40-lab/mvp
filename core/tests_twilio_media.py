@@ -142,6 +142,190 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertLess(out.find(b'moov'), out.find(b'mdat'))
 
 
+class EncodeWhatsappPlanTests(SimpleTestCase):
+    """Escalera eki_wa_v2: nitidez primero, 480 px solo si el presupuesto no da para 720."""
+
+    def test_archivo_que_cabe_prioriza_crf_bajo_sin_480(self):
+        from core.twilio_media import plan_mp4_encodes_whatsapp
+
+        plan = plan_mp4_encodes_whatsapp(4 * 1024 * 1024, 40.0, 1280)
+        self.assertEqual(plan[0]['max_width'], 720)
+        self.assertEqual(plan[0]['crf'], 20)
+        self.assertIsNone(plan[0]['maxrate_bps'])
+        self.assertTrue(all(step['max_width'] >= 640 for step in plan))
+        self.assertNotIn(480, [step['max_width'] for step in plan])
+
+    def test_archivo_que_cabe_no_amplia_ancho_chico(self):
+        from core.twilio_media import plan_mp4_encodes_whatsapp
+
+        plan = plan_mp4_encodes_whatsapp(2 * 1024 * 1024, 15.0, 540)
+        self.assertEqual(plan[0]['max_width'], 540)
+        self.assertEqual(plan[0]['crf'], 20)
+
+    def test_clip_90s_sobre_16mb_se_queda_en_720(self):
+        from core.twilio_media import plan_mp4_encodes_whatsapp
+
+        plan = plan_mp4_encodes_whatsapp(20 * 1024 * 1024, 90.0, 1920)
+        first = plan[0]
+        self.assertGreaterEqual(first['max_width'], 720)
+        self.assertLessEqual(first['crf'], 21)
+        self.assertGreaterEqual(first['maxrate_bps'], 400_000)
+
+    def test_video_largo_baja_resolucion(self):
+        from core.twilio_media import plan_mp4_encodes_whatsapp
+
+        plan = plan_mp4_encodes_whatsapp(40 * 1024 * 1024, 600.0, 1920)
+        self.assertEqual(plan[0]['max_width'], 480)
+        self.assertLessEqual(plan[0]['crf'], 28)
+        self.assertIsNotNone(plan[0]['maxrate_bps'])
+
+    def test_sin_duracion_no_empieza_en_480(self):
+        from core.twilio_media import plan_mp4_encodes_whatsapp
+
+        plan = plan_mp4_encodes_whatsapp(20 * 1024 * 1024, 0, 1920)
+        self.assertEqual(plan[0]['max_width'], 720)
+        self.assertEqual(plan[0]['crf'], 21)
+        self.assertEqual(plan[-1]['max_width'], 480)
+
+    def test_argv_lleva_lanczos_preset_medium_y_main(self):
+        from core.twilio_media import ffmpeg_wa_argv
+
+        argv = ffmpeg_wa_argv(
+            'in.mp4',
+            'out.mp4',
+            max_width=720,
+            crf=20,
+            audio_bitrate='96k',
+            maxrate_bps=1_200_000,
+        )
+        joined = ' '.join(argv)
+        self.assertIn('flags=lanczos', joined)
+        self.assertIn('medium', argv)
+        self.assertIn('20', argv)
+        self.assertIn('main', argv)
+        self.assertIn('yuv420p', argv)
+        self.assertIn('+faststart', joined)
+        self.assertIn('1200k', argv)
+        self.assertIn('2400k', argv)
+        self.assertEqual(argv[argv.index('-preset') + 1], 'medium')
+
+    def test_mp4_ya_apto_no_reencodea_en_upload(self):
+        from core.admin._common import _procesar_mp4_bytes_whatsapp
+
+        raw = b'\x00\x00\x00\x18ftypisom' + (b'\x00' * 80)
+        with patch(
+            'core.twilio_media.evaluar_mp4_listo_whatsapp',
+            return_value={
+                'apto': True,
+                'bytes': len(raw),
+                'razon': 'ok',
+                'necesita_faststart': False,
+            },
+        ):
+            with patch('core.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
+                out, _name, carpeta, gate = _procesar_mp4_bytes_whatsapp(
+                    raw, 'clip.mp4', carpeta='modulos/pasos',
+                )
+        opt.assert_not_called()
+        self.assertEqual(out, raw)
+        self.assertEqual(carpeta, 'modulos/pasos')
+        self.assertTrue(gate['apto'])
+
+    def test_mp4_ya_apto_no_reencodea_en_course_engine(self):
+        from core.course_engine.compose import preparar_mp4_eki_wa_v1
+
+        raw = b'\x00\x00\x00\x18ftypisom' + (b'\x00' * 80)
+        with patch(
+            'core.twilio_media.evaluar_mp4_listo_whatsapp',
+            return_value={
+                'apto': True,
+                'bytes': len(raw),
+                'razon': 'ok',
+                'necesita_faststart': False,
+            },
+        ):
+            with patch('core.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
+                out, gate = preparar_mp4_eki_wa_v1(raw)
+        opt.assert_not_called()
+        self.assertEqual(out, raw)
+        self.assertTrue(gate['apto'])
+
+    def test_optimizar_para_en_crf20_si_el_primer_pase_cabe(self):
+        calls = []
+
+        def _fake(data, **kwargs):
+            calls.append(kwargs)
+            return b'x' * 2000
+
+        with patch('shutil.which', return_value='ffmpeg'):
+            with patch(
+                'core.twilio_media.probe_mp4_fuente',
+                return_value={'width': 1280, 'height': 720, 'duration': 40.0},
+            ):
+                with patch('core.twilio_media._ffmpeg_encode_wa', side_effect=_fake):
+                    out = optimizar_mp4_bytes_whatsapp(b'abcd' * 100)
+        self.assertEqual(out, b'x' * 2000)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]['crf'], 20)
+        self.assertEqual(calls[0]['max_width'], 720)
+        self.assertIsNone(calls[0]['maxrate_bps'])
+
+    def test_perfil_high_real_queda_main_720_y_apto(self):
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+
+        if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+            self.skipTest('ffmpeg/ffprobe no instalados')
+        from core.twilio_media import (
+            evaluar_mp4_listo_whatsapp,
+            mp4_necesita_faststart,
+            probe_mp4_codecs,
+            probe_mp4_fuente,
+        )
+
+        fd, src = tempfile.mkstemp(suffix='.mp4')
+        os.close(fd)
+        try:
+            gen = subprocess.run(
+                [
+                    'ffmpeg', '-y',
+                    '-f', 'lavfi', '-i', 'testsrc=size=1280x720:rate=15:duration=8',
+                    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8',
+                    '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+                    '-b:v', '1500k',
+                    '-c:a', 'aac', '-shortest',
+                    src,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            self.assertEqual(gen.returncode, 0, (gen.stderr or '')[-400:])
+            with open(src, 'rb') as fh:
+                raw = fh.read()
+            self.assertGreater(len(raw), 64 * 1024)
+            self.assertLess(len(raw), 16 * 1024 * 1024)
+            antes = probe_mp4_codecs(raw)
+            self.assertIn('high', (antes.get('profile') or ''))
+            out = optimizar_mp4_bytes_whatsapp(raw)
+            gate = evaluar_mp4_listo_whatsapp(out)
+            self.assertTrue(gate.get('apto'), gate)
+            codecs = probe_mp4_codecs(out)
+            self.assertIn('main', (codecs.get('profile') or ''))
+            self.assertTrue(codecs.get('ok_wa'), codecs)
+            meta = probe_mp4_fuente(out)
+            self.assertEqual(meta['width'], 720)
+            self.assertFalse(mp4_necesita_faststart(out))
+            self.assertLessEqual(len(out), 16 * 1024 * 1024)
+        finally:
+            try:
+                os.unlink(src)
+            except OSError:
+                pass
+
+
 class TwilioMediaCallbackFallbackTests(TestCase):
     def test_callback_63021_reintenta_media_sin_link_s3_en_texto(self):
         from unittest.mock import patch
