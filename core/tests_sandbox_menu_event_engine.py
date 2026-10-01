@@ -292,7 +292,7 @@ class SandboxMenuTests(TestCase):
             'MediaContentType0': 'audio/ogg',
         }
         with patch(
-            'core.views._transcribir_audio_twilio',
+            'core.views.legacy._transcribir_audio_twilio',
             return_value='me cuesta organizar el tiempo',
         ):
             d = resolver_ruta_sandbox(audio_payload)

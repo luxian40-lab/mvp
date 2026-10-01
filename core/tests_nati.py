@@ -240,7 +240,7 @@ def test_nati_no_menciona_cursos_sin_pregunta():
 
 def test_nati_usa_web_si_no_hay_rag(settings):
     settings.OPENAI_API_KEY = ""
-    with patch("core.views._contexto_fallback_web_agro", return_value="FUENTE WEB"), patch(
+    with patch("core.views.legacy._contexto_fallback_web_agro", return_value="FUENTE WEB"), patch(
         "core.nati.buscar_en_web_colombia", return_value="FUENTE WEB COLOMBIA"
     ):
         from core.views import _bot_comercial_respuesta_catalogo
@@ -258,7 +258,7 @@ def test_nati_usa_web_si_no_hay_rag(settings):
 def test_nati_usa_rag_primero():
     from core.views import _bot_comercial_respuesta_catalogo
 
-    with patch("core.views._contexto_fallback_web_agro", return_value="WEB"):
+    with patch("core.views.legacy._contexto_fallback_web_agro", return_value="WEB"):
         out = _bot_comercial_respuesta_catalogo(
             pregunta="dosis de calcio",
             contexto_rag="FICHA TECNICA INTERNA",

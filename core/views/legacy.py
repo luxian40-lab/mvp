@@ -2,708 +2,6 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 
-def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
-    """Construye contexto y payload JSON del dashboard unificado usando filtros consistentes."""
-    from datetime import datetime, timedelta
-    from django.db.models import Avg, Count, Q
-    from django.db.models.functions import TruncDate
-    from django.utils import timezone
-    import json
-
-    def _to_int(value):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return None
-
-    def _to_date(value):
-        if not value:
-            return None
-        try:
-            return datetime.strptime(value, '%Y-%m-%d').date()
-        except (TypeError, ValueError):
-            return None
-
-    cliente_id = _to_int((request.GET.get('cliente') or '').strip())
-    curso_id = _to_int((request.GET.get('curso') or '').strip())
-    fecha_inicio_raw = (request.GET.get('fecha_inicio') or '').strip()
-    fecha_fin_raw = (request.GET.get('fecha_fin') or '').strip()
-    municipio_filtro = (request.GET.get('municipio') or '').strip()
-    tab_raw = (request.GET.get('tab') or 'executive').strip().lower()
-    from core.domains.dashboard import resolve_dashboard_tab, resolve_learning_section
-
-    tab_actual = resolve_dashboard_tab(tab_raw)
-    learning_section = resolve_learning_section(tab_raw, request.GET.get('section'))
-    grupo_id = _to_int((request.GET.get('grupo_id') or request.GET.get('grupo') or '').strip())
-    modulo_hasta_numero = _to_int((request.GET.get('modulo_hasta') or '').strip())
-
-    fecha_inicio_dt = _to_date(fecha_inicio_raw)
-    fecha_fin_dt = _to_date(fecha_fin_raw)
-    if fecha_inicio_dt and fecha_fin_dt and fecha_inicio_dt > fecha_fin_dt:
-        fecha_inicio_dt, fecha_fin_dt = fecha_fin_dt, fecha_inicio_dt
-
-    fecha_inicio = fecha_inicio_dt.isoformat() if fecha_inicio_dt else ''
-    fecha_fin = fecha_fin_dt.isoformat() if fecha_fin_dt else ''
-
-    # Retención: contexto liviano (evita recalcular Executive/Learning completo).
-    if tab_actual == 'retencion':
-        from portal.retencion_service import analitica_retencion_portal
-
-        clientes_all = Cliente.objects.all().order_by('nombre')
-        cursos_all = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-        if cliente_id:
-            cursos_all = cursos_all.filter(cliente_id=cliente_id)
-            if curso_id and not cursos_all.filter(pk=curso_id).exists():
-                curso_id = None
-        grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
-        if cliente_id:
-            grupos_qs = grupos_qs.filter(cliente_id=cliente_id)
-
-        retencion_data = None
-        if cliente_id:
-            org = Cliente.objects.filter(pk=cliente_id, activo=True).first()
-            if org:
-                desde_ret = (request.GET.get('desde') or fecha_inicio or '').strip() or None
-                hasta_ret = (request.GET.get('hasta') or fecha_fin or '').strip() or None
-                retencion_data = analitica_retencion_portal(
-                    org,
-                    curso_id=curso_id,
-                    grupo_id=grupo_id,
-                    desde=desde_ret,
-                    hasta=hasta_ret,
-                )
-
-        context = {
-            'tab_actual': tab_actual,
-            'learning_section': learning_section,
-            'clientes': Cliente.objects.all().order_by('nombre'),
-            'cursos': cursos_all,
-            'cursos_retencion': cursos_all,
-            'cliente_filtro': cliente_id,
-            'curso_filtro': curso_id,
-            'fecha_inicio': fecha_inicio,
-            'fecha_fin': fecha_fin,
-            'municipios': [],
-            'municipio_filtro': municipio_filtro,
-            'grupos': grupos_qs,
-            'grupo_filtro': grupo_id,
-            'modulo_hasta_filtro': modulo_hasta_numero,
-            'retencion_data': retencion_data,
-            'clientes_detalle': [],
-            'estudiantes_detalle': [],
-            'tickets_soporte': [],
-            'eventos_ia_recientes': [],
-            'embudo_learning': None,
-            'resumen_payload_json': '{}',
-            'chart_labels': '[]',
-            'chart_values': '[]',
-            'chart_ubicaciones_labels': '[]',
-            'chart_ubicaciones_values': '[]',
-            'chart_tipos_labels': '[]',
-            'chart_tipos_values': '[]',
-            'total_cursos': 0,
-            'total_clientes': 0,
-            'total_estudiantes': 0,
-            'total_mensajes_whatsapp': 0,
-            'mensajes_enviados': 0,
-            'mensajes_recibidos': 0,
-            'wa_entregados': 0,
-            'wa_leidos': 0,
-            'wa_en_transito': 0,
-            'wa_bot_comercial_sent': 0,
-            'wa_bot_comercial_read': 0,
-            'total_audios': 0,
-            'total_agentes_ia': 0,
-            'total_progreso': 0,
-            'total_modulos_completados': 0,
-            'cursos_completados': 0,
-            'total_certificados': 0,
-            'total_perfiles_gam': 0,
-            'puntos_promedio': 0,
-            'top_estudiantes': [],
-            'ranking_gamificacion_completo': [],
-            'total_prospectos': 0,
-            'tasa_completacion': 0,
-            'ubicaciones_municipio': [],
-            'progreso_por_curso': [],
-        }
-        return context, {}
-
-    clientes_all = Cliente.objects.all().order_by('nombre')
-    # Con organización elegida: solo cursos de esa org (no el catálogo completo).
-    cursos_all = Curso.objects.all().order_by('nombre')
-    if cliente_id:
-        cursos_all = cursos_all.filter(cliente_id=cliente_id)
-        if curso_id and not cursos_all.filter(pk=curso_id).exists():
-            curso_id = None
-
-    estudiantes_q = Estudiante.objects.filter(activo=True)
-    if cliente_id:
-        estudiantes_q = estudiantes_q.filter(cliente_id=cliente_id)
-    if curso_id:
-        estudiantes_q = estudiantes_q.filter(progresos__curso_id=curso_id).distinct()
-    if fecha_inicio_dt:
-        estudiantes_q = estudiantes_q.filter(fecha_registro__date__gte=fecha_inicio_dt)
-    if fecha_fin_dt:
-        estudiantes_q = estudiantes_q.filter(fecha_registro__date__lte=fecha_fin_dt)
-    if grupo_id:
-        estudiantes_q = estudiantes_q.filter(grupos__id=grupo_id).distinct()
-
-    progreso_q = ProgresoEstudiante.objects.select_related('estudiante', 'curso')
-    if cliente_id:
-        progreso_q = progreso_q.filter(estudiante__cliente_id=cliente_id)
-    if curso_id:
-        progreso_q = progreso_q.filter(curso_id=curso_id)
-    if fecha_inicio_dt:
-        progreso_q = progreso_q.filter(fecha_inicio__date__gte=fecha_inicio_dt)
-    if fecha_fin_dt:
-        progreso_q = progreso_q.filter(fecha_inicio__date__lte=fecha_fin_dt)
-    if grupo_id:
-        progreso_q = progreso_q.filter(estudiante__grupos__id=grupo_id).distinct()
-
-    modulos_completados_q = ModuloCompletado.objects.select_related('progreso', 'modulo')
-    if cliente_id:
-        modulos_completados_q = modulos_completados_q.filter(progreso__estudiante__cliente_id=cliente_id)
-    if curso_id:
-        modulos_completados_q = modulos_completados_q.filter(progreso__curso_id=curso_id)
-    if fecha_inicio_dt:
-        modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__gte=fecha_inicio_dt)
-    if fecha_fin_dt:
-        modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__lte=fecha_fin_dt)
-    if grupo_id:
-        modulos_completados_q = modulos_completados_q.filter(
-            progreso__estudiante__grupos__id=grupo_id
-        ).distinct()
-
-    whatsapp_q = WhatsappLog.objects.all()
-    if fecha_inicio_dt:
-        whatsapp_q = whatsapp_q.filter(fecha__date__gte=fecha_inicio_dt)
-    if fecha_fin_dt:
-        whatsapp_q = whatsapp_q.filter(fecha__date__lte=fecha_fin_dt)
-
-    if cliente_id or curso_id:
-        estudiantes_scope = Estudiante.objects.filter(activo=True)
-        if cliente_id:
-            estudiantes_scope = estudiantes_scope.filter(cliente_id=cliente_id)
-        if curso_id:
-            estudiantes_scope = estudiantes_scope.filter(progresos__curso_id=curso_id).distinct()
-        if grupo_id:
-            estudiantes_scope = estudiantes_scope.filter(grupos__id=grupo_id).distinct()
-
-        telefonos_scope = estudiantes_scope.exclude(telefono='').values_list('telefono', flat=True)
-        whatsapp_q = whatsapp_q.filter(
-            Q(estudiante__in=estudiantes_scope) | Q(telefono__in=telefonos_scope)
-        ).distinct()
-
-    total_estudiantes = estudiantes_q.count()
-
-    if cliente_id:
-        total_clientes = Cliente.objects.filter(id=cliente_id).count()
-    elif curso_id or fecha_inicio_dt or fecha_fin_dt:
-        total_clientes = Cliente.objects.filter(estudiantes__in=estudiantes_q).distinct().count()
-    else:
-        total_clientes = Cliente.objects.count()
-
-    progreso_filter_q = Q(progresoestudiante__id__in=progreso_q.values('id'))
-    progreso_por_curso_qs = Curso.objects.all()
-    if cliente_id or curso_id or fecha_inicio_dt or fecha_fin_dt:
-        progreso_por_curso_qs = progreso_por_curso_qs.filter(progreso_filter_q)
-
-    progreso_por_curso = progreso_por_curso_qs.annotate(
-        total_estudiantes=Count('progresoestudiante', filter=progreso_filter_q, distinct=True),
-        total_modulos_completados=Count('progresoestudiante__modulos_completados', filter=progreso_filter_q, distinct=True),
-        completados=Count(
-            'progresoestudiante',
-            filter=progreso_filter_q & Q(progresoestudiante__completado=True),
-            distinct=True,
-        ),
-    ).order_by('nombre')
-
-    total_cursos = Curso.objects.count() if not (cliente_id or curso_id or fecha_inicio_dt or fecha_fin_dt) else progreso_por_curso.count()
-
-    total_mensajes_whatsapp = whatsapp_q.count()
-    mensajes_enviados = whatsapp_q.filter(tipo='SENT').count()
-    mensajes_recibidos = whatsapp_q.filter(tipo='INCOMING').count()
-    total_audios = whatsapp_q.filter(es_audio=True).count()
-    total_agentes_ia = whatsapp_q.filter(agente_usado__isnull=False).exclude(agente_usado='').count()
-
-    wa_entregados = whatsapp_q.filter(tipo='SENT', estado__iexact='DELIVERED').count()
-    wa_leidos = whatsapp_q.filter(tipo='SENT', estado__iexact='READ').count()
-    wa_en_transito = whatsapp_q.filter(
-        tipo='SENT',
-        estado__in=['PENDING', 'QUEUED', 'SENDING', 'pending', 'queued', 'sending'],
-    ).count()
-    wa_bot_comercial_sent = whatsapp_q.filter(tipo='SENT', agente_usado='BOT_COMERCIAL').count()
-    wa_bot_comercial_read = whatsapp_q.filter(
-        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='READ'
-    ).count()
-
-    total_progreso = progreso_q.count()
-    total_modulos_completados = modulos_completados_q.count()
-    cursos_completados = progreso_q.filter(completado=True).count()
-
-    try:
-        from .models_certificados import Certificado
-        certificados_q = Certificado.objects.all()
-        if cliente_id:
-            certificados_q = certificados_q.filter(estudiante__cliente_id=cliente_id)
-        if curso_id:
-            certificados_q = certificados_q.filter(curso_id=curso_id)
-        if fecha_inicio_dt:
-            certificados_q = certificados_q.filter(fecha_emision__date__gte=fecha_inicio_dt)
-        if fecha_fin_dt:
-            certificados_q = certificados_q.filter(fecha_emision__date__lte=fecha_fin_dt)
-        total_certificados = certificados_q.count()
-    except Exception:
-        total_certificados = 0
-
-    total_perfiles_gam = 0
-    puntos_promedio = 0
-    top_estudiantes = []
-    ranking_gamificacion_completo = []
-    try:
-        from .gamificacion import PerfilGamificacion
-        perfiles_q = PerfilGamificacion.objects.filter(estudiante_id__in=estudiantes_q.values('id'))
-        total_perfiles_gam = perfiles_q.count()
-        puntos_promedio = perfiles_q.aggregate(avg=Avg('puntos_totales'))['avg'] or 0
-        if incluir_detalle:
-            rank_qs = (
-                perfiles_q.select_related('estudiante', 'estudiante__cliente')
-                .order_by('-puntos_totales')
-            )
-            top_estudiantes = rank_qs[:10]
-            ranking_gamificacion_completo = list(rank_qs[:2000])
-    except Exception:
-        pass
-
-    ubicaciones_municipio = (
-        estudiantes_q.exclude(municipio__isnull=True)
-        .exclude(municipio='')
-        .values('municipio')
-        .annotate(total=Count('id'))
-        .order_by('-total')[:10]
-    )
-    chart_ubicaciones_labels = [u['municipio'] for u in ubicaciones_municipio]
-    chart_ubicaciones_values = [u['total'] for u in ubicaciones_municipio]
-
-    hoy = fecha_fin_dt or timezone.localdate()
-    hace_7_dias = hoy - timedelta(days=6)
-    mensajes_por_dia = (
-        whatsapp_q.filter(fecha__date__gte=hace_7_dias, fecha__date__lte=hoy)
-        .annotate(dia=TruncDate('fecha'))
-        .values('dia')
-        .annotate(total=Count('id'))
-        .order_by('dia')
-    )
-    mensajes_por_dia_map = {m['dia']: int(m['total']) for m in mensajes_por_dia}
-
-    chart_labels = []
-    chart_values = []
-    for i in range(7):
-        dia = hoy - timedelta(days=6 - i)
-        chart_labels.append(dia.strftime('%d/%m'))
-        chart_values.append(int(mensajes_por_dia_map.get(dia, 0)))
-
-    tipos_msg = whatsapp_q.values('tipo').annotate(total=Count('id')).order_by('-total')
-    chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
-    chart_tipos_values = [int(t['total']) for t in tipos_msg]
-
-    try:
-        from .models import ProspectoB2B
-        prospectos_q = ProspectoB2B.objects.all()
-        if fecha_inicio_dt:
-            prospectos_q = prospectos_q.filter(fecha_captura__date__gte=fecha_inicio_dt)
-        if fecha_fin_dt:
-            prospectos_q = prospectos_q.filter(fecha_captura__date__lte=fecha_fin_dt)
-        total_prospectos = prospectos_q.count()
-    except Exception:
-        total_prospectos = 0
-
-    total_inscripciones = total_progreso
-    tasa_completacion = round((cursos_completados / total_inscripciones * 100), 1) if total_inscripciones > 0 else 0
-
-    municipios = list(
-        estudiantes_q.exclude(municipio__isnull=True)
-        .exclude(municipio='')
-        .values_list('municipio', flat=True)
-        .distinct()
-        .order_by('municipio')
-    )
-
-    estudiantes_detalle = []
-    clientes_detalle = []
-    tickets_soporte = []
-    if incluir_detalle:
-        est_q = estudiantes_q.select_related('cliente').prefetch_related('grupos')
-        if municipio_filtro:
-            est_q = est_q.filter(municipio=municipio_filtro)
-
-        est_ids = list(est_q[:200].values_list('id', flat=True))
-
-        puntos_map = {}
-        try:
-            from .gamificacion import PerfilGamificacion as PG_detail
-            puntos_map = dict(
-                PG_detail.objects.filter(estudiante_id__in=est_ids).values_list('estudiante_id', 'puntos_totales')
-            )
-        except Exception:
-            puntos_map = {}
-
-        progresos_rows = (
-            progreso_q.filter(estudiante_id__in=est_ids)
-            .select_related('estudiante', 'estudiante__cliente', 'curso', 'modulo_actual')
-            .prefetch_related('estudiante__grupos')
-            .annotate(
-                total_mods=Count('curso__modulos', distinct=True),
-                mods_comp=Count('modulos_completados', distinct=True),
-            )
-            .order_by('estudiante__nombre', 'curso__nombre')
-        )
-
-        seen_estudiante_sin_progreso = set()
-        from core.drip_schedule import avance_sobre_modulos, estudiante_llego_hasta_modulo, modulos_para_metricas
-
-        for progreso in progresos_rows:
-            est = progreso.estudiante
-            if modulo_hasta_numero is not None and not estudiante_llego_hasta_modulo(progreso, modulo_hasta_numero):
-                continue
-            seen_estudiante_sin_progreso.add(est.id)
-            total_mods = progreso.total_mods or 0
-            mods_comp = progreso.mods_comp or 0
-            avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
-            mods_drip = modulos_para_metricas(
-                est,
-                progreso.curso,
-                modulo_hasta_numero=modulo_hasta_numero,
-                usar_drip_calendario=modulo_hasta_numero is None,
-            )
-            comps_drip, total_drip, avance_drip = avance_sobre_modulos(progreso, mods_drip)
-            if progreso.completado:
-                estado_avance = 'Completado'
-                modulo_txt = 'Curso completado'
-            elif progreso.modulo_actual_id and progreso.modulo_actual:
-                estado_avance = 'En curso'
-                m = progreso.modulo_actual
-                modulo_txt = f'M{m.numero} · {m.titulo}'
-            elif avance > 0:
-                estado_avance = 'En curso'
-                modulo_txt = f'En curso ({mods_comp}/{total_mods} módulos)'
-            else:
-                estado_avance = 'Sin avance'
-                modulo_txt = 'Sin iniciar'
-            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
-            estudiantes_detalle.append({
-                'nombre': est.nombre,
-                'cedula': est.cedula,
-                'telefono': (est.telefono or '').strip() or '-',
-                'organizacion': est.cliente.nombre if est.cliente else '-',
-                'municipio': est.municipio or '-',
-                'curso': progreso.curso.nombre if progreso.curso_id else '-',
-                'modulo_actual': modulo_txt,
-                'modulos_completados': f'{mods_comp}/{total_mods}' if total_mods else '-',
-                'modulos_drip': f'{comps_drip}/{total_drip}' if total_drip else '-',
-                'avance': avance,
-                'avance_drip': avance_drip,
-                'puntos': puntos_map.get(est.id, 0),
-                'grupos': grupos_txt,
-                'estado_avance': estado_avance,
-            })
-
-        for est in est_q.filter(id__in=est_ids).exclude(id__in=seen_estudiante_sin_progreso):
-            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
-            estudiantes_detalle.append({
-                'nombre': est.nombre,
-                'cedula': est.cedula,
-                'telefono': (est.telefono or '').strip() or '-',
-                'organizacion': est.cliente.nombre if est.cliente else '-',
-                'municipio': est.municipio or '-',
-                'curso': '-',
-                'modulo_actual': '-',
-                'modulos_completados': '-',
-                'modulos_drip': '-',
-                'avance': 0,
-                'avance_drip': 0,
-                'puntos': puntos_map.get(est.id, 0),
-                'grupos': grupos_txt,
-                'estado_avance': 'Sin inscripción',
-            })
-
-        clientes_iter = clientes_all if not cliente_id else clientes_all.filter(id=cliente_id)
-        for c in clientes_iter:
-            est_cliente = estudiantes_q.filter(cliente=c)
-            n_est = est_cliente.count()
-            tels = est_cliente.exclude(telefono='').values_list('telefono', flat=True)
-            progreso_cliente = progreso_q.filter(estudiante__cliente=c)
-
-            whatsapp_cliente = whatsapp_q.filter(
-                Q(estudiante__cliente=c) | Q(telefono__in=tels)
-            ).distinct()
-
-            clientes_detalle.append({
-                'nombre': c.nombre,
-                'cursos': progreso_cliente.values('curso_id').distinct().count(),
-                'estudiantes': n_est,
-                'uso_audio': whatsapp_cliente.filter(es_audio=True).count(),
-                'uso_ia': whatsapp_cliente.filter(agente_usado__isnull=False).exclude(agente_usado='').count(),
-                'cursos_completados': progreso_cliente.filter(completado=True).count(),
-            })
-
-        try:
-            from .models import SolicitudSoporte
-            tickets_soporte_q = SolicitudSoporte.objects.select_related('estudiante')
-            if cliente_id:
-                tickets_soporte_q = tickets_soporte_q.filter(estudiante__cliente_id=cliente_id)
-            if curso_id:
-                tickets_soporte_q = tickets_soporte_q.filter(estudiante__progresos__curso_id=curso_id).distinct()
-            if fecha_inicio_dt:
-                tickets_soporte_q = tickets_soporte_q.filter(fecha_solicitud__date__gte=fecha_inicio_dt)
-            if fecha_fin_dt:
-                tickets_soporte_q = tickets_soporte_q.filter(fecha_solicitud__date__lte=fecha_fin_dt)
-            tickets_soporte = tickets_soporte_q.order_by('-fecha_solicitud')[:50]
-        except Exception:
-            tickets_soporte = []
-
-    grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
-    if cliente_id:
-        grupos_qs = grupos_qs.filter(cliente_id=cliente_id)
-
-    resumen_payload = {
-        'success': True,
-        'generated_at': timezone.now().isoformat(),
-        'kpis': {
-            'total_cursos': int(total_cursos),
-            'total_clientes': int(total_clientes),
-            'total_estudiantes': int(total_estudiantes),
-            'total_mensajes_whatsapp': int(total_mensajes_whatsapp),
-            'mensajes_enviados': int(mensajes_enviados),
-            'mensajes_recibidos': int(mensajes_recibidos),
-            'wa_entregados': int(wa_entregados),
-            'wa_leidos': int(wa_leidos),
-            'wa_en_transito': int(wa_en_transito),
-            'wa_bot_comercial_sent': int(wa_bot_comercial_sent),
-            'wa_bot_comercial_read': int(wa_bot_comercial_read),
-            'total_audios': int(total_audios),
-            'total_agentes_ia': int(total_agentes_ia),
-            'total_progreso': int(total_progreso),
-            'total_modulos_completados': int(total_modulos_completados),
-            'cursos_completados': int(cursos_completados),
-            'total_certificados': int(total_certificados),
-            'total_perfiles_gam': int(total_perfiles_gam),
-            'puntos_promedio': round(float(puntos_promedio), 1),
-            'total_prospectos': int(total_prospectos),
-            'tasa_completacion': float(tasa_completacion),
-        },
-        'chart_mensajes': {
-            'labels': chart_labels,
-            'values': chart_values,
-        },
-        'chart_ubicaciones': {
-            'labels': chart_ubicaciones_labels,
-            'values': chart_ubicaciones_values,
-        },
-        'chart_tipos': {
-            'labels': chart_tipos_labels,
-            'values': chart_tipos_values,
-        },
-    }
-
-    eventos_ia_recientes = []
-    try:
-        from core.models import EventoIA
-
-        eventos_ia_recientes = list(
-            EventoIA.objects.select_related('estudiante', 'curso', 'modulo')
-            .order_by('-created_at')[:20]
-        )
-    except Exception:
-        eventos_ia_recientes = []
-
-    context = {
-        'total_cursos': total_cursos,
-        'total_clientes': total_clientes,
-        'total_estudiantes': total_estudiantes,
-        'total_mensajes_whatsapp': total_mensajes_whatsapp,
-        'mensajes_enviados': mensajes_enviados,
-        'mensajes_recibidos': mensajes_recibidos,
-        'wa_entregados': wa_entregados,
-        'wa_leidos': wa_leidos,
-        'wa_en_transito': wa_en_transito,
-        'wa_bot_comercial_sent': wa_bot_comercial_sent,
-        'wa_bot_comercial_read': wa_bot_comercial_read,
-        'total_audios': total_audios,
-        'total_agentes_ia': total_agentes_ia,
-        'total_progreso': total_progreso,
-        'total_modulos_completados': total_modulos_completados,
-        'cursos_completados': cursos_completados,
-        'total_certificados': total_certificados,
-        'total_perfiles_gam': total_perfiles_gam,
-        'puntos_promedio': round(puntos_promedio, 1),
-        'top_estudiantes': top_estudiantes,
-        'ranking_gamificacion_completo': ranking_gamificacion_completo,
-        'total_prospectos': total_prospectos,
-        'tasa_completacion': tasa_completacion,
-        'ubicaciones_municipio': ubicaciones_municipio,
-        'progreso_por_curso': progreso_por_curso,
-        'chart_labels': json.dumps(chart_labels),
-        'chart_values': json.dumps(chart_values),
-        'chart_ubicaciones_labels': json.dumps(chart_ubicaciones_labels),
-        'chart_ubicaciones_values': json.dumps(chart_ubicaciones_values),
-        'chart_tipos_labels': json.dumps(chart_tipos_labels),
-        'chart_tipos_values': json.dumps(chart_tipos_values),
-        'resumen_payload_json': json.dumps(resumen_payload),
-        'clientes': clientes_all,
-        'cursos': cursos_all,
-        'cliente_filtro': cliente_id,
-        'curso_filtro': curso_id,
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'municipios': municipios,
-        'municipio_filtro': municipio_filtro,
-        'tab_actual': tab_actual,
-        'learning_section': learning_section,
-        'grupos': grupos_qs,
-        'grupo_filtro': grupo_id,
-        'modulo_hasta_filtro': modulo_hasta_numero,
-        'clientes_detalle': clientes_detalle,
-        'estudiantes_detalle': estudiantes_detalle,
-        'tickets_soporte': tickets_soporte,
-        'eventos_ia_recientes': eventos_ia_recientes,
-        'retencion_data': None,
-        'cursos_retencion': Curso.objects.none(),
-        'embudo_learning': None,
-    }
-
-    if learning_section == 'embudo' and curso_id:
-        from portal.curso_flujo_service import embudo_posicion_hoy_por_curso
-
-        context['embudo_learning'] = embudo_posicion_hoy_por_curso(
-            curso_id=curso_id,
-            cliente_id=cliente_id,
-            grupo_id=grupo_id,
-        )
-
-    context['video_reporte'] = None
-    if learning_section == 'videos':
-        from core.video_links import reporte_aperturas_video
-
-        context['video_reporte'] = reporte_aperturas_video(
-            curso_id=curso_id,
-            cliente_id=cliente_id,
-            fecha_inicio=fecha_inicio_dt,
-            fecha_fin=fecha_fin_dt,
-        )
-
-    return context, resumen_payload
-
-
-# Vista unificada del dashboard admin
-@staff_member_required
-def dashboard_unificado(request):
-    """
-    Dashboard profesional unificado de eki.
-    Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
-    WhatsApp, IA, y progreso educativo.
-    """
-    from core.domains.dashboard import resolve_dashboard_tab, resolve_learning_section
-
-    _tab = resolve_dashboard_tab(request.GET.get('tab'))
-    _section = resolve_learning_section(_tab, request.GET.get('section'))
-    _exportando = (request.GET.get('exportar') or '').strip().lower() == 'excel'
-    # Detalle pesado solo con ?detalle=1 o Excel (antes: siempre en Reportes → Analítica lenta).
-    _quiere_detalle = (request.GET.get('detalle') or '').strip() in ('1', 'true', 'si', 'sí')
-    context, resumen_payload = _construir_dashboard_unificado_contexto(
-        request,
-        incluir_detalle=_exportando or _quiere_detalle,
-    )
-    context['detalle_cargado'] = bool(_exportando or _quiere_detalle)
-
-    # --- Excel export (todas las pestañas + datos de gráficos) ---
-    if request.GET.get('exportar') == 'excel':
-        from analytics.exports import export_dashboard_excel
-
-        return export_dashboard_excel(
-            context=context,
-            resumen_payload=resumen_payload,
-            tab=context.get('tab_actual', 'executive'),
-            learning_section=context.get('learning_section', 'reportes'),
-        )
-
-    return render(request, 'admin/dashboard.html', context)
-
-
-@staff_member_required
-def dashboard_unificado_resumen_data(request):
-    """Endpoint JSON para refresco en tiempo real del Resumen Ejecutivo."""
-    _, payload = _construir_dashboard_unificado_contexto(request, incluir_detalle=False)
-    return JsonResponse(payload)
-
-
-@staff_member_required
-def bot_comercial_admin_view(request):
-    """Vista administrativa para operación del Bot Comercial IA."""
-    from datetime import timedelta
-    from django.urls import reverse
-    from django.utils import timezone as dj_tz
-
-    from .models import DocumentoRAGComercial, WhatsappLog
-    from .rag_comercial_manager import rag_comercial_manager
-
-    endpoint_path = '/webhook/ia-bot-comercial/'
-    endpoint_url = request.build_absolute_uri(endpoint_path)
-    cliente_id = int(
-        getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
-    )
-    canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
-
-    docs_qs = DocumentoRAGComercial.objects.filter(cliente_id=cliente_id if cliente_id > 0 else None, canal=canal_rag)
-    total_docs = docs_qs.count()
-    total_docs_indexados = docs_qs.filter(estado='indexado').count()
-
-    chunks_total = 0
-    if rag_comercial_manager.disponible:
-        chunks_total = rag_comercial_manager.contar_chunks(cliente_id=cliente_id, canal=canal_rag)
-
-    hace_7 = dj_tz.now() - timedelta(days=7)
-    bc_in = WhatsappLog.objects.filter(
-        tipo='INCOMING', agente_usado='BOT_COMERCIAL', fecha__gte=hace_7
-    ).count()
-    bc_out = WhatsappLog.objects.filter(
-        tipo='SENT', agente_usado='BOT_COMERCIAL', fecha__gte=hace_7
-    ).count()
-    bc_read = WhatsappLog.objects.filter(
-        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='READ'
-    ).count()
-    bc_delivered = WhatsappLog.objects.filter(
-        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='DELIVERED'
-    ).count()
-    callback_general = request.build_absolute_uri('/webhook/whatsapp/')
-
-    context = {
-        'endpoint_path': endpoint_path,
-        'endpoint_url': endpoint_url,
-        'bot_comercial_whatsapp_number': getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', ''),
-        'bot_comercial_cliente_id': getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', ''),
-        'bot_comercial_rag_canal': canal_rag,
-        'bot_comercial_force_routing': bool(getattr(settings, 'BOT_COMERCIAL_FORCE_ROUTING', False)),
-        'bot_comercial_openai_model': getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', ''),
-        'bot_comercial_vision_model': getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', ''),
-        'rag_comercial_disponible': rag_comercial_manager.disponible,
-        'rag_comercial_total_docs': total_docs,
-        'rag_comercial_docs_indexados': total_docs_indexados,
-        'rag_comercial_chunks_total': chunks_total,
-        'bot_comercial_incoming_7d': bc_in,
-        'bot_comercial_sent_7d': bc_out,
-        'bot_comercial_read_total': bc_read,
-        'bot_comercial_delivered_total': bc_delivered,
-        'memory_turnos': int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 12) or 12),
-        'memory_chars': int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 3600) or 3600),
-        'twilio_status_callback_configured': bool(
-            str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
-        ),
-        'twilio_status_callback_example': callback_general,
-        'whatsapp_log_admin_url': reverse('admin:core_whatsapplog_changelist'),
-    }
-    return render(request, 'admin/bot_comercial.html', context)
 
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseBadRequest
 from django.core.files.storage import default_storage
@@ -726,11 +24,11 @@ import logging
 # Logger para debugging
 logger = logging.getLogger(__name__)
 
-from .models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
-from .models_extras import ArchivoModulo, GrupoEstudiantes
-from .utils import enviar_whatsapp, enviar_whatsapp_twilio
-from .intent_detector import detect_intent, mensaje_indica_listo as _mensaje_indica_listo
-from .response_templates import (
+from ..models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
+from ..models_extras import ArchivoModulo, GrupoEstudiantes
+from ..utils import enviar_whatsapp, enviar_whatsapp_twilio
+from ..intent_detector import detect_intent, mensaje_indica_listo as _mensaje_indica_listo
+from ..response_templates import (
     MENSAJE_CAPTION_SOLO_MEDIA as TWILIO_CAPTION_ADJUNTO,
     get_response_for_intent,
     parte_mensaje_con_media,
@@ -948,276 +246,6 @@ def _transcribir_con_vosk(audio_path):
         raise  # Re-lanzar para que el fallback funcione
 
 
-@staff_member_required
-def dashboard_view(request):
-    """Redirige al dashboard de métricas completo (contexto histórico incompleto aquí rompía la plantilla)."""
-    from django.shortcuts import redirect
-    from django.urls import reverse
-
-    target = reverse('dashboard_metrics')
-    qs = request.META.get('QUERY_STRING', '')
-    if qs:
-        return redirect(f'{target}?{qs}')
-    return redirect(target)
-
-
-# ---------- Vista de instrucciones ----------
-@staff_member_required
-def instrucciones_view(request):
-    """Vista para mostrar el instructivo completo de eki."""
-    return render(request, 'admin/instrucciones.html')
-
-
-# ---------- Vista de importación de prospectos B2B ----------
-@staff_member_required
-def importar_prospectos(request):
-    """Importar prospectos B2B desde archivo Excel.
-    Formato: Teléfono | Nombre Contacto | Email | Empresa
-    """
-    import re
-    context = {}
-
-    if request.method == 'POST':
-        archivo = request.FILES.get('archivo_excel')
-        if not archivo:
-            context['error'] = "Por favor selecciona un archivo Excel"
-            return render(request, 'admin/importar_prospectos.html', context)
-
-        try:
-            if not archivo.name.endswith(('.xlsx', '.xls')):
-                context['error'] = 'El archivo debe ser .xlsx o .xls'
-                return render(request, 'admin/importar_prospectos.html', context)
-
-            wb = openpyxl.load_workbook(archivo, data_only=True)
-            ws = wb.active
-
-            creados = 0
-            actualizados = 0
-            errores = []
-
-            def _normalizar_celda(val):
-                if val is None:
-                    return ''
-                if isinstance(val, (int, float)):
-                    return str(int(val)) if isinstance(val, float) and val == int(val) else str(val) if isinstance(val, float) else str(val)
-                return str(val).strip()
-
-            def _normalizar_telefono(raw):
-                tel = re.sub(r'\D', '', raw)
-                if tel.startswith('57') and len(tel) == 12:
-                    return tel
-                if len(tel) == 10 and tel.startswith('3'):
-                    return '57' + tel
-                if len(tel) == 7 or len(tel) == 10:
-                    return '57' + tel
-                return tel
-
-            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                if not row or all(cell is None or str(cell).strip() == '' for cell in row[:2]):
-                    continue
-
-                try:
-                    telefono_raw = _normalizar_celda(row[0]) if len(row) > 0 else ''
-                    nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                    email = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                    empresa = _normalizar_celda(row[3]) if len(row) > 3 else ''
-
-                    if not telefono_raw:
-                        errores.append(f"Fila {row_idx}: Teléfono vacío")
-                        continue
-
-                    telefono = _normalizar_telefono(telefono_raw)
-                    if not telefono or len(telefono) < 10:
-                        errores.append(f"Fila {row_idx}: Teléfono inválido '{telefono_raw}'")
-                        continue
-
-                    from .models import ProspectoB2B
-                    prospecto, created = ProspectoB2B.objects.update_or_create(
-                        telefono=telefono,
-                        defaults={
-                            'nombre_contacto': nombre or '',
-                            'email': email or '',
-                            'empresa': empresa or '',
-                            'origen': 'excel',
-                        }
-                    )
-                    if created:
-                        creados += 1
-                    else:
-                        actualizados += 1
-
-                except Exception as e:
-                    errores.append(f"Fila {row_idx}: {str(e)}")
-
-            context.update({
-                'exito': True,
-                'creados': creados,
-                'actualizados': actualizados,
-                'total': creados + actualizados,
-                'advertencias': errores[:20] if errores else [],
-            })
-        except Exception as e:
-            context['error'] = f"Error procesando archivo: {str(e)}"
-
-    return render(request, 'admin/importar_prospectos.html', context)
-
-
-# ---------- Vista de importación de estudiantes ----------
-@staff_member_required
-def importar_estudiantes(request):
-    """Compat: redirige al importador LatAm del ModelAdmin (fuente de verdad)."""
-    from django.shortcuts import redirect
-
-    return redirect('admin:core_estudiante_importar')
-
-
-
-# ---------- Vista de descarga de reportes ----------
-@staff_member_required
-def descargar_reportes(request):
-    """Vista para descargar reportes en Excel filtrando por fechas."""
-    context = {}
-    
-    if request.method == 'POST':
-        fecha_inicio = request.POST.get('fecha_inicio')
-        fecha_fin = request.POST.get('fecha_fin')
-        tipo_reporte = request.POST.get('tipo_reporte', 'todos')  # todos, envios, whatsapp
-        
-        try:
-            # Parsear fechas
-            inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d') if fecha_inicio else None
-            fin = datetime.strptime(fecha_fin, '%Y-%m-%d') if fecha_fin else None
-            
-            # Ajustar fin de día
-            if fin:
-                fin = fin.replace(hour=23, minute=59, second=59)
-            
-            # Crear workbook
-            wb = openpyxl.Workbook()
-            wb.remove(wb.active)  # Eliminar hoja por defecto
-            
-            # Estilos
-            header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
-            
-            # ========== ENVÍOS ==========
-            if tipo_reporte in ['todos', 'envios']:
-                ws_envios = wb.create_sheet('Envíos')
-                
-                # Filtrar por fecha
-                queryset = EnvioLog.objects.all()
-                if inicio:
-                    queryset = queryset.filter(fecha_envio__gte=inicio)
-                if fin:
-                    queryset = queryset.filter(fecha_envio__lte=fin)
-                queryset = queryset.order_by('-fecha_envio')
-                
-                # Encabezados
-                headers = ['ID', 'Estudiante', 'Teléfono', 'Campaña', 'Plantilla', 'Estado', 'Fecha', 'Respuesta API']
-                ws_envios.append(headers)
-                
-                # Aplicar estilos a encabezados
-                for cell in ws_envios[1]:
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                
-                # Datos
-                for log in queryset:
-                    fecha_str = log.fecha_envio.strftime('%Y-%m-%d %H:%M:%S') if log.fecha_envio else ''
-                    row = [
-                        log.id,
-                        log.estudiante.nombre,
-                        log.estudiante.telefono,
-                        log.campana.nombre,
-                        log.campana.plantilla.nombre_interno,
-                        log.estado,
-                        fecha_str,
-                        log.respuesta_api or ''
-                    ]
-                    ws_envios.append(row)
-                
-                # Ajustar ancho de columnas
-                ws_envios.column_dimensions['A'].width = 8
-                ws_envios.column_dimensions['B'].width = 20
-                ws_envios.column_dimensions['C'].width = 15
-                ws_envios.column_dimensions['D'].width = 20
-                ws_envios.column_dimensions['E'].width = 20
-                ws_envios.column_dimensions['F'].width = 12
-                ws_envios.column_dimensions['G'].width = 20
-                ws_envios.column_dimensions['H'].width = 30
-            
-            # ========== WHATSAPP ==========
-            if tipo_reporte in ['todos', 'whatsapp']:
-                ws_whatsapp = wb.create_sheet('WhatsApp')
-                
-                # Filtrar por fecha
-                queryset = WhatsappLog.objects.all()
-                if inicio:
-                    queryset = queryset.filter(fecha__gte=inicio)
-                if fin:
-                    queryset = queryset.filter(fecha__lte=fin)
-                queryset = queryset.order_by('-fecha')
-                
-                # Encabezados
-                headers = ['ID', 'Teléfono', 'Tipo', 'Estado', 'Mensaje', 'Fecha', 'ID Mensaje']
-                ws_whatsapp.append(headers)
-                
-                # Aplicar estilos a encabezados
-                for cell in ws_whatsapp[1]:
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                
-                # Datos
-                for log in queryset:
-                    fecha_str = log.fecha.strftime('%Y-%m-%d %H:%M:%S') if log.fecha else ''
-                    tipo = '📥 Entrante' if log.tipo == 'INCOMING' else '📤 Saliente'
-                    row = [
-                        log.id,
-                        log.telefono,
-                        tipo,
-                        log.estado,
-                        log.mensaje or '',
-                        fecha_str,
-                        log.mensaje_id or ''
-                    ]
-                    ws_whatsapp.append(row)
-                
-                # Ajustar ancho de columnas
-                ws_whatsapp.column_dimensions['A'].width = 8
-                ws_whatsapp.column_dimensions['B'].width = 15
-                ws_whatsapp.column_dimensions['C'].width = 15
-                ws_whatsapp.column_dimensions['D'].width = 12
-                ws_whatsapp.column_dimensions['E'].width = 50
-                ws_whatsapp.column_dimensions['F'].width = 20
-                ws_whatsapp.column_dimensions['G'].width = 25
-            
-            # Generar respuesta
-            response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-            response['Content-Disposition'] = f'attachment; filename="Reporte_eki_{fecha_str}.xlsx"'
-            wb.save(response)
-            return response
-        
-        except Exception as e:
-            context['error'] = f"Error al generar reporte: {str(e)}"
-    
-    # GET: mostrar formulario
-    # Calcular primer día del mes actual y último día
-    hoy = datetime.now()
-    primer_dia_mes = hoy.replace(day=1)
-    if hoy.month == 12:
-        ultimo_dia_mes = primer_dia_mes.replace(year=hoy.year + 1, month=1, day=1) - timedelta(days=1)
-    else:
-        ultimo_dia_mes = primer_dia_mes.replace(month=hoy.month + 1, day=1) - timedelta(days=1)
-    
-    context['fecha_inicio_default'] = primer_dia_mes.strftime('%Y-%m-%d')
-    context['fecha_fin_default'] = ultimo_dia_mes.strftime('%Y-%m-%d')
-    
-    return render(request, 'admin/descargar_reportes.html', context)
 
 
 _TWILIO_STATUS_CALLBACKS = frozenset({
@@ -1613,8 +641,8 @@ def _reenviar_media_fallida_como_enlace(log, error_code: str = '') -> None:
     No envía links S3 en el cuerpo. Si agota reintentos, queda estado fallido
     y el productor puede pedir *reenvía video*.
     """
-    from .media_entrega import reintentar_media_desde_log
-    from .twilio_media import es_error_media_twilio
+    from ..media_entrega import reintentar_media_desde_log
+    from ..twilio_media import es_error_media_twilio
 
     if not es_error_media_twilio(error_code):
         return
@@ -1753,7 +781,7 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
     limite = max_chars or _twilio_max_body_chars()
 
     try:
-        from .response_templates import dividir_contenido_seguro
+        from ..response_templates import dividir_contenido_seguro
         chunks = dividir_contenido_seguro(texto, max_chars=limite)
         if chunks:
             return chunks
@@ -1766,7 +794,7 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
 
 def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
     """True si la URL es página/embed (YouTube/Drive/…), no archivo directo adjuntarle por Twilio."""
-    from .twilio_media import url_no_es_media_directo
+    from ..twilio_media import url_no_es_media_directo
 
     return url_no_es_media_directo(url)
 
@@ -1784,7 +812,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     except Exception:
         logger.exception('sandbox_meta_intercept_segmentado')
 
-    from .twilio_media import (
+    from ..twilio_media import (
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
         es_url_s3_o_firmada,
@@ -1879,14 +907,14 @@ def _haversine_metros(lat1, lon1, lat2, lon2):
 
 
 def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
-    from .response_templates import _mensaje_bloqueo_drip
+    from ..response_templates import _mensaje_bloqueo_drip
     return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
 
 def _activar_radar_empleabilidad_si_aplica(estudiante):
     from django.db.models import Q
     from core.empleabilidad_pausa import empleabilidad_en_pausa
-    from .models import AliadoEmpleabilidad
+    from ..models import AliadoEmpleabilidad
 
     # PAUSA PRODUCTO: no desbloquear radar Subachoque.
     if empleabilidad_en_pausa():
@@ -1914,7 +942,7 @@ def _activar_radar_empleabilidad_si_aplica(estudiante):
 
 
 def _pregunta_abierta_final_pendiente(estudiante, progreso):
-    from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
+    from ..models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
 
     preguntas_qs = PreguntaAbiertaFinalCurso.objects.filter(
         curso=progreso.curso,
@@ -1964,7 +992,7 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     """
     from django.db.models import Q
     from core.empleabilidad_pausa import empleabilidad_en_pausa
-    from .models import AliadoEmpleabilidad, MisionEmpleabilidad
+    from ..models import AliadoEmpleabilidad, MisionEmpleabilidad
 
     # PAUSA PRODUCTO: no crear misiones ni pedir código de aliado.
     if empleabilidad_en_pausa():
@@ -2090,9 +1118,9 @@ def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio,
         return False
 
     cert_id = pend.get('certificado_id')
-    from .models_certificados import Certificado
-    from .certificado_service import enviar_certificado_whatsapp
-    from .certificado_presencial_service import (
+    from ..models_certificados import Certificado
+    from ..certificado_service import enviar_certificado_whatsapp
+    from ..certificado_presencial_service import (
         cerrar_curso_si_tramo_final,
         limpiar_cert_envio_pendiente,
     )
@@ -2165,7 +1193,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         logger.debug("Webhook vacio ignorado (sin Body ni Media)")
         return
     
-    from .response_templates import (
+    from ..response_templates import (
         LECCION_EN_CURSO,
         activar_retencion_turno,
         cerrar_retencion_turno,
@@ -2179,7 +1207,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # Twilio envía datos en formato form-data
         msg_body = post_data.get('Body', '')
         # Quick reply / botones Content: a veces Body vacío y solo ButtonPayload/Text
-        from .habeas_respuestas import texto_desde_webhook_twilio
+        from ..habeas_respuestas import texto_desde_webhook_twilio
 
         msg_body = texto_desde_webhook_twilio(post_data, msg_body)
         msg_from = post_data.get('From', '')  # whatsapp:+573001234567
@@ -2286,7 +1314,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             # Carrusel demo: taps Content (desc_*/info_*/in_*) también si ya es Estudiante
             # (p. ej. smoke en 3026480629). No intercepta listo ni menú LMS.
             try:
-                from .catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+                from ..catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
                 _btn_demo = (
                     post_data.get('ButtonPayload')
@@ -2306,7 +1334,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
             # Respuesta campaña única (Sí/No, Asistiré/No asistiré) — antes del flujo del curso
             try:
-                from .campana_respuestas import intentar_registrar_respuesta_campana_unica
+                from ..campana_respuestas import intentar_registrar_respuesta_campana_unica
 
                 _ack_campana = intentar_registrar_respuesta_campana_unica(
                     telefono_limpio=telefono_limpio,
@@ -2391,8 +1419,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
         except Estudiante.DoesNotExist:
             # Verificar si ya es un prospecto B2B existente
-            from .models import ProspectoB2B
-            from .catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+            from ..models import ProspectoB2B
+            from ..catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
             prospecto = None
             try:
@@ -2490,11 +1518,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         button_payload='',
                     ):
                         return
-                    from .whatsapp_service import enviar_mensaje_ventas
+                    from ..whatsapp_service import enviar_mensaje_ventas
                     enviar_mensaje_ventas(msg_from)
                     return
                 else:
-                    from .whatsapp_service import enviar_mensaje_ventas
+                    from ..whatsapp_service import enviar_mensaje_ventas
                     enviar_mensaje_ventas(msg_from)
                     return
                 
@@ -2526,7 +1554,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 ):
                     logger.info(f"🏢 Nuevo prospecto + carrusel demo: {telefono_limpio}")
                     return
-                from .whatsapp_service import enviar_mensaje_ventas
+                from ..whatsapp_service import enviar_mensaje_ventas
                 enviar_mensaje_ventas(msg_from)
                 logger.info(f"🏢 Nuevo prospecto B2B capturado: {telefono_limpio}")
                 return
@@ -2564,7 +1592,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # Debe funcionar en cualquier estado del bot una vez el usuario
         # aceptó términos.
         # ============================================================
-        from .correccion_datos import (
+        from ..correccion_datos import (
             construir_menu_principal_texto,
             es_keyword_correccion,
             es_keyword_menu,
@@ -2595,7 +1623,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 'esperando_codigo_empleabilidad',
             }
         if texto_norm in {"listo", "continuar"}:
-            from .models import ProgresoEstudiante
+            from ..models import ProgresoEstudiante
             if ProgresoEstudiante.objects.filter(
                 estudiante=estudiante, completado=False, curso__activo=True
             ).exists():
@@ -2610,7 +1638,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     estudiante.save(update_fields=cambios)
 
         if estudiante.acepto_terminos:
-            from .utils import enviar_whatsapp_twilio
+            from ..utils import enviar_whatsapp_twilio
             if estudiante_en_flujo_correccion(estudiante):
                 texto_respuesta = procesar_flujo_correccion(estudiante, msg_body)
                 enviar_whatsapp_twilio(msg_from, texto_respuesta)
@@ -2638,12 +1666,12 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             except Exception:
                 logger.exception('Agente formulario GEI (prioridad temprana) omitido')
 
-            from .flujo_whatsapp_b2b import (
+            from ..flujo_whatsapp_b2b import (
                 es_estudiante_b2b,
                 es_keyword_retomar,
                 salir_seleccion_curso_legacy,
             )
-            from .response_templates import get_response_for_intent
+            from ..response_templates import get_response_for_intent
 
             if es_estudiante_b2b(estudiante) and es_keyword_retomar(texto_norm):
                 salir_seleccion_curso_legacy(estudiante)
@@ -2664,19 +1692,19 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
             if not (estudiante.contexto_temporal or {}).get('cert_envio_pendiente'):
-                from .habeas_respuestas import aplicar_respuesta_habeas
+                from ..habeas_respuestas import aplicar_respuesta_habeas
 
                 resultado_habeas = aplicar_respuesta_habeas(estudiante, msg_body)
                 accion = resultado_habeas.get('accion')
                 texto_respuesta = resultado_habeas.get('texto')
 
                 if accion == 'reenviar_plantilla':
-                    from .whatsapp_service import enviar_habeas_data
+                    from ..whatsapp_service import enviar_habeas_data
                     resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
                     if resultado_tpl.get('success'):
                         return
 
-                    from .security_handler import _url_politica_datos_cliente
+                    from ..security_handler import _url_politica_datos_cliente
                     url_politica = _url_politica_datos_cliente(estudiante=estudiante)
                     texto_respuesta = (
                         "👋 *¡Bienvenido a eki!*\n\n"
@@ -2712,7 +1740,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # Detectar "ayuda" → crear ticket de soporte
             if msg_lower_cedula in ['ayuda', 'help', 'soporte']:
-                from .models import SolicitudSoporte
+                from ..models import SolicitudSoporte
                 solicitud = SolicitudSoporte.objects.create(
                     estudiante=estudiante,
                     mensaje_original=f"Ayuda en verificación de cédula - no coincide con registros",
@@ -2734,7 +1762,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 
                 # Enviar confirmación con datos + botones (5 variables)
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                from .whatsapp_service import enviar_confirmacion_datos
+                from ..whatsapp_service import enviar_confirmacion_datos
                 resultado = enviar_confirmacion_datos(
                     msg_from,
                     estudiante.nombre,
@@ -2799,9 +1827,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 # Enviar curso directamente (sin menú)
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 try:
-                    from .models import ProgresoEstudiante
-                    from .response_templates import obtener_video_url
-                    from .selector_curso import resolver_curso_post_confirmacion
+                    from ..models import ProgresoEstudiante
+                    from ..response_templates import obtener_video_url
+                    from ..selector_curso import resolver_curso_post_confirmacion
 
                     curso = resolver_curso_post_confirmacion(estudiante)
                     if curso:
@@ -2815,7 +1843,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             modulo = curso.modulos.order_by('numero').first()
                             if modulo:
                                 progreso.modulo_actual = modulo
-                                from .module_steps import reset_progreso_pasos_modulo
+                                from ..module_steps import reset_progreso_pasos_modulo
                                 reset_progreso_pasos_modulo(progreso, save=False)
                                 progreso.save(
                                     update_fields=[
@@ -2838,7 +1866,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             )
                             
                             # Presentación de agentes
-                            from .tutor_ia_modulo import generar_presentacion_agentes
+                            from ..tutor_ia_modulo import generar_presentacion_agentes
                             msg_tutor, msg_asistente = generar_presentacion_agentes(
                                 curso_nombre=curso.nombre,
                                 estudiante_nombre=estudiante.nombre or 'Estudiante',
@@ -2868,7 +1896,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             partes_intro.append("*Comenzamos con el primer módulo de su curso...*")
                             msg_intro = "\n\n".join(partes_intro)
 
-                            from .module_steps import (
+                            from ..module_steps import (
                                 modulo_usa_pasos,
                                 pasos_activos_qs,
                                 reset_progreso_pasos_modulo,
@@ -2916,8 +1944,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                     primera_media_url = video_url
 
                                 # --- Mensaje 2: Contenido del módulo (con multimedia) ---
-                                from .response_templates import dividir_contenido_seguro
-                                from .module_steps import texto_legacy_whatsapp
+                                from ..response_templates import dividir_contenido_seguro
+                                from ..module_steps import texto_legacy_whatsapp
                                 contenido_modulo = texto_legacy_whatsapp(modulo)
                                 chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
                                 modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
@@ -2948,7 +1976,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 if hay_mas_modulos:
                                     if hay_media_conf:
                                         texto_respuesta += "[SEP][DELAY:5]"
-                                    from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                                    from ..avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
                                     texto_respuesta += "[SEP]" + resolver_cta_listo(
                                         estudiante, curso, CTX_FIN_ENTREGA_MODULO
                                     )
@@ -2968,7 +1996,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 #     return
             elif any(k in msg_lower for k in keywords_modificar):
                 # Botón "Modificar" presionado → crear ticket de soporte directamente
-                from .models import SolicitudSoporte
+                from ..models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
                     mensaje_original=f"Solicitud de corrección de datos desde verificación. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}, Municipio={estudiante.municipio}",
@@ -2987,7 +2015,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 estudiante.save()
             else:
                 # Re-enviar la plantilla de confirmación (tiene botones Confirmar/Modificar)
-                from .whatsapp_service import enviar_confirmacion_datos
+                from ..whatsapp_service import enviar_confirmacion_datos
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 resultado_reenvio = enviar_confirmacion_datos(
                     msg_from,
@@ -3028,7 +2056,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         if parte_texto_c.startswith('[SEND_TEMPLATE:'):
                             tmpl_m_c = re_conf.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto_c)
                             if tmpl_m_c:
-                                from .whatsapp_service import enviar_template_twilio
+                                from ..whatsapp_service import enviar_template_twilio
                                 tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
                                 enviar_template_twilio(tel_limpio_t, tmpl_m_c.group(1))
                             import time; time.sleep(0.5)
@@ -3046,7 +2074,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             media_url=parte_media_c,
                         )
                         import time; time.sleep(0.5)
-                        from .twilio_media import mensaje_log_con_media
+                        from ..twilio_media import mensaje_log_con_media
                         for seg_i, (msg_sent, texto_env) in enumerate(enviados_c, start=1):
                             WhatsappLog.objects.create(
                                 telefono=telefono_limpio,
@@ -3079,7 +2107,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             keywords_ayuda = ['ayuda', 'soporte', 'ticket', 'problema']
             
             if any(k in msg_lower for k in keywords_ayuda):
-                from .models import SolicitudSoporte
+                from ..models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
                     mensaje_original=f"Solicitud de soporte: {msg_body}",
@@ -3181,7 +2209,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
-                    from .response_templates import get_response_for_intent
+                    from ..response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                 else:
                     # Extraer número del curso: soporta "tomar 1", "1", "tomar1"
@@ -3194,7 +2222,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         indice = int(msg_body.strip())
                     
                     if indice is not None:
-                        from .selector_curso import continuar_curso_seleccionado
+                        from ..selector_curso import continuar_curso_seleccionado
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save(update_fields=['estado_onboarding'])
                         texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
@@ -3205,7 +2233,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.save()
                         from core.eventos_ia import detectar_intent_con_evento
-                        from .response_templates import get_response_for_intent
+                        from ..response_templates import get_response_for_intent
                         _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
                         intent = detectar_intent_con_evento(
                             msg_body,
@@ -3242,7 +2270,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             if parte_texto.startswith('[SEND_TEMPLATE:'):
                                 tmpl_m = re_multi.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto)
                                 if tmpl_m:
-                                    from .whatsapp_service import enviar_template_twilio
+                                    from ..whatsapp_service import enviar_template_twilio
                                     tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
                                     enviar_template_twilio(tel_limpio_t, tmpl_m.group(1))
                                 import time; time.sleep(0.5)
@@ -3308,7 +2336,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             else:
                 # 🆘 PQRS / ayuda — cede a evaluación/agentes; no duplicar tickets
                 try:
-                    from .pqrs_agent import (
+                    from ..pqrs_agent import (
                         intentar_procesar_seguimiento_pqrs_whatsapp,
                         mensaje_activa_soporte,
                         mensaje_es_solo_ayuda,
@@ -3316,7 +2344,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         pedagogia_tiene_prioridad,
                         respuesta_ayuda_con_ticket_abierto,
                     )
-                    from .security_handler import procesar_solicitud_soporte
+                    from ..security_handler import procesar_solicitud_soporte
 
                     _resp_pqrs_gate = None
                     if not pedagogia_tiene_prioridad(estudiante):
@@ -3375,9 +2403,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 # 🎥 Reenvío de video/material (sin avanzar curso) — antes de eval/listo
                 if estado_chat == 'ACTIVO':
                     try:
-                        from .media_recuperacion import intentar_reenvio_media_curso
-                        from .utils import enviar_whatsapp_twilio as _enviar_reenvio
-                        from .twilio_media import mensaje_log_con_media
+                        from ..media_recuperacion import intentar_reenvio_media_curso
+                        from ..utils import enviar_whatsapp_twilio as _enviar_reenvio
+                        from ..twilio_media import mensaje_log_con_media
                         import re as _re_rx
 
                         _resp_reenvio = intentar_reenvio_media_curso(estudiante, msg_body)
@@ -3421,8 +2449,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
                 # 📚 Paso módulo: evaluación / reto — antes del gate "solo listo" (A, texto libre, etc.)
                 if estado_chat == 'ACTIVO':
-                    from .module_steps import procesar_respuesta_evaluacion_paso
-                    from .models import ProgresoEstudiante
+                    from ..module_steps import procesar_respuesta_evaluacion_paso
+                    from ..models import ProgresoEstudiante
 
                     _prog_eval = (
                         ProgresoEstudiante.objects.filter(
@@ -3559,7 +2587,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 ]
 
                 if msg_lower in keywords_corregir_curso:
-                    from .correccion_datos import iniciar_flujo_correccion
+                    from ..correccion_datos import iniciar_flujo_correccion
                     texto_respuesta = iniciar_flujo_correccion(estudiante)
                     try:
                         from twilio.rest import Client as TwilioClient
@@ -3594,13 +2622,13 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
             # Detectar "Mis puntos" (botón o texto) - rama legacy
             if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:
-                from .whatsapp_service import enviar_gamificacion_visual
+                from ..whatsapp_service import enviar_gamificacion_visual
                 enviar_gamificacion_visual(msg_from, estudiante)
                 return
             
             # Detectar "Necesito ayuda" / PQRS / Soporte (todo unificado)
             elif msg_lower in ['3', 'necesito ayuda', 'ayuda', '🙋‍♂️ necesito ayuda', 'pqrs', 'soporte', 'queja', 'reclamo', 'solicitud']:
-                from .security_handler import procesar_solicitud_soporte
+                from ..security_handler import procesar_solicitud_soporte
                 respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'menu_ayuda')
                 try:
                     from twilio.rest import Client as TwilioClient
@@ -3619,7 +2647,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             elif msg_lower in ['4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
                                'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos',
                                'datos incorrectos', 'mis datos', 'actualizar datos']:
-                from .correccion_datos import iniciar_flujo_correccion
+                from ..correccion_datos import iniciar_flujo_correccion
                 texto_respuesta = iniciar_flujo_correccion(estudiante)
                 try:
                     from twilio.rest import Client as TwilioClient
@@ -3642,8 +2670,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         estudiante.estado_onboarding,
                     )
                 else:
-                    from .models import Curso, ProgresoEstudiante
-                    from .response_templates import obtener_video_url
+                    from ..models import Curso, ProgresoEstudiante
+                    from ..response_templates import obtener_video_url
                     org = estudiante.cliente
                     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
                     progreso_existente = ProgresoEstudiante.objects.filter(
@@ -3659,7 +2687,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             modulo = curso.modulos.order_by('numero').first()
                             if modulo:
                                 progreso.modulo_actual = modulo
-                                from .module_steps import reset_progreso_pasos_modulo
+                                from ..module_steps import reset_progreso_pasos_modulo
                                 reset_progreso_pasos_modulo(progreso, save=False)
                                 progreso.save(
                                     update_fields=[
@@ -3670,7 +2698,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                     ]
                                 )
                         if modulo:
-                            from .module_steps import (
+                            from ..module_steps import (
                                 modulo_usa_pasos,
                                 mensaje_recordatorio_paso_actual,
                                 pasos_activos_qs,
@@ -3719,7 +2747,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                             archivos_msg += f"\n{icono} {archivo.titulo}"
                                 if not archivos_multimedia.exists() and video_url:
                                     primera_media_url = video_url
-                                from .module_steps import texto_legacy_whatsapp
+                                from ..module_steps import texto_legacy_whatsapp
                                 msg_texto_menu = (
                                     f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                                     f"{texto_legacy_whatsapp(modulo)}"
@@ -3777,7 +2805,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 )
                                 import time
                                 time.sleep(0.5)
-                                from .twilio_media import mensaje_log_con_media
+                                from ..twilio_media import mensaje_log_con_media
                                 for seg_i, (msg_mm, texto_env) in enumerate(enviados_mm, start=1):
                                     WhatsappLog.objects.create(
                                         telefono=telefono_limpio,
@@ -3802,7 +2830,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 body=texto_respuesta,
                                 media_url=media_url_menu,
                             )
-                            from .twilio_media import mensaje_log_con_media
+                            from ..twilio_media import mensaje_log_con_media
                             for seg_i, (msg_menu, texto_env) in enumerate(enviados_menu, start=1):
                                 WhatsappLog.objects.create(
                                     telefono=telefono_limpio,
@@ -3823,7 +2851,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         pqrs_atendido = False
         respuesta_pqrs = None
         try:
-            from .pqrs_agent import (
+            from ..pqrs_agent import (
                 intentar_procesar_seguimiento_pqrs_whatsapp,
                 pedagogia_tiene_prioridad,
             )
@@ -3846,7 +2874,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # ============================================================
         
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data) - Legacy
-        from .security_handler import verificar_seguridad_completa
+        from ..security_handler import verificar_seguridad_completa
         if pqrs_atendido:
             bloqueado = True
             respuesta_seguridad = respuesta_pqrs
@@ -3900,8 +2928,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 estudiante.estado_onboarding == 'esperando_codigo_empleabilidad'
                 and not _emp_pausa_codigo()
             ):
-                from .models import AliadoEmpleabilidad, MisionEmpleabilidad
-                from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
+                from ..models import AliadoEmpleabilidad, MisionEmpleabilidad
+                from ..gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
                 ctx_emp = estudiante.contexto_temporal or {}
                 aliado_id = ctx_emp.get('aliado_empleabilidad_objetivo_id')
                 mision_id = ctx_emp.get('mision_empleabilidad_id')
@@ -3930,7 +2958,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         mision.save(update_fields=['estado', 'codigo_validado', 'puntos_otorgados', 'fecha_completada'])
 
                     try:
-                        from .tasks import enviar_email_org_admin_async
+                        from ..tasks import enviar_email_org_admin_async
 
                         asunto = f"Match empleabilidad: {estudiante.nombre} - {aliado.nombre_empresa}"
                         mensaje_html = (
@@ -3974,7 +3002,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 estudiante.save(update_fields=['estado_onboarding'])
 
             elif estudiante.estado_onboarding == 'esperando_respuesta_pregunta_abierta_final':
-                from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal, ProgresoEstudiante
+                from ..models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal, ProgresoEstudiante
                 if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     texto_respuesta = (
                         "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
@@ -4029,7 +3057,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             "Diagnóstico: parcial | Acción/Control: parcial."
                         )
                         try:
-                            from .tutor_ia_modulo import evaluar_reto_facilitador
+                            from ..tutor_ia_modulo import evaluar_reto_facilitador
                             from core.gamificacion_modo import (
                                 get_modo_gamificacion,
                                 modo_usa_calificacion,
@@ -4094,8 +3122,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             elif gamificacion_otorga_puntos(
                                 getattr(estudiante, 'cliente', None), curso_obj,
                             ):
-                                from .gamificacion import PerfilGamificacion
-                                from .response_templates import _barra_progreso
+                                from ..gamificacion import PerfilGamificacion
+                                from ..response_templates import _barra_progreso
 
                                 perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
                                 puntaje_10 = int(puntaje_final)
@@ -4150,7 +3178,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             msg_cert_img = ""
                             if curso_obj:
                                 try:
-                                    from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                    from ..certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
                                     cert = crear_certificado_automatico(estudiante, curso_obj)
                                     if cert and cert.archivo_imagen:
                                         cert_url = obtener_url_certificado_twilio(cert)
@@ -4191,7 +3219,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             elif estudiante.estado_onboarding == 'curso_finalizado':
                 print(f"🚫 Curso finalizado — sin interacción post-certificado")
                 # Check if student has a new active course
-                from .models import ProgresoEstudiante
+                from ..models import ProgresoEstudiante
                 nuevo_progreso = ProgresoEstudiante.objects.filter(
                     estudiante=estudiante, completado=False
                 ).first()
@@ -4225,7 +3253,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 _na_curso = ''
                 if progreso_id:
                     try:
-                        from .models import ProgresoEstudiante
+                        from ..models import ProgresoEstudiante
                         _pp = ProgresoEstudiante.objects.select_related('curso').get(id=progreso_id)
                         _na_curso = (_pp.curso.nombre_agente_asistente if _pp.curso else '') or ''
                     except ProgresoEstudiante.DoesNotExist:
@@ -4235,7 +3263,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 
                 msg_lower = msg_body.strip().lower()
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
-                    from .security_handler import procesar_solicitud_soporte
+                    from ..security_handler import procesar_solicitud_soporte
                     texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
                 elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     # Audio no pudo ser transcrito — NO contar como pregunta
@@ -4255,13 +3283,13 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
                     # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
                     print("🎯 Asistente terminó → Activando Facilitadora con reto")
-                    from .models import ProgresoEstudiante
-                    from .tutor_ia_modulo import (
+                    from ..models import ProgresoEstudiante
+                    from ..tutor_ia_modulo import (
                         cargar_modulos_reto,
                         generar_reto_facilitador,
                         listar_modulos_cobertura_reto,
                     )
-                    from .models import Modulo as ModuloRetoCtx
+                    from ..models import Modulo as ModuloRetoCtx
                     try:
                         progreso = ProgresoEstudiante.objects.get(id=progreso_id)
                     except ProgresoEstudiante.DoesNotExist:
@@ -4335,7 +3363,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         # Si el progreso ya está completado, no pedir *listo* como si hubiera más módulos
                         _prog_fin = None
                         try:
-                            from .models import ProgresoEstudiante
+                            from ..models import ProgresoEstudiante
                             if progreso_id:
                                 _prog_fin = ProgresoEstudiante.objects.filter(id=progreso_id).first()
                         except Exception:
@@ -4354,8 +3382,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 else:
                     # Student asked a question to Darío — answer from RAG (max 2)
                     preguntas_hechas += 1
-                    from .models import ProgresoEstudiante
-                    from .tutor_ia_modulo import cargar_modulos_reto, generar_respuesta_asistente
+                    from ..models import ProgresoEstudiante
+                    from ..tutor_ia_modulo import cargar_modulos_reto, generar_respuesta_asistente
                     try:
                         _pr_dario = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
                     except ProgresoEstudiante.DoesNotExist:
@@ -4457,7 +3485,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
                 msg_lower = msg_body.strip().lower()
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
-                    from .security_handler import procesar_solicitud_soporte
+                    from ..security_handler import procesar_solicitud_soporte
                     texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
                 elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     # Audio no pudo ser transcrito — pedir reintento sin evaluar
@@ -4480,8 +3508,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         "_Escriba, envíe un audio o mande la foto de su evidencia._"
                     )
                 else:
-                    from .models import ProgresoEstudiante
-                    from .tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
+                    from ..models import ProgresoEstudiante
+                    from ..tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
                     progreso = (
                         ProgresoEstudiante.objects.filter(id=progreso_id).first()
                         if progreso_id
@@ -4550,7 +3578,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         pregunta_abierta = None
                         pregunta_abierta_ctx_id = ctx.get('pregunta_abierta_final_id')
                         if pregunta_abierta_ctx_id:
-                            from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
+                            from ..models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
                             pregunta_ctx = PreguntaAbiertaFinalCurso.objects.filter(
                                 id=pregunta_abierta_ctx_id,
                                 curso=progreso.curso,
@@ -4604,7 +3632,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             
                             msg_cert_img = ""
                             try:
-                                from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                from ..certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
                                 cert = crear_certificado_automatico(estudiante, progreso.curso)
                                 if cert and cert.archivo_imagen:
                                     cert_url = obtener_url_certificado_twilio(cert)
@@ -4637,8 +3665,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
                     else:
                         _prev_ctx = estudiante.contexto_temporal or {}
-                        from .helpers_examenes import contexto_temporal_tras_cerrar_agente
-                        from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+                        from ..helpers_examenes import contexto_temporal_tras_cerrar_agente
+                        from ..drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
                         _base_ctx = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx) or {}
                         estudiante.estado_onboarding = 'completado'
@@ -4646,7 +3674,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         # No adelantar modulo_actual hasta que desbloquee el siguiente módulo.
                         if progreso:
                             modulo_cerrado = progreso.modulo_actual
-                            from .modulo_publicacion import (
+                            from ..modulo_publicacion import (
                                 mensaje_bloqueo_sin_siguiente_publicado,
                                 siguiente_modulo_publicado_wa,
                             )
@@ -4675,7 +3703,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 )
                                 if siguiente:
                                     progreso.modulo_actual = siguiente
-                                    from .module_steps import reset_progreso_pasos_modulo
+                                    from ..module_steps import reset_progreso_pasos_modulo
                                     reset_progreso_pasos_modulo(progreso, save=False)
                                     progreso.save(
                                         update_fields=[
@@ -4709,7 +3737,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
             elif estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':
-                from .gamificacion import PerfilGamificacion
+                from ..gamificacion import PerfilGamificacion
                 print(f"🎓 Evaluando respuesta del Facilitador (legacy tutor IA)")
                 ctx = estudiante.contexto_temporal or {}
                 modulo_id = ctx.get('modulo_id')
@@ -4736,7 +3764,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     
                     # Si dijo "menu", retomar curso (B2B) o menú sandbox
                     if msg_lower in ['menu', 'menú']:
-                        from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                        from ..flujo_whatsapp_b2b import respuesta_tras_keyword_menu
                         texto_respuesta = respuesta_tras_keyword_menu(
                             estudiante, estudiante.nombre, msg_body
                         )
@@ -4747,8 +3775,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         texto_respuesta = "👍 Sin problema.\n\nContinúa revisando el contenido del módulo 👆\n\nCuando termines, escribe *listo* para avanzar al siguiente."
                         print(f"✅ v1.9.6: Skip Gerónimo sin avance automático", flush=True)
                 else:
-                    from .tutor_ia_modulo import evaluar_respuesta_modulo
-                    from .models import Modulo
+                    from ..tutor_ia_modulo import evaluar_respuesta_modulo
+                    from ..models import Modulo
                     
                     try:
                         modulo = Modulo.objects.get(id=modulo_id) if modulo_id else None
@@ -4783,7 +3811,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
-                from .gamificacion import PerfilGamificacion
+                from ..gamificacion import PerfilGamificacion
                 print(f"�‍🏫 Evaluando respuesta de María (Revisión de Progreso)")
                 ctx = estudiante.contexto_temporal or {}
                 pregunta_tutor = ctx.get('pregunta_tutor', '')
@@ -4794,8 +3822,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 es_reto_final = ctx.get('es_reto_final', False)
 
                 def _activar_reto_despues_de_maria(prefijo=""):
-                    from .models import ProgresoEstudiante, Modulo
-                    from .tutor_ia_modulo import (
+                    from ..models import ProgresoEstudiante, Modulo
+                    from ..tutor_ia_modulo import (
                         cargar_modulos_reto,
                         generar_reto_facilitador,
                         listar_modulos_cobertura_reto,
@@ -4890,14 +3918,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     print(f"⏭️ María omitida por usuario → activando reto")
                     
                     if msg_lower in ['menu', 'menú']:
-                        from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                        from ..flujo_whatsapp_b2b import respuesta_tras_keyword_menu
                         texto_respuesta = respuesta_tras_keyword_menu(
                             estudiante, estudiante.nombre, msg_body
                         )
                     else:
                         texto_respuesta = _activar_reto_despues_de_maria("👍 Perfecto, pasemos al reto de la facilitadora.")
                 else:
-                    from .tutor_ia_modulo import evaluar_respuesta_progreso
+                    from ..tutor_ia_modulo import evaluar_respuesta_progreso
                     
                     resuelta, feedback = evaluar_respuesta_progreso(
                         modulos_info, msg_body, pregunta_tutor,
@@ -4920,13 +3948,13 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 correcta = pregunta_data.get('correcta', 'A')
                 explicacion = pregunta_data.get('explicacion', '')
                 
-                from .tutor_ia_modulo import evaluar_respuesta_recuperacion
+                from ..tutor_ia_modulo import evaluar_respuesta_recuperacion
                 es_correcta, msg_evaluacion = evaluar_respuesta_recuperacion(msg_body, correcta, explicacion)
                 
                 # Si acertó, dar puntos bonus
                 if es_correcta:
                     try:
-                        from .gamificacion import PerfilGamificacion
+                        from ..gamificacion import PerfilGamificacion
                         perfil_rec = PerfilGamificacion.objects.get(estudiante=estudiante)
                         perfil_rec.agregar_puntos(15, "🏆 Pregunta de recuperación correcta")
                     except Exception:
@@ -4939,14 +3967,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 estudiante.save()
                 
                 # Generar certificado y resumen
-                from .response_templates import _generar_completado_final
+                from ..response_templates import _generar_completado_final
                 msg_final = _generar_completado_final(estudiante, curso_id)
                 
                 texto_respuesta = f"[MULTI_MSG]{msg_evaluacion}[SEP]{msg_final}"
 
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
-                from .pregunta_handler import (
+                from ..pregunta_handler import (
                     examen_modulo_sin_pregunta_pendiente,
                     recuperar_examen_modulo_vacio,
                 )
@@ -4962,7 +3990,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     recuperar_examen_modulo_vacio(estudiante)
                     estudiante.refresh_from_db()
                     if _mensaje_indica_listo(msg_body):
-                        from .response_templates import get_response_for_intent
+                        from ..response_templates import get_response_for_intent
 
                         texto_respuesta = get_response_for_intent(
                             'continuar_leccion',
@@ -4983,13 +4011,13 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 elif msg_body.strip().lower() in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
-                    from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                    from ..flujo_whatsapp_b2b import respuesta_tras_keyword_menu
                     texto_respuesta = respuesta_tras_keyword_menu(
                         estudiante, estudiante.nombre, msg_body
                     )
                 else:
                     # Validar respuesta a pregunta de módulo
-                    from .pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
+                    from ..pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
                     print(f"📝 Validando respuesta a pregunta de módulo")
                     
                     # Verificar si la pregunta es abierta (IA) o de opciones
@@ -5017,14 +4045,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
                     # Obtener progreso para avanzar al siguiente módulo
                     if modulo_completado or es_pregunta_ia:
-                        from .helpers_examenes import puede_avanzar_modulo, es_modulo_checkpoint_reto_ia
+                        from ..helpers_examenes import puede_avanzar_modulo, es_modulo_checkpoint_reto_ia
                         
                         if modulo_completado:
                             progreso = modulo_completado.progreso
                             modulo_actual = modulo_completado.modulo
                         else:
                             # Para preguntas IA abierta, obtener progreso desde contexto
-                            from .models import ProgresoEstudiante, Modulo
+                            from ..models import ProgresoEstudiante, Modulo
                             modulo_id = ctx.get('modulo_id')
                             progreso_id = ctx.get('progreso_id')
                             try:
@@ -5070,14 +4098,14 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 # Fall through to Twilio API send
                         
                             else:
-                                from .modulo_publicacion import (
+                                from ..modulo_publicacion import (
                                     mensaje_bloqueo_sin_siguiente_publicado,
                                     siguiente_modulo_publicado_wa,
                                     total_modulos_publicados_wa,
                                 )
 
-                                from .helpers_examenes import evaluar_checkpoint_reto_ia
-                                from .response_templates import (
+                                from ..helpers_examenes import evaluar_checkpoint_reto_ia
+                                from ..response_templates import (
                                     activar_checkpoint_facilitador,
                                 )
 
@@ -5128,7 +4156,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     )
 
                                 if siguiente_modulo:
-                                    from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+                                    from ..drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
                                     _blk_v = mensaje_bloqueo_avance_siguiente_modulo(
                                         estudiante, progreso, modulo_actual
@@ -5157,7 +4185,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     if not es_modulo_reto:
                                         # Normal: advance pointer
                                         progreso.modulo_actual = siguiente_modulo
-                                        from .module_steps import reset_progreso_pasos_modulo
+                                        from ..module_steps import reset_progreso_pasos_modulo
                                         reset_progreso_pasos_modulo(progreso, save=False)
                                         progreso.save(
                                             update_fields=[
@@ -5173,7 +4201,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     estudiante.save()
                                 
                                     porcentaje = progreso.porcentaje_avance()
-                                    from .response_templates import obtener_video_url
+                                    from ..response_templates import obtener_video_url
                                     video_url = obtener_video_url(siguiente_modulo)
                                 
                                     archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
@@ -5211,13 +4239,13 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
 
-                                        from .module_steps import (
+                                        from ..module_steps import (
                                             entregar_bloque_secciones_desde_paso,
                                             modulo_usa_pasos,
                                             pasos_activos_qs,
                                             texto_legacy_whatsapp,
                                         )
-                                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                                        from ..avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
 
                                         if modulo_usa_pasos(siguiente_modulo) and pasos_activos_qs(siguiente_modulo).exists():
                                             msg_pasos_n = entregar_bloque_secciones_desde_paso(
@@ -5361,7 +4389,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                                             msg_cert_img = ""
                                             try:
-                                                from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                                from ..certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
                                                 logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
                                                 cert = crear_certificado_automatico(estudiante, progreso.curso)
                                                 logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
@@ -5382,7 +4410,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                     logger.info(f"📄 Certificado PDF URL: {cert_url}")
                                                 elif cert:
                                                     logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-                                                    from .certificado_service import generar_y_guardar_certificado
+                                                    from ..certificado_service import generar_y_guardar_certificado
                                                     generar_y_guardar_certificado(cert, force=True)
                                                     cert.refresh_from_db()
                                                     if cert.archivo_imagen:
@@ -5428,7 +4456,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
-                    from .response_templates import get_response_for_intent
+                    from ..response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                 else:
                     import re as re_curso_sel
@@ -5439,7 +4467,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     elif msg_body.strip().isdigit():
                         indice_sel = int(msg_body.strip())
                     if indice_sel is not None:
-                        from .selector_curso import continuar_curso_seleccionado
+                        from ..selector_curso import continuar_curso_seleccionado
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save(update_fields=['estado_onboarding'])
                         texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice_sel, msg_body)
@@ -5450,7 +4478,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                         estudiante.contexto_temporal = None
                         estudiante.save()
                         from core.eventos_ia import detectar_intent_con_evento
-                        from .response_templates import get_response_for_intent
+                        from ..response_templates import get_response_for_intent
                         _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
                         intent = detectar_intent_con_evento(
                             msg_body,
@@ -5466,7 +4494,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
             # 4. Detectar intent y usar templates primero
             else:
                 from core.eventos_ia import detectar_intent_con_evento
-                from .response_templates import get_response_for_intent
+                from ..response_templates import get_response_for_intent
 
                 _prog = None
                 try:
@@ -5521,7 +4549,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     print(f"🤖 Usando IA para pregunta sobre agricultura")
                     if estudiante.preguntas_ia_restantes <= 0:
                         # Freno de mano: IA pausada
-                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                        from ..avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
                         _prog_ia = estudiante.progresos.order_by('-fecha_inicio').first()
                         _curso_ia = _prog_ia.curso if _prog_ia else None
                         texto_respuesta = (
@@ -5534,7 +4562,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     else:
                         try:
                             from core.sandbox_canal import poner_reaccion_espera
-                            from .ai_assistant import responder_con_ia
+                            from ..ai_assistant import responder_con_ia
 
                             poner_reaccion_espera(telefono_limpio, msg_sid)
                             texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
@@ -5595,7 +4623,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     template_sid = tmpl_match.group(1)
                     print(f"📋 Enviando Content Template standalone: {template_sid}")
                     try:
-                        from .whatsapp_service import enviar_template_twilio
+                        from ..whatsapp_service import enviar_template_twilio
                         tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
                         enviar_template_twilio(tel_limpio, template_sid)
                         print(f"✅ Template {template_sid} enviado OK")
@@ -5633,7 +4661,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             template_sid = tmpl_match.group(1)
                             print(f"📋 Enviando Content Template {template_sid} como parte {idx+1}")
                             try:
-                                from .whatsapp_service import enviar_template_twilio
+                                from ..whatsapp_service import enviar_template_twilio
                                 tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
                                 enviar_template_twilio(tel_limpio, template_sid)
                                 print(f"✅ Template {template_sid} enviado OK")
@@ -5672,7 +4700,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                     for seg_idx, (mensaje, texto_enviado) in enumerate(mensajes_enviados, start=1):
                         print(f"✅ Mensaje {idx+1}.{seg_idx} enviado via Twilio: {mensaje.sid}")
-                        from .twilio_media import mensaje_log_con_media
+                        from ..twilio_media import mensaje_log_con_media
 
                         texto_log = mensaje_log_con_media(
                             texto_enviado or parte_texto,
@@ -5705,7 +4733,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     else:
                         print(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
 
-                    from .twilio_media import mensaje_log_con_media
+                    from ..twilio_media import mensaje_log_con_media
 
                     texto_log = mensaje_log_con_media(
                         texto_enviado or texto_respuesta,
@@ -5798,7 +4826,7 @@ def _procesar_meta_webhook(payload):
                     )
                     
                     # Verificar seguridad primero
-                    from .security_handler import verificar_seguridad_completa
+                    from ..security_handler import verificar_seguridad_completa
                     bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
                         estudiante,
                         text,
@@ -5823,7 +4851,7 @@ def _procesar_meta_webhook(payload):
                         else:
                             # Usar IA solo para preguntas
                             try:
-                                from .ai_assistant import responder_con_ia
+                                from ..ai_assistant import responder_con_ia
                                 texto_respuesta = responder_con_ia(text, phone)
                             except Exception as e:
                                 print(f"Error IA: {e}")
@@ -5846,254 +4874,6 @@ def _procesar_meta_webhook(payload):
         traceback.print_exc()
 
 
-@staff_member_required
-def probar_twilio_view(request):
-    """Vista para probar integración con Twilio WhatsApp"""
-    context = {
-        'mensaje': None,
-        'error': False,
-        'resultado': None
-    }
-    
-    if request.method == 'POST':
-        try:
-            from twilio.rest import Client
-            import os
-            
-            # Obtener datos del formulario
-            tipo_mensaje = request.POST.get('tipo_mensaje')
-            usar_template = request.POST.get('usar_template') == 'on'
-            telefono = request.POST.get('telefono', '').strip()
-            mensaje_texto = request.POST.get('mensaje', '').strip()
-            url_imagen = request.POST.get('url_imagen', '').strip()
-            
-            # Validar credenciales
-            account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
-            auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
-            template_sid = os.environ.get('TWILIO_TEMPLATE_SID')
-            
-            if not account_sid or not auth_token:
-                context['mensaje'] = '<strong>❌ Error:</strong> Las credenciales de Twilio no están configuradas en el archivo .env'
-                context['error'] = True
-                return render(request, 'admin/probar_twilio.html', context)
-            
-            # Validar teléfono
-            if not telefono:
-                context['mensaje'] = '<strong>❌ Error:</strong> Debes proporcionar un número de teléfono'
-                context['error'] = True
-                return render(request, 'admin/probar_twilio.html', context)
-            
-            # Asegurar formato whatsapp:
-            if not telefono.startswith('+'):
-                telefono = f'+{telefono}'
-            if not telefono.startswith('whatsapp:'):
-                telefono_whatsapp = f'whatsapp:{telefono}'
-            else:
-                telefono_whatsapp = telefono
-            
-            # Crear cliente Twilio
-            client = Client(account_sid, auth_token)
-            
-            # Si se usa template aprobado
-            if usar_template and template_sid:
-                message = client.messages.create(
-                    content_sid=template_sid,
-                    from_=getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806'),
-                    to=telefono_whatsapp
-                )
-            else:
-                # Preparar parámetros del mensaje libre
-                params = {
-                    "to": telefono_whatsapp,
-                    "from_": getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806'),
-                    "body": mensaje_texto
-                }
-                
-                # Si es mensaje con imagen/video, generar URL firmada y agregar media_url
-                if tipo_mensaje == 'imagen' and url_imagen:
-                    # Revisar si la URL es de S3 y necesita firma
-                    from core.utils import generar_url_firmada_s3_v4
-                    import re
-                    s3_pattern = r'https://([\w\-]+)\.s3[\w\-\.]*\.amazonaws\.com/(.+)'
-                    match = re.match(s3_pattern, url_imagen)
-                    if match:
-                        bucket_name = match.group(1)
-                        object_name = match.group(2)
-                        url_firmada = generar_url_firmada_s3_v4(bucket_name, object_name)
-                        params["media_url"] = [url_firmada]
-                    else:
-                        params["media_url"] = [url_imagen]
-                
-                # Enviar mensaje
-                message = client.messages.create(**params)
-            
-            # Crear resultado formateado
-            resultado_texto = f"""
-✅ MENSAJE ENVIADO EXITOSAMENTE
-
-📝 SID: {message.sid}
-📊 Estado: {message.status}
-📅 Fecha: {message.date_created}
-📱 Destino: {telefono}
-"""
-            
-            if usar_template and template_sid:
-                resultado_texto += f"📋 Template SID: {template_sid}\n"
-            else:
-                resultado_texto += f"💬 Mensaje: {mensaje_texto[:100]}{'...' if len(mensaje_texto) > 100 else ''}\n"
-                if tipo_mensaje == 'imagen' and url_imagen:
-                    resultado_texto += f"🖼️  Imagen: {url_imagen}\n"
-            
-            context['mensaje'] = f'<strong>✅ ¡Éxito!</strong> El mensaje fue enviado correctamente. SID: {message.sid}'
-            context['error'] = False
-            context['resultado'] = resultado_texto
-            
-            # Guardar log
-            WhatsappLog.objects.create(
-                telefono=telefono.replace('whatsapp:', '').replace('+', ''),
-                mensaje=mensaje_texto,
-                mensaje_id=message.sid,
-                estado='SENT'
-            )
-            
-        except Exception as e:
-            context['mensaje'] = f'<strong>❌ Error al enviar:</strong> {str(e)}'
-            context['error'] = True
-            context['resultado'] = f"ERROR:\n{str(e)}"
-    
-    return render(request, 'admin/probar_twilio.html', context)
-
-
-@staff_member_required
-def calendario_campanas_view(request):
-    """Vista de calendario de campañas programadas"""
-    from django.utils import timezone
-    
-    ahora = timezone.now()
-    
-    # Campañas pendientes (programadas pero no ejecutadas)
-    campanas_pendientes = Campana.objects.filter(
-        fecha_programada__isnull=False,
-        ejecutada=False
-    ).order_by('fecha_programada')
-    
-    # Campañas ejecutadas que tenían programación
-    campanas_ejecutadas = Campana.objects.filter(
-        fecha_programada__isnull=False,
-        ejecutada=True
-    ).order_by('-fecha_programada')[:10]
-    
-    context = {
-        'campanas_pendientes': campanas_pendientes,
-        'campanas_ejecutadas': campanas_ejecutadas,
-    }
-    
-    return render(request, 'admin/calendario_campanas.html', context)
-
-
-@staff_member_required
-def conversaciones_view(request):
-    """Vista de conversaciones estilo WhatsApp Web (pantalla completa)."""
-    from core.conversaciones_service import construir_contexto_inbox
-
-    cliente_filtro_raw = (request.GET.get("cliente") or "").strip()
-    cliente_filtro_id = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
-    estudiante_raw = (request.GET.get("estudiante") or "").strip()
-    estudiante_id = int(estudiante_raw) if estudiante_raw.isdigit() else None
-    page_raw = (request.GET.get("page") or "1").strip()
-    page = int(page_raw) if page_raw.isdigit() else 1
-
-    context = construir_contexto_inbox(
-        cliente_filtro_id=cliente_filtro_id,
-        estudiante_id=estudiante_id,
-        telefono=(request.GET.get("telefono") or "").strip() or None,
-        busqueda=(request.GET.get("q") or "").strip() or None,
-        page=page,
-    )
-    context.update({
-        "inbox_base_url": "/admin/conversaciones/",
-        "inbox_volver_url": "/admin/",
-        "inbox_volver_label": "Panel admin",
-        "inbox_modo": "admin",
-    })
-    if estudiante_id:
-        from django.urls import reverse
-
-        context["inbox_volver_url"] = reverse(
-            "admin:core_estudiante_change",
-            args=[estudiante_id],
-        )
-        context["inbox_volver_label"] = "Ficha estudiante"
-    elif cliente_filtro_id:
-        from django.urls import reverse
-
-        context["inbox_volver_url"] = reverse(
-            "admin:core_cliente_change",
-            args=[cliente_filtro_id],
-        )
-        context["inbox_volver_label"] = "Ficha cliente"
-    return render(request, "admin/conversaciones.html", context)
-
-
-@staff_member_required
-def chat_prueba_view(request):
-    """Vista para probar la IA sin necesidad de WhatsApp/ngrok"""
-    return render(request, 'admin/chat_prueba.html')
-
-
-@staff_member_required
-def chat_prueba_api(request):
-    """API para el chat de prueba"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            mensaje = data.get('mensaje', '')
-            telefono = data.get('telefono', 'test_chat')
-            
-            print(f"🔵 Chat de prueba - Mensaje: {mensaje}")
-            
-            # Guardar mensaje entrante
-            WhatsappLog.objects.create(
-                telefono=telefono,
-                mensaje=mensaje,
-                mensaje_id=f"test_{timezone.now().timestamp()}",
-                tipo='INCOMING'
-            )
-            
-            # Obtener respuesta de la IA
-            try:
-                from .ai_assistant import responder_con_ia
-                respuesta = responder_con_ia(mensaje, telefono)
-                print(f"✅ IA respondió: {respuesta}")
-            except Exception as e:
-                print(f"❌ Error en IA: {e}")
-                # Fallback
-                from .intent_detector import detect_intent
-                from .response_templates import get_response_for_intent
-                intent = detect_intent(mensaje)
-                respuesta = get_response_for_intent(intent, 'Usuario')
-            
-            # Guardar respuesta
-            WhatsappLog.objects.create(
-                telefono=telefono,
-                mensaje=respuesta,
-                mensaje_id=f"test_response_{timezone.now().timestamp()}",
-                tipo='SENT'
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'respuesta': respuesta
-            })
-            
-        except Exception as e:
-            print(f"❌ Error en chat de prueba: {e}")
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=500)
-    
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
 def obtener_archivos_modulo_view(request, modulo_id):
@@ -6101,7 +4881,7 @@ def obtener_archivos_modulo_view(request, modulo_id):
     API para obtener archivos multimedia de un módulo específico
     Usado por estudiantes para ver contenido disponible
     """
-    from .models import Modulo
+    from ..models import Modulo
     
     try:
         modulo = get_object_or_404(Modulo, id=modulo_id)
@@ -6194,322 +4974,3 @@ def stream_media(request):
         return HttpResponse(status=404)
 
 
-@staff_member_required
-def test_email_gmail_view(request):
-    """Vista para probar la configuración de Gmail"""
-    from .email_test import test_gmail_connection, format_email_status_html
-    
-    context = {
-        'title': 'Probar Conexión Gmail',
-        'status_html': format_email_status_html(),
-        'resultado': None
-    }
-    
-    if request.method == 'POST':
-        success, message = test_gmail_connection()
-        context['resultado'] = {
-            'success': success,
-            'message': message
-        }
-    
-    return render(request, 'admin/test_email.html', context)
-
-
-# ========================================
-# VISTAS PARA GENERACIÓN DE CURSOS CON IA
-# ========================================
-
-def _contexto_crear_curso_ia(request):
-    from .models import Cliente
-    from .utils_ia import MODELO_IA_DEFAULT, modelos_ia_habilitados
-
-    historial = request.session.get('chat_curso_ia') or []
-    modelos = modelos_ia_habilitados()
-    return {
-        'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
-        'modelos_ia': modelos,
-        'modelos_ia_disponibles': bool(modelos),
-        'historial_chat': historial,
-        'modelo_actual': request.session.get('modelo_usado', MODELO_IA_DEFAULT),
-    }
-
-
-def _guardar_sesion_curso_ia(request, estructura, cliente_id, fuente_nombre, modelo_ia, texto_fuente=''):
-    request.session['estructura_curso'] = estructura
-    request.session['cliente_id'] = str(cliente_id)
-    request.session['archivo_nombre'] = fuente_nombre or 'prompt-ia'
-    request.session['modelo_usado'] = modelo_ia
-    request.session['texto_fuente_curso'] = (texto_fuente or '')[:12000]
-    request.session.modified = True
-
-
-@staff_member_required
-def subir_documento_curso(request):
-    """Paso 1: chat + prompt largo o archivo → estructura JSON del curso."""
-    from django.shortcuts import redirect
-    from .models import Cliente
-    from .utils_ia import (
-        extraer_texto_documento,
-        generar_estructura_curso_con_ia,
-        validar_estructura_curso,
-    )
-
-    context = _contexto_crear_curso_ia(request)
-
-    if request.method == 'POST':
-        try:
-            accion = request.POST.get('accion', 'generar')
-            cliente_id = request.POST.get('cliente_id')
-            modelo_ia = request.POST.get('modelo_ia', 'gpt-4o-mini')
-            prompt_usuario = (request.POST.get('prompt') or '').strip()
-            archivo = request.FILES.get('documento')
-
-            if accion == 'limpiar_chat':
-                request.session.pop('chat_curso_ia', None)
-                return redirect('subir_documento_curso')
-
-            if not cliente_id:
-                context['error'] = 'Selecciona una organización'
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            try:
-                cliente = Cliente.objects.get(id=cliente_id)
-            except Cliente.DoesNotExist:
-                context['error'] = 'Organización no encontrada'
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            texto = ''
-            fuente = 'prompt-ia'
-            if archivo:
-                nombre = archivo.name.lower()
-                if not (nombre.endswith('.pdf') or nombre.endswith('.docx') or nombre.endswith('.txt')):
-                    context['error'] = 'Solo PDF, Word (.docx) o TXT'
-                    return render(request, 'admin/subir_documento_curso.html', context)
-                texto = extraer_texto_documento(archivo)
-                fuente = archivo.name
-            elif prompt_usuario:
-                texto = prompt_usuario
-                fuente = 'prompt-chat'
-            else:
-                context['error'] = 'Escribe un prompt o sube un documento'
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            if len(texto) < 200:
-                context['error'] = 'El contenido es muy corto (mínimo 200 caracteres)'
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            from .utils_ia import validar_modelo_ia_disponible
-            try:
-                validar_modelo_ia_disponible(modelo_ia)
-            except ValueError as e:
-                context['error'] = str(e)
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            historial = list(request.session.get('chat_curso_ia') or [])
-            historial.append({'rol': 'user', 'texto': prompt_usuario or f'[Archivo: {fuente}]'})
-            request.session['chat_curso_ia'] = historial[-20:]
-
-            use_async = not getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
-            if use_async:
-                import uuid
-                from django.core.cache import cache
-                from core.tasks import generar_curso_ia_async, _curso_ia_cache_key
-
-                job_id = str(uuid.uuid4())
-                cache.set(_curso_ia_cache_key(job_id), {'status': 'pending'}, 3600)
-                request.session['curso_ia_job_id'] = job_id
-                request.session['curso_ia_pending'] = {
-                    'cliente_id': str(cliente_id),
-                    'fuente': fuente,
-                    'modelo_ia': modelo_ia,
-                    'texto': texto[:12000],
-                    'prompt_usuario': prompt_usuario,
-                }
-                request.session.modified = True
-                try:
-                    generar_curso_ia_async.delay(job_id, texto, modelo_ia)
-                    return redirect('generando_curso_ia')
-                except Exception as celery_err:
-                    logger.warning('Celery no disponible para curso IA, modo sync: %s', celery_err)
-                    request.session.pop('curso_ia_job_id', None)
-                    request.session.pop('curso_ia_pending', None)
-
-            estructura = generar_estructura_curso_con_ia(texto, modelo=modelo_ia)
-            es_valida, errores = validar_estructura_curso(estructura)
-            if not es_valida:
-                context['error'] = f'Estructura inválida: {", ".join(errores)}'
-                return render(request, 'admin/subir_documento_curso.html', context)
-
-            historial.append({
-                'rol': 'assistant',
-                'texto': f'Generé «{estructura.get("titulo", "Curso")}» con {len(estructura.get("modulos", []))} módulos.',
-            })
-            request.session['chat_curso_ia'] = historial[-20:]
-            _guardar_sesion_curso_ia(request, estructura, cliente_id, fuente, modelo_ia, texto)
-            return redirect('vista_previa_curso_ia')
-
-        except ValueError as e:
-            context['error'] = str(e)
-        except Exception as e:
-            context['error'] = f'Error: {e}'
-            logger.error(f'Error en subir_documento_curso: {e}', exc_info=True)
-
-    return render(request, 'admin/subir_documento_curso.html', context)
-
-
-@staff_member_required
-def generando_curso_ia(request):
-    """Pantalla de espera mientras Celery genera la estructura (evita 504)."""
-    job_id = request.session.get('curso_ia_job_id')
-    if not job_id:
-        return redirect('subir_documento_curso')
-    return render(request, 'admin/generando_curso_ia.html', {'job_id': job_id})
-
-
-@staff_member_required
-def api_estado_curso_ia(request):
-    """Polling JSON del job de generación IA."""
-    from django.core.cache import cache
-    from django.http import JsonResponse
-    from core.tasks import _curso_ia_cache_key
-
-    job_id = request.GET.get('job_id') or request.session.get('curso_ia_job_id')
-    if not job_id:
-        return JsonResponse({'status': 'missing'}, status=404)
-    data = cache.get(_curso_ia_cache_key(job_id)) or {'status': 'pending'}
-    if data.get('status') == 'ok':
-        pending = request.session.get('curso_ia_pending') or {}
-        estructura = data.get('estructura')
-        if estructura and pending.get('cliente_id'):
-            historial = list(request.session.get('chat_curso_ia') or [])
-            historial.append({
-                'rol': 'assistant',
-                'texto': f'Generé «{estructura.get("titulo", "Curso")}» con {len(estructura.get("modulos", []))} módulos.',
-            })
-            request.session['chat_curso_ia'] = historial[-20:]
-            _guardar_sesion_curso_ia(
-                request,
-                estructura,
-                pending['cliente_id'],
-                pending.get('fuente', 'prompt-ia'),
-                pending.get('modelo_ia', 'gpt-4o-mini'),
-                pending.get('texto', ''),
-            )
-            request.session.pop('curso_ia_job_id', None)
-            request.session.pop('curso_ia_pending', None)
-            return JsonResponse({
-                'status': 'ok',
-                'redirect': '/admin/vista-previa-curso-ia/',
-                'titulo': estructura.get('titulo'),
-                'modulos': len(estructura.get('modulos', [])),
-            })
-    if data.get('status') == 'error':
-        request.session.pop('curso_ia_job_id', None)
-        request.session.pop('curso_ia_pending', None)
-    return JsonResponse({
-        'status': data.get('status', 'pending'),
-        'error': data.get('error'),
-    })
-
-
-@staff_member_required
-def vista_previa_curso_ia(request):
-    """Paso 2: revisión humana, edición y regeneración por módulo."""
-    from django.contrib import messages
-    from django.shortcuts import redirect
-    from .models import Cliente
-    from .utils_ia import guardar_curso_desde_estructura, regenerar_modulo_en_estructura
-
-    estructura = request.session.get('estructura_curso')
-    cliente_id = request.session.get('cliente_id')
-    archivo_nombre = request.session.get('archivo_nombre', 'prompt-ia')
-    modelo_usado = request.session.get('modelo_usado', 'gpt-4o-mini')
-    texto_fuente = request.session.get('texto_fuente_curso', '')
-
-    if not estructura or not cliente_id:
-        messages.error(request, 'No hay borrador de curso. Genera uno primero.')
-        return redirect('subir_documento_curso')
-
-    try:
-        cliente = Cliente.objects.get(id=cliente_id)
-    except Cliente.DoesNotExist:
-        messages.error(request, 'Organización no encontrada')
-        return redirect('subir_documento_curso')
-
-    context = {
-        'estructura': estructura,
-        'estructura_json': json.dumps(estructura, ensure_ascii=False, indent=2),
-        'cliente': cliente,
-        'archivo_nombre': archivo_nombre,
-        'modelo_usado': modelo_usado,
-        'total_modulos': len(estructura.get('modulos', [])),
-        'total_lecciones': sum(len(m.get('lecciones', [])) for m in estructura.get('modulos', [])),
-        'historial_chat': request.session.get('chat_curso_ia') or [],
-    }
-
-    if request.method == 'POST':
-        accion = request.POST.get('accion')
-
-        if accion == 'guardar':
-            try:
-                estructura['titulo'] = request.POST.get('titulo', estructura['titulo'])
-                estructura['descripcion'] = request.POST.get('descripcion', estructura['descripcion'])
-                estructura['duracion_estimada'] = request.POST.get(
-                    'duracion_estimada', estructura.get('duracion_estimada', '4 semanas')
-                )
-                estructura['nivel'] = request.POST.get('nivel', estructura.get('nivel', 'Intermedio'))
-                estructura['puntos_por_leccion'] = int(
-                    request.POST.get('puntos_por_leccion', estructura.get('puntos_por_leccion', 50))
-                )
-                curso = guardar_curso_desde_estructura(estructura, cliente, archivo_nombre)
-                for key in (
-                    'estructura_curso', 'cliente_id', 'archivo_nombre',
-                    'modelo_usado', 'texto_fuente_curso', 'chat_curso_ia',
-                ):
-                    request.session.pop(key, None)
-                messages.success(
-                    request,
-                    f'Curso «{curso.nombre}» creado (inactivo). Revísalo en el admin antes de activar.',
-                )
-                return redirect(f'/admin/core/curso/{curso.id}/change/')
-            except Exception as e:
-                context['error'] = f'Error al guardar: {e}'
-                logger.error(f'Error guardando curso IA: {e}', exc_info=True)
-
-        elif accion == 'regenerar_modulo':
-            try:
-                idx = int(request.POST.get('modulo_indice', 0))
-                instrucciones = (request.POST.get('instrucciones_regenerar') or '').strip()
-                estructura = regenerar_modulo_en_estructura(
-                    estructura,
-                    idx,
-                    texto_fuente=texto_fuente,
-                    instrucciones=instrucciones,
-                    modelo=modelo_usado,
-                )
-                request.session['estructura_curso'] = estructura
-                historial = list(request.session.get('chat_curso_ia') or [])
-                historial.append({
-                    'rol': 'assistant',
-                    'texto': f'Regeneré el módulo {idx + 1}: {estructura["modulos"][idx].get("nombre", "")}',
-                })
-                request.session['chat_curso_ia'] = historial[-20:]
-                messages.success(request, f'Módulo {idx + 1} regenerado.')
-                return redirect('vista_previa_curso_ia')
-            except Exception as e:
-                context['error'] = f'No se pudo regenerar: {e}'
-
-        elif accion == 'cancelar':
-            for key in (
-                'estructura_curso', 'cliente_id', 'archivo_nombre',
-                'modelo_usado', 'texto_fuente_curso', 'chat_curso_ia',
-            ):
-                request.session.pop(key, None)
-            messages.info(request, 'Creación cancelada')
-            return redirect('subir_documento_curso')
-
-        context['estructura'] = estructura
-        context['estructura_json'] = json.dumps(estructura, ensure_ascii=False, indent=2)
-        context['total_modulos'] = len(estructura.get('modulos', []))
-
-    return render(request, 'admin/vista_previa_curso_ia.html', context)

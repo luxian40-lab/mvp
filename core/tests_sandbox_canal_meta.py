@@ -194,7 +194,7 @@ class SandboxCanalMetaWebhookTests(TestCase):
             {'from': '573001234591', 'id': 'wamid.in1', 'type': 'text', 'text': {'body': 'hola'}},
         )
         with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu, \
-                patch('core.views._procesar_meta_webhook') as legacy:
+                patch('core.views.legacy._procesar_meta_webhook') as legacy:
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data=json.dumps(payload),
@@ -215,8 +215,8 @@ class SandboxCanalMetaWebhookTests(TestCase):
         payload = _meta_envelope(
             {'from': '573001234592', 'id': 'wamid.in2', 'type': 'text', 'text': {'body': 'listo'}},
         )
-        with patch('core.views._procesar_twilio_webhook', return_value=None) as edu, \
-                patch('core.views._procesar_meta_webhook') as legacy:
+        with patch('core.views.legacy._procesar_twilio_webhook', return_value=None) as edu, \
+                patch('core.views.legacy._procesar_meta_webhook') as legacy:
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data=json.dumps(payload),
@@ -240,9 +240,9 @@ class SandboxCanalMetaWebhookTests(TestCase):
         payload = _meta_envelope(
             {'from': '573001234594', 'id': 'wamid.in3', 'type': 'text', 'text': {'body': 'mancha en tomate'}},
         )
-        with patch('core.views._encolar_bot_comercial_si_async', return_value=False), \
+        with patch('core.views.legacy._encolar_bot_comercial_si_async', return_value=False), \
                 patch('core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook') as nat, \
-                patch('core.views._procesar_meta_webhook') as legacy:
+                patch('core.views.legacy._procesar_meta_webhook') as legacy:
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data=json.dumps(payload),
@@ -292,7 +292,7 @@ class SandboxCanalMetaWebhookTests(TestCase):
             {'from': '573001234596', 'id': 'wamid.async1', 'type': 'text', 'text': {'body': 'hola'}},
         )
         modulo, delay = self._tasks_falso()
-        with modulo, patch('core.views._aplicar_sandbox_menu') as sync:
+        with modulo, patch('core.views.legacy._aplicar_sandbox_menu') as sync:
             self.assertEqual(self._post(payload).status_code, 200)
         self.assertEqual(delay.call_count, 1)
         self.assertEqual(delay.call_args.args[0]['MessageSid'], 'wamid.async1')
@@ -304,12 +304,12 @@ class SandboxCanalMetaWebhookTests(TestCase):
             {'from': '573001234597', 'id': 'wamid.async2', 'type': 'text', 'text': {'body': 'hola'}},
         )
         modulo, _ = self._tasks_falso(side_effect=ConnectionError('redis'))
-        with modulo, patch('core.views._aplicar_sandbox_menu', return_value=None) as sync:
+        with modulo, patch('core.views.legacy._aplicar_sandbox_menu', return_value=None) as sync:
             self.assertEqual(self._post(payload).status_code, 200)
         self.assertEqual(sync.call_count, 1)
 
     def test_post_twilio_sandbox_se_ignora_cuando_canal_es_meta(self):
-        with patch('core.views._procesar_twilio_webhook') as edu, \
+        with patch('core.views.legacy._procesar_twilio_webhook') as edu, \
                 patch('core.sandbox_menu.dispatch_sandbox_menu') as disp:
             resp = self.client.post(
                 '/webhook/whatsapp/',
