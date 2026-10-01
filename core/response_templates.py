@@ -518,7 +518,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     dario_msg = mensaje_con_titular_agente(
         nombre_asistente,
         (
-            f"¡Hola! Es hora de una pausa para repasar conceptos. "
+            f"Soy {nombre_asistente}. Es hora de una pausa para repasar conceptos. "
             f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
             f"Le puedo ayudar a resolver un par de preguntas antes. "
             f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "

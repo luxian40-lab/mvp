@@ -347,9 +347,9 @@ class Cliente(models.Model):
         choices=PLAN_LINEA_CHOICES,
         verbose_name='Plan línea Meta',
         help_text=(
-            'Lo que reciben sus estudiantes en la línea Meta. Vacío = sin plan '
-            '(no abren cursos nuevos ni usan el asesor). Se puede cambiar por persona '
-            'en «Sesiones menú sandbox».'
+            'Plan de quienes no estén en un grupo con plan propio. Vacío = sin plan '
+            '(no abren cursos nuevos ni usan el asesor). Un grupo puede llevar OP1 '
+            'y otro OP2. Una persona se cambia en «Sesiones menú sandbox».'
         ),
     )
     fecha_inicio_suscripcion = models.DateField(
@@ -1522,8 +1522,9 @@ class Curso(models.Model):
         default=False,
         verbose_name='Catálogo general del menú',
         help_text=(
-            'Curso sin cliente, visible para cualquier estudiante. '
-            'Aparece en el carrusel de Formación del menú.'
+            'Sin cliente y marcado: sale en Formación. Al crear un curso general '
+            'queda marcado. WhatsApp muestra hasta 10 por carrusel; si hay más, '
+            'manda otro a continuación. Desmárquelo para ocultarlo.'
         ),
     )
 
@@ -1568,6 +1569,12 @@ class Curso(models.Model):
         return (self.modo_aula or self.MODO_AULA_MODULOS) == self.MODO_AULA_CLASES
 
     def save(self, *args, **kwargs):
+        # Un curso general nuevo entra solo al carrusel de Formación.
+        if self._state.adding and self.cliente_id is None:
+            self.catalogo_menu = True
+            uf = kwargs.get('update_fields')
+            if uf is not None:
+                kwargs['update_fields'] = list(set(uf) | {'catalogo_menu'})
         # Curso C / informativo: sin puntos, ranking ni retos IA.
         if self.es_modo_clases():
             self.usar_gamificacion = False
@@ -4419,7 +4426,7 @@ class SandboxCanalSesion(models.Model):
         default='',
         choices=PLAN_LINEA_CHOICES,
         verbose_name='Plan (solo esta persona)',
-        help_text='Vacío = usa el plan de su organización.',
+        help_text='Vacío = usa el plan de su grupo y, si el grupo no tiene, el de su organización.',
     )
     preguntas_mes = models.PositiveIntegerField(default=0, verbose_name='Preguntas al asesor (mes)')
     preguntas_mes_desde = models.DateField(

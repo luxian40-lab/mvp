@@ -597,32 +597,56 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 
 
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
-    """Un carrusel con foto. Ver curso inscribe. Más información manda la ficha."""
-    from core.cursos_generales import CATALOGO, tarjetas_catalogo
-    from core.sandbox_canal import enviar_meta_carrusel, sandbox_via_meta
+    """Carrusel con los cursos generales del menú. Ver curso inscribe. Más información manda la ficha."""
+    from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
+    from core.sandbox_canal import enviar_meta_botones, enviar_meta_carrusel, sandbox_via_meta
 
     if ofrecer_cursos_en_curso(telefono_usuario, from_number):
         return
 
+    tarjetas = tarjetas_catalogo()
     cuerpo = (
-        "Deslice los tres cursos de eki. "
+        "Deslice los cursos de eki. "
         "*Ver curso* lo inscribe en ese programa. "
-        "*Más información* le manda la ficha. "
-        "Si ya va en un curso, escriba *listo*."
+        "*Más información* le manda la ficha."
     )
-    if sandbox_via_meta():
-        resultado = enviar_meta_carrusel(
+    if not tarjetas:
+        enviar_texto_sandbox(
             telefono_usuario,
-            cuerpo,
-            tarjetas_catalogo(),
+            from_number,
+            "Aún no hay cursos de formación publicados.\n\n_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
+    if sandbox_via_meta() and len(tarjetas) >= 2:
+        fallo = None
+        for i, pagina in enumerate(paginas_carrusel(tarjetas)):
+            intro = cuerpo if i == 0 else "Siguen más cursos. Deslice."
+            resultado = enviar_meta_carrusel(
+                telefono_usuario,
+                intro,
+                pagina,
+                agente_evento='sandbox_formacion',
+            )
+            if not resultado.get('success'):
+                fallo = resultado.get('response')
+                break
+        if fallo is None:
+            return
+        logger.warning('sandbox_carrusel_fallback %s', fallo)
+    if sandbox_via_meta() and len(tarjetas) == 1:
+        tarjeta = tarjetas[0]
+        enviar_meta_botones(
+            telefono_usuario,
+            tarjeta['body'],
+            tarjeta['botones'],
             agente_evento='sandbox_formacion',
         )
-        if resultado.get('success'):
-            return
-        logger.warning('sandbox_carrusel_fallback %s', resultado.get('response'))
+        return
     lineas = [cuerpo, '']
-    for item in CATALOGO:
-        lineas.append(f"*{item['nombre']}*\n{item['url']}\nEscriba ver {item['clave']} para empezar.")
+    for tarjeta in tarjetas:
+        ver = tarjeta['botones'][0][0]
+        lineas.append(f"{tarjeta['body']}\nEscriba {ver} para empezar.")
     enviar_texto_sandbox(
         telefono_usuario,
         from_number,

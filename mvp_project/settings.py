@@ -818,7 +818,7 @@ if _running_tests:
 # ========================================
 # 🔒 CONFIGURACIÓN DE RATE LIMITING
 # ========================================
-RATE_LIMIT_ENABLED = True  # Habilitar rate limiting
+RATE_LIMIT_ENABLED = not _running_tests
 RATE_LIMIT_REQUESTS = 100  # Máximo de requests por IP
 RATE_LIMIT_PERIOD = 60  # Período en segundos
 

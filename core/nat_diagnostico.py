@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 
 _PATRON_SINTOMA = re.compile(
-    r'\b(mancha|manchas|plaga|plagas|enfermedad|seco|seca|amarill|caíd|caid|'
+    r'\b(mancha|manchas|plaga|plagas|enfermedad|seco|seca|amarill\w*|caíd\w*|caid\w*|'
     r'marchit|roya|gusano|hongos?|problema|daño|dano|síntoma|sintoma|'
     r'no crece|se muere|se están muriendo|tengo unas|débil|debil|'
     r'pudric|necros|deficien|clorosis|quemadur)\b',

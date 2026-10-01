@@ -114,6 +114,68 @@ class ResolverPlanTests(TestCase):
         plan = resolver_plan(self.tel)
         self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (1, 30))
 
+    def _grupo(self, org, nombre, plan, estudiante):
+        from core.models_extras import GrupoEstudiantes
+
+        grupo = GrupoEstudiantes.objects.create(
+            nombre=nombre, cliente=org, plan_linea_meta=plan, activo=True
+        )
+        grupo.estudiantes.add(estudiante)
+        return grupo
+
+    def test_grupo_manda_sobre_el_cliente(self):
+        org = _org('Coop', PLAN_DOS_CURSOS)
+        est = Estudiante.objects.create(nombre='A', cedula='G1', telefono=self.tel, cliente=org)
+        self._grupo(org, 'Cohorte asesor', PLAN_ASESOR_60, est)
+        self.assertEqual(resolver_plan(self.tel).clave, PLAN_ASESOR_60)
+
+    def test_persona_manda_sobre_el_grupo(self):
+        org = _org('Coop', PLAN_DOS_CURSOS)
+        est = Estudiante.objects.create(nombre='A', cedula='G2', telefono=self.tel, cliente=org)
+        self._grupo(org, 'Cohorte asesor', PLAN_ASESOR_60, est)
+        SandboxCanalSesion.objects.create(telefono=self.tel, plan=PLAN_CURSO_ASESOR)
+        self.assertEqual(resolver_plan(self.tel).clave, PLAN_CURSO_ASESOR)
+
+    def test_dos_grupos_gana_el_creado_de_ultimo(self):
+        org = _org('Coop', PLAN_DOS_CURSOS)
+        est = Estudiante.objects.create(nombre='A', cedula='G3', telefono=self.tel, cliente=org)
+        self._grupo(org, 'Primero', PLAN_CURSO_ASESOR, est)
+        self._grupo(org, 'Segundo', PLAN_ASESOR_60, est)
+        self.assertEqual(resolver_plan(self.tel).clave, PLAN_ASESOR_60)
+
+    def test_un_cliente_tres_grupos_con_los_tres_planes(self):
+        org = _org('Coop', PLAN_CURSO_ASESOR)
+        casos = (
+            ('573005550101', 'G-OP1', 'c1', PLAN_CURSO_ASESOR, (1, 30)),
+            ('573005550102', 'G-OP2', 'c2', PLAN_DOS_CURSOS, (2, 0)),
+            ('573005550103', 'G-OP3', 'c3', PLAN_ASESOR_60, (0, 60)),
+        )
+        for tel, nombre, cedula, plan, esperado in casos:
+            est = Estudiante.objects.create(nombre=nombre, cedula=cedula, telefono=tel, cliente=org)
+            self._grupo(org, nombre, plan, est)
+            got = resolver_plan(tel)
+            self.assertEqual((got.cursos_mes, got.preguntas_mes), esperado)
+        self.assertEqual(resolver_plan('573005550101').clave, PLAN_CURSO_ASESOR)
+        self.assertEqual(resolver_plan('573005550102').clave, PLAN_DOS_CURSOS)
+        self.assertEqual(resolver_plan('573005550103').clave, PLAN_ASESOR_60)
+
+    def test_grupo_inactivo_no_cambia_el_plan_del_cliente(self):
+        from core.models_extras import GrupoEstudiantes
+
+        org = _org('Coop', PLAN_DOS_CURSOS)
+        est = Estudiante.objects.create(nombre='A', cedula='G5', telefono=self.tel, cliente=org)
+        grupo = GrupoEstudiantes.objects.create(
+            nombre='Pausado', cliente=org, plan_linea_meta=PLAN_ASESOR_60, activo=False
+        )
+        grupo.estudiantes.add(est)
+        self.assertEqual(resolver_plan(self.tel).clave, PLAN_DOS_CURSOS)
+
+    def test_grupo_sin_plan_usa_el_del_cliente(self):
+        org = _org('Coop', PLAN_DOS_CURSOS)
+        est = Estudiante.objects.create(nombre='A', cedula='G4', telefono=self.tel, cliente=org)
+        self._grupo(org, 'Sin plan', '', est)
+        self.assertEqual(resolver_plan(self.tel).clave, PLAN_DOS_CURSOS)
+
 
 @override_settings(**META)
 class MenuPorPlanTests(TestCase):
@@ -135,6 +197,42 @@ class MenuPorPlanTests(TestCase):
         self.assertNotIn('interactive', tipos)
         self.assertEqual(_textos(send), [TEXTO_SIN_PLAN] * 4)
         self.assertFalse(Estudiante.objects.filter(telefono=tel).exists())
+
+    def _persona_en_grupo(self, tel, plan_grupo, plan_org=PLAN_CURSO_ASESOR):
+        from core.models_extras import GrupoEstudiantes
+
+        org = _org(f'Org{tel[-3:]}', plan_org)
+        est = Estudiante.objects.create(nombre='G', cedula=tel[-4:], telefono=tel, cliente=org)
+        grupo = GrupoEstudiantes.objects.create(
+            nombre=f'Grupo {plan_grupo}', cliente=org, plan_linea_meta=plan_grupo, activo=True
+        )
+        grupo.estudiantes.add(est)
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True)
+        return est
+
+    def test_grupo_op1_ve_formacion_y_asesoria(self):
+        tel = '573005550201'
+        self._persona_en_grupo(tel, PLAN_CURSO_ASESOR, plan_org=PLAN_ASESOR_60)
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'hola'))
+        botones = send.call_args.args[0]['interactive']['action']['buttons']
+        self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
+
+    def test_grupo_op2_ve_solo_formacion(self):
+        tel = '573005550202'
+        self._persona_en_grupo(tel, PLAN_DOS_CURSOS)
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'hola'))
+        botones = send.call_args.args[0]['interactive']['action']['buttons']
+        self.assertEqual([b['reply']['id'] for b in botones], ['formacion'])
+
+    def test_grupo_op3_ve_solo_asesoria(self):
+        tel = '573005550203'
+        self._persona_en_grupo(tel, PLAN_ASESOR_60, plan_org=PLAN_DOS_CURSOS)
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'hola'))
+        botones = send.call_args.args[0]['interactive']['action']['buttons']
+        self.assertEqual([b['reply']['id'] for b in botones], ['asesoria'])
 
     def test_op2_solo_formacion_y_sin_asesor(self):
         tel = '573005550011'

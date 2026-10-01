@@ -606,6 +606,51 @@ def enviar_meta_carrusel(
     return result
 
 
+def enviar_meta_flow(
+    telefono: str,
+    texto: str,
+    flow_id: str,
+    *,
+    pantalla: str,
+    flow_token: str,
+    cta: str = 'Llenar ficha',
+    agente_evento: str = 'sandbox_formulario',
+) -> dict:
+    """Formulario nativo de WhatsApp (Flow). El chat sigue como respaldo si esto falla."""
+    to = _telefono_graph(telefono)
+    cuerpo = (texto or '').strip()[:1024]
+    if not to or not cuerpo or not flow_id or not pantalla:
+        return {'success': False, 'mensaje_id': None, 'response': 'Flow incompleto'}
+    result = _post_graph(
+        {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'flow',
+                'body': {'text': cuerpo},
+                'action': {
+                    'name': 'flow',
+                    'parameters': {
+                        'flow_message_version': '3',
+                        'flow_token': str(flow_token or 'gei')[:128],
+                        'flow_id': str(flow_id),
+                        'flow_cta': (cta or 'Llenar ficha')[:20],
+                        'flow_action': 'navigate',
+                        'flow_action_payload': {'screen': pantalla, 'data': {}},
+                    },
+                },
+            },
+        },
+        api_version='v23.0',
+        agente=agente_evento,
+    )
+    if result.get('success'):
+        _emit_enviado(to, cuerpo, result.get('mensaje_id'), 'whatsapp_sandbox', agente_evento)
+    return result
+
+
 def enviar_sandbox_habeas(telefono: str) -> dict:
     to = _telefono_graph(telefono)
     payload = {
@@ -735,8 +780,14 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
         body = str((message.get('text') or {}).get('body') or '').strip()
     elif mtype == 'interactive':
         inter = message.get('interactive') or {}
-        reply = inter.get('button_reply') or inter.get('list_reply') or {}
-        body = str(reply.get('id') or reply.get('title') or '').strip()
+        nfm = inter.get('nfm_reply') or {}
+        if nfm:
+            from formulario.flow_gei import MARCA_FLOW
+
+            body = MARCA_FLOW + str(nfm.get('response_json') or '{}')
+        else:
+            reply = inter.get('button_reply') or inter.get('list_reply') or {}
+            body = str(reply.get('id') or reply.get('title') or '').strip()
     elif mtype == 'button':
         btn = message.get('button') or {}
         body = str(btn.get('payload') or btn.get('text') or '').strip()

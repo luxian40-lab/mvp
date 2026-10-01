@@ -268,7 +268,7 @@ def iniciar_sesion_formulario(
         estudiante=estudiante, completado=False
     ).update(completado=True, fecha_update=timezone.now())
 
-    SesionFormulario.objects.create(
+    sesion = SesionFormulario.objects.create(
         estudiante=estudiante,
         formulario=tipo_formulario,
         paso_actual=0,
@@ -276,6 +276,14 @@ def iniciar_sesion_formulario(
         progreso=progreso,
         modulo_siguiente=modulo_siguiente,
     )
+
+    from formulario.flow_gei import intentar_enviar_flow
+
+    if intentar_enviar_flow(estudiante, tipo_formulario, sesion):
+        return (
+            "Si el formulario no abre, responda aquí.\n\n"
+            + _formatear_pregunta(1, len(pasos), pasos[0])
+        )
 
     if es_balance:
         intro = (
@@ -377,6 +385,11 @@ def manejar_mensaje_formulario(estudiante, texto_mensaje: str) -> str:
     )
     if not sesion:
         return "No hay un formulario activo. Escriba *menú* para continuar, por favor. "
+
+    from formulario.flow_gei import aplicar_respuestas_flow, datos_respuesta_flow, es_respuesta_flow
+
+    if es_respuesta_flow(texto_mensaje):
+        return aplicar_respuestas_flow(sesion, datos_respuesta_flow(texto_mensaje))
 
     # Escape: evita quedar atrapado si abandonó la ficha a mitad.
     tescape = (texto_mensaje or "").strip().lower()

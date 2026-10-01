@@ -62,6 +62,16 @@ class TipoFormulario(models.Model):
         help_text="Vacío = aplica a todos los clientes. Específico = solo para ese cliente (tiene prioridad sobre el global).",
     )
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    meta_flow_id = models.CharField(
+        max_length=40,
+        blank=True,
+        default="",
+        verbose_name="Formulario WhatsApp (Flow)",
+        help_text=(
+            "Si está vacío, la línea Meta lo publica sola a partir de los pasos. "
+            "Si WhatsApp no lo abre, las preguntas siguen una por una en el chat."
+        ),
+    )
     notas = models.TextField(blank=True, default="", verbose_name="Notas internas")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 

@@ -204,7 +204,7 @@ html[data-theme="dark"] .home-metrics__more {
     {% endif %}
 
     <div class="home-top">
-      <article class="home-card home-profile">
+      <article class="home-card home-profile dash-hero--org">
         {% if org.logo_url %}
         <img class="home-avatar" src="{{ org.logo_url }}" alt="" loading="lazy">
         {% else %}
@@ -254,6 +254,22 @@ html[data-theme="dark"] .home-metrics__more {
         <span class="home-door__more">Ver más</span>
       </a>
     </div>
+
+    {% if ops %}
+    <section class="home-card" style="margin-bottom:16px;" aria-label="Estado del programa">
+      <h2 style="margin:0 0 8px;font-size:1.05rem;">¿Cómo va mi programa?</h2>
+      {% if estado_programa %}
+      <p style="margin:0 0 12px;"><strong>{{ estado_programa.titulo }}</strong> {{ estado_programa.cuerpo }}</p>
+      {% endif %}
+      <h3 style="margin:0 0 8px;font-size:0.95rem;">¿Qué requiere atención hoy?</h3>
+      <p style="margin:0;font-size:0.9rem;">
+        Sin avance: {{ ops.sin_avance }} ·
+        Inactivos 30 días: {{ ops.inactivos_30_dias }} ·
+        PQRS: {{ ops.pqrs_pendientes }}
+        {% if comparativa %} · Este mes vs mes anterior{% endif %}
+      </p>
+    </section>
+    {% endif %}
 
     <a class="home-metrics" href="/portal/analitica/" aria-label="Métricas">
       <div class="home-metrics__icon" aria-hidden="true">

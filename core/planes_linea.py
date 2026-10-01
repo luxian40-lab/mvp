@@ -4,7 +4,8 @@ OP1 = 1 curso al mes + asesor (30 preguntas).
 OP2 = 2 cursos al mes, sin asesor.
 OP3 = asesor con 60 preguntas al mes, sin cursos.
 
-El plan sale de la persona (SandboxCanalSesion.plan) o, si no tiene, de su
+El plan sale de la persona (SandboxCanalSesion.plan), si no tiene de su
+grupo (GrupoEstudiantes.plan_linea_meta) y si el grupo no tiene, de su
 organización (Cliente.plan_linea_meta). Sin plan no hay cursos nuevos ni asesor;
 los cursos que ya van en curso siguen funcionando.
 """
@@ -90,9 +91,35 @@ def _plan_demo_twilio() -> PlanLinea:
     return plan_por_clave(getattr(settings, 'LINEA_DEMO_TWILIO_PLAN', PLAN_CURSO_ASESOR))
 
 
+def _plan_grupo(telefono: str) -> str:
+    """Grupo activo con plan. Si la persona está en varios, gana el creado de último."""
+    from datetime import date
+
+    from django.db.models import Q
+
+    from core.models_extras import GrupoEstudiantes
+
+    return (
+        GrupoEstudiantes.objects.filter(
+            activo=True,
+            plan_linea_meta__gt='',
+            estudiantes__telefono=telefono,
+            cliente__activo=True,
+        )
+        .filter(
+            Q(cliente__fecha_fin_suscripcion__isnull=True)
+            | Q(cliente__fecha_fin_suscripcion__gte=date.today())
+        )
+        .order_by('-fecha_creacion', '-id')
+        .values_list('plan_linea_meta', flat=True)
+        .first()
+        or ''
+    )
+
+
 def resolver_plan(telefono: str) -> PlanLinea:
     """
-    Persona > organización (con suscripción vigente) > LINEA_META_PLAN_DEFAULT.
+    Persona > grupo (suscripción vigente) > organización > LINEA_META_PLAN_DEFAULT.
     Con SANDBOX_PROVEEDOR=twilio (canal de demos) no se cobra: persona > LINEA_DEMO_TWILIO_PLAN.
     """
     from core.models import SandboxCanalSesion
@@ -110,6 +137,9 @@ def resolver_plan(telefono: str) -> PlanLinea:
         return plan_por_clave(propio)
     if not sandbox_via_meta():
         return _plan_demo_twilio()
+    grupo = _plan_grupo(tel)
+    if grupo:
+        return plan_por_clave(grupo)
     org = _plan_organizacion(tel)
     if org:
         return plan_por_clave(org)

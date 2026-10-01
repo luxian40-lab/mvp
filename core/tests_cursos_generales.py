@@ -151,19 +151,17 @@ class CatalogoFormacionTests(TestCase):
             out = dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         self.assertEqual(out, 'handled')
         self.assertEqual(carrusel.call_count, 1)
-        tarjetas = carrusel.call_args.args[2]
+        tarjetas = {t['clave']: t for t in carrusel.call_args.args[2]}
+        riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, cliente__isnull=True)
+        tiempo = Curso.objects.get(nombre=NOMBRE_TIEMPO, cliente__isnull=True)
         self.assertEqual(len(tarjetas), 3)
-        self.assertEqual(tarjetas[2]['url'], URL_TIEMPO)
+        self.assertEqual(tarjetas[f'curso_{tiempo.id}']['url'], URL_TIEMPO)
         self.assertEqual(
-            tarjetas[0]['botones'],
-            [('ver_riendas', 'Ver curso'), ('info_riendas', 'Más información')],
+            tarjetas[f'curso_{riendas.id}']['botones'],
+            [(f'ver_curso_{riendas.id}', 'Ver curso'), (f'info_curso_{riendas.id}', 'Más información')],
         )
-        self.assertEqual(
-            tarjetas[2]['botones'],
-            [('ver_tiempo', 'Ver curso'), ('info_tiempo', 'Más información')],
-        )
-        self.assertTrue(tarjetas[0]['imagen'].startswith('https://'))
-        self.assertIn('carrusel_riendas', tarjetas[0]['imagen'])
+        self.assertTrue(tarjetas[f'curso_{riendas.id}']['imagen'].startswith('https://'))
+        self.assertIn('carrusel_riendas', tarjetas[f'curso_{riendas.id}']['imagen'])
 
     def test_formacion_no_repite_carrusel_si_ya_eligio_este_mes(self):
         from core.models import Estudiante, ProgresoEstudiante
@@ -245,6 +243,32 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(
             ProgresoEstudiante.objects.filter(estudiante__telefono='573009991111', curso=nuevo).exists()
         )
+
+    def test_curso_general_nuevo_entra_al_menu_sin_marcarlo(self):
+        from core.cursos_generales import tarjetas_catalogo
+
+        nuevo = Curso.objects.create(
+            nombre='Cacao fino', descripcion='Fermentación en cajón.', cliente=None, activo=True
+        )
+        self.assertTrue(nuevo.catalogo_menu)
+        self.assertIn(f'curso_{nuevo.id}', [t['clave'] for t in tarjetas_catalogo()])
+
+    def test_mas_de_diez_cursos_van_en_dos_carruseles(self):
+        from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
+
+        for i in range(9):
+            Curso.objects.create(
+                nombre=f'General {i:02d}', descripcion='d', cliente=None, activo=True
+            )
+        paginas = paginas_carrusel(tarjetas_catalogo())
+        self.assertEqual([len(p) for p in paginas], [10, 2])
+        with patch(
+            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+        ) as carrusel:
+            dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
+        self.assertEqual(carrusel.call_count, 2)
+        self.assertEqual(len(carrusel.call_args_list[0].args[2]), 10)
+        self.assertEqual(len(carrusel.call_args_list[1].args[2]), 2)
 
     def test_carrusel_dos_botones_de_respuesta(self):
         from core.sandbox_canal import enviar_meta_carrusel

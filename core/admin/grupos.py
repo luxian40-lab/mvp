@@ -12,11 +12,11 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
     Los miembros se gestionan en «Gestionar miembros» (lista/Excel), no con el selector doble.
     """
     list_display = (
-        'nombre_completo', 'cliente_nombre', 'cantidad_estudiantes',
+        'nombre_completo', 'cliente_nombre', 'plan_linea_meta', 'cantidad_estudiantes',
         'gestionar_miembros_link', 'cursos_asociados_display',
         'whatsapp_grupos_link',
     )
-    list_filter = ('cliente', 'activo', 'fecha_creacion')
+    list_filter = ('cliente', 'plan_linea_meta', 'activo', 'fecha_creacion')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     filter_horizontal = ('cursos',)
     exclude = ('estudiantes',)
@@ -26,11 +26,12 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('📋 Información del Grupo', {
-            'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'activo'),
+            'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'plan_linea_meta', 'activo'),
             'description': (
                 'Un cliente (ej. Cenipalma) puede tener varios grupos: cohorte WA 1, '
-                'cohorte WA 2, 10x Aprende, etc. Asigne siempre la organización; '
-                'así Analítica y campañas filtran limpio por cliente → grupo.'
+                'cohorte WA 2, 10x Aprende, etc. Asigne siempre la organización. '
+                'El plan de línea Meta del grupo manda sobre el del cliente: '
+                'un grupo puede ir en OP1 y otro en OP2.'
             ),
         }),
         ('👥 Miembros del grupo', {

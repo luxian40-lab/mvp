@@ -52,7 +52,11 @@ class FlujoPreguntaInline(admin.TabularInline):
 
 @admin.register(TipoFormulario)
 class TipoFormularioAdmin(admin.ModelAdmin):
-    list_display = ("id", "nombre", "curso", "modulo", "cliente_label", "activo", "fecha_creacion")
+    list_display = ("id", "nombre", "curso", "modulo", "cliente_label", "activo", "meta_flow_id", "fecha_creacion")
+    fields = (
+        "nombre", "descripcion", "curso", "modulo", "cliente", "activo",
+        "meta_flow_id", "notas",
+    )
     list_filter = ("activo", "curso", "cliente")
     search_fields = ("nombre", "descripcion", "cliente__nombre")
     autocomplete_fields = ("cliente",)

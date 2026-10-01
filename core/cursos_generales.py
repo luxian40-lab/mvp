@@ -102,6 +102,11 @@ def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> di
     }
 
 
+_IMAGEN_POR_NOMBRE = {item['nombre']: item['imagen'] for item in CATALOGO}
+_URL_POR_NOMBRE = {item['nombre']: item['url'] for item in CATALOGO}
+MAX_TARJETAS_CARRUSEL = 10
+
+
 def _imagen_de_curso(curso) -> str:
     from core.models import Modulo
 
@@ -111,29 +116,56 @@ def _imagen_de_curso(curso) -> str:
         .values_list('imagen_portada_url', flat=True)
         .first()
     )
-    return portada or url_imagen_catalogo('carrusel_tiempo.jpg')
+    if portada:
+        return portada
+    return url_imagen_catalogo(_IMAGEN_POR_NOMBRE.get(curso.nombre) or 'carrusel_tiempo.jpg')
+
+
+def cursos_del_menu():
+    """Cursos generales activos marcados para Formación, en el orden del admin."""
+    from core.models import Curso
+
+    return Curso.objects.filter(
+        catalogo_menu=True, activo=True, cliente__isnull=True
+    ).order_by('orden', 'nombre', 'id')
 
 
 def tarjetas_catalogo() -> list[dict]:
-    """Los tres de siempre, más cualquier curso general marcado Catálogo del menú."""
-    from core.models import Curso
-
-    tarjetas = [
-        _tarjeta(item['clave'], item['nombre'], item['resumen'], url_imagen_catalogo(item['imagen']), item['url'])
-        for item in CATALOGO
-    ]
-    nombres = {item['nombre'] for item in CATALOGO}
-    extras = (
-        Curso.objects.filter(catalogo_menu=True, activo=True, cliente__isnull=True)
-        .exclude(nombre__in=nombres)
-        .order_by('orden', 'nombre', 'id')
-    )
-    for curso in extras:
+    """Una tarjeta por curso general del menú. La clave es curso_{id}, no un nombre fijo."""
+    tarjetas = []
+    for curso in cursos_del_menu():
         resumen = ' '.join((curso.descripcion or '').split())
         tarjetas.append(_tarjeta(
-            f'curso_{curso.id}', curso.nombre, resumen[:120], _imagen_de_curso(curso), ''
+            f'curso_{curso.id}',
+            curso.nombre,
+            resumen[:120],
+            _imagen_de_curso(curso),
+            _URL_POR_NOMBRE.get(curso.nombre, ''),
         ))
-    return tarjetas[:10]
+    return tarjetas
+
+
+def paginas_carrusel(tarjetas: list[dict]) -> list[list[dict]]:
+    """WhatsApp admite de 2 a 10 tarjetas. Si sobra una sola, se junta con la página anterior."""
+    items = list(tarjetas)
+    if len(items) <= MAX_TARJETAS_CARRUSEL:
+        return [items] if items else []
+    paginas: list[list[dict]] = []
+    i = 0
+    n = len(items)
+    while i < n:
+        restante = n - i
+        if restante <= MAX_TARJETAS_CARRUSEL:
+            if restante == 1 and paginas:
+                ultima = paginas[-1].pop()
+                paginas.append([ultima, items[i]])
+            else:
+                paginas.append(items[i:])
+            break
+        corte = 9 if restante - MAX_TARJETAS_CARRUSEL == 1 else MAX_TARJETAS_CARRUSEL
+        paginas.append(items[i:i + corte])
+        i += corte
+    return paginas
 
 
 def item_catalogo(clave: str) -> dict | None:

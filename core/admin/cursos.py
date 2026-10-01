@@ -326,7 +326,7 @@ class CursoAdmin(admin.ModelAdmin):
         'activo',
     )
     list_filter = (
-        'cliente', 'activo', 'modo_aula', 'visible_en_aula',
+        'cliente', 'activo', 'catalogo_menu', 'modo_aula', 'visible_en_aula',
         CursoListoCampanaFilter,
     )
     autocomplete_fields = ('cliente',)
@@ -346,7 +346,7 @@ class CursoAdmin(admin.ModelAdmin):
         ('Datos del curso', {
             'fields': (
                 'nombre', 'descripcion', 'cliente', 'duracion_semanas',
-                'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'orden',
+                'activo', 'catalogo_menu', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'orden',
                 'tope_whatsapp_resumen',
             ),
             'description': mark_safe(
@@ -1005,6 +1005,11 @@ class PasoModuloForm(forms.ModelForm):
             self.fields['contenido'].help_text = (
                 'Texto que ve el estudiante (opcional si solo sube archivo).'
             )
+        if 'video_entrega' in self.fields:
+            # Sin esto, una fila nueva o un guardado viejo exige el campo y no guarda el paso.
+            self.fields['video_entrega'].required = False
+            if not (self.initial.get('video_entrega') or getattr(self.instance, 'video_entrega', None)):
+                self.fields['video_entrega'].initial = PasoModulo.VIDEO_WHATSAPP
         if 'media_url' in self.fields:
             self.fields['media_url'].label = 'URL en S3 (se completa al Guardar)'
             self.fields['media_url'].required = False
@@ -1041,6 +1046,10 @@ class PasoModuloForm(forms.ModelForm):
         exclude = super()._get_validation_exclusions()
         exclude.add('orden')
         return exclude
+
+    def clean_video_entrega(self):
+        value = (self.cleaned_data.get('video_entrega') or '').strip()
+        return value or PasoModulo.VIDEO_WHATSAPP
 
     def clean_orden(self):
         """
@@ -2157,7 +2166,13 @@ class ModuloAdmin(admin.ModelAdmin):
         modo = resolver_modo_desde_request(
             request, getattr(obj, 'pk', None), default=MODO_CLASE
         )
-        if obj is None or (modo == MODO_CLASE and not avanzado):
+        tiene_partes = bool(
+            obj and (
+                getattr(obj, 'modo_entrega', None) == Modulo.MODO_ENTREGA_PASOS
+                or obj.pasos.exists()
+            )
+        )
+        if obj is None or (modo == MODO_CLASE and not avanzado and not tiene_partes):
             return []
         instances = []
         for inline_class in self.inlines:

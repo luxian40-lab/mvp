@@ -30,8 +30,8 @@
 {% block content %}
 <div class="page-title">
   <div>
-    <h1>{{ curso.nombre }}</h1>
-    <p class="muted">Estructura de módulos — sin listado de quién llegó a cada uno.</p>
+    <h1>Flujo del curso</h1>
+    <p class="muted">{{ curso.nombre }} — estructura de módulos{% if not puede_editar %}, solo lectura{% endif %}.</p>
   </div>
   <a class="btn btn-outline" href="/portal/cursos/">← Fábrica de competencias</a>
 </div>

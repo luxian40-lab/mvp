@@ -30,7 +30,7 @@ class CheckpointConSiguientePausadoTests(TestCase):
             activo=True,
             usar_agentes_ia=True,
             dias_espera_entre_modulos=0,
-            nombre_agente_asistente='CompaÃ±ero',
+            nombre_agente_asistente='Compañero',
             nombre_agente_tutor='Asesor',
         )
         self.est = Estudiante.objects.create(
@@ -99,7 +99,7 @@ class CheckpointConSiguientePausadoTests(TestCase):
         resp = self._listo()
 
         self.assertNotIn('le avisamos', resp.lower())
-        self.assertIn('CompaÃ±ero', resp)
+        self.assertIn('Compañero', resp)
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
         ctx = self.est.contexto_temporal or {}
@@ -142,7 +142,7 @@ class CheckpointMiniExamenConSiguientePausadoTests(TestCase):
             activo=True,
             usar_agentes_ia=True,
             dias_espera_entre_modulos=0,
-            nombre_agente_asistente='CompaÃ±ero',
+            nombre_agente_asistente='Compañero',
             nombre_agente_tutor='Asesor',
         )
         self.est = Estudiante.objects.create(

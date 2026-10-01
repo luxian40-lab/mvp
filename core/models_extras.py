@@ -10,6 +10,9 @@ Modelos adicionales para mejoras solicitadas por el cliente
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+
+from core.planes_linea import PLAN_CHOICES as PLAN_LINEA_CHOICES
+
 from .models import Estudiante, Curso, Modulo, Cliente
 
 
@@ -55,6 +58,18 @@ class GrupoEstudiantes(models.Model):
         verbose_name='Cursos Asociados',
         blank=True,
         help_text='Cursos relacionados con este grupo (opcional)'
+    )
+    plan_linea_meta = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=PLAN_LINEA_CHOICES,
+        verbose_name='Plan línea Meta',
+        help_text=(
+            'Plan de las personas de este grupo. Vacío = usan el plan del cliente. '
+            'Así un mismo cliente puede tener un grupo en OP1 y otro en OP2. '
+            'Si alguien está en varios grupos con plan, gana el grupo creado de último.'
+        ),
     )
     activo = models.BooleanField(
         default=True,
