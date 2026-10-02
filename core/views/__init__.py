@@ -4,18 +4,21 @@ from core.views.legacy import (
     _bot_comercial_respuesta_catalogo,
     _bot_comercial_sin_contexto_natural,
     _contexto_fallback_web_agro,
-    _encolar_twilio_edu_si_async,
-    _enviar_mensaje_twilio_segmentado,
     _es_ack_certificado,
-    _es_status_callback_twilio,
     _haversine_metros,
     _intentar_responder_envio_certificado,
     _procesar_bot_comercial_twilio_webhook,
     _procesar_meta_webhook,
     _procesar_twilio_webhook,
     _procesar_ubicacion_empleabilidad,
-    _registrar_estado_twilio_callback,
     whatsapp_webhook,
+)
+
+from core.views.twilio_transporte import (
+    _encolar_twilio_edu_si_async,
+    _enviar_mensaje_twilio_segmentado,
+    _es_status_callback_twilio,
+    _registrar_estado_twilio_callback,
 )
 
 from core.views.webhook_comercial import (

@@ -8,9 +8,11 @@ from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
 from .legacy import (
     _aplicar_sandbox_menu,
+    logger,
+)
+from .twilio_transporte import (
     _es_status_callback_twilio,
     _twilio_post_plano,
-    logger,
 )
 
 def _encolar_bot_comercial_si_async(post_data, *, forzar_canal: bool = False) -> bool:
