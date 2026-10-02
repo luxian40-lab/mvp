@@ -1,17 +1,23 @@
 from core.views.legacy import (
-    _activar_radar_empleabilidad_si_aplica,
     _aplicar_sandbox_menu,
     _bot_comercial_respuesta_catalogo,
     _bot_comercial_sin_contexto_natural,
     _contexto_fallback_web_agro,
-    _es_ack_certificado,
-    _haversine_metros,
-    _intentar_responder_envio_certificado,
     _procesar_bot_comercial_twilio_webhook,
     _procesar_meta_webhook,
     _procesar_twilio_webhook,
-    _procesar_ubicacion_empleabilidad,
     whatsapp_webhook,
+)
+
+from core.views.empleabilidad import (
+    _activar_radar_empleabilidad_si_aplica,
+    _haversine_metros,
+    _procesar_ubicacion_empleabilidad,
+)
+
+from core.views.certificados_wa import (
+    _es_ack_certificado,
+    _intentar_responder_envio_certificado,
 )
 
 from core.views.twilio_transporte import (

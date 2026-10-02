@@ -274,46 +274,10 @@ def whatsapp_webhook(request):
         return HttpResponse('OK')
 
 
-def _cliente_en_ventana(cliente, campo_habilitar, campo_inicio, campo_fin):
-    """Evalúa si una funcionalidad está habilitada para un cliente según ventana de fechas."""
-    if not cliente:
-        return True
-    if not getattr(cliente, campo_habilitar, False):
-        return False
-
-    hoy = timezone.localdate()
-    inicio = getattr(cliente, campo_inicio, None)
-    fin = getattr(cliente, campo_fin, None)
-
-    if inicio and hoy < inicio:
-        return False
-    if fin and hoy > fin:
-        return False
-    return True
 
 
-def _cliente_habilita_pregunta_abierta_final(cliente):
-    return _cliente_en_ventana(
-        cliente,
-        'habilitar_pregunta_abierta_final',
-        'fecha_inicio_pregunta_abierta_final',
-        'fecha_fin_pregunta_abierta_final',
-    )
 
 
-def _cliente_habilita_proximidad(cliente):
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
-
-    # PAUSA: radar/empleabilidad territorial fuera de circulación.
-    if empleabilidad_en_pausa():
-        return False
-    habilitado_legacy = _cliente_en_ventana(
-        cliente,
-        'habilitar_gamificacion_proximidad',
-        'fecha_inicio_gamificacion_proximidad',
-        'fecha_fin_gamificacion_proximidad',
-    )
-    return bool(habilitado_legacy or (cliente and getattr(cliente, 'empleabilidad_exploracion_activa', False)))
 
 
 # --- Nat / bot comercial: lógica en core.bot_comercial.webhook ---
@@ -346,269 +310,22 @@ from core.bot_comercial.webhook import (  # noqa: E402
 
 
 
-def _haversine_metros(lat1, lon1, lat2, lon2):
-    """Distancia Haversine en metros."""
-    radio_tierra = 6371000.0
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lon2 - lon1)
-    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return radio_tierra * c
 
 
-def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
-    from ..response_templates import _mensaje_bloqueo_drip
-    return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
 
-def _activar_radar_empleabilidad_si_aplica(estudiante):
-    from django.db.models import Q
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
-    from ..models import AliadoEmpleabilidad
-
-    # PAUSA PRODUCTO: no desbloquear radar Subachoque.
-    if empleabilidad_en_pausa():
-        return False
-
-    if not _cliente_habilita_proximidad(estudiante.cliente):
-        return False
-
-    if estudiante.cliente_id:
-        hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
-            Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
-        ).exists()
-    else:
-        hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).exists()
-
-    if not hay_aliados:
-        return False
-
-    ctx = estudiante.contexto_temporal or {}
-    ctx['radar_empleabilidad_activo'] = True
-    ctx['empleabilidad_habilitado_en'] = timezone.now().isoformat()
-    estudiante.contexto_temporal = ctx
-    estudiante.save(update_fields=['contexto_temporal'])
-    return True
 
 
-def _pregunta_abierta_final_pendiente(estudiante, progreso):
-    from ..models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
-
-    preguntas_qs = PreguntaAbiertaFinalCurso.objects.filter(
-        curso=progreso.curso,
-        activa=True
-    ).order_by('orden', 'id')
-
-    if not preguntas_qs.exists():
-        return None
-
-    cliente_habilita = _cliente_habilita_pregunta_abierta_final(estudiante.cliente)
-    curso_habilita = bool(getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False))
-    if not (cliente_habilita and curso_habilita):
-        logger.info(
-            "⚠️ Fallback pregunta abierta final por configuración | estudiante_id=%s | curso_id=%s | cliente_habilita=%s | curso_habilita=%s",
-            estudiante.id,
-            progreso.curso.id,
-            cliente_habilita,
-            curso_habilita,
-        )
-
-    preguntas = list(preguntas_qs[:3])
-
-    for pregunta in preguntas:
-        existe = RespuestaAbiertaFinal.objects.filter(
-            pregunta=pregunta,
-            estudiante=estudiante
-        ).exists()
-        if not existe:
-            return pregunta
-
-    return None
 
 
-def _radar_msg_si_aplica(estudiante):
-    """Copy de radar solo si la pausa está off y hay aliados. No envía Subachoque en pausa."""
-    from core.empleabilidad_pausa import mensaje_radar_desbloqueado
-
-    if not _activar_radar_empleabilidad_si_aplica(estudiante):
-        return ''
-    return mensaje_radar_desbloqueado()
 
 
-def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
-    """
-    Evalúa proximidad del estudiante a aliados activos y construye respuesta.
-    Guarda aliado objetivo en contexto para validación de código secreto.
-    """
-    from django.db.models import Q
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
-    from ..models import AliadoEmpleabilidad, MisionEmpleabilidad
-
-    # PAUSA PRODUCTO: no crear misiones ni pedir código de aliado.
-    if empleabilidad_en_pausa():
-        return ''
-
-    if not _cliente_habilita_proximidad(estudiante.cliente):
-        return (
-            "📍 El radar de empleabilidad por ubicación no está activo para tu organización en esta fecha. "
-            "Si lo esperabas, escribe *ayuda* para que el equipo valide tu acceso."
-        )
-
-    if estudiante.cliente_id:
-        aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
-            Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
-        )
-    else:
-        aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True)
-
-    aliados = list(aliados)
-    if not aliados:
-        return "📍 En este momento no hay vacantes activas de aliados en tu zona. Te avisaremos cuando se habiliten."
-
-    cliente_cfg = estudiante.cliente
-    radio_metros = int(getattr(cliente_cfg, 'empleabilidad_radio_metros', 800) or 800)
-    max_misiones_dia = int(getattr(cliente_cfg, 'empleabilidad_max_misiones_dia', 3) or 3)
-    hoy = timezone.localdate()
-    misiones_hoy = MisionEmpleabilidad.objects.filter(
-        estudiante=estudiante,
-        fecha_descubierta__date=hoy,
-    ).exclude(estado='cancelada').count()
-    if misiones_hoy >= max_misiones_dia:
-        return (
-            f"📌 Ya completaste tu límite diario de exploración ({max_misiones_dia} misiones).\n"
-            "Vuelve mañana para descubrir nuevas oportunidades."
-        )
-
-    mejor = None
-    mejor_dist = None
-    for aliado in aliados:
-        dist = _haversine_metros(latitud, longitud, aliado.latitud, aliado.longitud)
-        if mejor_dist is None or dist < mejor_dist:
-            mejor_dist = dist
-            mejor = aliado
-
-    if not mejor:
-        return "No pude procesar tu ubicación en este momento. Inténtalo nuevamente."
-
-    if mejor_dist > radio_metros:
-        return (
-            "📍 Aún no hay oportunidades dentro de tu radio de exploración actual.\n\n"
-            f"Distancia más cercana a {mejor.nombre_empresa}: *{int(round(mejor_dist))} m*.\n"
-            f"Radio activo de tu organización: *{int(radio_metros)} m*."
-        )
-
-    mision = MisionEmpleabilidad.objects.create(
-        cliente=estudiante.cliente,
-        estudiante=estudiante,
-        aliado=mejor,
-        estado='descubierta',
-        latitud=latitud,
-        longitud=longitud,
-        distancia_metros=round(mejor_dist, 1),
-        metadata={'fuente': 'whatsapp_location'},
-    )
-
-    ctx = estudiante.contexto_temporal or {}
-    ctx['radar_empleabilidad_activo'] = True
-    ctx['aliado_empleabilidad_objetivo_id'] = mejor.id
-    ctx['mision_empleabilidad_id'] = mision.id
-    ctx['distancia_aliado_m'] = round(mejor_dist, 1)
-    estudiante.contexto_temporal = ctx
-    estudiante.estado_onboarding = 'esperando_codigo_empleabilidad'
-    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-
-    if mejor_dist <= 100:
-        return (
-            f"🎯 *¡Estás a {int(round(mejor_dist))} metros de {mejor.nombre_empresa}!*\n\n"
-            "Acércate a la entrada y envía el *código secreto* que verás en la puerta."
-        )
-
-    sector = mejor.indicacion_sector or "del parque principal"
-    return (
-        "📍 Aún estás lejos de nuestras empresas aliadas.\n\n"
-        f"Vas por buen camino. Acércate al sector *{sector}* y vuelve a enviarme tu ubicación.\n"
-        f"Distancia aproximada actual a {mejor.nombre_empresa}: *{int(round(mejor_dist))} m*."
-    )
 
 
-def _es_respuesta_liberar_certificado(msg: str) -> bool:
-    """
-    Respuesta del estudiante que abre ventana WhatsApp tras plantilla de certificado.
-    Acepta OK, gracias, cualquier texto o número. NO acepta 'listo'/'continuar'
-    (comandos de avance de curso).
-    """
-    import re
-
-    t = (msg or '').strip().lower()
-    if not t:
-        return False
-    limpio = re.sub(r'[^0-9a-záéíóúñ ]', '', t).strip()
-    if not limpio:
-        return False
-    if limpio in ('listo', 'continuar', 'continuar curso', 'siguiente', 'menu', 'menú'):
-        return False
-    return True
 
 
-def _es_ack_certificado(msg: str) -> bool:
-    """Alias retrocompatible para tests y plantilla inicial (pide OK)."""
-    return _es_respuesta_liberar_certificado(msg)
 
 
-def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio, msg_from):
-    """
-    Si el estudiante tiene un certificado pendiente (tras plantilla de aviso) y responde
-    cualquier mensaje, envía el diploma (la ventana de 24 h quedó abierta por su respuesta).
-    """
-    ctx = estudiante.contexto_temporal or {}
-    pend = ctx.get('cert_envio_pendiente')
-    if not pend:
-        return False
-    if not _es_respuesta_liberar_certificado(msg_body):
-        return False
-
-    cert_id = pend.get('certificado_id')
-    from ..models_certificados import Certificado
-    from ..certificado_service import enviar_certificado_whatsapp
-    from ..certificado_presencial_service import (
-        cerrar_curso_si_tramo_final,
-        limpiar_cert_envio_pendiente,
-    )
-
-    cert = (
-        Certificado.objects.filter(id=cert_id, emitido=True)
-        .select_related('estudiante', 'curso')
-        .first()
-    )
-    if not cert:
-        limpiar_cert_envio_pendiente(estudiante)
-        return False
-
-    ok = False
-    try:
-        ok = enviar_certificado_whatsapp(cert)
-    except Exception as e:
-        logger.error('🎓 Envío certificado tras OK falló est=%s: %s', estudiante.id, e, exc_info=True)
-
-    if ok:
-        limpiar_cert_envio_pendiente(estudiante)
-        if pend.get('cerrar_avance'):
-            cerrar_curso_si_tramo_final(estudiante, cert.curso)
-        logger.info(
-            '🎓 Certificado %s entregado tras respuesta de est=%s',
-            cert.codigo_verificacion,
-            estudiante.id,
-        )
-    else:
-        logger.error(
-            '🎓 Certificado %s NO pudo enviarse tras respuesta de est=%s (sigue pendiente)',
-            cert.codigo_verificacion,
-            estudiante.id,
-        )
-    # La respuesta era para el certificado: no seguir onboarding/curso.
-    return True
 
 
 def _procesar_twilio_webhook(post_data):
@@ -4339,3 +4056,10 @@ from .twilio_transporte import (
     _registrar_estado_twilio_callback,
     youtube_hace_solo_enlace_en_texto,
 )
+
+from .empleabilidad import (
+    _procesar_ubicacion_empleabilidad,
+    _radar_msg_si_aplica,
+)
+from .certificados_wa import _intentar_responder_envio_certificado
+from .ventana_drip import _pregunta_abierta_final_pendiente
