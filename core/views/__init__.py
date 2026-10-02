@@ -18,11 +18,14 @@ from core.views.legacy import (
     _registrar_estado_twilio_callback,
     _transcribir_audio_twilio,
     bot_comercial_webhook,
+    whatsapp_webhook,
+)
+
+from core.views.media import (
     descargar_archivo_multimedia,
     obtener_archivos_modulo_view,
     serve_media_proxy,
     stream_media,
-    whatsapp_webhook,
 )
 
 from core.views.admin_panel import (
