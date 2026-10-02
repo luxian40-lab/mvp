@@ -62,8 +62,8 @@ def test_whatsapp_webhook_firma_invalida_403():
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
 )
-@patch('core.views.legacy._procesar_twilio_webhook', return_value=None)
-@patch('core.views.legacy._encolar_twilio_edu_si_async', return_value=False)
+@patch('core.views.entrada._procesar_twilio_webhook', return_value=None)
+@patch('core.views.entrada._encolar_twilio_edu_si_async', return_value=False)
 @patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
 def test_whatsapp_webhook_firma_valida_ok(mock_route, mock_async, mock_proc):
     client = Client()
@@ -172,7 +172,7 @@ def test_bot_comercial_webhook_encola_celery(mock_delay, mock_proc):
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
 )
-@patch('core.views.legacy._procesar_meta_webhook')
+@patch('core.views.entrada._procesar_meta_webhook')
 def test_meta_json_sin_firma_twilio_pasa(mock_meta):
     """Payload Meta (entry) no exige X-Twilio-Signature."""
     client = Client()

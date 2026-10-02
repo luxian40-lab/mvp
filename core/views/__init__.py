@@ -3,8 +3,9 @@ from core.views.legacy import (
     _bot_comercial_sin_contexto_natural,
     _contexto_fallback_web_agro,
     _procesar_bot_comercial_twilio_webhook,
-    whatsapp_webhook,
 )
+
+from core.views.entrada import whatsapp_webhook
 
 from core.views.webhook_twilio import _procesar_twilio_webhook
 
