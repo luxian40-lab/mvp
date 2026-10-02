@@ -138,7 +138,7 @@ class AudioCompaneroNoEsListoTests(TestCase):
         from core.models import WhatsappLog
 
         with patch(
-            'core.views.legacy._transcribir_audio_twilio',
+            'core.views.webhook_twilio._transcribir_audio_twilio',
             return_value='cuando debo preocuparme por la mortalidad de mis abejas',
         ) as trans, patch(
             'core.tutor_ia_modulo.generar_respuesta_asistente',

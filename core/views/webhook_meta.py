@@ -171,4 +171,4 @@ def _procesar_meta_webhook(payload):
 
 from .twilio_transporte import _encolar_twilio_edu_si_async
 from .webhook_comercial import _encolar_bot_comercial_si_async
-from .legacy import _procesar_twilio_webhook
+from .webhook_twilio import _procesar_twilio_webhook
