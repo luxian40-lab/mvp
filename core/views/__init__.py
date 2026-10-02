@@ -16,9 +16,14 @@ from core.views.legacy import (
     _procesar_twilio_webhook,
     _procesar_ubicacion_empleabilidad,
     _registrar_estado_twilio_callback,
-    _transcribir_audio_twilio,
     bot_comercial_webhook,
     whatsapp_webhook,
+)
+
+from core.views.audio import (
+    _audio_path_para_whisper,
+    _transcribir_audio_twilio,
+    _transcribir_con_vosk,
 )
 
 from core.views.media import (
