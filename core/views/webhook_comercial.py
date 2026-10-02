@@ -6,10 +6,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
-from .legacy import (
-    _aplicar_sandbox_menu,
-    logger,
-)
+# legacy lo sustituye al cargar webhook_meta (la llamada vive en este módulo).
+_aplicar_sandbox_menu = None
+
+from .legacy import logger
 from .twilio_transporte import (
     _es_status_callback_twilio,
     _twilio_post_plano,

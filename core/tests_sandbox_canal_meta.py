@@ -215,7 +215,7 @@ class SandboxCanalMetaWebhookTests(TestCase):
         payload = _meta_envelope(
             {'from': '573001234592', 'id': 'wamid.in2', 'type': 'text', 'text': {'body': 'listo'}},
         )
-        with patch('core.views.legacy._procesar_twilio_webhook', return_value=None) as edu, \
+        with patch('core.views.webhook_meta._procesar_twilio_webhook', return_value=None) as edu, \
                 patch('core.views.legacy._procesar_meta_webhook') as legacy:
             resp = self.client.post(
                 '/webhook/whatsapp/',
@@ -240,7 +240,7 @@ class SandboxCanalMetaWebhookTests(TestCase):
         payload = _meta_envelope(
             {'from': '573001234594', 'id': 'wamid.in3', 'type': 'text', 'text': {'body': 'mancha en tomate'}},
         )
-        with patch('core.views.legacy._encolar_bot_comercial_si_async', return_value=False), \
+        with patch('core.views.webhook_meta._encolar_bot_comercial_si_async', return_value=False), \
                 patch('core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook') as nat, \
                 patch('core.views.legacy._procesar_meta_webhook') as legacy:
             resp = self.client.post(

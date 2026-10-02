@@ -54,79 +54,10 @@ from .audio import _transcribir_audio_twilio
 
 
 
-def _sandbox_inbound_repetido(inbound) -> bool:
-    """Meta reintenta si tardamos: el mismo wamid no debe responder ni gastar cupo dos veces."""
-    sid = str(inbound.get('MessageSid') or '').strip()
-    if not sid:
-        return False
-    try:
-        from django.core.cache import cache
-
-        if cache.add(f'sandbox_in:{sid}', 1, timeout=6 * 3600):
-            return False
-    except Exception:
-        logger.exception('sandbox_dedupe_cache_fail')
-        return False
-    logger.info('sandbox_inbound_duplicado sid=%s', sid)
-    return True
 
 
-def _encolar_sandbox_si_async(inbound) -> bool:
-    """Menú, agentes y cursos de la línea Meta en Celery si SANDBOX_CELERY_ASYNC=true."""
-    if not getattr(settings, 'SANDBOX_CELERY_ASYNC', False):
-        return False
-    try:
-        from core.tasks import procesar_sandbox_meta_async
-
-        procesar_sandbox_meta_async.delay(dict(inbound))
-    except Exception:
-        logger.exception('sandbox_encolar_fail sid=%s — fallback síncrono', inbound.get('MessageSid', ''))
-        return False
-    return True
 
 
-def _aplicar_sandbox_menu(data):
-    """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción."""
-    from core.sandbox_canal import (
-        canal_sandbox_si_meta,
-        es_inbound_twilio_http,
-        sandbox_via_meta,
-        to_es_sandbox,
-    )
-    from core.sandbox_menu import dispatch_sandbox_menu, sandbox_menu_enabled, sandbox_number
-    from core.wa_reply_context import reply_from
-
-    if (
-        sandbox_menu_enabled()
-        and sandbox_via_meta()
-        and es_inbound_twilio_http(data)
-        and to_es_sandbox(data)
-    ):
-        logger.info('sandbox_twilio_inbound_ignorado To=%s (canal=meta)', data.get('To', ''))
-        return HttpResponse('OK')
-
-    with canal_sandbox_si_meta():
-        ruta = dispatch_sandbox_menu(data)
-        if ruta is None:
-            return None
-        if ruta == 'handled':
-            return HttpResponse('OK')
-        if ruta == 'nat':
-            from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
-
-            if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
-                _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
-            return HttpResponse('OK')
-        if ruta == 'cursos':
-            sb = sandbox_number()
-            with reply_from(sb):
-                if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
-                    return HttpResponse('OK')
-                tw = _procesar_twilio_webhook(data)
-                if isinstance(tw, HttpResponse):
-                    return tw
-            return HttpResponse('OK')
-        return None
 
 
 # ---------- Webhook para WhatsApp Cloud API ----------
@@ -3955,92 +3886,6 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
         cerrar_retencion_turno(_turno_token)
 
 
-def _procesar_meta_webhook(payload):
-    """Procesa webhooks de Meta WhatsApp (mantiene compatibilidad)"""
-    try:
-        print("🔵 META: Procesando...")
-        entries = payload.get('entry', [])
-        
-        for entry in entries:
-            changes = entry.get('changes', [])
-            for change in changes:
-                value = change.get('value', {})
-                meta_to = (
-                    (value.get('metadata') or {}).get('display_phone_number')
-                    or (value.get('metadata') or {}).get('phone_number_id')
-                    or ''
-                )
-                
-                # Mensajes entrantes
-                messages = value.get('messages', [])
-                for m in messages:
-                    phone = m.get('from')
-                    msg_id = m.get('id')
-                    text = ''
-                    if 'text' in m and isinstance(m['text'], dict):
-                        text = m['text'].get('body', '')
-                    
-                    # Guardar mensaje
-                    WhatsappLog.objects.create(
-                        telefono=phone,
-                        mensaje=text,
-                        mensaje_id=msg_id,
-                        tipo='INCOMING'
-                    )
-                    
-                    # Obtener o crear estudiante
-                    estudiante, _ = Estudiante.objects.get_or_create(
-                        telefono=phone,
-                        defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}
-                    )
-                    
-                    # Verificar seguridad primero
-                    from ..security_handler import verificar_seguridad_completa
-                    bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
-                        estudiante,
-                        text,
-                        telefono=phone,
-                        numero_destino=meta_to,
-                    )
-                    
-                    if bloqueado:
-                        texto_respuesta = respuesta_seguridad
-                    else:
-                        # Detectar intent
-                        intent = detect_intent(text)
-                        
-                        if intent != 'desconocido':
-                            # Usar template
-                            texto_respuesta = get_response_for_intent(
-                                intent, 
-                                estudiante.nombre,
-                                estudiante_id=estudiante.id,
-                                mensaje_original=text
-                            )
-                        else:
-                            # Usar IA solo para preguntas
-                            try:
-                                from ..ai_assistant import responder_con_ia
-                                texto_respuesta = responder_con_ia(text, phone)
-                            except Exception as e:
-                                print(f"Error IA: {e}")
-                                texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
-                    
-                    # Enviar respuesta
-                    resultado_envio = enviar_whatsapp(phone, texto_respuesta)
-                    
-                    if resultado_envio.get('success'):
-                        WhatsappLog.objects.create(
-                            telefono=phone,
-                            mensaje=texto_respuesta,
-                            mensaje_id=resultado_envio.get('mensaje_id'),
-                            tipo='SENT'
-                        )
-    
-    except Exception as e:
-        print(f"❌ Error en _procesar_meta_webhook: {str(e)}")
-        import traceback
-        traceback.print_exc()
 
 
 
@@ -4063,3 +3908,12 @@ from .empleabilidad import (
 )
 from .certificados_wa import _intentar_responder_envio_certificado
 from .ventana_drip import _pregunta_abierta_final_pendiente
+
+from .webhook_meta import (
+    _aplicar_sandbox_menu,
+    _encolar_sandbox_si_async,
+    _procesar_meta_webhook,
+    _sandbox_inbound_repetido,
+)
+from . import webhook_comercial as _webhook_comercial_mod
+_webhook_comercial_mod._aplicar_sandbox_menu = _aplicar_sandbox_menu

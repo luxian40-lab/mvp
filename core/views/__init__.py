@@ -1,12 +1,15 @@
 from core.views.legacy import (
-    _aplicar_sandbox_menu,
     _bot_comercial_respuesta_catalogo,
     _bot_comercial_sin_contexto_natural,
     _contexto_fallback_web_agro,
     _procesar_bot_comercial_twilio_webhook,
-    _procesar_meta_webhook,
     _procesar_twilio_webhook,
     whatsapp_webhook,
+)
+
+from core.views.webhook_meta import (
+    _aplicar_sandbox_menu,
+    _procesar_meta_webhook,
 )
 
 from core.views.empleabilidad import (
