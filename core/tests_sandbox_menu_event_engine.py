@@ -294,6 +294,9 @@ class SandboxMenuTests(TestCase):
         with patch(
             'core.views.legacy._transcribir_audio_twilio',
             return_value='me cuesta organizar el tiempo',
+        ), patch(
+            'core.views._transcribir_audio_twilio',
+            return_value='me cuesta organizar el tiempo',
         ):
             d = resolver_ruta_sandbox(audio_payload)
         self.assertEqual(d.action, 'coach')
