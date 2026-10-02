@@ -4,7 +4,6 @@ from core.views.legacy import (
     _bot_comercial_respuesta_catalogo,
     _bot_comercial_sin_contexto_natural,
     _contexto_fallback_web_agro,
-    _encolar_bot_comercial_si_async,
     _encolar_twilio_edu_si_async,
     _enviar_mensaje_twilio_segmentado,
     _es_ack_certificado,
@@ -16,8 +15,12 @@ from core.views.legacy import (
     _procesar_twilio_webhook,
     _procesar_ubicacion_empleabilidad,
     _registrar_estado_twilio_callback,
-    bot_comercial_webhook,
     whatsapp_webhook,
+)
+
+from core.views.webhook_comercial import (
+    _encolar_bot_comercial_si_async,
+    bot_comercial_webhook,
 )
 
 from core.views.audio import (
