@@ -32,6 +32,8 @@ Copiadas a `.cursor/rules/eki.mdc`. Resumen:
 - Antes de editar, plan de archivos. Después: `check`, `makemigrations --check --dry-run` y tests del área.
 - Si un test que no estaba en el baseline falla, detenerse y reportarlo. No cambiar el test para taparlo.
 - Feature flags nuevos con default que no cambia el comportamiento actual, salvo que el bloque diga lo contrario.
+- 13. Meta (WhatsApp Cloud API) es el canal principal de producto. Twilio es demo y campañas HSM históricas. Todo diseño nuevo de envío, estados, límites y alertas se piensa primero para Meta y se implementa detrás de una interfaz Sender intercambiable.
+- 14. Los umbrales de Meta (mps, tamaños, códigos de error, ventana de 24 h) se leen de settings, nunca van fijos en el código, y se documentan con la fecha en que se verificaron.
 
 ## 2. Protocolo del slice
 

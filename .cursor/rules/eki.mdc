@@ -17,5 +17,7 @@ alwaysApply: true
 - Antes de editar, muestra un plan de archivos a tocar. Después de editar, corre `python manage.py check`, `python manage.py makemigrations --check --dry-run` y los tests del área.
 - Si un test que no estaba en el baseline falla, detente y repórtalo. No lo "arregles" cambiando el test.
 - Los feature flags nuevos se agregan con default que no cambia el comportamiento actual salvo que el bloque diga lo contrario.
+- 13. Meta (WhatsApp Cloud API) es el canal principal de producto. Twilio es demo y campañas HSM históricas. Todo diseño nuevo de envío, estados, límites y alertas se piensa primero para Meta y se implementa detrás de una interfaz Sender intercambiable.
+- 14. Los umbrales de Meta (mps, tamaños, códigos de error, ventana de 24 h) se leen de settings, nunca van fijos en el código, y se documentan con la fecha en que se verificaron.
 
 Plan del slice: `docs/PLAN_ESCALABILIDAD_EKI.md`. Un bloque a la vez; al cerrar, informe de gate y esperar "continúa".
