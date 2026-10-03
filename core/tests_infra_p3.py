@@ -45,9 +45,13 @@ class ColasYRolTests(SimpleTestCase):
 
 class MigrateLockedTests(SimpleTestCase):
     def test_sin_postgres_no_pide_advisory_lock(self):
+        from django.db import connections
+
         from core.management.commands.migrate_locked import Command
 
-        with patch('django.core.management.call_command') as migrate:
+        envoltura = connections['default']
+        with patch.object(envoltura, 'vendor', 'sqlite'), \
+                patch('django.core.management.call_command') as migrate:
             Command().handle()
         migrate.assert_called_once_with('migrate', interactive=False)
 
