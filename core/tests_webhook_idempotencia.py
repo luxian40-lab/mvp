@@ -210,11 +210,13 @@ def test_firma_invalida_no_crea_registro(mock_proc):
     TWILIO_VALIDATE_SIGNATURE=False,
     SANDBOX_MENU_ENABLED=False,
     SECURE_SSL_REDIRECT=False,
+    WEBHOOK_CELERY_ASYNC=False,
 )
-@patch('core.views.entrada._procesar_twilio_webhook', return_value=None)
-@patch('core.views.entrada._encolar_twilio_edu_si_async')
-@patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
-def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa(mock_route, mock_encolar, mock_proc):
+def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa():
+    """El caller es core.views.entrada: ahí se buscan los nombres, no en webhook_twilio."""
+    import core.views.entrada as entrada
+
+    assert entrada._procesar_twilio_reclamado.__globals__ is entrada.__dict__
     client = Client()
     data = {
         'From': 'whatsapp:+573001112233',
@@ -222,18 +224,22 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa(mock_route, mock_
         'Body': 'listo',
         'MessageSid': 'SMretry1',
     }
-    mock_encolar.side_effect = ConnectionError('redis')
-    resp = client.post('/webhook/whatsapp/', data=data, secure=True, HTTP_HOST='testserver')
-    assert resp.status_code == 500
-    mock_proc.assert_not_called()
-    assert not WebhookEventoProcesado.objects.filter(external_id='SMretry1').exists()
+    with patch.object(entrada, '_encolar_twilio_edu_si_async') as mock_encolar, \
+            patch.object(entrada, '_procesar_twilio_webhook', return_value=None) as mock_proc, \
+            patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False), \
+            patch('core.utils.enviar_whatsapp_twilio', side_effect=AssertionError('no debe llamar a Twilio')):
+        mock_encolar.side_effect = ConnectionError('redis')
+        resp = client.post('/webhook/whatsapp/', data=data, secure=True, HTTP_HOST='testserver')
+        assert resp.status_code == 500
+        mock_proc.assert_not_called()
+        assert not WebhookEventoProcesado.objects.filter(external_id='SMretry1').exists()
 
-    mock_encolar.side_effect = None
-    mock_encolar.return_value = False
-    resp2 = client.post('/webhook/whatsapp/', data=data, secure=True, HTTP_HOST='testserver')
-    assert resp2.status_code == 200
-    mock_proc.assert_called_once()
-    assert WebhookEventoProcesado.objects.filter(canal=CANAL_TWILIO, external_id='SMretry1').exists()
+        mock_encolar.side_effect = None
+        mock_encolar.return_value = False
+        resp2 = client.post('/webhook/whatsapp/', data=data, secure=True, HTTP_HOST='testserver')
+        assert resp2.status_code == 200
+        mock_proc.assert_called_once()
+        assert WebhookEventoProcesado.objects.filter(canal=CANAL_TWILIO, external_id='SMretry1').exists()
 
 
 @pytest.mark.django_db
