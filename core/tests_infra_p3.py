@@ -31,10 +31,27 @@ class ColasYRolTests(SimpleTestCase):
         texto = Path('scripts/run_worker.sh').read_text(encoding='utf-8')
         self.assertIn('CELERY_POOL:-prefork', texto)
         self.assertIn('CELERY_CONCURRENCY:-1', texto)
-        self.assertIn('CELERY_QUEUES:-celery,media_encode', texto)
+        self.assertIn('CELERY_QUEUES:-conversacion,masivo,celery,media_encode', texto)
         self.assertNotIn('--pool="$POOL"', texto)
         self.assertIn('--pool=threads', texto)
         self.assertIn('prefork|threads', texto)
+        self.assertEqual(
+            settings.CELERY_BROKER_TRANSPORT_OPTIONS['visibility_timeout'],
+            600,
+        )
+
+    def test_toda_ruta_y_la_cola_de_beat_tienen_consumidor(self):
+        import re
+
+        worker = Path('scripts/run_worker.sh').read_text(encoding='utf-8')
+        rag = Path('scripts/run_worker_rag.sh').read_text(encoding='utf-8')
+        defecto_worker = re.search(r'CELERY_QUEUES:-([^}"\s]+)', worker).group(1)
+        defecto_rag = re.search(r'CELERY_QUEUES_RAG:-([^}"\s]+)', rag).group(1)
+        escuchadas = set(defecto_worker.split(',')) | set(defecto_rag.split(','))
+        for nombre, spec in settings.CELERY_TASK_ROUTES.items():
+            self.assertIn(spec['queue'], escuchadas, nombre)
+        # Beat no fija cola: publica en la cola por defecto de Celery.
+        self.assertIn('celery', escuchadas)
 
     def test_beat_corre_en_all_y_en_worker_solo_con_run_beat(self):
         texto = Path('scripts/run_beat.sh').read_text(encoding='utf-8')

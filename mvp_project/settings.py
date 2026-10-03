@@ -959,7 +959,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # en las tres tareas del webhook.
 CELERY_TASK_ACKS_LATE = False
 CELERY_TASK_REJECT_ON_WORKER_LOST = False
-CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 600}
 
 # ElastiCache con TLS (rediss://…)
 if CELERY_BROKER_URL.startswith('rediss://'):
