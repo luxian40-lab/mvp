@@ -28,73 +28,14 @@ def correlacionar_alertas_territoriales():
 @shared_task
 def reenganche_drip_content_diario():
     """
-    Reenganche diario: notifica a estudiantes cuyo próximo módulo ya se desbloqueó.
+    Reenganche diario por Graph. Con META_REENGANCHE_ENABLED en false no envía.
     """
     try:
-        from datetime import timedelta
-        from core.models import ProgresoEstudiante
-        from core.utils import enviar_whatsapp_twilio
-        from core.whatsapp_service import enviar_template_twilio
+        from core.reenganche_meta import ejecutar
 
-        ahora = timezone.now()
-        template_sid = (getattr(settings, 'TWILIO_TEMPLATE_DRIP_REENGANCHE', '') or '').strip()
-        from .drip_schedule import dias_espera_efectivos
-
-        queryset = ProgresoEstudiante.objects.select_related('estudiante', 'curso', 'modulo_actual').filter(
-            completado=False,
-            fecha_ultimo_avance__isnull=False,
-            modulo_actual__isnull=False,
-        )
-
-        enviados = 0
-        for progreso in queryset:
-            dias_drip = dias_espera_efectivos(progreso.estudiante, progreso.curso)
-            if dias_drip <= 0:
-                continue
-            from core.modulo_publicacion import siguiente_modulo_publicado_wa
-
-            siguiente = siguiente_modulo_publicado_wa(progreso.curso, progreso.modulo_actual)
-            if not siguiente:
-                continue
-
-            fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=dias_drip)
-            if fecha_desbloqueo.date() == ahora.date():
-                if template_sid:
-                    # Soporta plantilla HSM aprobada en Twilio para ventanas fuera de sesión.
-                    resultado = enviar_template_twilio(
-                        progreso.estudiante.telefono,
-                        template_sid,
-                        variables={'1': progreso.estudiante.nombre or 'estudiante', '2': progreso.curso.nombre}
-                    )
-                else:
-                    msg = (
-                        "👋 ¡Hola! Tu nuevo módulo ya está disponible.\n\n"
-                        f"Curso: *{progreso.curso.nombre}*\n"
-                        "Responde *LISTO* para continuar."
-                    )
-                    resultado = enviar_whatsapp_twilio(progreso.estudiante.telefono, msg)
-                if resultado.get('success'):
-                    enviados += 1
-                    try:
-                        from core.models import EstudianteEventoAprendizaje
-                        from core.telemetria import registrar_evento
-
-                        registrar_evento(
-                            tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,
-                            estudiante=progreso.estudiante,
-                            curso=progreso.curso,
-                            modulo=siguiente,
-                            metadata={
-                                'origen': 'reenganche_drip',
-                                'template': bool(template_sid),
-                                'modulo_desbloqueado_id': siguiente.pk,
-                            },
-                        )
-                    except Exception:
-                        pass
-
-        logger.info(f"[Celery] Reenganche drip completado. Notificaciones enviadas: {enviados}")
-        return {'enviados': enviados}
+        resultado = ejecutar()
+        logger.info('[Celery] Reenganche drip: %s', resultado)
+        return resultado
     except Exception as e:
         logger.error(f"[Celery] Error en reenganche drip: {e}")
         return {'error': str(e)}

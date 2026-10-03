@@ -364,33 +364,32 @@ class DripGeoGamificacionTests(TestCase):
 		)
 		self.assertIsNotNone(estudiante.contexto_temporal)
 
-	@override_settings(TWILIO_TEMPLATE_DRIP_REENGANCHE='HX_TEST_DRIP')
-	def test_reenganche_drip_usa_template_hsm_si_configurado(self):
-		try:
-			from core.tasks import reenganche_drip_content_diario
-			from core import whatsapp_service as ws_module
-			from core import utils as utils_module
-		except ModuleNotFoundError as exc:
-			self.skipTest(f"Dependencia no disponible para task test: {exc}")
-		with patch.object(ws_module, 'enviar_template_twilio') as mock_template, \
-			 patch.object(utils_module, 'enviar_whatsapp_twilio') as mock_texto:
-			mock_template.return_value = {'success': True, 'mensaje_id': 'SM123', 'response': 'ok'}
-			mock_texto.return_value = {'success': True, 'mensaje_id': 'SM999', 'response': 'ok'}
+	@override_settings(
+		META_REENGANCHE_ENABLED=False,
+		TWILIO_TEMPLATE_DRIP_REENGANCHE='HX_TEST_DRIP',
+	)
+	def test_reenganche_drip_apagado_no_usa_twilio(self):
+		from core.tasks import reenganche_drip_content_diario
 
-			estudiante = self._crear_estudiante('14')
-			curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Reenganche', dias_espera=2)
-			ProgresoEstudiante.objects.create(
-				estudiante=estudiante,
-				curso=curso,
-				modulo_actual=modulo_1,
-				fecha_ultimo_avance=timezone.now() - timedelta(days=2),
-			)
-
+		estudiante = self._crear_estudiante('14')
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Reenganche', dias_espera=2)
+		ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now() - timedelta(days=2),
+		)
+		with patch('core.sandbox_canal.enviar_meta') as meta, \
+			patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla, \
+			patch('core.whatsapp_service.enviar_template_twilio') as twilio, \
+			patch('core.utils.enviar_whatsapp_twilio') as texto:
 			resultado = reenganche_drip_content_diario()
-
-			self.assertEqual(resultado.get('enviados'), 1)
-			mock_template.assert_called_once()
-			mock_texto.assert_not_called()
+		self.assertFalse(resultado.get('habilitado'))
+		self.assertEqual(resultado.get('enviados'), 0)
+		meta.assert_not_called()
+		plantilla.assert_not_called()
+		twilio.assert_not_called()
+		texto.assert_not_called()
 
 	@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 	def test_proximidad_bloqueada_por_cliente_fuera_de_ventana(self):

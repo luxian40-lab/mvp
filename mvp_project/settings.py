@@ -355,9 +355,20 @@ EKI_MEDIA_FAIL_EMAIL = os.environ.get('EKI_MEDIA_FAIL_EMAIL', 'true').strip().lo
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
 TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GRUPO', '')  # Content SID del template de invitación
-# Content SID (HSM) para recordatorio cuando se desbloquea un módulo con drip. Vacío = mensaje de texto en sesión.
-# Requiere Celery Beat con la tarea reenganche_drip_content_diario (ver mvp_project/celery.py, 8:00).
+# Content SID histórico. El reenganche de las 08:00 ya no lo usa.
 TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCHE', '')
+# Reenganche drip solo por Graph. Apagado hasta tener plantilla Utility aprobada.
+META_REENGANCHE_ENABLED = os.environ.get('META_REENGANCHE_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+META_TEMPLATE_DRIP_REENGANCHE = os.environ.get('META_TEMPLATE_DRIP_REENGANCHE', '')
+META_TEMPLATE_DRIP_IDIOMA = os.environ.get('META_TEMPLATE_DRIP_IDIOMA', 'es')
+# Ventana de sesión de WhatsApp Cloud API. 131047 si se manda texto libre fuera de ella.
+# Verificado 2026-10-03 en la tabla de errores de Meta: más de 24 h desde la última respuesta.
+try:
+    WA_VENTANA_HORAS = int(os.environ.get('WA_VENTANA_HORAS', '24') or '24')
+except (TypeError, ValueError):
+    WA_VENTANA_HORAS = 24
 # Centro de Éxito: días sin WhatsApp entrante para reenganche automático
 try:
     DIAS_INACTIVIDAD_REENGANCHE = int(os.environ.get('DIAS_INACTIVIDAD_REENGANCHE', '7') or 7)

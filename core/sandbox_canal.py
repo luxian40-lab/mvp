@@ -476,6 +476,38 @@ def enviar_meta(
     return last
 
 
+def enviar_meta_plantilla(
+    telefono: str,
+    nombre: str,
+    variables: dict,
+    *,
+    idioma: str = 'es',
+    agente_evento: str = 'reenganche_drip',
+) -> dict:
+    """Plantilla aprobada de Cloud API. variables usa claves '1', '2', …"""
+    to = _telefono_graph(telefono)
+    if not to:
+        return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
+    nombre = (nombre or '').strip()
+    if not nombre:
+        return {'success': False, 'mensaje_id': None, 'response': 'sin_plantilla'}
+    parameters = []
+    for clave in sorted(variables or {}, key=lambda k: int(k) if str(k).isdigit() else 0):
+        parameters.append({'type': 'text', 'text': str(variables[clave])[:1024]})
+    plantilla = {
+        'name': nombre,
+        'language': {'code': (idioma or 'es').strip() or 'es'},
+    }
+    if parameters:
+        plantilla['components'] = [{'type': 'body', 'parameters': parameters}]
+    return _post_graph({
+        'messaging_product': 'whatsapp',
+        'to': to,
+        'type': 'template',
+        'template': plantilla,
+    }, agente=agente_evento)
+
+
 def enviar_meta_botones(
     telefono: str,
     texto: str,
