@@ -123,7 +123,13 @@ Hoy `Procfile` corre web, worker, worker_rag y beat en la misma instancia con Re
 
 Workers lógicos (añadido): `conversacion` (webhooks Meta, Twilio y Nat) y `masivo` (campañas, reenganche, resúmenes). `run_worker.sh` toma `-Q` de `CELERY_QUEUES`. Con las variables por defecto el comando es el Procfile anterior: `-Q celery,media_encode`, sin `--pool`. Esas dos colas se escuchan solo si `CELERY_QUEUES` las nombra (`conversacion,media_encode` y `masivo` en procesos distintos). Las tareas ya se enrutan ahí: con el default quedan sin consumidor y `/admin/infra/` alerta con `LLEN`. `rag_index` sigue en `run_worker_rag.sh`. La cola `celery` es el `default` del plan.
 
-Pool y tiempos: el default de `run_worker.sh` es `--pool=prefork` y `--concurrency=1` (`CELERY_POOL`, `CELERY_CONCURRENCY`). `CELERY_POOL=threads` comparte la memoria del proceso, así que una llamada larga al modelo no multiplica el RSS. En hilos, `soft_time_limit` (45 s) y `time_limit` (60 s) no matan el hilo: Celery solo interrumpe procesos del pool prefork. Un hilo que se pasa de tiempo sigue ocupando cupo, y el tope real pasa a ser el candado Redis de 90 s. `reject_on_worker_lost` cubre la muerte del proceso, no un hilo colgado. No subir la concurrencia de hilos por encima de lo que aguanten ese candado y el límite de 60 s.
+Pool y tiempos: el default de `run_worker.sh` es prefork implícito (sin `--pool`) y `--concurrency=1` (`CELERY_POOL`, `CELERY_CONCURRENCY`). `CELERY_POOL=threads` comparte la memoria del proceso, así que una llamada larga al modelo no multiplica el RSS. En hilos, `soft_time_limit` (45 s) y `time_limit` (60 s) no matan el hilo: Celery solo interrumpe procesos del pool prefork. Un hilo que se pasa de tiempo sigue ocupando cupo, y el tope real pasa a ser el candado Redis de 90 s. `reject_on_worker_lost` cubre la muerte del proceso, no un hilo colgado.
+
+Regla de pool: prefork con concurrencia 2 si, tras arrancar web, worker, worker_rag y beat, quedan al menos 1,2 GiB libres. `threads` solo cuando cada llamada HTTP que esas tareas puedan hacer ya tiene timeout, y ese worker no lleva `--max-tasks-per-child` (un hilo no se recicla como un proceso hijo). El default de hoy sigue en prefork y concurrencia 1.
+
+Alarma: `CPUCreditBalance` de la instancia T. El env guardado es t3.medium y `.ebextensions` dice t3.large. Si el saldo de créditos baja y no se recupera, la CPU se ahoga aunque el promedio se vea bajo. Mirarla en CloudWatch antes de subir el tipo de instancia.
+
+Advisory locks y pooler: `pg_advisory_lock` es de sesión. PgBouncer en modo transaction, y RDS Proxy, pueden devolver la conexión al pool entre sentencias: el candado queda en otra sesión o se suelta. `migrate_locked` vale con una conexión directa a Postgres, sin pooler en medio.
 
 [MANUAL] ElastiCache, `REDIS_URL` en staging y luego prod, entorno `eki-prod-worker`, PITR de RDS y un restore real. No migrar RDS a Postgres en EC2.
 
