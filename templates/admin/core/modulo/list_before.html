@@ -1,0 +1,12 @@
+{% if modulos_por_curso is not None %}
+    <p class="mb-3 text-sm text-base-500 dark:text-base-400">
+        Un curso por fila. Abra el curso para ver sus módulos.
+    </p>
+{% elif modulo_volver_cursos %}
+    <p class="mb-3 text-sm">
+        <a href="{{ modulo_volver_cursos }}" class="font-medium">Todos los cursos</a>
+        {% if modulo_curso_nombre %}
+            <span class="text-base-500 dark:text-base-400"> · {{ modulo_curso_nombre }}</span>
+        {% endif %}
+    </p>
+{% endif %}

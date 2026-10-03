@@ -20,6 +20,7 @@ from core.models_campana_meta import (
     CampanaMeta,
     EnvioCampanaMeta,
     PlantillaMeta,
+    TIPOS_ALTA_GRAPH,
     ejemplos_lista,
     sanitizar_nombre_meta,
     variables_en,
@@ -313,7 +314,16 @@ def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
         }
     plantilla.meta_name = sanitizar_nombre_meta(plantilla.meta_name or plantilla.nombre_interno)
     plantilla.full_clean()
-    if getattr(plantilla, 'tipo', 'TEXTO') == 'CARRUSEL':
+    tipo = getattr(plantilla, 'tipo', 'TEXTO') or 'TEXTO'
+    if tipo not in TIPOS_ALTA_GRAPH:
+        return {
+            'success': False,
+            'message': (
+                f'{plantilla.get_tipo_display()} queda guardada como registro. '
+                'El envío automático a Meta hoy cubre Texto y Carrusel.'
+            ),
+        }
+    if tipo == 'CARRUSEL':
         try:
             componentes = armar_componentes_carrusel(plantilla, handles_carrusel(plantilla))
         except Exception as exc:

@@ -199,6 +199,71 @@ class CampanaMetaTests(TestCase):
         self.assertFalse(firma_meta_ok(raw, 'sha256=00', SECRET))
         self.assertFalse(firma_meta_ok(raw, _firma(raw), ''))
 
+    def test_tipo_incluye_formatos_de_meta(self):
+        from core.models_campana_meta import TIPOS_PLANTILLA
+
+        codigos = {codigo for codigo, _label in TIPOS_PLANTILLA}
+        self.assertTrue({
+            'TEXTO', 'IMAGEN', 'VIDEO', 'DOCUMENTO', 'UBICACION', 'CARRUSEL',
+            'OFERTA_LIMITADA', 'CUPON', 'CATALOGO', 'PRODUCTOS', 'FLUJO',
+            'LLAMADA', 'AUTENTICACION', 'PEDIDO',
+        } <= codigos)
+
+    @patch('core.meta_waba._post')
+    def test_tipo_imagen_no_se_envia_a_meta(self, post):
+        self.plantilla.tipo = 'IMAGEN'
+        self.plantilla.save()
+        resultado = crear_plantilla_en_meta(self.plantilla)
+        post.assert_not_called()
+        self.assertFalse(resultado['success'])
+        self.assertIn('registro', resultado['message'])
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.estado, 'BORRADOR')
+        self.assertEqual(self.plantilla.tipo, 'IMAGEN')
+
+    def test_admin_guarda_tipo_y_aprobacion(self):
+        User.objects.create_superuser('meta_ok', 'ok@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_ok', password='pass12345')
+        url = reverse('admin:core_plantillameta_change', args=[self.plantilla.pk])
+        pagina = client.get(url)
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, 'name="estado"')
+        self.assertContains(pagina, 'Imagen')
+        self.assertContains(pagina, 'Oferta por tiempo limitado')
+        self.assertContains(pagina, 'Autenticación (código)')
+        resp = client.post(url, {
+            'nombre_interno': self.plantilla.nombre_interno,
+            'meta_name': self.plantilla.meta_name,
+            'idioma': 'es',
+            'categoria': 'UTILITY',
+            'tipo': 'VIDEO',
+            'estado': 'APPROVED',
+            'header_texto': 'Hola {{1}}.',
+            'header_ejemplo': 'Ana',
+            'cuerpo': 'Tu curso {{1}} abre mañana.',
+            'ejemplos_cuerpo': 'Café',
+            'footer': 'eki',
+            'boton_1_tipo': 'QUICK_REPLY',
+            'boton_1_texto': 'Listo',
+            'boton_1_url': '',
+            'boton_1_ejemplo': '',
+            'boton_2_tipo': '',
+            'boton_2_texto': '',
+            'boton_2_url': '',
+            'boton_2_ejemplo': '',
+            'activa': 'on',
+            'tarjetas-TOTAL_FORMS': '0',
+            'tarjetas-INITIAL_FORMS': '0',
+            'tarjetas-MIN_NUM_FORMS': '0',
+            'tarjetas-MAX_NUM_FORMS': '1000',
+            '_save': 'Guardar',
+        })
+        self.assertEqual(resp.status_code, 302, resp.content[:800])
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.tipo, 'VIDEO')
+        self.assertEqual(self.plantilla.estado, 'APPROVED')
+
     def test_admin_changelist(self):
         User.objects.create_superuser('meta_admin', 'm@t.com', 'pass12345')
         client = Client()

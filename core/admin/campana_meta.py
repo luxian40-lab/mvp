@@ -20,16 +20,15 @@ class TarjetaPlantillaMetaInline(admin.TabularInline):
 
 @admin.register(PlantillaMeta)
 class PlantillaMetaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_interno', 'tipo', 'idioma', 'categoria', 'estado', 'activa', 'sincronizada_en')
+    list_display = ('nombre_interno', 'tipo', 'categoria', 'estado_badge', 'activa')
     inlines = [TarjetaPlantillaMetaInline]
-    list_filter = ('estado', 'categoria', 'activa', 'idioma')
+    list_filter = ('estado', 'tipo', 'categoria', 'activa', 'idioma')
     search_fields = ('nombre_interno', 'meta_name', 'meta_template_id', 'cuerpo')
     list_per_page = 50
     actions = ['sincronizar_seleccionadas', 'enviar_a_meta']
     readonly_fields = (
         'meta_template_id',
         'waba_id',
-        'estado',
         'rejected_reason',
         'ultimo_error_code',
         'ultimo_error_mensaje',
@@ -40,10 +39,11 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Datos', {
             'classes': ['tab'],
-            'fields': ('nombre_interno', 'tipo', 'meta_name', 'idioma', 'categoria', 'activa'),
+            'fields': ('nombre_interno', 'tipo', 'estado', 'meta_name', 'idioma', 'categoria', 'activa'),
             'description': (
                 'Se crea en el WABA de Cloud API (WHATSAPP_BUSINESS_ACCOUNT_ID). '
-                'No genera Content SID de Twilio.'
+                'No genera Content SID de Twilio. '
+                'El estado se guarda con la ficha: márquelo Aprobada cuando Meta ya la aceptó.'
             ),
         }),
         ('Componentes', {
@@ -67,7 +67,6 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         ('Estado en Meta', {
             'classes': ['tab'],
             'fields': (
-                'estado',
                 'meta_template_id',
                 'waba_id',
                 'rejected_reason',
@@ -78,6 +77,25 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    @admin.display(description='Aprobación', ordering='estado')
+    def estado_badge(self, obj):
+        label = obj.get_estado_display()
+        if obj.estado == 'APPROVED':
+            bg, color = '#e8f5e9', '#2e7d32'
+        elif obj.estado in ('REJECTED', 'ERROR', 'DISABLED'):
+            bg, color = '#ffebee', '#c62828'
+        elif obj.estado in ('PENDING', 'IN_APPEAL'):
+            bg, color = '#fff3e0', '#e65100'
+        else:
+            bg, color = '#f5f5f5', '#424242'
+        return format_html(
+            '<span style="background:{};color:{};padding:3px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:700;">{}</span>',
+            bg,
+            color,
+            label,
+        )
 
     @admin.action(description='Sincronizar estado con Meta')
     def sincronizar_seleccionadas(self, request, queryset):

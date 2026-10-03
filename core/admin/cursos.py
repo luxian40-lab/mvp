@@ -1796,6 +1796,8 @@ class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
     form = ModuloAdminForm
     change_form_template = 'admin/core/modulo/change_form.html'
+    change_list_template = 'admin/core/modulo/change_list.html'
+    list_before_template = 'admin/core/modulo/list_before.html'
     class Media:
         css = {
             'all': ('admin/css/modulo_whatsapp_bloques.css',),
@@ -1827,6 +1829,75 @@ class ModuloAdmin(admin.ModelAdmin):
         'activar_videos_wa_listos',
     ]
     actions_detail = ['abrir_module_builder']
+
+    def _es_vista_indice(self, request) -> bool:
+        """La entrada muestra cursos. La tabla de módulos aparece al abrir uno o al buscar."""
+        if (request.GET.get('q') or '').strip():
+            return False
+        if request.GET.get('curso__id__exact'):
+            return False
+        for key in request.GET:
+            if key.startswith('publicado_wa') or key.startswith('modo_entrega'):
+                return False
+        return True
+
+    def _indice_cursos(self, request):
+        from django.db.models import Count, Exists, OuterRef, Q
+
+        pasos_on = PasoModulo.objects.filter(
+            modulo_id=OuterRef('pk'),
+            activo=True,
+            seccion__activa=True,
+        )
+        mods = Modulo.objects.annotate(tiene_pasos=Exists(pasos_on))
+        cliente_id = request.GET.get('curso__cliente__id__exact') or ''
+        if cliente_id.isdigit():
+            mods = mods.filter(curso__cliente_id=int(cliente_id))
+        filas = (
+            mods.values('curso_id', 'curso__nombre', 'curso__cliente__nombre')
+            .annotate(
+                total=Count('id'),
+                activos_wa=Count('id', filter=Q(publicado_wa=True)),
+                borrador=Count('id', filter=Q(tiene_pasos=False)),
+            )
+            .order_by('curso__cliente__nombre', 'curso__nombre')
+        )
+        salida = []
+        for fila in filas:
+            params = request.GET.copy()
+            params.pop('p', None)
+            params['curso__id__exact'] = str(fila['curso_id'])
+            salida.append({
+                'curso_id': fila['curso_id'],
+                'curso': fila['curso__nombre'],
+                'org': fila['curso__cliente__nombre'] or '—',
+                'total': fila['total'],
+                'activos_wa': fila['activos_wa'],
+                'borrador': fila['borrador'],
+                'url': '?' + params.urlencode(),
+            })
+        return salida
+
+    def _url_sin_curso(self, request) -> str:
+        params = request.GET.copy()
+        params.pop('curso__id__exact', None)
+        params.pop('p', None)
+        encoded = params.urlencode()
+        return f'?{encoded}' if encoded else '?'
+
+    def changelist_view(self, request, extra_context=None):
+        extra = dict(extra_context or {})
+        if self._es_vista_indice(request):
+            extra['modulos_por_curso'] = self._indice_cursos(request)
+        else:
+            extra['modulos_por_curso'] = None
+            extra['modulo_volver_cursos'] = self._url_sin_curso(request)
+            curso_id = request.GET.get('curso__id__exact') or ''
+            if curso_id.isdigit():
+                extra['modulo_curso_nombre'] = (
+                    Curso.objects.filter(pk=int(curso_id)).values_list('nombre', flat=True).first()
+                )
+        return super().changelist_view(request, extra_context=extra)
 
     def get_urls(self):
         urls = super().get_urls()

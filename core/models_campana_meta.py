@@ -30,6 +30,26 @@ CATEGORIAS_META = [
     ('AUTHENTICATION', 'Autenticación'),
 ]
 
+# Formatos que Meta ofrece al crear una plantilla (texto, media, especiales).
+# El alta automática en Graph hoy arma Texto y Carrusel; el resto es registro.
+TIPOS_PLANTILLA = [
+    ('TEXTO', 'Texto'),
+    ('IMAGEN', 'Imagen'),
+    ('VIDEO', 'Video'),
+    ('DOCUMENTO', 'Documento'),
+    ('UBICACION', 'Ubicación'),
+    ('CARRUSEL', 'Carrusel'),
+    ('OFERTA_LIMITADA', 'Oferta por tiempo limitado'),
+    ('CUPON', 'Cupón'),
+    ('CATALOGO', 'Catálogo'),
+    ('PRODUCTOS', 'Varios productos'),
+    ('FLUJO', 'Flujo'),
+    ('LLAMADA', 'Permiso de llamada'),
+    ('AUTENTICACION', 'Autenticación (código)'),
+    ('PEDIDO', 'Pedido (estado o detalle)'),
+]
+TIPOS_ALTA_GRAPH = frozenset({'TEXTO', 'CARRUSEL'})
+
 
 def sanitizar_nombre_meta(nombre: str) -> str:
     bruto = (nombre or '').strip().lower().replace(' ', '_').replace('-', '_')
@@ -109,10 +129,13 @@ class PlantillaMeta(models.Model):
     footer = models.CharField(max_length=60, blank=True, verbose_name='Footer')
     tipo = models.CharField(
         max_length=16,
-        choices=[('TEXTO', 'Texto'), ('CARRUSEL', 'Carrusel')],
+        choices=TIPOS_PLANTILLA,
         default='TEXTO',
         verbose_name='Tipo',
-        help_text='El carrusel se crea en Meta con la acción «Enviar plantilla a Meta para aprobación».',
+        help_text=(
+            'Formato en Meta. El alta automática cubre Texto y Carrusel; '
+            'los demás quedan guardados como registro.'
+        ),
     )
     boton_1_tipo = models.CharField(
         max_length=20,
@@ -148,6 +171,11 @@ class PlantillaMeta(models.Model):
         default='BORRADOR',
         db_index=True,
         verbose_name='Estado',
+        help_text=(
+            'Márquelo al guardar. Use Aprobada solo si Meta ya la aceptó. '
+            'Sincronizar o el webhook pueden actualizar este valor. '
+            'Las campañas solo se envían si está Aprobada.'
+        ),
     )
     rejected_reason = models.CharField(max_length=500, blank=True, default='', verbose_name='Motivo')
     ultimo_error_code = models.CharField(max_length=32, blank=True, default='', verbose_name='Código error')

@@ -1,0 +1,32 @@
+<div class="overflow-x-auto border border-base-200 rounded-default bg-white shadow-xs dark:border-base-800 dark:bg-base-900">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-base-200 text-left dark:border-base-800">
+                <th class="px-3 py-2 font-semibold">Curso</th>
+                <th class="px-3 py-2 font-semibold">Organización</th>
+                <th class="px-3 py-2 font-semibold">Módulos</th>
+                <th class="px-3 py-2 font-semibold">Activos WA</th>
+                <th class="px-3 py-2 font-semibold">Borrador</th>
+                <th class="px-3 py-2 font-semibold"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in modulos_por_curso %}
+                <tr class="border-t border-base-200 dark:border-base-800">
+                    <td class="px-3 py-2 font-medium">{{ row.curso }}</td>
+                    <td class="px-3 py-2">{{ row.org }}</td>
+                    <td class="px-3 py-2">{{ row.total }}</td>
+                    <td class="px-3 py-2">{{ row.activos_wa }}</td>
+                    <td class="px-3 py-2">{{ row.borrador }}</td>
+                    <td class="px-3 py-2">
+                        <a href="{{ row.url }}">Ver módulos</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td class="px-3 py-4 text-base-500" colspan="6">Todavía no hay módulos.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

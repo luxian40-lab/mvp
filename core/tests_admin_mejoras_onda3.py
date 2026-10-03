@@ -146,6 +146,16 @@ class AdminOnda3Tests(TestCase):
         r = self.client.get(reverse('admin:core_modulo_changelist'))
         body = r.content.decode('utf-8')
         self.assertIn('Borrador', body)
+        self.assertIn('Curso O3', body)
+        self.assertIn('Ver módulos', body)
+        self.assertNotIn('Módulo 1: Vacío', body)
+        detalle = self.client.get(
+            reverse('admin:core_modulo_changelist') + f'?curso__id__exact={self.curso.pk}'
+        )
+        detalle_body = detalle.content.decode('utf-8')
+        self.assertIn('Módulo 1: Vacío', detalle_body)
+        self.assertIn('Todos los cursos', detalle_body)
+        self.assertIn('Borrador', detalle_body)
 
     def test_conversaciones_busqueda_q(self):
         self.client.force_login(self.user)
