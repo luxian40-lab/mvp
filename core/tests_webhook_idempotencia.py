@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import timedelta
-
-import pytest
-from django.test import Client
-from django.test.utils import override_settings
-from django.utils import timezone
 from unittest.mock import patch
 
-from core.webhook_evento import CANAL_META, CANAL_TWILIO, WebhookEventoProcesado
+import pytest
+from django.db import connection, connections
+from django.test import Client, TransactionTestCase
+from django.test.utils import override_settings
+from django.utils import timezone
+
+from core.webhook_evento import CANAL_META, CANAL_TWILIO, WebhookEventoProcesado, reclamar_evento
 
 
 def _meta(messages=None, statuses=None, field='messages'):
@@ -70,9 +72,13 @@ def test_dos_mensajes_distintos_se_procesan(mock_proc):
         {'from': '57300111', 'id': 'wamid.b', 'type': 'text', 'text': {'body': 'dos'}},
     ])
     assert _post_json(client, payload).status_code == 200
-    mock_proc.assert_called_once()
-    mensajes = mock_proc.call_args.args[0]['entry'][0]['changes'][0]['value']['messages']
-    assert [m['id'] for m in mensajes] == ['wamid.a', 'wamid.b']
+    assert mock_proc.call_count == 2
+    ids = []
+    for call in mock_proc.call_args_list:
+        mensajes = call.args[0]['entry'][0]['changes'][0]['value']['messages']
+        assert len(mensajes) == 1
+        ids.append(mensajes[0]['id'])
+    assert ids == ['wamid.a', 'wamid.b']
     assert WebhookEventoProcesado.objects.filter(canal=CANAL_META).count() == 2
 
 
@@ -174,20 +180,96 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa(mock_route, mock_
 
 
 @pytest.mark.django_db
-def test_limpiar_logs_borra_eventos_de_mas_de_7_dias():
+def test_limpiar_logs_borra_eventos_de_mas_de_10_dias():
     from pathlib import Path
 
     from core.webhook_evento import purgar_eventos_procesados
 
     tarea = Path('core/tasks.py').read_text(encoding='utf-8')
-    assert 'purgar_eventos_procesados(7)' in tarea
+    assert 'purgar_eventos_procesados(10)' in tarea
 
     viejo = WebhookEventoProcesado.objects.create(canal=CANAL_META, external_id='wamid.viejo')
     reciente = WebhookEventoProcesado.objects.create(canal=CANAL_META, external_id='wamid.nuevo')
-    WebhookEventoProcesado.objects.filter(pk=viejo.pk).update(creado=timezone.now() - timedelta(days=8))
-    WebhookEventoProcesado.objects.filter(pk=reciente.pk).update(creado=timezone.now() - timedelta(days=1))
+    WebhookEventoProcesado.objects.filter(pk=viejo.pk).update(creado=timezone.now() - timedelta(days=11))
+    WebhookEventoProcesado.objects.filter(pk=reciente.pk).update(creado=timezone.now() - timedelta(days=9))
 
-    purgar_eventos_procesados(7)
+    purgar_eventos_procesados(10)
 
     assert not WebhookEventoProcesado.objects.filter(external_id='wamid.viejo').exists()
     assert WebhookEventoProcesado.objects.filter(external_id='wamid.nuevo').exists()
+
+
+def _meta_sandbox(messages):
+    payload = _meta(messages)
+    payload['entry'][0]['changes'][0]['value']['metadata'] = {
+        'display_phone_number': '573009998888',
+        'phone_number_id': '111222333',
+    }
+    return payload
+
+
+@pytest.mark.django_db
+@override_settings(
+    SANDBOX_PROVEEDOR='meta',
+    SANDBOX_MENU_ENABLED=True,
+    SANDBOX_CELERY_ASYNC=True,
+    WHATSAPP_PHONE_ID='111222333',
+    SANDBOX_WHATSAPP_PHONE_ID='111222333',
+    BOT_COMERCIAL_SANDBOX_NUMBER='573009998888',
+    TWILIO_VALIDATE_SIGNATURE=False,
+    SECURE_SSL_REDIRECT=False,
+    WHATSAPP_APP_SECRET='',
+)
+@patch('core.views.entrada._aplicar_sandbox_menu', return_value=None)
+@patch('core.views.entrada._encolar_sandbox_si_async')
+def test_segundo_mensaje_falla_al_encolar_y_el_reintento_solo_lo_procesa(mock_encolar, _menu):
+    client = Client()
+    payload = _meta_sandbox([
+        {'from': '57300111', 'id': 'wamid.a', 'type': 'text', 'text': {'body': 'uno'}},
+        {'from': '57300111', 'id': 'wamid.b', 'type': 'text', 'text': {'body': 'dos'}},
+    ])
+    mock_encolar.side_effect = [True, ConnectionError('redis')]
+    resp = _post_json(client, payload)
+    assert resp.status_code == 500
+    assert WebhookEventoProcesado.objects.filter(canal=CANAL_META, external_id='wamid.a').exists()
+    assert not WebhookEventoProcesado.objects.filter(external_id='wamid.b').exists()
+    assert mock_encolar.call_count == 2
+
+    mock_encolar.side_effect = None
+    mock_encolar.return_value = True
+    resp2 = _post_json(client, payload)
+    assert resp2.status_code == 200
+    assert mock_encolar.call_count == 3
+    assert mock_encolar.call_args.args[0]['MessageSid'] == 'wamid.b'
+    assert WebhookEventoProcesado.objects.filter(canal=CANAL_META, external_id='wamid.b').exists()
+
+
+class ReclamarEventoCarreraTests(TransactionTestCase):
+    def test_dos_hilos_un_solo_true(self):
+        if connection.vendor != 'postgresql':
+            self.skipTest('carrera requiere Postgres')
+        barrera = threading.Barrier(2)
+        resultados = []
+        errores = []
+
+        def worker():
+            connections.close_all()
+            try:
+                barrera.wait(timeout=5)
+                resultados.append(reclamar_evento(CANAL_META, 'wamid.race'))
+            except Exception as exc:
+                errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=worker) for _ in range(2)]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=10)
+        self.assertFalse(errores)
+        self.assertEqual(sorted(resultados), [False, True])
+        self.assertEqual(
+            WebhookEventoProcesado.objects.filter(external_id='wamid.race').count(),
+            1,
+        )

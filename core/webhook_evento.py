@@ -41,7 +41,7 @@ def reclamar_evento(canal, external_id) -> bool:
         return False
 
 
-def purgar_eventos_procesados(dias: int = 7) -> int:
+def purgar_eventos_procesados(dias: int = 10) -> int:
     """Borra reclamos más viejos que `dias`. La usa limpiar_logs_antiguos."""
     from django.utils import timezone
 
