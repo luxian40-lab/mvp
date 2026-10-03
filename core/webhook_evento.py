@@ -92,13 +92,15 @@ def liberar_eventos(canal, external_ids) -> None:
 
 
 def firma_meta_invalida(raw_body: bytes, signature_header: str) -> bool:
-    """True solo si hay secreto configurado y la firma no coincide.
+    """True si hay que rechazar el POST de mensajes antes de reclamar.
 
-    Sin secreto el webhook sigue como hoy: no rechazamos el POST.
+    Con WHATSAPP_REQUIRE_SIGNATURE=False (default), un secreto vacío no rechaza.
+    Con el flag en True, secreto vacío o firma inválida rechazan.
     """
     secret = (getattr(settings, 'WHATSAPP_APP_SECRET', None) or '').strip()
+    exigir = bool(getattr(settings, 'WHATSAPP_REQUIRE_SIGNATURE', False))
     if not secret:
-        return False
+        return exigir
     from core.meta_waba import firma_meta_ok
 
     return not firma_meta_ok(raw_body or b'', signature_header or '', secret)

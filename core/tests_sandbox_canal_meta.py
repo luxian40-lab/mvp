@@ -168,6 +168,7 @@ class SandboxCanalMetaSendTests(TestCase):
     WHATSAPP_PHONE_ID='111222333',
     SANDBOX_WHATSAPP_PHONE_ID='111222333',
     WHATSAPP_TOKEN='test-token',
+    WHATSAPP_APP_SECRET='',
     WHATSAPP_VERIFY_TOKEN='eki_test_verify',
     TWILIO_VALIDATE_SIGNATURE=False,
     SECURE_SSL_REDIRECT=False,

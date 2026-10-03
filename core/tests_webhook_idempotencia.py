@@ -123,6 +123,63 @@ def test_status_callback_twilio_no_se_deduplica(mock_route, mock_proc):
 
 @pytest.mark.django_db
 @override_settings(
+    WHATSAPP_REQUIRE_SIGNATURE=False,
+    WHATSAPP_APP_SECRET='',
+    SANDBOX_PROVEEDOR='twilio',
+    SANDBOX_MENU_ENABLED=False,
+    TWILIO_VALIDATE_SIGNATURE=False,
+    SECURE_SSL_REDIRECT=False,
+)
+@patch('core.views.entrada._procesar_meta_webhook')
+def test_sin_exigir_firma_un_secreto_vacio_no_rechaza(mock_proc):
+    client = Client()
+    payload = _meta([{'from': '57300111', 'id': 'wamid.abierto', 'type': 'text', 'text': {'body': 'hola'}}])
+    resp = _post_json(client, payload)
+    assert resp.status_code == 200
+    mock_proc.assert_called_once()
+    assert WebhookEventoProcesado.objects.filter(external_id='wamid.abierto').exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    WHATSAPP_REQUIRE_SIGNATURE=True,
+    WHATSAPP_APP_SECRET='',
+    SANDBOX_PROVEEDOR='twilio',
+    SANDBOX_MENU_ENABLED=False,
+    TWILIO_VALIDATE_SIGNATURE=False,
+    SECURE_SSL_REDIRECT=False,
+)
+@patch('core.views.entrada._procesar_meta_webhook')
+def test_firma_obligatoria_sin_secreto_responde_403_sin_reclamo(mock_proc):
+    client = Client()
+    payload = _meta([{'from': '57300111', 'id': 'wamid.cerrado', 'type': 'text', 'text': {'body': 'hola'}}])
+    resp = _post_json(client, payload)
+    assert resp.status_code == 403
+    mock_proc.assert_not_called()
+    assert not WebhookEventoProcesado.objects.filter(external_id='wamid.cerrado').exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    WHATSAPP_REQUIRE_SIGNATURE=True,
+    WHATSAPP_APP_SECRET='sekreto-test',
+    SANDBOX_PROVEEDOR='twilio',
+    SANDBOX_MENU_ENABLED=False,
+    TWILIO_VALIDATE_SIGNATURE=False,
+    SECURE_SSL_REDIRECT=False,
+)
+@patch('core.views.entrada._procesar_meta_webhook')
+def test_firma_obligatoria_con_firma_invalida_responde_403_sin_reclamo(mock_proc):
+    client = Client()
+    payload = _meta([{'from': '57300111', 'id': 'wamid.mala', 'type': 'text', 'text': {'body': 'hola'}}])
+    resp = _post_json(client, payload, HTTP_X_HUB_SIGNATURE_256='sha256=00')
+    assert resp.status_code == 403
+    mock_proc.assert_not_called()
+    assert not WebhookEventoProcesado.objects.filter(external_id='wamid.mala').exists()
+
+
+@pytest.mark.django_db
+@override_settings(
     WHATSAPP_APP_SECRET='sekreto-test',
     TWILIO_VALIDATE_SIGNATURE=True,
     TWILIO_AUTH_TOKEN='test_twilio_auth_token_sec',

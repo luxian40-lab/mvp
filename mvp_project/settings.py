@@ -303,6 +303,11 @@ WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', ''
 WHATSAPP_APP_ID = os.environ.get('WHATSAPP_APP_ID', '')  # App ID: sube las fotos del carrusel
 # App Secret de Meta: firma X-Hub-Signature-256 de message_template_status_update.
 WHATSAPP_APP_SECRET = os.environ.get('WHATSAPP_APP_SECRET', '')
+# False: sin secreto el POST de mensajes sigue (comportamiento actual).
+# True: secreto vacío o firma inválida responden 403 antes de reclamar.
+WHATSAPP_REQUIRE_SIGNATURE = os.environ.get('WHATSAPP_REQUIRE_SIGNATURE', 'False').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Campaña Meta (Graph). Apagar con EKI_CAMPANA_META_ENABLED=false. No afecta Campana Twilio.
 EKI_CAMPANA_META_ENABLED = os.environ.get('EKI_CAMPANA_META_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
