@@ -731,6 +731,84 @@ def maybe_notify_infra_act(snapshot: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _largo_colas_logicas() -> dict[str, Any]:
+    """LLEN de las colas que el worker por defecto no escucha."""
+    broker = getattr(settings, 'CELERY_BROKER_URL', '') or ''
+    nombres = ('conversacion', 'masivo')
+    out: dict[str, Any] = {
+        'ok': False,
+        'colas': {nombre: None for nombre in nombres},
+        'pendientes': 0,
+        'error': None,
+    }
+    if not broker:
+        out['error'] = 'CELERY_BROKER_URL vacío'
+        return out
+    try:
+        import redis
+        from urllib.parse import urlparse
+
+        u = urlparse(broker)
+        cliente = redis.Redis(
+            host=u.hostname or '127.0.0.1',
+            port=u.port or 6379,
+            db=int((u.path or '/0').lstrip('/') or 0),
+            socket_connect_timeout=1.5,
+            socket_timeout=1.5,
+            ssl=broker.startswith('rediss://'),
+        )
+        try:
+            for nombre in nombres:
+                out['colas'][nombre] = int(cliente.llen(nombre) or 0)
+        finally:
+            cliente.close()
+        out['pendientes'] = sum(n for n in out['colas'].values() if n)
+        out['ok'] = True
+    except Exception as exc:
+        out['error'] = str(exc)[:200]
+    return out
+
+
+def _playbook_colas(colas: dict[str, Any]) -> dict[str, Any]:
+    detalle = colas.get('colas') or {}
+    if colas.get('ok') and int(colas.get('pendientes') or 0) > 0:
+        status = 'act'
+        label = 'HAY MENSAJES SIN CONSUMIR'
+        reasons = [f'{nombre}={n}' for nombre, n in detalle.items() if n]
+    else:
+        status = 'ok'
+        label = 'COLAS EN CERO' if colas.get('ok') else 'SIN LECTURA LLEN'
+        reasons = (
+            ['conversacion=0 masivo=0']
+            if colas.get('ok')
+            else [colas.get('error') or 'no se pudo leer Redis']
+        )
+    return {
+        'id': 'colas',
+        'title': 'Colas conversacion y masivo',
+        'verdict': {'status': status, 'label': label, 'reasons': reasons},
+        'current': colas,
+        'actions': [
+            {
+                'action_type': 'NO_HACER_NADA',
+                'when': 'LLEN de conversacion y de masivo es 0.',
+                'do': 'Dejar el worker con -Q celery,media_encode.',
+                'specs': 'El default no consume esas colas.',
+                'approx_cost': '0',
+                'how': 'Nada.',
+            },
+            {
+                'action_type': 'REVISAR_WORKER',
+                'when': 'LLEN > 0 en conversacion o masivo.',
+                'do': 'Hay mensajes en una cola que el Procfile por defecto no escucha.',
+                'specs': 'Redis LLEN del nombre de la cola en el broker.',
+                'approx_cost': '0',
+                'how': 'Poner CELERY_QUEUES=conversacion,media_encode o CELERY_QUEUES=masivo en un worker.',
+            },
+        ],
+    }
+
+
 def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     if not force:
         cached = _cache_get()
@@ -742,7 +820,9 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     redis_s = _redis_status()
     db = _db_status()
     s3 = _s3_status()
+    colas = _largo_colas_logicas()
     playbooks = _playbooks(redis_s, db, s3)
+    playbooks.append(_playbook_colas(colas))
 
     overall = 'ok'
     for pb in playbooks:
@@ -767,6 +847,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
         'redis': redis_s,
         'db': db,
         's3': s3,
+        'colas': colas,
         'baseline': BASELINE,
         'capacity_limits': CAPACITY_LIMITS,
         'playbooks': playbooks,

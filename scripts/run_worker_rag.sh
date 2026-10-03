@@ -19,10 +19,14 @@ case "$CONC" in
   ''|*[!0-9]*) echo "RAG_WORKER_CONCURRENCY invalido: $CONC" >&2; exit 1 ;;
 esac
 QUEUES="${CELERY_QUEUES_RAG:-rag_index}"
+POOL_ARG=()
+if [ "$POOL" = "threads" ]; then
+  POOL_ARG=(--pool=threads)
+fi
 exec celery -A mvp_project worker \
   -Q "$QUEUES" \
   -n "rag@%h" \
   --loglevel=info \
-  --pool="$POOL" \
+  "${POOL_ARG[@]}" \
   --concurrency="$CONC" \
   --max-tasks-per-child=20

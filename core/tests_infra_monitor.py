@@ -59,6 +59,25 @@ class InfraMonitorAdminTests(TestCase):
                 self.assertIn('do', a)
                 self.assertIn('specs', a)
 
+    def test_alerta_si_conversacion_o_masivo_tienen_mensajes(self):
+        from core.infra_monitor import _playbook_colas
+
+        vacias = _playbook_colas({
+            'ok': True,
+            'colas': {'conversacion': 0, 'masivo': 0},
+            'pendientes': 0,
+            'error': None,
+        })
+        self.assertEqual(vacias['verdict']['status'], 'ok')
+        llenas = _playbook_colas({
+            'ok': True,
+            'colas': {'conversacion': 4, 'masivo': 0},
+            'pendientes': 4,
+            'error': None,
+        })
+        self.assertEqual(llenas['verdict']['status'], 'act')
+        self.assertIn('conversacion=4', llenas['verdict']['reasons'])
+
     def test_advisor_recomienda_si_redis_cae(self):
         from core.infra_monitor import build_infra_advisor
 

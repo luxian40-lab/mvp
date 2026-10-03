@@ -60,6 +60,9 @@ jobs:
             core/tests_ci_baseline.py \
             core/tests_webhook_idempotencia.py \
             core/tests_telefono_lock.py \
+            core/tests_webhook_fallido.py \
+            core/tests_twilio_timeout.py \
+            core/tests_infra_p3.py \
             aprende/tests.py \
             aprende/tests_admin.py \
             core/tests_module_steps.py \

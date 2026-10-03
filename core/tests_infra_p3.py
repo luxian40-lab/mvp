@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TransactionTestCase
 
 
 class ColasYRolTests(SimpleTestCase):
@@ -31,7 +31,9 @@ class ColasYRolTests(SimpleTestCase):
         texto = Path('scripts/run_worker.sh').read_text(encoding='utf-8')
         self.assertIn('CELERY_POOL:-prefork', texto)
         self.assertIn('CELERY_CONCURRENCY:-1', texto)
-        self.assertIn('CELERY_QUEUES:-conversacion,masivo,celery,media_encode', texto)
+        self.assertIn('CELERY_QUEUES:-celery,media_encode', texto)
+        self.assertNotIn('--pool="$POOL"', texto)
+        self.assertIn('--pool=threads', texto)
         self.assertIn('prefork|threads', texto)
 
     def test_beat_corre_en_all_y_en_worker_solo_con_run_beat(self):
@@ -88,3 +90,68 @@ class MigrateLockedTests(SimpleTestCase):
         self.assertEqual(sentencias[1], ('SELECT pg_advisory_unlock(%s)', [727274]))
         with self.assertRaises(AssertionError):
             conexion.close()
+
+    def test_close_se_restaura_si_migrate_falla(self):
+        from core.management.commands.migrate_locked import migrate_con_candado
+
+        class _Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def execute(self, sql, params=None):
+                return None
+
+        class _Conexion:
+            vendor = 'postgresql'
+
+            def __init__(self):
+                self.cierres = 0
+
+            def ensure_connection(self):
+                return None
+
+            def cursor(self):
+                return _Cursor()
+
+            def close(self):
+                self.cierres += 1
+
+        conexion = _Conexion()
+        with self.assertRaises(RuntimeError):
+            migrate_con_candado(conexion, lambda: (_ for _ in ()).throw(RuntimeError('migrate')))
+        conexion.close()
+        self.assertEqual(conexion.cierres, 1)
+
+
+class MigrateLockedPostgresTests(TransactionTestCase):
+    def test_segunda_conexion_no_toma_el_candado_mientras_corre(self):
+        from django.db import connection, connections
+
+        from core.management.commands.migrate_locked import migrate_con_candado
+
+        if connection.vendor != 'postgresql':
+            self.skipTest('carrera requiere Postgres')
+
+        otra = connections.create_connection('default')
+        otra.ensure_connection()
+        visto = {}
+
+        def correr():
+            with otra.cursor() as cursor:
+                cursor.execute('SELECT pg_try_advisory_lock(%s)', [727274])
+                visto['durante'] = cursor.fetchone()[0]
+
+        try:
+            migrate_con_candado(connection, correr)
+            self.assertFalse(visto['durante'])
+            with otra.cursor() as cursor:
+                cursor.execute('SELECT pg_try_advisory_lock(%s)', [727274])
+                despues = cursor.fetchone()[0]
+                self.assertTrue(despues)
+                if despues:
+                    cursor.execute('SELECT pg_advisory_unlock(%s)', [727274])
+        finally:
+            otra.close()

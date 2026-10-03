@@ -1,6 +1,6 @@
 #!/bin/bash
-# Worker. CELERY_POOL=prefork|threads, CELERY_CONCURRENCY (default prefork, 1).
-# CELERY_QUEUES default: conversacion + masivo + celery + media_encode.
+# Worker. Default = Procfile anterior (sin --pool; prefork implícito, -Q celery,media_encode).
+# CELERY_POOL=threads añade --pool=threads. CELERY_QUEUES cambia -Q.
 set -euo pipefail
 ROLE="${EKI_ROLE:-all}"
 case "$ROLE" in
@@ -19,11 +19,15 @@ CONC="${CELERY_CONCURRENCY:-1}"
 case "$CONC" in
   ''|*[!0-9]*) echo "CELERY_CONCURRENCY invalido: $CONC" >&2; exit 1 ;;
 esac
-QUEUES="${CELERY_QUEUES:-conversacion,masivo,celery,media_encode}"
+QUEUES="${CELERY_QUEUES:-celery,media_encode}"
+POOL_ARG=()
+if [ "$POOL" = "threads" ]; then
+  POOL_ARG=(--pool=threads)
+fi
 exec celery -A mvp_project worker \
   -Q "$QUEUES" \
   -n "fast@%h" \
   --loglevel=info \
-  --pool="$POOL" \
+  "${POOL_ARG[@]}" \
   --concurrency="$CONC" \
   --max-tasks-per-child=150
