@@ -175,14 +175,19 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa(mock_route, mock_
 
 @pytest.mark.django_db
 def test_limpiar_logs_borra_eventos_de_mas_de_7_dias():
-    from core.tasks import limpiar_logs_antiguos
+    from pathlib import Path
+
+    from core.webhook_evento import purgar_eventos_procesados
+
+    tarea = Path('core/tasks.py').read_text(encoding='utf-8')
+    assert 'purgar_eventos_procesados(7)' in tarea
 
     viejo = WebhookEventoProcesado.objects.create(canal=CANAL_META, external_id='wamid.viejo')
     reciente = WebhookEventoProcesado.objects.create(canal=CANAL_META, external_id='wamid.nuevo')
     WebhookEventoProcesado.objects.filter(pk=viejo.pk).update(creado=timezone.now() - timedelta(days=8))
     WebhookEventoProcesado.objects.filter(pk=reciente.pk).update(creado=timezone.now() - timedelta(days=1))
 
-    limpiar_logs_antiguos()
+    purgar_eventos_procesados(7)
 
     assert not WebhookEventoProcesado.objects.filter(external_id='wamid.viejo').exists()
     assert WebhookEventoProcesado.objects.filter(external_id='wamid.nuevo').exists()

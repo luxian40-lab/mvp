@@ -41,6 +41,15 @@ def reclamar_evento(canal, external_id) -> bool:
         return False
 
 
+def purgar_eventos_procesados(dias: int = 7) -> int:
+    """Borra reclamos más viejos que `dias`. La usa limpiar_logs_antiguos."""
+    from django.utils import timezone
+
+    limite = timezone.now() - timezone.timedelta(days=dias)
+    eliminados, _ = WebhookEventoProcesado.objects.filter(creado__lt=limite).delete()
+    return eliminados
+
+
 def liberar_eventos(canal, external_ids) -> None:
     ids = [str(item) for item in (external_ids or []) if item]
     if not ids:

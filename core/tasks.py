@@ -408,12 +408,11 @@ def limpiar_logs_antiguos():
     """
     try:
         from core.models import MensajeChat
-        from core.webhook_evento import WebhookEventoProcesado
+        from core.webhook_evento import purgar_eventos_procesados
 
         limite = timezone.now() - timezone.timedelta(days=90)
         eliminados, _ = MensajeChat.objects.filter(fecha__lt=limite).delete()
-        limite_eventos = timezone.now() - timezone.timedelta(days=7)
-        eventos, _ = WebhookEventoProcesado.objects.filter(creado__lt=limite_eventos).delete()
+        eventos = purgar_eventos_procesados(7)
 
         logger.info(
             "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 7 días)",
