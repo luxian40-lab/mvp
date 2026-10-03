@@ -18,7 +18,7 @@ class AudioProcessor:
     """Procesa mensajes de audio de WhatsApp"""
     
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30)
         self.audio_folder = os.path.join(settings.MEDIA_ROOT, 'audios_whatsapp')
         
         # Crear carpeta si no existe
@@ -130,28 +130,41 @@ class AudioProcessor:
         """
         try:
             logger.info(f"🎤 Transcribiendo audio: {file_path}")
-            
-            # Validar que el archivo existe
-            if not os.path.exists(file_path):
+
+            if not file_path or not os.path.exists(file_path):
                 logger.error(f"❌ Archivo no encontrado: {file_path}")
                 return None
-            
-            # Transcribir con Whisper
+
             with open(file_path, 'rb') as audio_file:
                 transcript = self.client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio_file,
-                    language="es"  # Español colombiano
+                    language="es",
                 )
-            
+
             texto = transcript.text.strip()
             logger.info(f"✅ Audio transcrito: {texto[:100]}...")
-            
             return texto
-            
+
         except Exception as e:
             logger.error(f"❌ Error transcribiendo audio: {e}")
             return None
+        finally:
+            self._borrar_audio_whatsapp(file_path)
+
+    def _borrar_audio_whatsapp(self, file_path):
+        """Borra el temporal de MEDIA_ROOT/audios_whatsapp tras transcribir."""
+        if not file_path:
+            return
+        try:
+            ruta = os.path.abspath(file_path)
+            base = os.path.abspath(self.audio_folder)
+            if os.path.commonpath([ruta, base]) != base:
+                return
+            if os.path.isfile(ruta):
+                os.remove(ruta)
+        except Exception:
+            logger.exception('audio_whatsapp_borrar_fallo')
     
     def procesar_audio_completo(self, media_info, proveedor='twilio'):
         """
