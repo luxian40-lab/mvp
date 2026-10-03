@@ -8,6 +8,15 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Por debajo del soft_time_limit=45 de las tareas del webhook.
+LLM_HTTP_TIMEOUT_SEG = 30
+
+
+def cliente_openai(api_key: str):
+    from openai import OpenAI
+
+    return OpenAI(api_key=api_key, timeout=LLM_HTTP_TIMEOUT_SEG)
+
 
 def _modelo_nuevo_api(modelo: str) -> bool:
     m = (modelo or '').strip().lower()

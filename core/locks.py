@@ -8,6 +8,7 @@ en el orden de llegada.
 from __future__ import annotations
 
 import hashlib
+import hmac
 from contextlib import contextmanager
 
 from django.conf import settings
@@ -17,9 +18,10 @@ LOCK_BLOCKING = 10
 
 
 def telefono_hash(telefono_normalizado: str) -> str:
-    """Huella corta para logs. No es el teléfono."""
+    """HMAC-SHA256(SECRET_KEY, teléfono) en 16 hex. No es reversible por fuerza bruta."""
+    secreto = str(getattr(settings, 'SECRET_KEY', '') or '').encode('utf-8')
     base = (telefono_normalizado or '').encode('utf-8')
-    return hashlib.sha256(base).hexdigest()[:16]
+    return hmac.new(secreto, base, hashlib.sha256).hexdigest()[:16]
 
 
 def _cliente_redis():

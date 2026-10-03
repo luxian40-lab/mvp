@@ -927,10 +927,15 @@ CELERY_TASK_TRACK_STARTED = True
 # Indexación RAG / XLSX puede superar 5 min; override por env en EB si hace falta.
 CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '3600'))
 CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', '3300'))
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Para distribución justa de tareas
+# 1, no el default 4: con acks_late y tareas de 20-40 s un worker no debe reservar
+# mensajes que otro worker libre podría tomar.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_ACKS_LATE = True
-CELERY_TASK_REJECT_ON_WORKER_LOST = True
+# Global en False hasta P4. Campañas y el resto no son idempotentes: un reinicio
+# del worker reentregaría la tarea y duplicaría envíos. acks_late vive solo
+# en las tres tareas del webhook.
+CELERY_TASK_ACKS_LATE = False
+CELERY_TASK_REJECT_ON_WORKER_LOST = False
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 
 # ElastiCache con TLS (rediss://…)

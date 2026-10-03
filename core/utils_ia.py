@@ -612,6 +612,10 @@ def _generar_con_claude(modelo: str, prompt: str) -> str:
         raise ValueError(f"Error al comunicarse con Claude: {str(e)}")
 
 
+# Si se reactiva el cliente, no puede superar el soft_time_limit del webhook.
+GEMINI_HTTP_TIMEOUT_SEG = 30
+
+
 def _generar_con_gemini(modelo: str, prompt: str) -> str:
-    """Genera contenido usando Google Gemini"""
+    """Genera contenido usando Google Gemini. Hoy no abre cliente HTTP."""
     raise ValueError('Funcionalidad Gemini deshabilitada en este entorno.')

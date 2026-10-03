@@ -41,6 +41,33 @@ def reclamar_evento(canal, external_id) -> bool:
         return False
 
 
+class WebhookFallido(models.Model):
+    """Mensaje que la tarea no pudo terminar. El payload tiene teléfono: solo staff, purga a 10 días."""
+
+    canal = models.CharField(max_length=16)
+    external_id = models.CharField(max_length=128, db_index=True)
+    payload = models.JSONField(default=dict)
+    error = models.TextField(blank=True)
+    creado = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = 'core'
+        verbose_name = 'webhook fallido'
+        verbose_name_plural = 'webhooks fallidos'
+
+    def __str__(self):
+        return f'{self.canal}:{self.external_id}'
+
+
+def purgar_webhooks_fallidos(dias: int = 10) -> int:
+    """Borra fallos más viejos que `dias`. La usa limpiar_logs_antiguos."""
+    from django.utils import timezone
+
+    limite = timezone.now() - timezone.timedelta(days=dias)
+    eliminados, _ = WebhookFallido.objects.filter(creado__lt=limite).delete()
+    return eliminados
+
+
 def purgar_eventos_procesados(dias: int = 10) -> int:
     """Borra reclamos más viejos que `dias`. La usa limpiar_logs_antiguos."""
     from django.utils import timezone

@@ -530,12 +530,12 @@ def _bot_comercial_respuesta_catalogo(
         return texto
 
     try:
-        from openai import OpenAI
         from core.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
         from core.nat_router import decidir_routing_nat
+        from core.openai_compat import cliente_openai
         import time
         inicio = time.time()
-        client = OpenAI(api_key=api_key)
+        client = cliente_openai(api_key)
 
         if routing is None:
             routing = decidir_routing_nat(

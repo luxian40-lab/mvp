@@ -260,6 +260,8 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
             log.estado = 'SENT'
             log.save(update_fields=['mensaje_id', 'estado'])
             quitar_reaccion_espera(to)
+            from core.salida_usuario import marcar_mensaje_salio
+            marcar_mensaje_salio()
             return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
         err = data.get('error', data)
         log.estado = 'ERROR'
@@ -293,6 +295,8 @@ def _enviar_reaccion(to: str, message_id: str, emoji: str) -> bool:
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=5)
         if resp.status_code in (200, 201):
+            from core.salida_usuario import marcar_mensaje_salio
+            marcar_mensaje_salio()
             return True
         logger.warning('sandbox_reaccion_error status=%s body=%s', resp.status_code, resp.text[:300])
     except Exception:

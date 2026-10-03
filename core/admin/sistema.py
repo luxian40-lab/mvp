@@ -1,5 +1,6 @@
 from core.admin._common import *  # noqa: F401,F403
 from core.models import ConfiguracionGlobal as _ConfiguracionGlobal
+from core.webhook_evento import WebhookFallido
 
 @admin.register(_ConfiguracionGlobal)
 class ConfiguracionGlobalAdmin(admin.ModelAdmin):
@@ -154,6 +155,34 @@ class SenalTerritorialAdmin(admin.ModelAdmin):
     list_filter = ('fuente', 'tipo')
     search_fields = ('tipo', 'territory_id')
     readonly_fields = ('creado_en',)
+
+
+@admin.register(WebhookFallido)
+class WebhookFallidoAdmin(admin.ModelAdmin):
+    """Solo staff y solo lectura. El payload tiene el teléfono."""
+
+    list_display = ('creado', 'canal', 'external_id', 'error_corto')
+    list_filter = ('canal', 'creado')
+    search_fields = ('external_id', 'canal')
+    readonly_fields = ('canal', 'external_id', 'payload', 'error', 'creado')
+    ordering = ('-creado',)
+
+    def error_corto(self, obj):
+        return (obj.error or '')[:80]
+
+    error_corto.short_description = 'error'
+
+    def has_view_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_staff)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SandboxCanalSesion)

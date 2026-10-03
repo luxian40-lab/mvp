@@ -126,12 +126,17 @@ def procesar_respuesta_estudiante(self, estudiante_id, mensaje, media_url=None):
         raise self.retry(exc=exc)
 
 
+def _datos_webhook(args):
+    payload = args[0] if args and isinstance(args[0], dict) else {}
+    return payload
+
+
 def _log_fallo_definitivo(canal: str, args) -> None:
     """Sin teléfono en claro y sin mensaje al usuario."""
     from core.locks import telefono_hash
     from core.nati import normalizar_telefono_whatsapp
 
-    payload = args[0] if args and isinstance(args[0], dict) else {}
+    payload = _datos_webhook(args)
     telefono = normalizar_telefono_whatsapp(str(payload.get('From') or ''))
     logger.error(
         'webhook_tarea_fallo_definitivo canal=%s external_id=%s telefono_hash=%s',
@@ -141,7 +146,52 @@ def _log_fallo_definitivo(canal: str, args) -> None:
     )
 
 
+def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
+    """Persiste el fallo para poder reprocesarlo. El payload queda solo para staff."""
+    import json
+
+    from core.webhook_evento import WebhookFallido
+
+    datos = _datos_webhook(args)
+    kwargs_limpios = {}
+    if isinstance(kwargs, dict) and 'forzar_canal' in kwargs:
+        kwargs_limpios['forzar_canal'] = bool(kwargs.get('forzar_canal'))
+    try:
+        json.dumps(datos)
+        cuerpo = datos
+    except TypeError:
+        cuerpo = json.loads(json.dumps(datos, default=str))
+    try:
+        WebhookFallido.objects.create(
+            canal=getattr(task, 'canal', '') or '',
+            external_id=str(datos.get('MessageSid') or '')[:128],
+            payload={
+                'tarea': getattr(task, 'name', '') or '',
+                'datos': cuerpo,
+                'kwargs': kwargs_limpios,
+            },
+            error=str(exc)[:4000],
+        )
+    except Exception:
+        logger.exception(
+            'webhook_fallido_no_guardado canal=%s external_id=%s',
+            getattr(task, 'canal', ''),
+            str(datos.get('MessageSid') or ''),
+        )
+
+
 def _reintentar_si_lock(task, exc):
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from core.salida_usuario import mensaje_ya_salio
+
+    if isinstance(exc, SoftTimeLimitExceeded):
+        if mensaje_ya_salio():
+            logger.error(
+                'webhook_soft_timeout_tras_envio canal=%s no_reintenta=1',
+                getattr(task, 'canal', ''),
+            )
+        raise exc
     if not isinstance(exc, LockError):
         raise exc
     espera = min(2 ** task.request.retries, 30)
@@ -154,6 +204,7 @@ class _TareaWebhook(Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         _log_fallo_definitivo(self.canal, args)
+        _guardar_webhook_fallido(self, exc, args, kwargs)
 
 
 class _TareaWebhookMeta(_TareaWebhook):
@@ -177,6 +228,9 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
     from core.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
 
+    from core.salida_usuario import reset_mensaje_salio
+
+    reset_mensaje_salio()
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):
@@ -197,6 +251,9 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _aplicar_sandbox_menu
 
+    from core.salida_usuario import reset_mensaje_salio
+
+    reset_mensaje_salio()
     telefono = normalizar_telefono_whatsapp(str((inbound or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):
@@ -213,6 +270,9 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _procesar_twilio_webhook
 
+    from core.salida_usuario import reset_mensaje_salio
+
+    reset_mensaje_salio()
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):
@@ -417,18 +477,20 @@ def limpiar_logs_antiguos():
     """
     try:
         from core.models import MensajeChat
-        from core.webhook_evento import purgar_eventos_procesados
+        from core.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
 
         limite = timezone.now() - timezone.timedelta(days=90)
         eliminados, _ = MensajeChat.objects.filter(fecha__lt=limite).delete()
         eventos = purgar_eventos_procesados(10)
+        fallidos = purgar_webhooks_fallidos(10)
 
         logger.info(
-            "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 10 días)",
+            "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 10 días), %s fallidos (> 10 días)",
             eliminados,
             eventos,
+            fallidos,
         )
-        return f'{eliminados} mensajes eliminados; {eventos} eventos webhook'
+        return f'{eliminados} mensajes eliminados; {eventos} eventos webhook; {fallidos} fallidos'
 
     except Exception as e:
         logger.error(f"[Celery] Error limpiando logs: {e}")
