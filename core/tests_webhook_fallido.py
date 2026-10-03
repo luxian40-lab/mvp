@@ -55,6 +55,8 @@ def test_admin_webhook_fallido_es_solo_lectura_de_staff():
     assert admin_model.has_add_permission(request) is False
     assert admin_model.has_change_permission(request) is False
     assert admin_model.has_delete_permission(request) is False
+    actions = admin_model.get_actions(request)
+    assert not any('export' in clave.lower() for clave in actions)
 
 
 @pytest.mark.django_db
@@ -129,9 +131,71 @@ def test_comando_reprocesar_encola_la_tarea_guardada():
     )
     resultado = type('Resultado', (), {'id': 'task-replay'})()
     with patch('core.tasks.procesar_twilio_webhook_async.delay', return_value=resultado) as delay:
-        call_command('reprocesar_webhook_fallido', str(fila.pk))
+        call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar')
     delay.assert_called_once_with({'MessageSid': 'SMreplay', 'Body': 'listo'})
     assert WebhookFallido.objects.filter(pk=fila.pk).exists()
+
+
+@pytest.mark.django_db
+def test_reprocesar_muestra_texto_pide_confirmar_y_rechaza_viejos(capsys):
+    pytest.importorskip('celery')
+    from unittest.mock import patch
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    from core.webhook_evento import WebhookFallido
+
+    fila = WebhookFallido.objects.create(
+        canal='meta',
+        external_id='wamid.replay',
+        payload={
+            'tarea': 'core.tasks.procesar_sandbox_meta_async',
+            'datos': {'MessageSid': 'wamid.replay', 'Body': 'hola meta'},
+            'kwargs': {},
+        },
+        error='reentregas_excedidas',
+    )
+    with patch('core.tasks.procesar_sandbox_meta_async.delay') as delay:
+        with pytest.raises(CommandError, match='confirmar'):
+            call_command('reprocesar_webhook_fallido', str(fila.pk))
+        delay.assert_not_called()
+    salida = capsys.readouterr().out
+    assert 'antiguedad=' in salida
+    assert 'hola meta' in salida
+
+    WebhookFallido.objects.filter(pk=fila.pk).update(creado=timezone.now() - timedelta(hours=25))
+    with patch('core.tasks.procesar_sandbox_meta_async.delay') as delay:
+        with pytest.raises(CommandError, match='24'):
+            call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar')
+        delay.assert_not_called()
+        call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar', '--forzar')
+        delay.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_reprocesar_encola_nat_con_forzar_canal():
+    pytest.importorskip('celery')
+    from unittest.mock import patch
+
+    from django.core.management import call_command
+
+    from core.webhook_evento import WebhookFallido
+
+    fila = WebhookFallido.objects.create(
+        canal='twilio',
+        external_id='SMnat',
+        payload={
+            'tarea': 'core.tasks.procesar_bot_comercial_webhook_async',
+            'datos': {'MessageSid': 'SMnat', 'Body': 'precio'},
+            'kwargs': {'forzar_canal': True},
+        },
+        error='timeout',
+    )
+    resultado = type('Resultado', (), {'id': 'task-nat'})()
+    with patch('core.tasks.procesar_bot_comercial_webhook_async.delay', return_value=resultado) as delay:
+        call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar')
+    delay.assert_called_once_with({'MessageSid': 'SMnat', 'Body': 'precio'}, forzar_canal=True)
 
 
 def test_external_id_de_las_tres_tareas():

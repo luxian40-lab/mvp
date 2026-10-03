@@ -184,6 +184,14 @@ class WebhookFallidoAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        return {
+            clave: accion
+            for clave, accion in actions.items()
+            if 'export' not in clave.lower()
+        }
+
 
 @admin.register(SandboxCanalSesion)
 class SandboxCanalSesionAdmin(admin.ModelAdmin):
