@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main, slice/escalabilidad-base]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eki_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: eki_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      DJANGO_SETTINGS_MODULE: mvp_project.settings_test
+      SECRET_KEY: ci-not-a-secret
+      DJANGO_DEBUG: "True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Dependencias
+        run: pip install -r requirements.txt
+      - name: check
+        run: python manage.py check
+      - name: makemigrations --check
+        run: python manage.py makemigrations --check --dry-run
+      - name: pytest checklist
+        run: >
+          pytest --maxfail=20
+          core/tests_ci_baseline.py
+          aprende/tests.py
+          aprende/tests_admin.py
+          core/tests_module_steps.py
+          core/tests_export_estudiantes.py
+          portal/tests_branding.py
