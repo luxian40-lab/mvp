@@ -26,3 +26,6 @@ class CoreConfig(AppConfig):
         import core.signals_telemetria
 
         import core.signals_publicacion_wa  # Slack borrador en curso activo
+
+        from core.twilio_timeout import aplicar_timeout_twilio
+        aplicar_timeout_twilio()

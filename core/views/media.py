@@ -11,7 +11,7 @@ from ..models_extras import ArchivoModulo
 @csrf_exempt
 def serve_media_proxy(request, filename):
     s3_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{filename}"
-    r = requests.get(s3_url, stream=True)
+    r = requests.get(s3_url, stream=True, timeout=(5, 30))
     if r.status_code == 200:
         content_type = r.headers.get('Content-Type', 'application/octet-stream')
         content_length = r.headers.get('Content-Length')

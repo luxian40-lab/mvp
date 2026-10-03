@@ -121,7 +121,8 @@ class EmailService:
                 'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json'
             },
-            json=payload
+            json=payload,
+            timeout=15,
         )
         
         if response.status_code in [200, 201]:
@@ -179,7 +180,8 @@ class EmailService:
                 'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json'
             },
-            json=payload
+            json=payload,
+            timeout=15,
         )
         
         if response.status_code == 202:
@@ -224,7 +226,8 @@ class EmailService:
             f'https://api.mailgun.net/v3/{domain}/messages',
             auth=('api', api_key),
             data=data,
-            files=files if files else None
+            files=files if files else None,
+            timeout=15,
         )
         
         if response.status_code == 200:

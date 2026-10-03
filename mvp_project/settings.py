@@ -324,6 +324,10 @@ TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER')
 WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_webhook_verify_token')
 # URL completa POST para callbacks de estado (delivered/read/failed). Ej: https://tudominio.com/webhook/whatsapp/
 TWILIO_STATUS_CALLBACK_URL = os.environ.get('TWILIO_STATUS_CALLBACK_URL', '').strip()
+try:
+    TWILIO_HTTP_TIMEOUT = float(os.environ.get('TWILIO_HTTP_TIMEOUT', '15') or '15')
+except ValueError:
+    TWILIO_HTTP_TIMEOUT = 15.0
 
 # Firma Twilio (HMAC) en webhooks. Env explícito gana; si no: True en prod, False en DEBUG/tests.
 _twilio_validate_sig = os.environ.get('TWILIO_VALIDATE_SIGNATURE', '').strip().lower()
