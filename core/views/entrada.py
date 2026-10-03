@@ -7,7 +7,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
-from .twilio_transporte import _encolar_twilio_edu_si_async
+from core.webhook_evento import (
+    CANAL_META,
+    CANAL_TWILIO,
+    firma_meta_invalida,
+    liberar_eventos,
+    preparar_payload_meta,
+    reclamar_twilio,
+)
+
+from .twilio_transporte import _encolar_twilio_edu_si_async, _es_status_callback_twilio
 from .webhook_comercial import _encolar_bot_comercial_si_async
 from .webhook_meta import (
     _aplicar_sandbox_menu,
@@ -18,6 +27,17 @@ from .webhook_meta import (
 from .webhook_twilio import _procesar_twilio_webhook
 
 logger = logging.getLogger(__name__)
+
+
+def _correr_webhook(canal, ids, fn):
+    """Si el encolado o el proceso síncrono falla, suelta el reclamo y pide reintento."""
+    try:
+        return fn()
+    except Exception:
+        logger.exception('webhook_proceso_fallo canal=%s ids=%s', canal, ids)
+        liberar_eventos(canal, ids)
+        return HttpResponse('Error', status=500)
+
 
 @csrf_exempt
 def whatsapp_webhook(request):
@@ -65,35 +85,51 @@ def whatsapp_webhook(request):
             # Detectar si es Meta o Twilio
             if 'entry' in payload:
                 logger.info("📍 Detectado: META WhatsApp")
-                try:
-                    from core.meta_waba import aplicar_eventos_plantilla
+                if firma_meta_invalida(
+                    raw_body,
+                    request.META.get('HTTP_X_HUB_SIGNATURE_256', ''),
+                ):
+                    logger.warning('meta_webhook_firma_invalida')
+                    return HttpResponse('Forbidden', status=403)
+                payload, ids_meta, seguir = preparar_payload_meta(payload)
+                if not seguir:
+                    return HttpResponse('OK')
 
-                    aplicar_eventos_plantilla(
-                        payload,
-                        raw_body,
-                        request.META.get('HTTP_X_HUB_SIGNATURE_256', ''),
-                    )
-                except Exception:
-                    logger.exception('meta_template_status_update_fail')
-                from core.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
-                from core.sandbox_menu import es_destino_sandbox
+                def _procesar_meta():
+                    try:
+                        from core.meta_waba import aplicar_eventos_plantilla
 
-                if sandbox_via_meta():
-                    last_sb = None
-                    sandbox_hit = False
-                    for inbound in iter_mensajes_inbound_meta(payload):
-                        if es_destino_sandbox(inbound):
-                            sandbox_hit = True
-                            if _sandbox_inbound_repetido(inbound):
-                                continue
-                            if _encolar_sandbox_si_async(inbound):
-                                continue
-                            last_sb = _aplicar_sandbox_menu(inbound)
-                    if sandbox_hit:
-                        if isinstance(last_sb, HttpResponse):
-                            return last_sb
-                        return HttpResponse('OK')
-                _procesar_meta_webhook(payload)
+                        aplicar_eventos_plantilla(
+                            payload,
+                            raw_body,
+                            request.META.get('HTTP_X_HUB_SIGNATURE_256', ''),
+                        )
+                    except Exception:
+                        logger.exception('meta_template_status_update_fail')
+                    from core.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
+                    from core.sandbox_menu import es_destino_sandbox
+
+                    if sandbox_via_meta():
+                        last_sb = None
+                        sandbox_hit = False
+                        for inbound in iter_mensajes_inbound_meta(payload):
+                            if es_destino_sandbox(inbound):
+                                sandbox_hit = True
+                                if _sandbox_inbound_repetido(inbound):
+                                    continue
+                                if _encolar_sandbox_si_async(inbound):
+                                    continue
+                                last_sb = _aplicar_sandbox_menu(inbound)
+                        if sandbox_hit:
+                            if isinstance(last_sb, HttpResponse):
+                                return last_sb
+                            return HttpResponse('OK')
+                    _procesar_meta_webhook(payload)
+                    return None
+
+                resultado_meta = _correr_webhook(CANAL_META, ids_meta, _procesar_meta)
+                if isinstance(resultado_meta, HttpResponse):
+                    return resultado_meta
             else:
                 # Podría ser Twilio con JSON — intentar procesarlo como Twilio también
                 print("⚠️ JSON recibido pero no es Meta — intentando como Twilio", flush=True)
@@ -108,17 +144,30 @@ def whatsapp_webhook(request):
                         payload.get('To', ''),
                         payload.get('MessageSid', ''),
                     )
-                    sb = _aplicar_sandbox_menu(payload)
-                    if sb is not None:
-                        return sb
-                    if _es_destino_bot_comercial(payload):
-                        logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
-                        if not _encolar_bot_comercial_si_async(payload):
-                            _procesar_bot_comercial_twilio_webhook(payload)
-                    else:
-                        logger.info("🧭 Router webhook: Twilio destino educativo detectado (JSON)")
-                        if not _encolar_twilio_edu_si_async(payload):
-                            _procesar_twilio_webhook(payload)
+                    seguir_tw, ids_tw = reclamar_twilio(
+                        payload,
+                        es_status=_es_status_callback_twilio(payload),
+                    )
+                    if not seguir_tw:
+                        return HttpResponse('OK')
+
+                    def _procesar_twilio_json():
+                        sb = _aplicar_sandbox_menu(payload)
+                        if sb is not None:
+                            return sb
+                        if _es_destino_bot_comercial(payload):
+                            logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
+                            if not _encolar_bot_comercial_si_async(payload):
+                                _procesar_bot_comercial_twilio_webhook(payload)
+                        else:
+                            logger.info("🧭 Router webhook: Twilio destino educativo detectado (JSON)")
+                            if not _encolar_twilio_edu_si_async(payload):
+                                _procesar_twilio_webhook(payload)
+                        return None
+
+                    resultado_tw = _correr_webhook(CANAL_TWILIO, ids_tw, _procesar_twilio_json)
+                    if isinstance(resultado_tw, HttpResponse):
+                        return resultado_tw
                 else:
                     print("⚠️ JSON desconocido — ignorando", flush=True)
                 return HttpResponse('OK')
@@ -135,21 +184,28 @@ def whatsapp_webhook(request):
                 request.POST.get('To', ''),
                 request.POST.get('MessageSid', ''),
             )
-            sb = _aplicar_sandbox_menu(request.POST)
-            if sb is not None:
-                return sb
-            if _es_destino_bot_comercial(request.POST):
-                logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
-                if not _encolar_bot_comercial_si_async(request.POST):
-                    _procesar_bot_comercial_twilio_webhook(request.POST)
-                twilio_result = None
-            else:
+            seguir_tw, ids_tw = reclamar_twilio(
+                request.POST,
+                es_status=_es_status_callback_twilio(request.POST),
+            )
+            if not seguir_tw:
+                return HttpResponse('OK')
+
+            def _procesar_form():
+                sb = _aplicar_sandbox_menu(request.POST)
+                if sb is not None:
+                    return sb
+                if _es_destino_bot_comercial(request.POST):
+                    logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
+                    if not _encolar_bot_comercial_si_async(request.POST):
+                        _procesar_bot_comercial_twilio_webhook(request.POST)
+                    return None
                 logger.info("🧭 Router webhook: Twilio destino educativo detectado (Form-Data)")
                 if _encolar_twilio_edu_si_async(request.POST):
-                    twilio_result = None
-                else:
-                    twilio_result = _procesar_twilio_webhook(request.POST)
-            # Si _procesar_twilio_webhook devuelve TwiML HttpResponse, retornarlo
+                    return None
+                return _procesar_twilio_webhook(request.POST)
+
+            twilio_result = _correr_webhook(CANAL_TWILIO, ids_tw, _procesar_form)
             if isinstance(twilio_result, HttpResponse):
                 return twilio_result
         

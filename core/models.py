@@ -13,6 +13,7 @@ from django.db import IntegrityError
 
 from core.documento_identidad import TIPO_DOCUMENTO_CHOICES
 from core.planes_linea import PLAN_CHOICES as PLAN_LINEA_CHOICES
+from core.webhook_evento import WebhookEventoProcesado  # noqa: F401
 
 # 0. TEMA DE CAMPAÑA (para organizar plantillas y campañas)
 class TemaCampana(models.Model):
@@ -4593,4 +4594,5 @@ __all__ = [
     'TarjetaPlantillaMeta',
     'CampanaMeta',
     'EnvioCampanaMeta',
+    'WebhookEventoProcesado',
 ]
