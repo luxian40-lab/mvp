@@ -78,7 +78,10 @@ class MargenUsoEvento(models.Model):
         verbose_name = 'Evento calculadora margen'
         verbose_name_plural = 'Eventos calculadora margen'
         indexes = [
-            models.Index(fields=['cliente', 'evento', 'creado_en']),
+            models.Index(
+                fields=['cliente', 'evento', 'creado_en'],
+                name='calc_margen_cli_evt_idx',
+            ),
         ]
 
     def __str__(self) -> str:
