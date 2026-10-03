@@ -299,14 +299,19 @@ class SandboxCanalMetaWebhookTests(TestCase):
         sync.assert_not_called()
 
     @override_settings(SANDBOX_CELERY_ASYNC=True)
-    def test_sin_redis_cae_a_sincrono(self):
+    def test_sin_redis_responde_500_y_suelta_el_reclamo(self):
+        from core.webhook_evento import WebhookEventoProcesado
+
         payload = _meta_envelope(
             {'from': '573001234597', 'id': 'wamid.async2', 'type': 'text', 'text': {'body': 'hola'}},
         )
         modulo, _ = self._tasks_falso(side_effect=ConnectionError('redis'))
         with modulo, patch('core.views.entrada._aplicar_sandbox_menu', return_value=None) as sync:
-            self.assertEqual(self._post(payload).status_code, 200)
-        self.assertEqual(sync.call_count, 1)
+            self.assertEqual(self._post(payload).status_code, 500)
+        self.assertEqual(sync.call_count, 0)
+        self.assertFalse(
+            WebhookEventoProcesado.objects.filter(external_id='wamid.async2').exists()
+        )
 
     def test_post_twilio_sandbox_se_ignora_cuando_canal_es_meta(self):
         with patch('core.views.entrada._procesar_twilio_webhook') as edu, \

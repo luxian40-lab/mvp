@@ -446,10 +446,16 @@ if _redis_mode != 'unchanged':
     CELERY_BROKER_URL = _broker_resolved
     CELERY_RESULT_BACKEND = _backend_resolved
 
-# Nat no debe ocupar el worker Gunicorn (WORKER TIMEOUT ~180s).
-NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'True').lower() in (
-    '1', 'true', 'yes', 'on',
-)
+def _flag_async(nombre: str) -> bool:
+    """True salvo que la variable de entorno lo apague."""
+    bruto = os.environ.get(nombre, 'True').strip().lower()
+    return bruto in ('1', 'true', 'yes', 'on')
+
+
+# El webhook responde 200 y la lógica corre en Celery. Apagar con *_CELERY_ASYNC=false.
+NAT_WEBHOOK_CELERY_ASYNC = _flag_async('NAT_WEBHOOK_CELERY_ASYNC')
+WEBHOOK_CELERY_ASYNC = _flag_async('WEBHOOK_CELERY_ASYNC')
+SANDBOX_CELERY_ASYNC = _flag_async('SANDBOX_CELERY_ASYNC')
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'True').lower() in (
     '1', 'true', 'yes', 'on',
 )

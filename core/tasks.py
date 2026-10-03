@@ -2,7 +2,8 @@
 Tareas asíncronas de Celery para EKI MVP
 Procesa: certificados, campañas, gamificación, reportes, notificaciones
 """
-from celery import shared_task
+from celery import Task, shared_task
+from redis.exceptions import LockError
 from django.utils import timezone
 from django.conf import settings
 import logging
@@ -125,92 +126,100 @@ def procesar_respuesta_estudiante(self, estudiante_id, mensaje, media_url=None):
         raise self.retry(exc=exc)
 
 
-def _nat_avisar_timeout_whatsapp(post_data: dict) -> None:
-    """Avisa al usuario si Celery mató la tarea Nat por tiempo."""
-    try:
-        from core.utils import enviar_whatsapp_twilio
+def _log_fallo_definitivo(canal: str, args) -> None:
+    """Sin teléfono en claro y sin mensaje al usuario."""
+    from core.locks import telefono_hash
+    from core.nati import normalizar_telefono_whatsapp
 
-        raw_from = (post_data.get('From') or '').strip()
-        tel = raw_from.replace('whatsapp:', '').strip()
-        if not tel:
-            return
-        import re
-        tel = re.sub(r'\D', '', tel)
-        if len(tel) == 10:
-            tel = f'57{tel}'
-        enviar_whatsapp_twilio(
-            tel,
-            '🌾 Estoy revisando su consulta. En un momento le respondo; '
-            'si prefiere, reenvíe la pregunta en un mensaje más corto.',
-        )
-    except Exception:
-        logger.exception('[Celery] Nat no pudo avisar timeout por WhatsApp')
+    payload = args[0] if args and isinstance(args[0], dict) else {}
+    telefono = normalizar_telefono_whatsapp(str(payload.get('From') or ''))
+    logger.error(
+        'webhook_tarea_fallo_definitivo canal=%s external_id=%s telefono_hash=%s',
+        canal,
+        str(payload.get('MessageSid') or ''),
+        telefono_hash(telefono),
+    )
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=8, soft_time_limit=240, time_limit=300)
+def _reintentar_si_lock(task, exc):
+    if not isinstance(exc, LockError):
+        raise exc
+    espera = min(2 ** task.request.retries, 30)
+    raise task.retry(exc=exc, countdown=espera)
+
+
+class _TareaWebhook(Task):
+    canal = 'twilio'
+    abstract = True
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        _log_fallo_definitivo(self.canal, args)
+
+
+class _TareaWebhookMeta(_TareaWebhook):
+    canal = 'meta'
+
+
+_WEBHOOK_TASK = dict(
+    bind=True,
+    max_retries=8,
+    acks_late=True,
+    reject_on_worker_lost=True,
+    soft_time_limit=45,
+    time_limit=60,
+)
+
+
+@shared_task(base=_TareaWebhook, **_WEBHOOK_TASK)
 def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bool = False):
-    """
-    Nat / RAG / LLM fuera del webhook HTTP (evita WORKER TIMEOUT de Gunicorn).
-    Activar con NAT_WEBHOOK_CELERY_ASYNC=true (prod: settings_production).
-    soft/hard limits altos: Chroma+LLM en prod ya rozó ~180s.
-    """
+    """Nat fuera del request. El candado es por teléfono; si no se obtiene, reintenta."""
+    from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
+    from core.locks import telefono_lock
+    from core.nati import normalizar_telefono_whatsapp
+
+    telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     try:
-        from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
-
-        logger.info(
-            "[Celery] Webhook Nat | sid=%s | forzar=%s",
-            post_data.get('MessageSid', ''),
-            forzar_canal,
-        )
-        return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
+        with telefono_lock(telefono):
+            logger.info(
+                "[Celery] Webhook Nat | sid=%s | forzar=%s",
+                (post_data or {}).get('MessageSid', ''),
+                forzar_canal,
+            )
+            return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
     except Exception as exc:
-        from celery.exceptions import SoftTimeLimitExceeded
-
-        if isinstance(exc, SoftTimeLimitExceeded):
-            _nat_avisar_timeout_whatsapp(post_data)
-            return None
-        try:
-            from billiard.exceptions import TimeLimitExceeded as BilliardTimeLimitExceeded
-        except ImportError:
-            BilliardTimeLimitExceeded = type(None)
-        if isinstance(exc, BilliardTimeLimitExceeded):
-            logger.error("[Celery] Nat TimeLimitExceeded (hard) | sid=%s", post_data.get('MessageSid', ''))
-            _nat_avisar_timeout_whatsapp(post_data)
-            return None
-        logger.error("[Celery] Error webhook Nat async: %s", exc)
-        raise self.retry(exc=exc)
+        _reintentar_si_lock(self, exc)
 
 
-@shared_task(soft_time_limit=120, time_limit=150)
-def procesar_sandbox_meta_async(inbound: dict):
-    """
-    Línea Meta (menú, Coach/Profe/Ventas, cursos) fuera del request HTTP.
-    Sin reintento: un reintento duplicaría la respuesta y el cupo de preguntas.
-    Activar con SANDBOX_CELERY_ASYNC=true.
-    """
+@shared_task(base=_TareaWebhookMeta, **_WEBHOOK_TASK)
+def procesar_sandbox_meta_async(self, inbound: dict):
+    """Una tarea por mensaje de la línea Meta. time_limit 60 < candado 90."""
+    from core.locks import telefono_lock
+    from core.nati import normalizar_telefono_whatsapp
     from core.views import _aplicar_sandbox_menu
 
-    logger.info("[Celery] Línea Meta | sid=%s", inbound.get('MessageSid', ''))
+    telefono = normalizar_telefono_whatsapp(str((inbound or {}).get('From') or '')) or 'sin-telefono'
     try:
-        _aplicar_sandbox_menu(inbound)
-    except Exception:
-        logger.exception("[Celery] Error línea Meta | sid=%s", inbound.get('MessageSid', ''))
-
-
-@shared_task(bind=True, max_retries=2, default_retry_delay=5)
-def procesar_twilio_webhook_async(self, post_data: dict):
-    """
-    Procesa webhook Twilio educativo en Celery (libera worker Gunicorn).
-    Activar con WEBHOOK_CELERY_ASYNC=true en EB cuando haya picos de mensajes.
-    """
-    try:
-        from core.views import _procesar_twilio_webhook
-
-        logger.info("[Celery] Webhook Twilio educativo | sid=%s", post_data.get('MessageSid', ''))
-        return _procesar_twilio_webhook(post_data)
+        with telefono_lock(telefono):
+            logger.info("[Celery] Línea Meta | sid=%s", (inbound or {}).get('MessageSid', ''))
+            return _aplicar_sandbox_menu(inbound)
     except Exception as exc:
-        logger.error("[Celery] Error webhook Twilio async: %s", exc)
-        raise self.retry(exc=exc)
+        _reintentar_si_lock(self, exc)
+
+
+@shared_task(base=_TareaWebhook, **_WEBHOOK_TASK)
+def procesar_twilio_webhook_async(self, post_data: dict):
+    """Webhook Twilio educativo en Celery. No toca el cuerpo del procesador."""
+    from core.locks import telefono_lock
+    from core.nati import normalizar_telefono_whatsapp
+    from core.views import _procesar_twilio_webhook
+
+    telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
+    try:
+        with telefono_lock(telefono):
+            logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))
+            return _procesar_twilio_webhook(post_data)
+    except Exception as exc:
+        _reintentar_si_lock(self, exc)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)

@@ -27,16 +27,17 @@ def _sandbox_inbound_repetido(inbound) -> bool:
     return True
 
 def _encolar_sandbox_si_async(inbound) -> bool:
-    """Menú, agentes y cursos de la línea Meta en Celery si SANDBOX_CELERY_ASYNC=true."""
+    """Una tarea Celery por mensaje si SANDBOX_CELERY_ASYNC=true.
+
+    Si Redis no acepta la tarea, la excepción sube. El webhook conserva
+    los reclamos ya encolados, suelta el que falló y los que no alcanzó
+    a encolarse, y responde 500. No hay fallback síncrono.
+    """
     if not getattr(settings, 'SANDBOX_CELERY_ASYNC', False):
         return False
-    try:
-        from core.tasks import procesar_sandbox_meta_async
+    from core.tasks import procesar_sandbox_meta_async
 
-        procesar_sandbox_meta_async.delay(dict(inbound))
-    except Exception:
-        logger.exception('sandbox_encolar_fail sid=%s — fallback síncrono', inbound.get('MessageSid', ''))
-        return False
+    procesar_sandbox_meta_async.delay(dict(inbound))
     return True
 
 def _aplicar_sandbox_menu(data):
