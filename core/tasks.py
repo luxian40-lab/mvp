@@ -136,12 +136,14 @@ def _log_fallo_definitivo(canal: str, args) -> None:
     from core.locks import telefono_hash
     from core.nati import normalizar_telefono_whatsapp
 
+    from core.webhook_evento import external_id_de_payload
+
     payload = _datos_webhook(args)
     telefono = normalizar_telefono_whatsapp(str(payload.get('From') or ''))
     logger.error(
         'webhook_tarea_fallo_definitivo canal=%s external_id=%s telefono_hash=%s',
         canal,
-        str(payload.get('MessageSid') or ''),
+        external_id_de_payload(payload),
         telefono_hash(telefono),
     )
 
@@ -150,9 +152,10 @@ def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
     """Persiste el fallo para poder reprocesarlo. El payload queda solo para staff."""
     import json
 
-    from core.webhook_evento import WebhookFallido
+    from core.webhook_evento import WebhookFallido, external_id_de_payload
 
     datos = _datos_webhook(args)
+    external_id = external_id_de_payload(datos)
     kwargs_limpios = {}
     if isinstance(kwargs, dict) and 'forzar_canal' in kwargs:
         kwargs_limpios['forzar_canal'] = bool(kwargs.get('forzar_canal'))
@@ -164,7 +167,7 @@ def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
     try:
         WebhookFallido.objects.create(
             canal=getattr(task, 'canal', '') or '',
-            external_id=str(datos.get('MessageSid') or '')[:128],
+            external_id=external_id,
             payload={
                 'tarea': getattr(task, 'name', '') or '',
                 'datos': cuerpo,
@@ -176,8 +179,28 @@ def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
         logger.exception(
             'webhook_fallido_no_guardado canal=%s external_id=%s',
             getattr(task, 'canal', ''),
-            str(datos.get('MessageSid') or ''),
+            external_id,
         )
+
+
+def _cortar_reentregas(task, datos, kwargs=None) -> bool:
+    """True en la tercera entrega: no corre el cuerpo y deja WebhookFallido."""
+    from core.locks import ENTREGA_TOPE, contar_entrega
+    from core.webhook_evento import external_id_de_payload
+
+    datos = datos if isinstance(datos, dict) else {}
+    ext = external_id_de_payload(datos)
+    n = contar_entrega(getattr(task, 'canal', '') or '', ext)
+    if n < ENTREGA_TOPE:
+        return False
+    logger.error(
+        'webhook_reentregas_excedidas canal=%s external_id=%s entrega=%s',
+        getattr(task, 'canal', ''),
+        ext,
+        n,
+    )
+    _guardar_webhook_fallido(task, 'reentregas_excedidas', [datos], kwargs or {})
+    return True
 
 
 def _reintentar_si_lock(task, exc):
@@ -231,6 +254,8 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
     from core.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
+    if _cortar_reentregas(self, post_data, {'forzar_canal': forzar_canal}):
+        return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):
@@ -254,6 +279,8 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     from core.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
+    if _cortar_reentregas(self, inbound):
+        return None
     telefono = normalizar_telefono_whatsapp(str((inbound or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):
@@ -273,6 +300,8 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     from core.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
+    if _cortar_reentregas(self, post_data):
+        return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     try:
         with telefono_lock(telefono):

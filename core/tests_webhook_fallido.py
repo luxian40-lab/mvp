@@ -132,3 +132,107 @@ def test_comando_reprocesar_encola_la_tarea_guardada():
         call_command('reprocesar_webhook_fallido', str(fila.pk))
     delay.assert_called_once_with({'MessageSid': 'SMreplay', 'Body': 'listo'})
     assert WebhookFallido.objects.filter(pk=fila.pk).exists()
+
+
+def test_external_id_de_las_tres_tareas():
+    """Twilio y Nat usan MessageSid. Meta copia el wamid (message.id) a MessageSid."""
+    from core.sandbox_canal import inbound_desde_meta_message
+    from core.webhook_evento import external_id_de_payload
+
+    twilio = {'MessageSid': 'SMtwilio', 'From': 'whatsapp:+573001112233', 'Body': 'listo'}
+    assert external_id_de_payload(twilio) == 'SMtwilio'
+
+    inbound = inbound_desde_meta_message(
+        {'id': 'wamid.META1', 'from': '573001112233', 'type': 'text', 'text': {'body': 'hola'}},
+        {'metadata': {'display_phone_number': '15550001111', 'phone_number_id': '1'}},
+    )
+    assert inbound['MessageSid'] == 'wamid.META1'
+    assert external_id_de_payload(inbound) == 'wamid.META1'
+    assert external_id_de_payload({'id': 'wamid.SOLO'}) == 'wamid.SOLO'
+
+
+class _RedisFalso:
+    def __init__(self):
+        self.valores = {}
+        self.ttls = {}
+
+    def incr(self, clave):
+        self.valores[clave] = int(self.valores.get(clave, 0)) + 1
+        return self.valores[clave]
+
+    def ttl(self, clave):
+        return self.ttls.get(clave, -1)
+
+    def expire(self, clave, segundos):
+        self.ttls[clave] = segundos
+        return True
+
+    def close(self):
+        return None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'nombre,canal,sid,kwargs,cuerpo',
+    [
+        ('procesar_twilio_webhook_async', 'twilio', 'SMre1', {}, 'core.views._procesar_twilio_webhook'),
+        (
+            'procesar_bot_comercial_webhook_async',
+            'twilio',
+            'SMnat1',
+            {'forzar_canal': True},
+            'core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook',
+        ),
+        ('procesar_sandbox_meta_async', 'meta', 'wamid.RE1', {}, 'core.views._aplicar_sandbox_menu'),
+    ],
+)
+def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwargs, cuerpo):
+    pytest.importorskip('celery')
+    from contextlib import contextmanager
+    from unittest.mock import patch
+
+    from core import tasks as tasks_mod
+    from core.locks import ENTREGA_TTL_SEG
+    from core.webhook_evento import WebhookFallido
+
+    @contextmanager
+    def _abierto(*args, **kw):
+        yield
+
+    falso = _RedisFalso()
+    datos = {'MessageSid': sid, 'From': 'whatsapp:+573009998877', 'Body': 'hola'}
+    if canal == 'meta':
+        datos['id'] = sid
+    tarea = getattr(tasks_mod, nombre)
+    with patch('core.locks._cliente_redis', return_value=falso), \
+            patch('core.locks.telefono_lock', _abierto), \
+            patch(cuerpo) as proc:
+        for _ in range(2):
+            tarea.apply(args=[datos], kwargs=kwargs, throw=True)
+        assert proc.call_count == 2
+        tarea.apply(args=[datos], kwargs=kwargs, throw=True)
+        assert proc.call_count == 2
+
+    fila = WebhookFallido.objects.get(external_id=sid)
+    assert fila.canal == canal
+    assert fila.error == 'reentregas_excedidas'
+    assert falso.ttls[f'eki:wa:entrega:{canal}:{sid}'] == ENTREGA_TTL_SEG
+    if nombre == 'procesar_bot_comercial_webhook_async':
+        assert fila.payload['kwargs']['forzar_canal'] is True
+
+
+@pytest.mark.django_db
+def test_on_failure_de_meta_guarda_el_wamid_aunque_solo_venga_id():
+    pytest.importorskip('celery')
+    from core.tasks import procesar_sandbox_meta_async
+    from core.webhook_evento import WebhookFallido
+
+    procesar_sandbox_meta_async.on_failure(
+        RuntimeError('graph'),
+        'task-meta',
+        [{'id': 'wamid.SOLOID', 'From': 'whatsapp:+573001112233', 'Body': 'foto'}],
+        {},
+        None,
+    )
+    fila = WebhookFallido.objects.get(external_id='wamid.SOLOID')
+    assert fila.canal == 'meta'

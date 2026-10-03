@@ -15,6 +15,8 @@ from django.conf import settings
 
 LOCK_TIMEOUT = 90
 LOCK_BLOCKING = 10
+ENTREGA_TTL_SEG = 3600
+ENTREGA_TOPE = 3
 
 
 def telefono_hash(telefono_normalizado: str) -> str:
@@ -22,6 +24,29 @@ def telefono_hash(telefono_normalizado: str) -> str:
     secreto = str(getattr(settings, 'SECRET_KEY', '') or '').encode('utf-8')
     base = (telefono_normalizado or '').encode('utf-8')
     return hmac.new(secreto, base, hashlib.sha256).hexdigest()[:16]
+
+
+def contar_entrega(canal: str, external_id: str) -> int:
+    """Cuenta reentregas de la misma tarea por (canal, external_id). TTL de 1 h.
+
+    Sin external_id no hay clave estable: devuelve 1 y no escribe.
+    El TTL se pone en la primera entrega y, si faltara, en la siguiente.
+    """
+    ext = (external_id or '').strip()
+    if not ext:
+        return 1
+    clave = f'eki:wa:entrega:{canal}:{ext}'
+    cliente = _cliente_redis()
+    try:
+        n = int(cliente.incr(clave))
+        if n == 1 or int(cliente.ttl(clave)) < 0:
+            cliente.expire(clave, ENTREGA_TTL_SEG)
+        return n
+    finally:
+        try:
+            cliente.close()
+        except Exception:
+            pass
 
 
 def _cliente_redis():

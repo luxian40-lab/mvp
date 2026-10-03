@@ -32,6 +32,18 @@ class WebhookEventoProcesado(models.Model):
         return f'{self.canal}:{self.external_id}'
 
 
+def external_id_de_payload(datos) -> str:
+    """Id del mensaje en las tres tareas del webhook.
+
+    Twilio educativo y Nat: MessageSid del POST.
+    Meta sandbox: inbound_desde_meta_message copia message['id'] (wamid) a MessageSid.
+    Si el dict solo trae id, se usa ese valor.
+    """
+    if not isinstance(datos, dict):
+        return ''
+    return str(datos.get('MessageSid') or datos.get('id') or '').strip()[:128]
+
+
 def reclamar_evento(canal, external_id) -> bool:
     try:
         with transaction.atomic():
