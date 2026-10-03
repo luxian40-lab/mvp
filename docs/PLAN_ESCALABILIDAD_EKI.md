@@ -137,9 +137,9 @@ Advisory locks y pooler: `pg_advisory_lock` es de sesión. PgBouncer en modo tra
 
 Commit: `feat(infra): EKI_ROLE, colas, REDIS_URL, migrate con advisory lock`
 
-### P4 — Meta primero, proveedor intercambiable (diseño, sin código)
+### P4 — Solo Meta para campañas y reenganche (diseño, sin código)
 
-Sustituye el P4 anterior (lotes de 50 y `rate_limit` de Celery). Ese `rate_limit` es por worker y no sirve cuando hay más de un proceso. El proveedor lo decide la línea u organización, no `if` repartidos. Twilio queda para demo y campañas HSM. Este bloque no se implementa hasta un «continúa» explícito.
+Sustituye el P4 de lotes y el de dos Senders en paralelo. No hay cohorte viva que migrar: campañas y reenganche tienen un solo camino, `MetaSender`. `TwilioSender` queda detrás de la misma interfaz, sin métodos nuevos, y solo atiende demo y HSM históricos que ya existen. Este bloque no se implementa hasta que estén listos el dry-run, el restore de RDS y la carga sintética.
 
 `reenganche_inactivos_diario` sigue apagado (`REENGANCHE_INACTIVOS_ENABLED=False`). [MANUAL] Activar o no el reenganche de inactivos a las 09:00.
 
@@ -156,9 +156,35 @@ Sender
   enviar_plantilla(destino, plantilla, variables, correlacion) -> ResultadoEnvio
   enviar_texto(destino, cuerpo, correlacion) -> ResultadoEnvio
 
-MetaSender    Graph POST /{phone-id}/messages
-TwilioSender  Content SID (HSM) y texto de demo
+MetaSender    único camino de Campana, CampanaMeta y reenganche
+TwilioSender  legacy: demo y HSM ya escritos. No se extiende.
 ```
+
+`Campana.linea_origen` pasa a ser obligatoria y apunta a la línea Meta.
+
+Expand: la FK sigue aceptando null. Una migración de datos hace `get_or_create` de la `Linea` Meta (nombre `Meta`, número el de la línea de producto) y rellena `linea_origen` donde esté vacío. Reversible: poner null otra vez en esas filas.
+
+Contract, en una migración posterior: `null=False`, `blank=False`. El alta nueva toma esa línea Meta. No se hace en el mismo deploy que el backfill.
+
+#### Carga sintética
+
+No hay estudiantes reales para medir el pico de las 08:00, el Centro de Éxito ni los resúmenes. El generador, cuando se escriba, tiene cuatro piezas:
+
+- Servidor local de Graph: `POST /{phone-id}/messages` responde 200 con un wamid falso. Un query o header pide 131056, 131047 o un timeout.
+- Payloads de webhook Meta firmados con el `WHATSAPP_APP_SECRET` de prueba (HMAC-SHA256, `compare_digest` del lado receptor).
+- Organización de prueba con 200 estudiantes ficticios, teléfonos que no existen en la línea real.
+- Locust (o un script) que dispara el reenganche y el webhook contra ese Graph. La salida muestra latencia, profundidad de cola (`LLEN` de `masivo` y `conversacion`) y errores por código.
+
+La meta de la prueba es el pico de las 08:00, no un envío a personas.
+
+#### Orden de esta ventana
+
+1. `reenganche_dry_run` y `campanas_pendientes` (ya escritos; no envían).
+2. Verificación manual en EB: secreto de Meta, token, `TWILIO_VALIDATE_SIGNATURE`.
+3. PR a main con el job `test` obligatorio, y deploy del slice con los tres flags async en false.
+4. Restore de un snapshot de RDS a una instancia temporal. Valida el backup y las migraciones 0159/0160 sobre una copia. El clon de la app queda opcional. Rollback de código: `main-20261001-213708`.
+5. `kill -9` y prueba de `redelivered` en horas muertas, solo con el teléfono interno.
+6. Carga sintética, y después el código de P4.
 
 `MetaSender` manda `correlacion` en `biz_opaque_callback_data`. Meta lo devuelve en `statuses[].biz_opaque_callback_data` solo si se envió. Verificado el 2026-10-03 en la referencia de webhooks de estado (campo `messages`). El valor es el id del `EnvioLog`. No se deduplica por wamid: P1 ya dejó los `statuses` fuera del reclamo.
 
