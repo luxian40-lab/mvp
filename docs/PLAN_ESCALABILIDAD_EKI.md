@@ -137,17 +137,109 @@ Advisory locks y pooler: `pg_advisory_lock` es de sesión. PgBouncer en modo tra
 
 Commit: `feat(infra): EKI_ROLE, colas, REDIS_URL, migrate con advisory lock`
 
-### P4 — Envíos por lotes, idempotentes y con rate limit
+### P4 — Meta primero, proveedor intercambiable (diseño, sin código)
 
-- Primero `auditar_envios_duplicados` (pares campana+estudiante con más de un `EnvioLog`). Mostrar salida y esperar.
-- Con salida limpia: `UniqueConstraint` parcial en `EnvioLog(campana, estudiante)` solo para envío efectivo. Solo `ENVIADO` cuenta como éxito (el código no escribe `exitoso`). Confirmar estados con el usuario.
-- Tarea padre encola lotes de 50 (`rate_limit="20/s"`). Hija: backoff con jitter ante 429; `get_or_create` antes de enviar.
-- Mismo patrón para `reenganche_drip_content_diario`.
-- `reenganche_inactivos_diario` listo pero `REENGANCHE_INACTIVOS_ENABLED=False`.
+Sustituye el P4 anterior (lotes de 50 y `rate_limit` de Celery). Ese `rate_limit` es por worker y no sirve cuando hay más de un proceso. El proveedor lo decide la línea u organización, no `if` repartidos. Twilio queda para demo y campañas HSM. Este bloque no se implementa hasta un «continúa» explícito.
 
-[MANUAL] Activar o no el reenganche de inactivos a las 09:00.
+`reenganche_inactivos_diario` sigue apagado (`REENGANCHE_INACTIVOS_ENABLED=False`). [MANUAL] Activar o no el reenganche de inactivos a las 09:00.
 
-Commit: `feat(campanas): envío por lotes, idempotente y con rate limit`
+#### Sender
+
+```text
+ResultadoEnvio
+  estado: ENVIADO | ERROR | INCIERTO
+  provider_id: wamid o SID, o vacío
+  codigo_error: str o vacío
+  reintentable: bool
+
+Sender
+  enviar_plantilla(destino, plantilla, variables, correlacion) -> ResultadoEnvio
+  enviar_texto(destino, cuerpo, correlacion) -> ResultadoEnvio
+
+MetaSender    Graph POST /{phone-id}/messages
+TwilioSender  Content SID (HSM) y texto de demo
+```
+
+`MetaSender` manda `correlacion` en `biz_opaque_callback_data`. Meta lo devuelve en `statuses[].biz_opaque_callback_data` solo si se envió. Verificado el 2026-10-03 en la referencia de webhooks de estado (campo `messages`). El valor es el id del `EnvioLog`. No se deduplica por wamid: P1 ya dejó los `statuses` fuera del reclamo.
+
+HTTP 200 con `messages[].id` → `ENVIADO`. HTTP 4xx con código conocido no reintentable → `ERROR`. Timeout, 5xx o corte sin cuerpo → `INCIERTO`. Un `INCIERTO` no se reenvía solo.
+
+#### Claim
+
+Estados del registro: `PENDIENTE` → `ENVIANDO` → `ENVIADO` | `ERROR` | `INCIERTO`.
+
+El claim es un `UPDATE … WHERE id=%s AND estado='PENDIENTE'` (compare-and-set). `rowcount == 1` gana y escribe `intento_en`. Cualquier otro worker ve 0 filas y no envía.
+
+Si el proceso muere o el HTTP no responde después del claim, el registro queda `ENVIANDO`. Una tarea de Beat pasa a `INCIERTO` todo `ENVIANDO` con `intento_en` de más de 10 minutos (`WA_ENVIANDO_DUDOSO_MIN`, default 10). No reenvía.
+
+#### Reconciliación
+
+El webhook `statuses` (sent, delivered, read, failed) busca el `EnvioLog` por `correlacion`. Si está `INCIERTO` o `ENVIANDO` y el estado es sent, delivered o read, pasa a `ENVIADO` y guarda el wamid. `failed` pasa a `ERROR` y guarda `errors[].code`. Las métricas cuentan enviados, entregados, leídos y fallidos por código. Hoy ese webhook no se lee: ver inspección S.
+
+#### Token bucket
+
+Redis, una clave global por proveedor (`INCR` + ventana de 1 s, o bucket). No el `rate_limit` de Celery.
+
+| Setting | Default | Verificado |
+| --- | --- | --- |
+| `WA_META_MPS` | 20 | 2026-10-03. Throughput de Cloud API: 80 mps por número registrado; 20 mps si el número convive con la app de WhatsApp Business. 20 es el arranque conservador, no el tope de la cuenta. |
+| `WA_TWILIO_MPS` | 3 | Tope propio de eki para el canal demo. |
+| `WA_DESTINO_GAP_SEG` | 6 | El código 131056 dice «demasiados mensajes al mismo destinatario en poco tiempo» y pide esperar. Meta no publica «6 s» en esa fila (error codes, 2026-10-03). 6 s es el hueco conservador de este diseño y vive en el setting. |
+
+Clave Redis por par remitente+destino. Si no hay ficha, el mensaje espera; no se marca error.
+
+#### Errores Meta → acción
+
+Leídos de settings (`WA_META_ERRORES`, mapa código → acción), con esta tabla como default. Fecha de la tabla oficial: 2026-10-03.
+
+| Código | Acción |
+| --- | --- |
+| 130429, 131056 | Reintento con backoff y jitter. 131056 solo hacia ese destinatario; el resto sigue. |
+| 131047 | Fuera de la ventana de 24 h. No reintentar el texto libre: cambiar a plantilla aprobada. |
+| 131026, 131048, 131049 | No reintentar. Marcar `ERROR` y contar. 131048 es restricción del número (spam); 131049 es límite de ecosistema. |
+| 190 | Alerta crítica y parar la cola de envíos. Token caducado o inválido. |
+
+131052 es fallo al descargar media que mandó el usuario. 131053 es fallo al subir la media del mensaje saliente. Ninguno reintenta el mismo archivo a ciegas: se cuentan y se dejan para el reenvío de media cuando exista en Meta.
+
+#### Pausa de campaña
+
+Si la tasa de fallo de plantilla en una campaña pasa el umbral en la muestra inicial, la campaña se pausa sola. Settings: `WA_CAMPANA_FALLO_UMBRAL` default `0.15`, `WA_CAMPANA_FALLO_MUESTRA` default `100`. Protege la calidad del número. Hace falta un booleano nuevo `pausada_automatica` (default `False`) en `Campana` y en `CampanaMeta`.
+
+#### EnvioLog (expand, luego contract)
+
+Hoy (`core/models.py`, `EnvioLog`): `campana`, `estudiante`, `estado` (`CharField` 20, default `PENDIENTE`), `respuesta_api`, `fecha_envio`. El servicio de campaña escribe `ENVIADO` o `FALLIDO` después del HTTP. No hay `ENVIANDO` ni constraint.
+
+Expand (columnas nuevas, null o blank, sin reescribir filas, reversible):
+
+- `proveedor` (`''`)
+- `provider_id` (`''`, wamid o SID)
+- `codigo_error` (`''`)
+- `reintentable` (null)
+- `correlacion` (`''`, índice; el id del registro como texto)
+- `intento_en` (null)
+
+`ENVIANDO`, `ERROR` e `INCIERTO` caben en `estado` (max 20). `FALLIDO` se sigue leyendo.
+
+Antes del `UniqueConstraint` parcial `(campana, estudiante)` para filas en `PENDIENTE`, `ENVIANDO`, `ENVIADO` o `INCIERTO`: correr `auditar_envios_duplicados` y mostrar la salida. Si hay duplicados, no se crea el índice. `ERROR` puede repetirse (un intento fallido no bloquea un envío nuevo decidido a mano).
+
+Contract, en un bloque posterior y con el código ya escribiendo las columnas nuevas: dejar de escribir `FALLIDO` (mapear a `ERROR`) y dejar `respuesta_api` solo como texto legado. No se borra la columna en el mismo deploy que la deja de usar.
+
+#### Fuera de este bloque
+
+No entran aquí, aunque la inspección S los deja abiertos: alerta del 190 en el proceso actual, lectura de `quality_rating` / tier, subida a `/media` (el `media_id` de un upload caduca a los 30 días; el de un webhook entrante, a los 7. Verificado 2026-10-03 en la doc de Media), y el pin `GRAPH_API_VERSION`. Hoy la versión es `WHATSAPP_API_VERSION` con default `v19.0`.
+
+#### Tests (cuando se implemente)
+
+- Claim: dos workers, uno solo pasa de `PENDIENTE` a `ENVIANDO`.
+- Timeout simulado después del claim → `INCIERTO`, y un segundo tick no vuelve a llamar al Sender.
+- Webhook `statuses` con `biz_opaque_callback_data` igual a la correlación: `INCIERTO` → `ENVIADO`. `failed` guarda el código. Dos entregas del mismo wamid no crean dos filas.
+- `ENVIANDO` con `intento_en` de más de 10 min → `INCIERTO`.
+- El bucket de Redis, no el `rate_limit` de Celery, frena por encima de `WA_META_MPS`.
+- 131047 no reintenta el texto; 131026 no reintenta; 130429 sí, con jitter; 190 no llama al Sender y marca la cola parada.
+- 15 fallos de plantilla en los primeros 100 dejan `pausada_automatica`.
+- La migración expand corre sobre filas viejas `ENVIADO`/`FALLIDO` sin tocarlas.
+
+Commit, cuando se escriba el código: `feat(envio): Sender, claim atómico y tope Redis`. Este documento no lo hace.
 
 ### P5 — Topes de costo del LLM
 
