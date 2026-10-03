@@ -23,7 +23,7 @@ source /var/app/venv/*/bin/activate
 cd /var/app/current || exit 0
 
 echo "📦 migrate..."
-python manage.py migrate --noinput
+python manage.py migrate_locked
 MIG_EC=$?
 
 echo "📦 collectstatic..."

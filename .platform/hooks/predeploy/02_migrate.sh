@@ -11,7 +11,7 @@ cd /var/app/staging
 
 # Ejecutar migraciones
 echo "Ejecutando migrate..."
-python manage.py migrate --noinput 2>&1
+python manage.py migrate_locked 2>&1
 
 # Collectstatic
 echo "Ejecutando collectstatic..."

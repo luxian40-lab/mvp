@@ -289,6 +289,7 @@ else:
 # Reusar conexiones en producción para menor latencia y menor churn de conexiones.
 if DATABASES.get('default', {}).get('ENGINE') == 'django.db.backends.postgresql':
     DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '60') or '60')
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 # ============================================
 # ARCHIVOS ESTÁTICOS - Producción
@@ -382,13 +383,11 @@ if _redis_for_cache:
         }
     }
 else:
+    # Sin REDIS_URL: el Redis local del Procfile (db 1, el broker usa db 0).
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000,
-            },
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/1',
         }
     }
 

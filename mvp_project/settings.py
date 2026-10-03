@@ -247,6 +247,7 @@ else:
 # Reusar conexiones DB para reducir overhead en webhooks concurrentes.
 if DATABASES.get('default', {}).get('ENGINE') == 'django.db.backends.postgresql':
     DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '60') or '60')
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 # 5. VALIDACIÓN DE CONTRASEÑAS
 AUTH_PASSWORD_VALIDATORS = [
@@ -924,6 +925,19 @@ _celery_backend = (os.environ.get('CELERY_RESULT_BACKEND') or '').strip() or _ce
 
 CELERY_BROKER_URL = _celery_broker
 CELERY_RESULT_BACKEND = _celery_backend
+EKI_ROLE = (os.environ.get('EKI_ROLE') or 'all').strip().lower() or 'all'
+if not _is_testing_runtime:
+    _cache_src = (
+        os.environ.get('REDIS_CACHE_URL') or _redis_url or _celery_broker or 'redis://127.0.0.1:6379/0'
+    ).strip()
+    if _cache_src.endswith('/0'):
+        _cache_src = _cache_src[:-1] + '1'
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _cache_src,
+        }
+    }
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -960,11 +974,22 @@ CHROMA_DB_DIR = os.environ.get('CHROMA_DB_DIR') or str(BASE_DIR / 'chroma_db')
 # Las tareas pesadas no bloquean campañas, emails ni webhooks.
 CELERY_TASK_QUEUES = {
     'celery': {'exchange': 'celery', 'routing_key': 'celery'},
+    'conversacion': {'exchange': 'conversacion', 'routing_key': 'conversacion'},
+    'masivo': {'exchange': 'masivo', 'routing_key': 'masivo'},
+    'audio': {'exchange': 'audio', 'routing_key': 'audio'},
     'rag_index': {'exchange': 'rag_index', 'routing_key': 'rag_index'},
     'media_encode': {'exchange': 'media_encode', 'routing_key': 'media_encode'},
     'course_engine': {'exchange': 'course_engine', 'routing_key': 'course_engine'},
 }
 CELERY_TASK_ROUTES = {
+    'core.tasks.procesar_sandbox_meta_async': {'queue': 'conversacion'},
+    'core.tasks.procesar_twilio_webhook_async': {'queue': 'conversacion'},
+    'core.tasks.procesar_bot_comercial_webhook_async': {'queue': 'conversacion'},
+    'core.tasks.enviar_campanas_programadas': {'queue': 'masivo'},
+    'core.tasks.ejecutar_campana_async': {'queue': 'masivo'},
+    'core.tasks.ejecutar_campana_meta_async': {'queue': 'masivo'},
+    'core.tasks.reenganche_drip_content_diario': {'queue': 'masivo'},
+    'core.tasks.generar_reporte_actividad': {'queue': 'masivo'},
     'core.tasks.indexar_biblioteca_nat_por_id': {'queue': 'rag_index'},
     'core.tasks.indexar_documento_rag_por_id': {'queue': 'rag_index'},
     'core.tasks.procesar_zip_rag_comercial': {'queue': 'rag_index'},

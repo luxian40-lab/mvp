@@ -119,7 +119,11 @@ Hoy `Procfile` corre web, worker, worker_rag y beat en la misma instancia con Re
 - `CELERY_BROKER_URL`, results y `CACHES` leen `REDIS_URL`; si no está, Redis local actual.
 - `CONN_MAX_AGE` desde env (default 60) y `conn_health_checks=True`.
 - `migrate_locked` con `pg_advisory_lock(727274)` en la misma conexión. Hook `02_migrate.sh` lo usa.
-- Transcripción de audio solo en la cola `audio` (concurrencia 1), no en el request web.
+- Transcripción de audio solo en la cola `audio` (concurrencia 1), no en el request web. Pendiente de este bloque: `transcribir_audio` y `transcribir_audio_meta` siguen dentro del request, porque salen del cuerpo del webhook y ese cuerpo no se reescribe aquí. La cola `audio` ya está declarada.
+
+Workers lógicos (añadido): `conversacion` (webhooks Meta, Twilio y Nat, más `media_encode`) y `masivo` (campañas, reenganche, resúmenes). `run_worker.sh` toma `-Q` de `CELERY_QUEUES`. El default escucha `conversacion,masivo,celery,media_encode` en un solo proceso, igual que hoy un worker. Para separarlos, dos procesos con `CELERY_QUEUES=conversacion,media_encode` y `CELERY_QUEUES=masivo`. `rag_index` sigue en `run_worker_rag.sh`. La cola `celery` es el `default` del plan: lo que no tiene ruta sigue ahí.
+
+Pool y tiempos: el default de `run_worker.sh` es `--pool=prefork` y `--concurrency=1` (`CELERY_POOL`, `CELERY_CONCURRENCY`). `CELERY_POOL=threads` comparte la memoria del proceso, así que una llamada larga al modelo no multiplica el RSS. En hilos, `soft_time_limit` (45 s) y `time_limit` (60 s) no matan el hilo: Celery solo interrumpe procesos del pool prefork. Un hilo que se pasa de tiempo sigue ocupando cupo, y el tope real pasa a ser el candado Redis de 90 s. `reject_on_worker_lost` cubre la muerte del proceso, no un hilo colgado. No subir la concurrencia de hilos por encima de lo que aguanten ese candado y el límite de 60 s.
 
 [MANUAL] ElastiCache, `REDIS_URL` en staging y luego prod, entorno `eki-prod-worker`, PITR de RDS y un restore real. No migrar RDS a Postgres en EC2.
 
