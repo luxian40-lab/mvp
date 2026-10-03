@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 from contextlib import contextmanager
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 LOCK_TIMEOUT = 90
 LOCK_BLOCKING = 10
@@ -26,16 +29,21 @@ def telefono_hash(telefono_normalizado: str) -> str:
     return hmac.new(secreto, base, hashlib.sha256).hexdigest()[:16]
 
 
+def clave_entrega(canal: str, external_id: str) -> str:
+    return f'eki:wa:entrega:{canal}:{external_id}'
+
+
 def contar_entrega(canal: str, external_id: str) -> int:
-    """Cuenta reentregas de la misma tarea por (canal, external_id). TTL de 1 h.
+    """Cuenta reentregas del broker por (canal, external_id). TTL de 1 h.
 
     Sin external_id no hay clave estable: devuelve 1 y no escribe.
     El TTL se pone en la primera entrega y, si faltara, en la siguiente.
+    El caller solo llama esto cuando delivery_info['redelivered'] es True.
     """
     ext = (external_id or '').strip()
     if not ext:
         return 1
-    clave = f'eki:wa:entrega:{canal}:{ext}'
+    clave = clave_entrega(canal, ext)
     cliente = _cliente_redis()
     try:
         n = int(cliente.incr(clave))
@@ -47,6 +55,32 @@ def contar_entrega(canal: str, external_id: str) -> int:
             cliente.close()
         except Exception:
             pass
+
+
+def borrar_entrega(canal: str, external_id: str) -> None:
+    """Quita el contador para que un reproceso staff no herede reentregas viejas."""
+    ext = (external_id or '').strip()
+    if not ext:
+        return
+    clave = clave_entrega(canal or '', ext)
+    try:
+        cliente = _cliente_redis()
+        try:
+            pool = cliente.connection_pool
+            pool.connection_kwargs['socket_connect_timeout'] = 1
+            pool.connection_kwargs['socket_timeout'] = 1
+            cliente.delete(clave)
+        finally:
+            try:
+                cliente.close()
+            except Exception:
+                pass
+    except Exception:
+        logger.exception(
+            'webhook_entrega_no_borrada canal=%s external_id=%s',
+            canal,
+            ext,
+        )
 
 
 def _cliente_redis():

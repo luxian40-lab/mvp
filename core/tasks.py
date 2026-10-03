@@ -184,10 +184,16 @@ def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
 
 
 def _cortar_reentregas(task, datos, kwargs=None) -> bool:
-    """True en la tercera entrega: no corre el cuerpo y deja WebhookFallido."""
+    """True en la tercera reentrega del broker: no corre el cuerpo.
+
+    Los retry() por candado no cuentan: solo delivery_info['redelivered'].
+    """
     from core.locks import ENTREGA_TOPE, contar_entrega
     from core.webhook_evento import external_id_de_payload
 
+    info = getattr(getattr(task, 'request', None), 'delivery_info', None) or {}
+    if not isinstance(info, dict) or info.get('redelivered') is not True:
+        return False
     datos = datos if isinstance(datos, dict) else {}
     ext = external_id_de_payload(datos)
     n = contar_entrega(getattr(task, 'canal', '') or '', ext)

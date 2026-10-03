@@ -130,9 +130,14 @@ def test_comando_reprocesar_encola_la_tarea_guardada():
         error='timeout',
     )
     resultado = type('Resultado', (), {'id': 'task-replay'})()
-    with patch('core.tasks.procesar_twilio_webhook_async.delay', return_value=resultado) as delay:
+    falso = _RedisFalso()
+    falso.valores['eki:wa:entrega:twilio:SMreplay'] = 3
+    with patch('core.tasks.procesar_twilio_webhook_async.delay', return_value=resultado) as delay, \
+            patch('core.locks._cliente_redis', return_value=falso):
         call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar')
     delay.assert_called_once_with({'MessageSid': 'SMreplay', 'Body': 'listo'})
+    assert 'eki:wa:entrega:twilio:SMreplay' in falso.borradas
+    assert 'eki:wa:entrega:twilio:SMreplay' not in falso.valores
     assert WebhookFallido.objects.filter(pk=fila.pk).exists()
 
 
@@ -219,6 +224,8 @@ class _RedisFalso:
     def __init__(self):
         self.valores = {}
         self.ttls = {}
+        self.borradas = []
+        self.connection_pool = type('Pool', (), {'connection_kwargs': {}})()
 
     def incr(self, clave):
         self.valores[clave] = int(self.valores.get(clave, 0)) + 1
@@ -231,8 +238,30 @@ class _RedisFalso:
         self.ttls[clave] = segundos
         return True
 
+    def delete(self, clave):
+        self.borradas.append(clave)
+        self.valores.pop(clave, None)
+        self.ttls.pop(clave, None)
+        return 1
+
     def close(self):
         return None
+
+
+def _aplicar_con_redelivery(tarea, datos, kwargs, redelivered):
+    original = tarea.run
+
+    def _run(*args, **kw):
+        info = getattr(tarea.request, 'delivery_info', None)
+        if isinstance(info, dict):
+            info['redelivered'] = redelivered
+        return original(*args, **kw)
+
+    tarea.run = _run
+    try:
+        return tarea.apply(args=[datos], kwargs=kwargs, throw=True)
+    finally:
+        tarea.run = original
 
 
 @pytest.mark.django_db
@@ -272,9 +301,9 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
             patch('core.locks.telefono_lock', _abierto), \
             patch(cuerpo) as proc:
         for _ in range(2):
-            tarea.apply(args=[datos], kwargs=kwargs, throw=True)
+            _aplicar_con_redelivery(tarea, datos, kwargs, True)
         assert proc.call_count == 2
-        tarea.apply(args=[datos], kwargs=kwargs, throw=True)
+        _aplicar_con_redelivery(tarea, datos, kwargs, True)
         assert proc.call_count == 2
 
     fila = WebhookFallido.objects.get(external_id=sid)
@@ -283,6 +312,35 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
     assert falso.ttls[f'eki:wa:entrega:{canal}:{sid}'] == ENTREGA_TTL_SEG
     if nombre == 'procesar_bot_comercial_webhook_async':
         assert fila.payload['kwargs']['forzar_canal'] is True
+
+
+@pytest.mark.django_db
+def test_ocho_reintentos_de_lock_no_cuentan_como_reentrega():
+    pytest.importorskip('celery')
+    from unittest.mock import patch
+
+    from celery.exceptions import Retry
+    from redis.exceptions import LockError
+
+    from core.tasks import procesar_twilio_webhook_async
+    from core.webhook_evento import WebhookFallido
+
+    falso = _RedisFalso()
+    datos = {'MessageSid': 'SMlock8', 'From': 'whatsapp:+573009998877', 'Body': 'hola'}
+
+    def _retry(*args, **kwargs):
+        raise Retry('lock')
+
+    with patch('core.locks._cliente_redis', return_value=falso), \
+            patch('core.locks.telefono_lock', side_effect=LockError('ocupado')), \
+            patch('core.views._procesar_twilio_webhook') as proc, \
+            patch.object(procesar_twilio_webhook_async, 'retry', _retry):
+        for _ in range(8):
+            with pytest.raises(Retry):
+                _aplicar_con_redelivery(procesar_twilio_webhook_async, datos, {}, False)
+    proc.assert_not_called()
+    assert falso.valores == {}
+    assert not WebhookFallido.objects.filter(error='reentregas_excedidas').exists()
 
 
 @pytest.mark.django_db
