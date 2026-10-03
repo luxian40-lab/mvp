@@ -1,0 +1,21 @@
+---
+description: Reglas permanentes del slice de escalabilidad eki (webhooks, tests, deploy).
+alwaysApply: true
+---
+
+# Reglas permanentes eki
+
+- Un cambio por commit. No mezclar movimiento de código con cambio de comportamiento.
+- No tocar el cuerpo de `_procesar_twilio_webhook_cuerpo`. Solo se envuelve desde afuera (tareas, locks).
+- Todo archivo nuevo debe quedar en git. Cada bloque termina con `git status` y listado de archivos sin trackear. Un módulo sin trackear no sube en `eb deploy` y el web arranca con `ImportError`.
+- Migraciones compatibles hacia atrás (expand/contract). El rollback de EB revierte código, no esquema. Índices en tablas grandes: `AddIndexConcurrently` con `atomic = False` en migración separada.
+- Nada de SQL con f-strings. Solo ORM o placeholders.
+- Tests contra PostgreSQL, no SQLite.
+- `patch()` en tests apunta al módulo donde el caller busca el nombre (`core.views.<módulo>`), no al reexport de `core/views/__init__.py`.
+- La firma de Meta (HMAC-SHA256 sobre body crudo) y la de Twilio (`RequestValidator`) se validan antes de cualquier otra lógica. Comparar con `hmac.compare_digest`, nunca con `==`.
+- Nada de secretos en git. Config nueva = variable de entorno con default seguro.
+- Antes de editar, muestra un plan de archivos a tocar. Después de editar, corre `python manage.py check`, `python manage.py makemigrations --check --dry-run` y los tests del área.
+- Si un test que no estaba en el baseline falla, detente y repórtalo. No lo "arregles" cambiando el test.
+- Los feature flags nuevos se agregan con default que no cambia el comportamiento actual salvo que el bloque diga lo contrario.
+
+Plan del slice: `docs/PLAN_ESCALABILIDAD_EKI.md`. Un bloque a la vez; al cerrar, informe de gate y esperar "continúa".
