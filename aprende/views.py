@@ -181,7 +181,11 @@ def estudiante_login(request):
         else:
             tab = 'codigo' if not recuperar else 'olvide'
             ip = client_ip_from_request(request)
-            eid, msg = verificar_codigo_web(request.POST.get('codigo') or '', ip=ip)
+            eid, msg = verificar_codigo_web(
+                request.POST.get('codigo') or '',
+                ip=ip,
+                documento=request.POST.get('documento') or '',
+            )
             if eid:
                 est = Estudiante.objects.filter(pk=eid, activo=True).first()
                 if est:

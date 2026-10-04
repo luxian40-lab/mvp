@@ -61,11 +61,20 @@ def _otp_emit_window() -> int:
     return int(getattr(settings, 'APRENDE_OTP_EMIT_WINDOW', 3600) or 3600)
 
 
+MENSAJE_CODIGO_RECHAZADO = (
+    'Código inválido o vencido. Escribe *aula* por WhatsApp para pedir uno nuevo.'
+)
+
+
 def client_ip_from_request(request) -> str:
+    """IP del login. CF-Connecting-IP solo si EKI_BEHIND_CLOUDFLARE. No usa X-Forwarded-For."""
     if request is None:
         return ''
-    xff = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
-    return xff or (request.META.get('REMOTE_ADDR') or '')
+    if getattr(settings, 'EKI_BEHIND_CLOUDFLARE', False):
+        cf = (request.META.get('HTTP_CF_CONNECTING_IP') or '').split(',')[0].strip()
+        if cf:
+            return cf
+    return (request.META.get('REMOTE_ADDR') or '').strip()
 
 
 def _otp_msg_lockout() -> str:
@@ -162,38 +171,125 @@ def emitir_acceso_desde_whatsapp(estudiante) -> str:
     )
 
 
-def verificar_codigo_web(codigo: str, *, ip: str | None = None) -> tuple[Optional[int], str]:
-    from aprende.models import CodigoAccesoAprende
+def _aula_prefijo() -> str:
+    return str(getattr(settings, 'AULA_LOGIN_PREFIJO', 'eki:aula') or 'eki:aula')
 
-    if ip and otp_esta_bloqueado(ip):
-        return None, _otp_msg_lockout()
+
+def _aula_int(nombre: str, default: int) -> int:
+    try:
+        return int(getattr(settings, nombre, default) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def verificar_codigo_web(
+    codigo: str,
+    *,
+    ip: str | None = None,
+    documento: str = '',
+) -> tuple[Optional[int], str]:
+    import hmac
+
+    from aprende.models import CodigoAccesoAprende
+    from core.locks import telefono_hash
+    from core.rate_limit import hit
+
+    mensaje = MENSAJE_CODIGO_RECHAZADO
+    prefijo = _aula_prefijo()
+    ventana = _aula_int('AULA_LOGIN_VENTANA_SEG', 600)
+    ip_hash = telefono_hash(ip or 'sin-ip')
+    est_hash = ''
+
+    _ok_global, n_global = hit(
+        f'{prefijo}:global',
+        _aula_int('AULA_LOGIN_MAX_GLOBAL', 200),
+        ventana,
+    )
+    if n_global < 0:
+        logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
+        return None, mensaje
+    if n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
+        logger.warning('aula_login_ataque_probable')
+        try:
+            from core.locks import _cliente_redis
+
+            _cliente_redis().set(
+                f'{prefijo}:estricto',
+                '1',
+                ex=_aula_int('AULA_LOGIN_ESTRICTO_SEG', 900),
+            )
+        except Exception:
+            logger.exception('rate_limit_redis_caido')
+            return None, mensaje
+
+    try:
+        from core.locks import _cliente_redis
+
+        estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
+    except Exception:
+        logger.exception('rate_limit_redis_caido')
+        return None, mensaje
+
+    limite_ip = 3 if estricto else _aula_int('AULA_LOGIN_MAX_POR_IP', 10)
+    ok_ip, n_ip = hit(f'{prefijo}:ip:{ip_hash}', limite_ip, ventana)
+    if n_ip < 0 or not ok_ip:
+        logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
+        return None, mensaje
+
+    from core.models import Estudiante
+
+    estudiante = None
+    if getattr(settings, 'AULA_LOGIN_REQUIERE_DOCUMENTO', False):
+        doc = re.sub(r'\D', '', (documento or '').strip())
+        if doc:
+            estudiante = Estudiante.objects.filter(cedula=doc, activo=True).first()
+        if estudiante is None:
+            logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
+            return None, mensaje
+        est_hash = telefono_hash(str(estudiante.pk))
+        ok_est, n_est = hit(
+            f'{prefijo}:est:{est_hash}',
+            _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5),
+            ventana,
+        )
+        if n_est < 0 or not ok_est:
+            CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
+            logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
+            return None, mensaje
+    else:
+        ok_est, n_est = True, 0
 
     raw = re.sub(r'\D', '', (codigo or '').strip())
     if len(raw) != 6:
-        if ip:
-            registrar_otp_fallo(ip)
-        return None, 'El código debe tener 6 dígitos.'
+        logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
+        return None, mensaje
 
     row = (
         CodigoAccesoAprende.objects.select_related('estudiante')
         .filter(codigo=raw)
         .first()
     )
-    if not row:
-        if ip:
-            registrar_otp_fallo(ip)
-        return None, 'Código inválido o vencido. Escribe *aula* por WhatsApp para pedir uno nuevo.'
-
-    if row.creado < timezone.now() - timedelta(seconds=_ttl()):
-        row.delete()
-        if ip:
-            registrar_otp_fallo(ip)
-        return None, 'Código inválido o vencido. Escribe *aula* por WhatsApp para pedir uno nuevo.'
+    if row and not hmac.compare_digest(row.codigo.encode('utf-8'), raw.encode('utf-8')):
+        row = None
+    if row and estudiante is not None and row.estudiante_id != estudiante.pk:
+        row = None
+    if not row or row.creado < timezone.now() - timedelta(seconds=_ttl()):
+        if row:
+            row.delete()
+        if estudiante is not None and n_est >= _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5):
+            CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
+        logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
+        return None, mensaje
 
     eid = int(row.estudiante_id)
     row.delete()
-    if ip:
-        limpiar_otp_limites(ip)
+    if est_hash:
+        try:
+            from core.locks import _cliente_redis
+
+            _cliente_redis().delete(f'{prefijo}:est:{est_hash}')
+        except Exception:
+            logger.exception('rate_limit_redis_caido')
     return eid, ''
 
 def next_aprende_seguro(raw: Optional[str]) -> str:

@@ -890,6 +890,18 @@ APRENDE_OTP_IP_MAX_ATTEMPTS = int(os.environ.get('APRENDE_OTP_IP_MAX_ATTEMPTS', 
 APRENDE_OTP_IP_WINDOW = int(os.environ.get('APRENDE_OTP_IP_WINDOW', '600') or 600)
 APRENDE_OTP_EMIT_MAX = int(os.environ.get('APRENDE_OTP_EMIT_MAX', '8') or 8)
 APRENDE_OTP_EMIT_WINDOW = int(os.environ.get('APRENDE_OTP_EMIT_WINDOW', '3600') or 3600)
+# Login del aula. El código sigue siendo el factor; el documento es opt-in.
+AULA_LOGIN_MAX_POR_IP = int(os.environ.get('AULA_LOGIN_MAX_POR_IP', '10') or 10)
+AULA_LOGIN_MAX_POR_ESTUDIANTE = int(os.environ.get('AULA_LOGIN_MAX_POR_ESTUDIANTE', '5') or 5)
+AULA_LOGIN_MAX_GLOBAL = int(os.environ.get('AULA_LOGIN_MAX_GLOBAL', '200') or 200)
+AULA_LOGIN_VENTANA_SEG = int(os.environ.get('AULA_LOGIN_VENTANA_SEG', '600') or 600)
+AULA_LOGIN_ESTRICTO_SEG = int(os.environ.get('AULA_LOGIN_ESTRICTO_SEG', '900') or 900)
+AULA_LOGIN_REQUIERE_DOCUMENTO = os.environ.get(
+    'AULA_LOGIN_REQUIERE_DOCUMENTO', 'false'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+EKI_BEHIND_CLOUDFLARE = os.environ.get('EKI_BEHIND_CLOUDFLARE', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 
 # ==========================================
 # 📧 CONFIGURACIÓN DE EMAIL - GMAIL

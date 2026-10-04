@@ -22,6 +22,10 @@ class AprendeWebTests(TestCase):
     def setUp(self):
         from django.core.cache import cache
         cache.clear()
+        from aprende.tests_aula_rate import redis_de_test
+        from unittest.mock import patch
+        self._redis_login = patch('core.locks._cliente_redis', return_value=redis_de_test())
+        self._redis_login.start()
         self.http = Client()
         self.cliente = Cliente.objects.create(
             nombre='Org Aprende',
@@ -48,6 +52,9 @@ class AprendeWebTests(TestCase):
         ProgresoEstudiante.objects.create(estudiante=self.est, curso=self.curso, modulo_actual=self.modulo)
         self.user = User.objects.create_user('prof_ap', 'p@t.com', 'pass')
         PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='profesor')
+
+    def tearDown(self):
+        self._redis_login.stop()
 
     def _login_estudiante(self, telefono='573009999002', cedula='web1', password='clave123'):
         """Simula *aula* → OTP → crear clave (si falta) → sesión."""
@@ -253,17 +260,20 @@ class AprendeWebTests(TestCase):
         r2 = self.http.get('/aprende/estudiante/')
         self.assertEqual(r2.status_code, 302)
 
-    @override_settings(APRENDE_OTP_MAX_ATTEMPTS=3, APRENDE_OTP_LOCKOUT_SECONDS=600)
+    @override_settings(
+        AULA_LOGIN_MAX_POR_IP=2,
+        AULA_LOGIN_PREFIJO='eki:aula:test-lock',
+        AULA_LOGIN_MAX_GLOBAL=500,
+    )
     def test_otp_lockout_tras_fallos(self):
-        from django.core.cache import cache
-
-        cache.clear()
-        for _ in range(3):
+        for _ in range(2):
             r = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
             self.assertEqual(r.status_code, 200)
+            self.assertContains(r, 'inválido')
         r_lock = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
         self.assertEqual(r_lock.status_code, 200)
-        self.assertContains(r_lock, 'Demasiados intentos')
+        self.assertContains(r_lock, 'inválido')
+        self.assertNotContains(r_lock, 'Demasiados')
 
     def test_pwa_manifest_y_sw(self):
         r = self.http.get('/aprende/manifest.webmanifest')
