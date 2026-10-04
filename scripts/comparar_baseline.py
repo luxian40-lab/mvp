@@ -131,12 +131,14 @@ def main(argv: list[str] | None = None) -> int:
           f"{len(resultado['conocidos'])} conocidos, "
           f"{len(resultado['ahora_pasan'])} ahora pasan, "
           f"{len(resultado['saltados'])} skipped")
-    for nid, linea in resultado['nuevos']:
-        print(f'::notice title=fallo nuevo::{nid} | {linea}')
-    for nid, razon in resultado['saltados']:
-        print(f'::notice title=skipped::{nid} | {razon}')
-    for nid in resultado['ahora_pasan']:
-        print(f'::notice title=baseline ahora pasa::{nid}')
+    saltos = '%0A'.join(f'{nid} | {razon}' for nid, razon in resultado['saltados']) or '(ninguno)'
+    print(f'::notice title=skipped::{saltos}')
+    pasan = '%0A'.join(resultado['ahora_pasan']) or '(ninguno)'
+    print(f'::notice title=baseline ahora pasa::{pasan}')
+    lista = '%0A'.join(
+        f'{nid} | {linea}' for nid, linea in resultado['nuevos']
+    ) or '(ninguno)'
+    print(f'::notice title=fallos nuevos::{lista}')
     destino = os.environ.get('GITHUB_STEP_SUMMARY')
     if destino:
         Path(destino).write_text(texto, encoding='utf-8')
