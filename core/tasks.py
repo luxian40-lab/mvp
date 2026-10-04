@@ -150,6 +150,39 @@ def _cortar_reentregas(task, datos, kwargs=None) -> bool:
     return True
 
 
+def _aviso_flood_texto(telefono):
+    from core.antiflood import AVISO_FLOOD
+    from core.utils import enviar_whatsapp
+
+    enviar_whatsapp(telefono, AVISO_FLOOD)
+
+
+def _aviso_flood_meta(telefono, inbound):
+    from core.antiflood import AVISO_FLOOD
+    from core.sandbox_menu import enviar_texto_sandbox
+
+    enviar_texto_sandbox(
+        telefono,
+        str((inbound or {}).get('To') or ''),
+        AVISO_FLOOD,
+        agente='antiflood',
+    )
+
+
+def _frenar_flood(telefono, avisar) -> bool:
+    from core.antiflood import flood_excedido
+
+    descartar, unico = flood_excedido(telefono)
+    if not descartar:
+        return False
+    if unico:
+        try:
+            avisar()
+        except Exception:
+            logger.exception('flood_aviso_no_salio')
+    return True
+
+
 def _reintentar_si_lock(task, exc):
     from celery.exceptions import SoftTimeLimitExceeded
 
@@ -204,6 +237,8 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
     if _cortar_reentregas(self, post_data, {'forzar_canal': forzar_canal}):
         return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
+    if _frenar_flood(telefono, lambda: _aviso_flood_texto(telefono)):
+        return None
     try:
         with telefono_lock(telefono):
             logger.info(
@@ -240,6 +275,8 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     if _cortar_reentregas(self, inbound):
         return None
     telefono = normalizar_telefono_whatsapp(str((inbound or {}).get('From') or '')) or 'sin-telefono'
+    if _frenar_flood(telefono, lambda: _aviso_flood_meta(telefono, inbound)):
+        return None
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Línea Meta | sid=%s", (inbound or {}).get('MessageSid', ''))
@@ -264,6 +301,8 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     if _cortar_reentregas(self, post_data):
         return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
+    if _frenar_flood(telefono, lambda: _aviso_flood_texto(telefono)):
+        return None
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))

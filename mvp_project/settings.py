@@ -1076,6 +1076,7 @@ LLM_PRESUPUESTO_DIARIO_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_USD'
 LLM_PRESUPUESTO_DIARIO_ORG_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_ORG_USD', '10'))
 LLM_UMBRAL_ECONOMICO = 0.7
 LLM_UMBRAL_ALERTA = 0.8
+LINEA_MAX_MSG_MIN = int(os.environ.get('LINEA_MAX_MSG_MIN', '12'))
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'
