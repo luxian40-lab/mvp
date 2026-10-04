@@ -59,13 +59,10 @@ class RateLimitMiddleware(MiddlewareMixin):
         super().__init__(get_response)
     
     def get_client_ip(self, request):
-        """Obtiene la IP del cliente"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+        """La misma IP que el login del aula (proxy de confianza o Cloudflare)."""
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        return client_ip_from_request(request)
     
     def process_request(self, request):
         """Verifica rate limit antes de procesar el request"""
@@ -81,6 +78,7 @@ class RateLimitMiddleware(MiddlewareMixin):
             '/static/',
             '/media/',
             '/health/',
+            '/webhook/',
         ]
         
         for path in excluded_paths:
