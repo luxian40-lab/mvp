@@ -56,6 +56,28 @@ class ProductionCsrfOriginsTests(SimpleTestCase):
             origins,
         )
 
+    def test_hsts_por_defecto(self):
+        env = dict(_ENV_OK)
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop('SECURE_HSTS_SECONDS', None)
+            os.environ.pop('SECURE_HSTS_INCLUDE_SUBDOMAINS', None)
+            mod = importlib.import_module('mvp_project.settings_production')
+            importlib.reload(mod)
+        self.assertEqual(mod.SECURE_HSTS_SECONDS, 86400)
+        self.assertFalse(mod.SECURE_HSTS_INCLUDE_SUBDOMAINS)
+        self.assertFalse(mod.SECURE_HSTS_PRELOAD)
+
+    def test_hsts_segundos_y_subdominios_desde_env(self):
+        env = dict(_ENV_OK)
+        env['SECURE_HSTS_SECONDS'] = '3600'
+        env['SECURE_HSTS_INCLUDE_SUBDOMAINS'] = 'true'
+        with mock.patch.dict(os.environ, env, clear=False):
+            mod = importlib.import_module('mvp_project.settings_production')
+            importlib.reload(mod)
+        self.assertEqual(mod.SECURE_HSTS_SECONDS, 3600)
+        self.assertTrue(mod.SECURE_HSTS_INCLUDE_SUBDOMAINS)
+        self.assertFalse(mod.SECURE_HSTS_PRELOAD)
+
     def test_firma_meta_exigida_si_el_env_no_la_apaga(self):
         with mock.patch.dict(os.environ, _ENV_OK, clear=False):
             os.environ.pop('WHATSAPP_REQUIRE_SIGNATURE', None)

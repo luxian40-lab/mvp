@@ -142,17 +142,25 @@ if _explicit_hosts:
 # DESACTIVADO: Cloudflare termina HTTPS; el origen EB (single instance) suele ser HTTP:80
 SECURE_SSL_REDIRECT = False
 
-# HSTS solo detrás de Cloudflare. El origen EB sigue en HTTP, sin redirect.
-SECURE_HSTS_SECONDS = 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+# HSTS por entorno. El redirect HTTPS (W008) no se toca: Cloudflare termina TLS.
+def _env_bool(nombre: str, default: bool = False) -> bool:
+    raw = os.environ.get(nombre)
+    if raw is None or not str(raw).strip():
+        return default
+    return str(raw).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+try:
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '86400') or 86400)
+except (TypeError, ValueError):
+    SECURE_HSTS_SECONDS = 86400
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
 SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 _behind_cloudflare = os.environ.get('EKI_BEHIND_CLOUDFLARE', 'true').lower() in ('1', 'true', 'yes')
 EKI_BEHIND_CLOUDFLARE = _behind_cloudflare
 if _behind_cloudflare:
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # Cloudflare envía X-Forwarded-Proto: https aunque el origen sea HTTP
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     USE_X_FORWARDED_HOST = True
