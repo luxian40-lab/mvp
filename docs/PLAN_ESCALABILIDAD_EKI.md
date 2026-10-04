@@ -160,11 +160,11 @@ MetaSender    único camino de Campana, CampanaMeta y reenganche
 TwilioSender  legacy: demo y HSM ya escritos. No se extiende.
 ```
 
-`Campana.linea_origen` pasa a ser obligatoria y apunta a la línea Meta.
+No se reescribe el historial. Rellenar `linea_origen` con la línea Meta en campañas que salieron por Twilio falsearía el dato.
 
-Expand: la FK sigue aceptando null. Una migración de datos hace `get_or_create` de la `Linea` Meta (nombre `Meta`, número el de la línea de producto) y rellena `linea_origen` donde esté vacío. Reversible: poner null otra vez en esas filas.
+`Campana.proveedor` es `meta` o `twilio`. Expand: la columna nace con default `twilio`, así el backfill marca de Twilio todo lo que ya existe. Después, el default del modelo pasa a `meta` (un `AlterField` de default no toca las filas viejas). Lo nuevo sale por Meta. `linea_origen` sigue pudiendo ser null en la base. Obligatoria solo al crear una campaña (formulario o `clean` cuando `pk` es null). Las filas históricas no se fuerzan.
 
-Contract, en una migración posterior: `null=False`, `blank=False`. El alta nueva toma esa línea Meta. No se hace en el mismo deploy que el backfill.
+El primer grupo, unas 150 personas, usa `CampanaMeta` (plantilla de Graph que ya existe) si el bloque X confirma que ese camino es viable. El código completo de P4 (claim, bucket, reconciliación) va después del lanzamiento.
 
 #### Carga sintética
 
