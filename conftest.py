@@ -10,6 +10,16 @@ from mvp_project.ci_baseline import REASON, baseline_nodeids
 
 
 @pytest.fixture(autouse=True)
+def cache_de_prueba_limpio():
+    """El límite por IP usa el cache. Cada test empieza en cero."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def redis_pruebas_limpio():
     """Vacía la base 15 antes de cada test. En CI, Redis caído es fallo."""
     from aprende.tests_aula_rate import url_redis_pruebas

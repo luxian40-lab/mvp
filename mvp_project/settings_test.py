@@ -46,3 +46,7 @@ WHATSAPP_APP_SECRET = _CREDENCIALES_FALSAS["WHATSAPP_APP_SECRET"]
 # Base 15: conftest hace flushdb antes de cada test. No comparte la db 0 del broker.
 REDIS_URL = "redis://127.0.0.1:6379/15"
 CELERY_BROKER_URL = REDIS_URL
+
+# pytest no entra en _running_tests (sys.argv no contiene "test"). Sin esto el
+# límite por IP queda activo y la suite acumula 429 en locmem.
+RATE_LIMIT_ENABLED = False

@@ -47,3 +47,9 @@ class RateLimitHttpTests(SimpleTestCase):
             )
         resp = self.mw.process_request(self.rf.get('/portal/', REMOTE_ADDR='192.0.2.9'))
         self.assertEqual(resp.status_code, 429)
+
+
+def test_settings_test_apaga_el_limite():
+    import mvp_project.settings_test as settings_test
+
+    assert settings_test.RATE_LIMIT_ENABLED is False
