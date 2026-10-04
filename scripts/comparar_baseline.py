@@ -10,22 +10,27 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mvp_project.ci_baseline import parse_baseline_lines  # noqa: E402
+from mvp_project.ci_baseline import dotted_to_nodeid, parse_baseline_lines  # noqa: E402
 
 
 def nodeid_de(caso: ET.Element) -> str:
+    """xunit2 solo guarda classname y name. El file, si viene, manda."""
     archivo = (caso.get('file') or '').replace('\\', '/')
     classname = caso.get('classname') or ''
     nombre = caso.get('name') or ''
-    modulo = archivo[:-3].replace('/', '.') if archivo.endswith('.py') else ''
-    resto = ''
-    if modulo and classname.startswith(modulo):
-        resto = classname[len(modulo):].lstrip('.')
-    elif classname.split('.')[-1][:1].isupper():
-        resto = classname.split('.')[-1]
-    if resto:
-        return f'{archivo}::{resto}::{nombre}'.replace('\\', '/')
-    return f'{archivo}::{nombre}'.replace('\\', '/')
+    if archivo.endswith('.py'):
+        modulo = archivo[:-3].replace('/', '.')
+        resto = ''
+        if classname.startswith(modulo):
+            resto = classname[len(modulo):].lstrip('.')
+        elif classname.split('.')[-1][:1].isupper():
+            resto = classname.split('.')[-1]
+        if resto:
+            return f'{archivo}::{resto}::{nombre}'
+        return f'{archivo}::{nombre}'
+    if not classname:
+        return nombre
+    return f'{dotted_to_nodeid(classname)}::{nombre}'
 
 
 def _primera(caso: ET.Element) -> str:

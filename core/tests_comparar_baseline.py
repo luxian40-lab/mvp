@@ -11,22 +11,22 @@ clasificar = _mod.clasificar
 
 _XML = """<?xml version="1.0" encoding="utf-8"?>
 <testsuite>
-  <testcase classname="core.tests_a.A" name="test_conocido" file="core/tests_a.py">
+  <testcase classname="core.tests_a.A" name="test_conocido">
     <failure message="AssertionError: viejo">AssertionError: viejo</failure>
   </testcase>
-  <testcase classname="core.tests_a.A" name="test_nuevo" file="core/tests_a.py">
+  <testcase classname="core.tests_a.A" name="test_nuevo">
     <failure message="AssertionError: nuevo">AssertionError: nuevo</failure>
   </testcase>
-  <testcase classname="core.tests_a.A" name="test_xfail" file="core/tests_a.py">
+  <testcase classname="core.tests_a.A" name="test_xfail">
     <skipped type="pytest.xfail" message="baseline"/>
   </testcase>
-  <testcase classname="core.tests_a.A" name="test_xpass" file="core/tests_a.py">
+  <testcase classname="core.tests_a.A" name="test_xpass">
     <skipped message="xfail-marked test passes unexpectedly"/>
   </testcase>
-  <testcase classname="core.tests_b" name="test_skip" file="core/tests_b.py">
+  <testcase classname="core.tests_b" name="test_skip">
     <skipped type="pytest.skip" message="ffmpeg/ffprobe no instalados"/>
   </testcase>
-  <testcase classname="core.tests_a.A" name="test_ok" file="core/tests_a.py"/>
+  <testcase classname="core.tests_a.A" name="test_ok"/>
 </testsuite>
 """
 
