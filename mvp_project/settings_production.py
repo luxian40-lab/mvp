@@ -61,6 +61,10 @@ if _twilio_vs_prod in ('0', 'false', 'no', 'off'):
 else:
     TWILIO_VALIDATE_SIGNATURE = True
 
+# Firma de Meta en producción. Env false la apaga. No mergear hasta confirmar WHATSAPP_APP_SECRET.
+_wa_sig_prod = os.environ.get('WHATSAPP_REQUIRE_SIGNATURE', 'true').strip().lower()
+WHATSAPP_REQUIRE_SIGNATURE = _wa_sig_prod not in ('0', 'false', 'no', 'off')
+
 _integracion_req_prod = os.environ.get('INTEGRACION_API_REQUIRE_KEY', '').strip().lower()
 if _integracion_req_prod in ('0', 'false', 'no', 'off'):
     INTEGRACION_API_REQUIRE_KEY = False

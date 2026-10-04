@@ -56,6 +56,13 @@ class ProductionCsrfOriginsTests(SimpleTestCase):
             origins,
         )
 
+    def test_firma_meta_exigida_si_el_env_no_la_apaga(self):
+        with mock.patch.dict(os.environ, _ENV_OK, clear=False):
+            os.environ.pop('WHATSAPP_REQUIRE_SIGNATURE', None)
+            mod = importlib.import_module('mvp_project.settings_production')
+            importlib.reload(mod)
+        self.assertTrue(mod.WHATSAPP_REQUIRE_SIGNATURE)
+
     def test_csrf_cookie_no_httponly(self):
         with mock.patch.dict(os.environ, _ENV_OK, clear=False):
             mod = importlib.import_module('mvp_project.settings_production')
