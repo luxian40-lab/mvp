@@ -83,6 +83,10 @@ def _procesar_meta_por_mensaje(payload):
 
     inbounds = list(iter_mensajes_inbound_meta(payload))
     if not inbounds:
+        from core.meta_estados import payload_solo_statuses
+
+        if payload_solo_statuses(payload):
+            return HttpResponse('OK')
         _procesar_meta_webhook(payload)
         return None
 
@@ -202,6 +206,12 @@ def whatsapp_webhook(request):
                 ):
                     logger.warning('meta_webhook_firma_invalida')
                     return HttpResponse('Forbidden', status=403)
+                try:
+                    from core.meta_estados import encolar_statuses
+
+                    encolar_statuses(payload)
+                except Exception:
+                    logger.exception('meta_statuses_enqueue_fail')
                 payload, ids_meta, seguir = preparar_payload_meta(payload)
                 if not seguir:
                     return HttpResponse('OK')

@@ -219,6 +219,14 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
         _reintentar_si_lock(self, exc)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=15, acks_late=True, soft_time_limit=20, time_limit=30)
+def procesar_statuses_meta_async(self, statuses):
+    """Statuses de Meta fuera del request. Varios por mensaje; no se deduplican."""
+    from core.meta_estados import aplicar_statuses
+
+    return aplicar_statuses(statuses)
+
+
 @shared_task(base=_TareaWebhookMeta, **_WEBHOOK_TASK)
 def procesar_sandbox_meta_async(self, inbound: dict):
     """Una tarea por mensaje de la línea Meta. time_limit 60 < candado 90."""

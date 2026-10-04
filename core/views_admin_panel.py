@@ -401,9 +401,21 @@ def _build_alertas_ops(
     wa_fallos_24h: int,
     n_63019: int,
     n_63021: int,
+    meta_fallos_24h: dict | None = None,
 ) -> list[dict[str, Any]]:
-    """Tarjetas de alerta operativa para Inicio (63019, media en riesgo, infra)."""
+    """Tarjetas de alerta operativa para Inicio (Meta por código, Twilio, media, infra)."""
     alertas: list[dict[str, Any]] = []
+    meta_fallos_24h = meta_fallos_24h or {}
+    if meta_fallos_24h:
+        detalle = ', '.join(f'{n}×{code}' for code, n in sorted(meta_fallos_24h.items()))
+        alertas.append({
+            'nivel': 'fail',
+            'titulo': f'Fallos Meta 24h: {detalle}',
+            'texto': 'Códigos de Cloud API en la línea Meta. 63019 y 63021 quedan solo en Twilio.',
+            'cta': 'Ver historial WA',
+            'url': '/admin/core/whatsapplog/?canal__exact=meta',
+            'icon': 'error',
+        })
 
     try:
         from core.meta_token import token_invalido
@@ -431,9 +443,9 @@ def _build_alertas_ops(
             {
                 'nivel': 'fail' if (n_63019 or n_63021) else 'warn',
                 'titulo': f'WhatsApp fallidos 24h: {wa_fallos_24h}{extra}',
-                'texto': 'Revisar descarga media (63019) o codec video (63021).',
-                'cta': 'Ver historial WA',
-                'url': '/admin/core/whatsapplog/?error_detalle__icontains=63019',
+                'texto': 'Twilio: descarga media (63019) o codec video (63021).',
+                'cta': 'Ver historial Twilio',
+                'url': '/admin/core/whatsapplog/?canal__exact=twilio',
                 'icon': 'error',
             }
         )
@@ -914,6 +926,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     wa_fallos_24h = 0
     n_63021 = 0
     n_63019 = 0
+    meta_fallos_24h = {}
     prospectos = 0
     twilio_txt = ''
     try:
@@ -922,7 +935,8 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         desde_24 = now - timedelta(hours=24)
         logs = WhatsappLog.objects.filter(tipo='SENT', fecha__gte=desde_24)
         wa_24h = logs.count()
-        fallos = logs.filter(
+        twilio = logs.filter(canal='twilio')
+        fallos = twilio.filter(
             Q(estado__iexact='undelivered')
             | Q(estado__iexact='failed')
             | Q(error_detalle__icontains='63021')
@@ -931,6 +945,9 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         wa_fallos_24h = fallos.count()
         n_63021 = fallos.filter(error_detalle__icontains='63021').count()
         n_63019 = fallos.filter(error_detalle__icontains='63019').count()
+        from core.meta_estados import contar_fallos_meta_24h
+
+        meta_fallos_24h = contar_fallos_meta_24h(desde_24)
     except Exception:
         pass
     try:
@@ -951,6 +968,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         wa_fallos_24h=wa_fallos_24h,
         n_63019=n_63019,
         n_63021=n_63021,
+        meta_fallos_24h=meta_fallos_24h,
     )
 
     ecosistema = _build_ecosistema(

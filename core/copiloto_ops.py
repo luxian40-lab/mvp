@@ -150,7 +150,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
 
     desde = timezone.now() - timedelta(hours=horas)
     logs = WhatsappLog.objects.filter(tipo='SENT', fecha__gte=desde)
-    fallos = logs.filter(
+    fallos = logs.filter(canal='twilio').filter(
         Q(estado__iexact='undelivered')
         | Q(estado__iexact='failed')
         | Q(error_detalle__icontains='63021')
@@ -158,6 +158,9 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
     )
     n_63021 = fallos.filter(error_detalle__icontains='63021').count()
     n_63019 = fallos.filter(error_detalle__icontains='63019').count()
+    from core.meta_estados import contar_fallos_meta_24h
+
+    meta_fallos = contar_fallos_meta_24h(desde)
     ejemplos = []
     for row in fallos.order_by('-fecha')[:10]:
         ejemplos.append(
@@ -280,6 +283,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
         'wa_fallos': fallos.count(),
         'n_63021': n_63021,
         'n_63019': n_63019,
+        'meta_fallos_24h': meta_fallos,
         'top_codigos_error': [{'codigo': k, 'n': v} for k, v in top_codigos],
         'ejemplos_fallos': ejemplos,
         'paquetes_media_fallidos': paq['fallidos_24h'],
@@ -306,7 +310,8 @@ def _respuesta_reglas(pregunta: str, ctx: dict[str, Any]) -> str:
         f'Estamos en {donde}. DEBUG={env.get("debug")}.',
         f"Últimas {ctx.get('ventana_horas')} h: {ctx.get('wa_enviados')} envíos WA, "
         f"{ctx.get('wa_fallos')} fallos "
-        f"(63021={ctx.get('n_63021')}, 63019={ctx.get('n_63019')}).",
+        f"Twilio 63021={ctx.get('n_63021')}, 63019={ctx.get('n_63019')}. "
+        f"Meta por código: {ctx.get('meta_fallos_24h') or 'ninguno'}.",
         f"Twilio: {ctx.get('twilio_badge')}. From {ctx.get('wa_from_mask')}. "
         f"ffmpeg: {ctx.get('ffmpeg')}.",
         f"Demo Riendas curso id: {ctx.get('demo_riendas_curso_id')}.",

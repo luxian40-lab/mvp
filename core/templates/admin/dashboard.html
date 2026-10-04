@@ -639,8 +639,9 @@
             </p>
             <p style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
                 <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=fallos">Fallos entrega →</a>
-                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=63019">63019 media →</a>
-                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=63021">63021 video →</a>
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?canal__exact=twilio&codigo_twilio=63019">Twilio 63019 →</a>
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?canal__exact=twilio&codigo_twilio=63021">Twilio 63021 →</a>
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?canal__exact=meta">Fallos Meta por código →</a>
                 <a class="btn-excel" href="{% url 'admin:core_mediapaqueteentrega_changelist' %}?estado__exact=fallido">Paquetes media fallidos →</a>
             </p>
         </div>

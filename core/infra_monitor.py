@@ -841,6 +841,41 @@ def _playbook_token_meta() -> dict[str, Any]:
     }
 
 
+def _playbook_fallos_meta() -> dict[str, Any]:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.meta_estados import contar_fallos_meta_24h
+
+    try:
+        conteo = contar_fallos_meta_24h(timezone.now() - timedelta(hours=24))
+    except Exception:
+        conteo = {}
+    if conteo:
+        status, label = 'watch', 'FALLOS META 24H'
+        reasons = [f'{n}×{code}' for code, n in sorted(conteo.items())]
+    else:
+        status, label = 'ok', 'SIN FALLOS META 24H'
+        reasons = ['La línea Meta no tiene error_codigo en las últimas 24 h.']
+    return {
+        'id': 'meta_fallos',
+        'title': 'Fallos de Cloud API por código',
+        'verdict': {'status': status, 'label': label, 'reasons': reasons},
+        'current': conteo,
+        'actions': [
+            {
+                'action_type': 'REVISAR_CODIGO_META',
+                'when': 'Hay códigos en las últimas 24 h.',
+                'do': 'Mirar META_ERROR_ACCIONES. 63019 y 63021 son solo Twilio.',
+                'specs': 'WhatsappLog canal=meta error_codigo.',
+                'approx_cost': '0',
+                'how': 'No reintentar 131026, 131048 ni 131049.',
+            },
+        ],
+    }
+
+
 def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     if not force:
         cached = _cache_get()
@@ -856,6 +891,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     playbooks = _playbooks(redis_s, db, s3)
     playbooks.append(_playbook_colas(colas))
     playbooks.append(_playbook_token_meta())
+    playbooks.append(_playbook_fallos_meta())
 
     overall = 'ok'
     for pb in playbooks:

@@ -300,6 +300,21 @@ from mvp_project.unfold_admin import UNFOLD  # noqa: E402
 # Verificado 2026-10-04 en https://developers.facebook.com/docs/graph-api/changelog/versions/
 # v19.0 dejó de estar disponible el 2026-05-21. El default no se cambia aquí.
 WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
+# Acciones por código de Cloud API. Textos verificados 2026-10-03 en
+# https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/
+# El backoff en segundos no lo publica Meta: 60 es margen local, no un umbral oficial.
+META_ERROR_BACKOFF_SEGUNDOS = int(os.environ.get('META_ERROR_BACKOFF_SEGUNDOS', '60'))
+META_ERROR_ACCIONES = {
+    '130429': 'reintentar',
+    '131056': 'reintentar',
+    '131047': 'ventana_cerrada',
+    '131026': 'no_reintentar',
+    '131048': 'no_reintentar',
+    '131049': 'no_reintentar',
+    '131052': 'media_fallida',
+    '131053': 'media_fallida',
+    '190': 'token_invalido',
+}
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')  # Access Token de Meta
 WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
@@ -1000,6 +1015,7 @@ CELERY_TASK_QUEUES = {
 }
 CELERY_TASK_ROUTES = {
     'core.tasks.procesar_sandbox_meta_async': {'queue': 'conversacion'},
+    'core.tasks.procesar_statuses_meta_async': {'queue': 'conversacion'},
     'core.tasks.procesar_twilio_webhook_async': {'queue': 'conversacion'},
     'core.tasks.procesar_bot_comercial_webhook_async': {'queue': 'conversacion'},
     'core.tasks.enviar_campanas_programadas': {'queue': 'masivo'},

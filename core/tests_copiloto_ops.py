@@ -22,6 +22,7 @@ class CopilotoOpsTests(TestCase):
             telefono='573001112233',
             tipo='SENT',
             estado='undelivered',
+            canal='twilio',
             error_detalle='63021 Unable to process',
         )
         snap = snapshot_ops(horas=24)

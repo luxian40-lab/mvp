@@ -89,13 +89,15 @@ def test_dos_mensajes_distintos_se_procesan(mock_proc):
     SECURE_SSL_REDIRECT=False,
     WHATSAPP_APP_SECRET='',
 )
+@patch('core.tasks.procesar_statuses_meta_async.delay')
 @patch('core.views.entrada._procesar_meta_webhook')
-def test_statuses_no_se_deduplican(mock_proc):
+def test_statuses_no_se_deduplican(mock_proc, mock_delay):
     client = Client()
     payload = _meta(statuses=[{'id': 'wamid.out', 'status': 'delivered'}, {'id': 'wamid.out', 'status': 'read'}])
     assert _post_json(client, payload).status_code == 200
     assert _post_json(client, payload).status_code == 200
-    assert mock_proc.call_count == 2
+    mock_proc.assert_not_called()
+    assert mock_delay.call_count == 2
     assert WebhookEventoProcesado.objects.count() == 0
 
 
