@@ -243,12 +243,30 @@ class IpLoginTests(SimpleTestCase):
             ip = client_ip_from_request(self._req(HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1'))
         self.assertEqual(ip, '10.0.0.8')
 
-    def test_proxy_de_confianza_usa_el_ultimo_salto(self):
+    def test_proxy_n1_es_el_ultimo(self):
         from aprende.acceso_whatsapp import client_ip_from_request
 
         with override_settings(EKI_BEHIND_CLOUDFLARE=False, EKI_TRUSTED_PROXY_COUNT=1):
-            ip = client_ip_from_request(self._req(HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1'))
+            ip = client_ip_from_request(self._req(
+                HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1, 192.0.2.9',
+            ))
+        self.assertEqual(ip, '192.0.2.9')
+
+    def test_proxy_n2_es_el_penultimo(self):
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        with override_settings(EKI_BEHIND_CLOUDFLARE=False, EKI_TRUSTED_PROXY_COUNT=2):
+            ip = client_ip_from_request(self._req(
+                HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1, 192.0.2.9',
+            ))
         self.assertEqual(ip, '203.0.113.1')
+
+    def test_cabecera_mas_corta_que_n_usa_remote(self):
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        with override_settings(EKI_BEHIND_CLOUDFLARE=False, EKI_TRUSTED_PROXY_COUNT=2):
+            ip = client_ip_from_request(self._req(HTTP_X_FORWARDED_FOR='198.51.100.4'))
+        self.assertEqual(ip, '10.0.0.8')
 
 
 class RedisDeTestTests(SimpleTestCase):

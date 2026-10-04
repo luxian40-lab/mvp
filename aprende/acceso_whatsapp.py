@@ -59,9 +59,10 @@ def client_ip_from_request(request) -> str:
       queda REMOTE_ADDR (el par TCP con Cloudflare).
     - Flag false o sin definir: no hay Cloudflare. Con
       EKI_TRUSTED_PROXY_COUNT en 0 (default) se usa REMOTE_ADDR y se
-      ignora X-Forwarded-For. Si el conteo es N > 0 y el header trae al
-      menos N saltos, se usa el último valor, el que agregó el proxy más
-      cercano. Un cliente no elige la IP mientras el conteo sea 0.
+      ignora X-Forwarded-For. Si el conteo es N > 0, la IP del cliente
+      es el N-ésimo valor contando desde la derecha (N=1 es el último,
+      el que agregó el proxy más cercano). Si hay menos de N valores,
+      queda REMOTE_ADDR. Un cliente no elige la IP mientras el conteo sea 0.
     """
     if request is None:
         return ''
@@ -81,7 +82,7 @@ def client_ip_from_request(request) -> str:
         if parte.strip()
     ]
     if len(partes) >= saltos:
-        return partes[-1]
+        return partes[-saltos]
     return remoto
 
 
