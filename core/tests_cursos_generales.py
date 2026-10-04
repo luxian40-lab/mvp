@@ -21,7 +21,13 @@ from core.models import (
     SeccionModulo,
 )
 from core.models_extras import ArchivoModulo
-from core.sandbox_menu import MODO_CURSOS, dispatch_sandbox_menu, resolver_ruta_sandbox
+from core.sandbox_menu import (
+    MODO_ASESORIA,
+    MODO_CURSOS,
+    MODO_MENU,
+    dispatch_sandbox_menu,
+    resolver_ruta_sandbox,
+)
 
 
 def _org(nombre, nit, tel):
@@ -180,7 +186,7 @@ class CatalogoFormacionTests(TestCase):
         est.refresh_from_db()
         self.assertEqual(est.contexto_temporal.get('curso_activo_id'), curso.id)
 
-    def test_menu_con_un_curso_lo_lleva_a_ese_curso(self):
+    def test_menu_con_un_curso_muestra_el_menu(self):
         from core.models import Estudiante, ProgresoEstudiante
 
         curso = Curso.objects.filter(catalogo_menu=True).first()
@@ -188,15 +194,41 @@ class CatalogoFormacionTests(TestCase):
         ProgresoEstudiante.objects.create(
             estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
         )
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo=MODO_CURSOS)
         with patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
-            'core.sandbox_canal.enviar_meta_botones'
+            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True}
         ) as botones, patch(
             'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
         ) as texto:
-            dispatch_sandbox_menu({**self.base, 'Body': 'menu'})
+            dispatch_sandbox_menu({**self.base, 'Body': 'Menú'})
         carrusel.assert_not_called()
-        botones.assert_not_called()
-        self.assertIn(f'Seguimos *{curso.nombre}*', texto.call_args.args[2])
+        texto.assert_not_called()
+        ids = [boton[0] for boton in botones.call_args.args[2]]
+        self.assertEqual(ids, ['formacion', 'asesoria'])
+        self.assertNotIn('Seguimos', botones.call_args.args[1])
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, MODO_MENU)
+
+    def test_menu_luego_asesoria_abre_el_asesor(self):
+        from core.models import Estudiante, ProgresoEstudiante
+
+        curso = Curso.objects.filter(catalogo_menu=True).first()
+        Estudiante.objects.create(nombre='Ya', cedula='CF2b', telefono=self.tel)
+        ProgresoEstudiante.objects.create(
+            estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
+        )
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo=MODO_CURSOS)
+        with patch(
+            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True}
+        ), patch(
+            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True}
+        ) as lista, patch(
+            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
+        ) as texto:
+            dispatch_sandbox_menu({**self.base, 'Body': 'menu'})
+            dispatch_sandbox_menu({**self.base, 'Body': 'asesoria'})
+        texto.assert_not_called()
+        self.assertEqual(lista.call_count, 1)
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, MODO_ASESORIA)
 
     def test_dos_cursos_pregunta_cual_y_el_numero_entra(self):
         from core.models import Estudiante, ProgresoEstudiante
