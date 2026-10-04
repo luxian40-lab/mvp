@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 import os
 import sys
@@ -1064,6 +1065,13 @@ WEBHOOK_CELERY_ASYNC = os.environ.get('WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 # Línea Meta (menú + Coach/Profe/Ventas con LLM) fuera del request. Off hasta validar workers.
 SANDBOX_CELERY_ASYNC = os.environ.get('SANDBOX_CELERY_ASYNC', 'False').lower() in ('1', 'true', 'yes', 'on')
+
+# USD por millón de tokens (entrada, salida). Guía del plan, 2026-10-04.
+# La página oficial de precios no se pudo abrir ese día: gpt-5-nano queda sin tarifa.
+LLM_PRECIOS_USD_POR_MTOK = {
+    'gpt-5': (Decimal('1.25'), Decimal('10')),
+    'gpt-5-mini': (Decimal('0.25'), Decimal('2')),
+}
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

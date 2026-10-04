@@ -3709,6 +3709,7 @@ from .models_media_entrega import MediaPaqueteEntrega
 from .models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
 from .models_video import VideoEnlace, VideoView
 from .models_agentes import ConocimientoAgente
+from .models_uso_llm import UsoLLM
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
