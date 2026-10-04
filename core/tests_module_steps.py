@@ -234,10 +234,10 @@ class ModuleStepsModelTests(TestCase):
 
         out_hint = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
         self.assertIsNotNone(out_hint)
-        self.assertNotIn('incorrecta', out_hint.lower())
+        self.assertIn('letra', out_hint.lower())
         self.prog.refresh_from_db()
-        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
-        self.assertGreater(self.prog.paso_actual_modulo, 1)
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertEqual(self.prog.paso_actual_modulo, 1)
 
     def test_eval_correcta_feedback_y_cta_listo_en_un_solo_segmento(self):
         """Evita dos bubbles (reorden en WhatsApp): primero feedback, luego CTA *listo*."""
@@ -341,8 +341,10 @@ class ModuleStepsModelTests(TestCase):
         self.assertLess(blob.index('casi'), blob.index('listo'))
 
         out_listo = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
-        self.assertNotIn('seguimos con el curso', out_listo.lower())
-        self.assertIn('siguiente bloque', out_listo.lower())
+        self.assertNotIn('siguiente bloque', out_listo.lower())
+        self.assertIn('letra', out_listo.lower())
+        self.prog.refresh_from_db()
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
 
     def test_eval_letra_correcta_usa_campo_admin_si_no_hay_textos_de_opciones(self):
         """Si solo hay correcta en JSON / campo admin, igual se valida la letra."""

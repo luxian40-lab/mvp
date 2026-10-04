@@ -1144,24 +1144,14 @@ def procesar_respuesta_evaluacion_paso(
         letra_in_eval = re.sub(r'[^a-dA-D]', '', texto)
         letra_in_eval = (letra_in_eval[:1] or '').upper()
         if not letra_in_eval and _mensaje_es_solo_avance_listo(texto_crudo):
-            progreso.esperando_respuesta_evaluacion_paso = False
-            progreso.paso_evaluacion_paso = None
-            progreso.paso_actual_modulo = idx + 1
-            progreso.save(
-                update_fields=[
-                    'esperando_respuesta_evaluacion_paso',
-                    'paso_evaluacion_paso',
-                    'paso_actual_modulo',
-                ]
-            )
             logger.info(
-                '📚 [pasos] eval opción múltiple — avance con listo sin letra | est=%s paso_id=%s nuevo_idx=%s',
+                'pasos eval abierta no avanza con listo est=%s paso_id=%s',
                 estudiante.id,
                 paso.id,
-                progreso.paso_actual_modulo,
             )
-            return _respuesta_cola_tras_avanzar_eval_opc(
-                estudiante, progreso, paso, n, es_acierto=False
+            return (
+                'Esta pregunta sigue abierta. '
+                'Responde con una letra (*A*, *B*, *C* o *D*).'
             )
         letra_ok = _letra_correcta_eval_opciones(paso)
         if not letra_ok:

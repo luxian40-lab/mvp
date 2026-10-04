@@ -5,6 +5,22 @@ Identifica la intención del usuario basado en palabras clave o patrones.
 import re
 
 
+def contiene_palabra(texto: str, palabra: str) -> bool:
+    """Coincidencia de palabra o frase completa. No usa subcadena."""
+    if not texto or not palabra:
+        return False
+    return re.search(rf'(?<!\w){re.escape(palabra)}(?!\w)', texto) is not None
+
+
+def _alguna(texto: str, palabras) -> bool:
+    return any(contiene_palabra(texto, palabra) for palabra in palabras)
+
+
+# Tokens de uno a tres caracteres que aparecen dentro de frases normales.
+# Solo cuentan si el mensaje tiene como mucho 3 palabras. «no» no es avance.
+_CONTINUAR_CORTAS = frozenset({'si', 'sí', 'ok', 'ya', 'va'})
+
+
 def detect_intent(mensaje: str) -> str:
     """
     Detecta la intención del mensaje del usuario.
@@ -90,12 +106,12 @@ def detect_intent(mensaje: str) -> str:
     
     # Ver cursos disponibles
     palabras_ver_cursos = ['ver cursos', 'cursos disponibles', 'que cursos hay', 'listar cursos', 'mostrar cursos']
-    if any(p in texto_limpio for p in palabras_ver_cursos):
+    if _alguna(texto_limpio, palabras_ver_cursos):
         return 'ver_cursos'
     
     # Inscribirse en curso: "tomar 1", "inscribir 2", o números solos (ya detectado arriba)
     palabras_inscripcion = ['inscribir', 'inscribirme', 'tomar curso', 'empezar curso', 'iniciar curso', 'quiero curso']
-    if any(p in texto_limpio for p in palabras_inscripcion) or re.match(r'^(tomar|inscribir)\s*\d+$', texto_limpio):
+    if _alguna(texto_limpio, palabras_inscripcion) or re.match(r'^(tomar|inscribir)\s*\d+$', texto_limpio):
         return 'inscribir_curso'
     
     # Continuar con lección actual
@@ -107,8 +123,13 @@ def detect_intent(mensaje: str) -> str:
         'mi curso', 'al curso', 'con el curso', 'mi lección', 'mi leccion',
         'si', 'sí', 'confirmar', 'confirmo', 'ya', 'claro', 'bueno', 'adelante', 'vamos', 'va',
     ]
-    if any(palabra in texto_limpio for palabra in palabras_continuar):
-        return 'continuar_leccion'
+    # «si», «ok», «ya» y «va» son ambiguos: solo si el mensaje es corto.
+    n_palabras = len(re.findall(r'\w+', texto_limpio, flags=re.UNICODE))
+    for palabra in palabras_continuar:
+        if palabra in _CONTINUAR_CORTAS and n_palabras > 3:
+            continue
+        if contiene_palabra(texto_limpio, palabra):
+            return 'continuar_leccion'
     
     # Módulos específicos (1-5)
     if re.match(r'^(modulo|módulo)\s*[1-5]$', texto_limpio):
@@ -116,7 +137,7 @@ def detect_intent(mensaje: str) -> str:
     
     # Tomar examen
     palabras_examen = ['examen', 'evaluación', 'evaluacion', 'prueba', 'test', 'tomar examen']
-    if any(p in texto_limpio for p in palabras_examen):
+    if _alguna(texto_limpio, palabras_examen):
         return 'iniciar_examen'
     
     # Respuesta de examen (detecta cuando está en modo examen)
@@ -124,17 +145,17 @@ def detect_intent(mensaje: str) -> str:
     
     # Ver mi progreso en cursos
     palabras_mi_progreso = ['mi progreso', 'mis cursos', 'mi avance', 'que he completado']
-    if any(p in texto_limpio for p in palabras_mi_progreso):
+    if _alguna(texto_limpio, palabras_mi_progreso):
         return 'mi_progreso_cursos'
     
     # Ver ranking de gamificación
     palabras_ranking = ['ranking', 'leaderboard', 'tabla', 'posiciones', 'top', 'mejores', 'lideres', 'líderes']
-    if any(p in texto_limpio for p in palabras_ranking):
+    if _alguna(texto_limpio, palabras_ranking):
         return 'ver_ranking'
     
     # Cambiar nombre
     palabras_cambiar_nombre = ['cambiar nombre', 'editar nombre', 'modificar nombre', 'actualizar nombre', 'mi nombre es', 'me llamo', 'cambiar mi nombre']
-    if any(p in texto_limpio for p in palabras_cambiar_nombre):
+    if _alguna(texto_limpio, palabras_cambiar_nombre):
         return 'cambiar_nombre'
     
     # Corregir datos personales
@@ -146,7 +167,7 @@ def detect_intent(mensaje: str) -> str:
         'modificar datos', 'modificar mis datos', 'corregir información',
         'corregir informacion', 'dato equivocado', 'equivoqué',
     ]
-    if any(p in texto_limpio for p in palabras_corregir_datos):
+    if _alguna(texto_limpio, palabras_corregir_datos):
         return 'corregir_datos'
     
     return 'desconocido'

@@ -23,6 +23,20 @@ def test_listo_explicito_en_frase_larga_si_es_continuar():
 
 def test_audio_corto_si_sigue_siendo_continuar():
     assert detect_intent("si") == "continuar_leccion"
+    assert detect_intent("sí") == "continuar_leccion"
+
+
+def test_casi_asi_y_listo_con_puntuacion():
+    assert detect_intent("casi") != "continuar_leccion"
+    assert detect_intent("así") != "continuar_leccion"
+    assert detect_intent("asi") != "continuar_leccion"
+    assert detect_intent("LISTO!") == "continuar_leccion"
+    assert detect_intent("listo ✅") == "continuar_leccion"
+
+
+def test_no_se_si_seguir_es_ambiguo_pero_seguir_cuenta():
+    """«si» no cuenta en una frase larga. «seguir» sí es la palabra de avance."""
+    assert detect_intent("no se si seguir") == "continuar_leccion"
 
 
 def test_mensaje_indica_listo_solo_explicito_corto():
