@@ -12,7 +12,6 @@ FAILED core/tests_host_isolation.py::AdminNoStudentsTests::test_estudiante_whats
 FAILED core/tests_module_builder_ui.py::ModuleBuilderViewTests::test_add_micro_form_accepts_pdf
 FAILED core/tests_module_steps.py::CheckpointIgnoraDripFinModulo1Tests::test_fin_modulo_1_con_pasos_y_eval_abcd_drip_no_bloquea_agentes
 FAILED core/tests_nat_foto.py::test_webhook_foto_entrada_y_foto_producto
-FAILED core/tests_nati.py::test_docx_subida_extrae_texto
 FAILED portal/tests_nat_catalogo.py::PortalNatCatalogoTests::test_crear_precio_con_stock
 FAILED portal/tests_nat_catalogo.py::PortalNatCatalogoTests::test_crear_precio_sku
 FAILED portal/tests_nat_catalogo.py::PortalNatCatalogoTests::test_crear_producto_catalogo
