@@ -30,6 +30,10 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.enviar_campanas_programadas',
         'schedule': 300.0,  # cada 5 minutos
     },
+    'latido-beat': {
+        'task': 'core.tasks.latido_beat',
+        'schedule': 60.0,
+    },
     'enviar-campanas-meta-programadas': {
         'task': 'core.tasks.enviar_campanas_meta_programadas',
         'schedule': 300.0,

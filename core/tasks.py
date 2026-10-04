@@ -912,6 +912,14 @@ def sincronizar_plantillas_meta():
 
 
 @shared_task
+def latido_beat():
+    """El beat escribe un latido cada minuto. Si falta 3 min, Infra lo muestra."""
+    from core.health_deep import escribir_latido
+
+    escribir_latido()
+
+
+@shared_task
 def enviar_campanas_meta_programadas():
     """Lanza campañas Meta cuya fecha ya llegó. Con el flag apagado no envía."""
     from django.conf import settings

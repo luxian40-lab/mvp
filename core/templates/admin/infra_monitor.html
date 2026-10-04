@@ -331,6 +331,12 @@
       <strong>advisor por reglas</strong> (qué vigilar / actuar). No es un LLM:
       umbrales + playbooks. Aviso email a staff solo si el estado pasa a ACTUAR.
     </p>
+    <p class="infra__sub">
+      Latido del beat:
+      {% if data.observabilidad.latido.alerta %}sin latido en 3 min{% else %}hace {{ data.observabilidad.latido.edad_seg }} s{% endif %}.
+      Entrantes 24 h con canal vacío: {{ data.observabilidad.canal_vacio_24h.pct }} %.
+      Token Meta marcado inválido: {{ data.observabilidad.token_meta.invalido }}.
+    </p>
     <p class="infra__sub" id="capacity-limits" style="margin-top:0.65rem;">
       <strong>Límites actuales (1× t3.medium):</strong>
       estudiantes cómodo ≤5 000 / techo ~15 000 ·

@@ -42,9 +42,16 @@ def health_check(request):
     return HttpResponse("OK", content_type="text/plain")
 
 
+def health_deep_view(request):
+    from core.health_deep import health_deep
+
+    return health_deep(request)
+
+
 urlpatterns = [
     # Health check (DEBE estar primero)
     path('health/', health_check, name='health_check'),
+    path('health/deep/', health_deep_view, name='health_deep'),
     path('healthz/', health_check, name='health_check_z'),
 
     # Rutas funcionales separadas por dominio

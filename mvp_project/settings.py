@@ -1099,6 +1099,14 @@ WA_META_BURST = int(os.environ.get('WA_META_BURST', '20'))
 WA_DESTINO_GAP_SEG = int(os.environ.get('WA_DESTINO_GAP_SEG', '6'))
 META_LIMITE_CONTACTOS_24H = int(os.environ.get('META_LIMITE_CONTACTOS_24H', '1000'))
 CAMPANA_PAUSA_TASA_FALLO = float(os.environ.get('CAMPANA_PAUSA_TASA_FALLO', '0.15'))
+EKI_INFRA_HEALTH_TOKEN = os.environ.get('EKI_INFRA_HEALTH_TOKEN', '')
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+try:
+    from core.sentry_eki import iniciar_sentry
+
+    iniciar_sentry()
+except Exception:
+    pass
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

@@ -876,6 +876,15 @@ def _playbook_fallos_meta() -> dict[str, Any]:
     }
 
 
+def _observabilidad_segura() -> dict:
+    try:
+        from core.health_deep import resumen_para_infra
+
+        return resumen_para_infra()
+    except Exception:
+        return {}
+
+
 def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     if not force:
         cached = _cache_get()
@@ -922,6 +931,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
         'playbooks': playbooks,
         'advisor': advisor,
         'poll_hint_seconds': 30,
+        'observabilidad': _observabilidad_segura(),
         'impact': (
             'Polling cada 30s con caché 20s es seguro para staff. '
             'El advisor es por reglas (umbrales), no un LLM. '
