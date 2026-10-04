@@ -39,7 +39,8 @@ def campana_meta_habilitada() -> bool:
 
 
 def _version() -> str:
-    return (getattr(settings, 'WHATSAPP_API_VERSION', None) or 'v19.0').strip() or 'v19.0'
+    """Solo WHATSAPP_API_VERSION. El default v19.0 vive en settings, no aquí."""
+    return str(settings.WHATSAPP_API_VERSION).strip()
 
 
 def _token() -> str:

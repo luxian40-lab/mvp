@@ -215,7 +215,9 @@ def _graph_messages_url(api_version: str | None = None) -> str | None:
     phone_id = sandbox_phone_id()
     if not phone_id:
         return None
-    version = api_version or getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+    from core.meta_waba import _version
+
+    version = api_version or _version()
     return f'https://graph.facebook.com/{version}/{phone_id}/messages'
 
 
@@ -647,7 +649,6 @@ def enviar_meta_carrusel(
                 'action': {'cards': cards},
             },
         },
-        api_version='v23.0',
     )
     if result.get('success'):
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
@@ -691,7 +692,6 @@ def enviar_meta_flow(
                 },
             },
         },
-        api_version='v23.0',
         agente=agente_evento,
     )
     if result.get('success'):
@@ -764,7 +764,9 @@ def _descargar_bytes_meta(media_id: str) -> tuple[bytes, str]:
     token = (getattr(settings, 'WHATSAPP_TOKEN', None) or '').strip()
     if not token or not media_id:
         return b'', ''
-    api_version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+    from core.meta_waba import _version
+
+    api_version = _version()
     headers = {'Authorization': f'Bearer {token}'}
     info = requests.get(
         f'https://graph.facebook.com/{api_version}/{media_id}',

@@ -398,7 +398,9 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
     """
     token = getattr(settings, 'WHATSAPP_TOKEN', None)
     phone_id = getattr(settings, 'WHATSAPP_PHONE_ID', None)
-    api_version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0')
+    from core.meta_waba import _version
+
+    api_version = _version()
 
     if not token or not phone_id:
         # No configurado

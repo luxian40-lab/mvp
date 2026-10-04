@@ -169,7 +169,9 @@ def publicar_flow(tipo) -> str:
 
     waba = (getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID', '') or '').strip()
     headers = _graph_headers()
-    version = getattr(settings, 'WHATSAPP_API_VERSION', 'v23.0') or 'v23.0'
+    from core.meta_waba import _version
+
+    version = _version()
     if not waba or not headers:
         return ''
     from formulario.agent import _pasos_ordenados
