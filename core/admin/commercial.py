@@ -966,7 +966,7 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
                     indexar_documento_rag_por_id.apply_async(
                         ('core', 'DocumentoRAGComercial', doc.pk),
-                        countdown=min(i * 12, 900),
+                        countdown=min(i * 12, 540),
                     )
                 except Exception:
                     _encolar_o_indexar_rag_doc(

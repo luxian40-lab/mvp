@@ -164,7 +164,16 @@ No se reescribe el historial. Rellenar `linea_origen` con la línea Meta en camp
 
 `Campana.proveedor` es `meta` o `twilio`. Expand: la columna nace con default `twilio`, así el backfill marca de Twilio todo lo que ya existe. Después, el default del modelo pasa a `meta` (un `AlterField` de default no toca las filas viejas). Lo nuevo sale por Meta. `linea_origen` sigue pudiendo ser null en la base. Obligatoria solo al crear una campaña (formulario o `clean` cuando `pk` es null). Las filas históricas no se fuerzan.
 
-El primer grupo, unas 150 personas, usa `CampanaMeta` (plantilla de Graph que ya existe) si el bloque X confirma que ese camino es viable. El código completo de P4 (claim, bucket, reconciliación) va después del lanzamiento.
+`MetaSender` no reescribe el envío. Parte de `CampanaMeta` y de `ejecutar_campana_meta` (`core/meta_waba.py`). Esa función ya arma la plantilla de Graph, resuelve `nombre` y `telefono`, salta un destinatario si ya tiene `EnvioCampanaMeta` en `ENVIADO`, corta el lote ante 4, 80008, 613 o 130429, y espera 0.35 s entre posts. Lo que hay que sumarle, sin reemplazar el bucle:
+
+- claim atómico por destinatario (`PENDIENTE` → `ENVIANDO`) antes del POST. Hoy el salto es solo si el estado ya es `ENVIADO`. Un timeout deja el intento sin fila o en `FALLIDO` y el siguiente pase puede repetirlo.
+- estado `INCIERTO` si Graph no responde a tiempo. No se reenvía solo.
+- token bucket global (el `sleep(0.35)` es por campaña, no un tope compartido).
+- `biz_opaque_callback_data` con el id del envío. Hoy el POST no lo manda y el webhook de statuses (bloque V) solo lo registra en debug.
+
+`enviar_campanas_programadas` sigue en el modelo `Campana` (Twilio, con `fecha_programada`). `CampanaMeta` no tiene esa fecha, así que el beat no la lanza. El operador la dispara desde Campañas Meta en el admin.
+
+El primer grupo, unas 150 personas, puede salir por `ejecutar_campana_meta` sin reescribirlo. El riesgo concreto está en el informe X: sin claim, un reintento duplica; 150 × 0.35 s son ~53 s de bloqueo; un 130429 corta el resto del lote; no hay `INCIERTO` ni tope global. El código de claim, bucket y reconciliación se agrega encima de esta función, después del lanzamiento.
 
 #### Carga sintética
 

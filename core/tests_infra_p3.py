@@ -50,6 +50,14 @@ class ColasYRolTests(SimpleTestCase):
         escuchadas = set(defecto_worker.split(',')) | set(defecto_rag.split(','))
         for nombre, spec in settings.CELERY_TASK_ROUTES.items():
             self.assertIn(spec['queue'], escuchadas, nombre)
+        # Course Engine en prod se genera por CLI, no por esta cola.
+        # docs/COURSE_ENGINE_LOCAL.md (2026-08-29): el botón admin + Celery
+        # queda como slice futuro. generar_video_course_engine_async declara
+        # queue='course_engine' y ningún worker la consume. No se enruta.
+        self.assertNotIn(
+            'core.tasks.generar_video_course_engine_async',
+            settings.CELERY_TASK_ROUTES,
+        )
         # Beat no fija cola: publica en la cola por defecto de Celery.
         self.assertIn('celery', escuchadas)
 

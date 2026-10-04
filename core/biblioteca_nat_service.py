@@ -213,7 +213,7 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
 def _stagger_segundos(indice: int) -> int:
     paso = int(getattr(settings, 'RAG_INDEX_TASK_STAGGER_SECONDS', 12) or 12)
     paso = max(3, min(paso, 60))
-    return min(indice * paso, 900)
+    return min(indice * paso, 540)
 
 
 def encolar_indexacion(item_id: int, *, countdown: int = 0) -> None:

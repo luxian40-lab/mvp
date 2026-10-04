@@ -133,6 +133,7 @@ def guardar_bytes_admin_media_resultado(
     from django.utils.text import get_valid_filename
 
     filename = get_valid_filename(filename)
+    _rechazar_si_supera_tope_meta(raw, filename)
     name_l = (filename or '').lower()
     media_wa_apto = None
     razon = ''
@@ -204,6 +205,26 @@ def guardar_upload_admin_media_resultado(
     return guardar_bytes_admin_media_resultado(
         raw, filename, carpeta=carpeta, prefix=prefix
     )
+
+
+def _rechazar_si_supera_tope_meta(raw: bytes, filename: str) -> None:
+    """Tope duro de Cloud API. El aviso de 3G vive aparte en media_entrega."""
+    from django.conf import settings
+
+    name = (filename or '').lower()
+    if name.endswith(('.mp3', '.aac', '.amr', '.m4a', '.ogg', '.opus')):
+        tope = int(getattr(settings, 'WHATSAPP_AUDIO_MAX_BYTES', 16 * 1024 * 1024))
+        tipo = 'audio'
+    elif name.endswith(('.jpg', '.jpeg', '.png')):
+        tope = int(getattr(settings, 'WHATSAPP_IMAGE_MAX_BYTES', 5 * 1024 * 1024))
+        tipo = 'imagen'
+    else:
+        return
+    if len(raw) > tope:
+        mb = tope / (1024 * 1024)
+        raise ValidationError(
+            f'El {tipo} "{filename}" supera {mb:.0f} MB, el tope de WhatsApp Cloud API.'
+        )
 
 
 def _validar_video_decodificable(raw: bytes, filename: str) -> None:

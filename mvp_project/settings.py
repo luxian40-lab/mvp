@@ -304,6 +304,12 @@ WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
 # https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/
 # El backoff en segundos no lo publica Meta: 60 es margen local, no un umbral oficial.
 META_ERROR_BACKOFF_SEGUNDOS = int(os.environ.get('META_ERROR_BACKOFF_SEGUNDOS', '60'))
+# Tamaños de media saliente. Verificado 2026-10-04 en
+# https://developers.facebook.com/docs/whatsapp/cloud-api/reference/media/
+# Audio 16 MB, imagen 5 MB, video 16 MB. Los avisos de 3G siguen en media_entrega.
+WHATSAPP_AUDIO_MAX_BYTES = int(os.environ.get('WHATSAPP_AUDIO_MAX_BYTES', str(16 * 1024 * 1024)))
+WHATSAPP_IMAGE_MAX_BYTES = int(os.environ.get('WHATSAPP_IMAGE_MAX_BYTES', str(5 * 1024 * 1024)))
+WHATSAPP_VIDEO_MAX_BYTES = int(os.environ.get('WHATSAPP_VIDEO_MAX_BYTES', str(16 * 1024 * 1024)))
 META_ERROR_ACCIONES = {
     '130429': 'reintentar',
     '131056': 'reintentar',
