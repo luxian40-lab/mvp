@@ -377,6 +377,9 @@ class CampanaMeta(models.Model):
     )
     ejecutada = models.BooleanField(default=False, verbose_name='Ejecutada')
     total_enviados = models.IntegerField(default=0, verbose_name='Enviados')
+    pausada = models.BooleanField(default=False)
+    pausa_motivo = models.CharField(max_length=64, blank=True, default='')
+    fecha_programada = models.DateTimeField(null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

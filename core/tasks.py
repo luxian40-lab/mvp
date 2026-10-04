@@ -911,6 +911,26 @@ def sincronizar_plantillas_meta():
     return n
 
 
+@shared_task
+def enviar_campanas_meta_programadas():
+    """Lanza campañas Meta cuya fecha ya llegó. Con el flag apagado no envía."""
+    from django.conf import settings
+    from django.utils import timezone
+
+    from core.meta_waba import encolar_campana_meta
+    from core.models_campana_meta import CampanaMeta
+
+    if not getattr(settings, 'META_CAMPANAS_V2_ENABLED', False):
+        return 0
+    ahora = timezone.now()
+    ids = CampanaMeta.objects.filter(
+        fecha_programada__lte=ahora, ejecutada=False, pausada=False,
+    ).values_list('id', flat=True)[:20]
+    for campana_id in ids:
+        encolar_campana_meta(campana_id)
+    return len(ids)
+
+
 @shared_task(bind=True, max_retries=1, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
 def ejecutar_campana_meta_async(self, campana_id):
     from core.meta_waba import ejecutar_campana_meta

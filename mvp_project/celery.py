@@ -30,6 +30,10 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.enviar_campanas_programadas',
         'schedule': 300.0,  # cada 5 minutos
     },
+    'enviar-campanas-meta-programadas': {
+        'task': 'core.tasks.enviar_campanas_meta_programadas',
+        'schedule': 300.0,
+    },
     # Estado PENDING/IN_APPEAL de Plantilla Meta (Graph). No toca campañas Twilio.
     'sincronizar-plantillas-meta': {
         'task': 'core.tasks.sincronizar_plantillas_meta',

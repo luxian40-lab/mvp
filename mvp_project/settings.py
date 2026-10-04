@@ -1092,6 +1092,13 @@ META_CODIGO_VENTANA = '131047'
 META_CODIGO_TOKEN = '190'
 # Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
 META_OPAQUE_MAX = 512
+WHATSAPP_GRAPH_BASE_URL = os.environ.get('WHATSAPP_GRAPH_BASE_URL', 'https://graph.facebook.com').rstrip('/')
+# 20 msg/s es el default del plan. El tope real depende del tier del número; no verificado el 2026-10-04.
+WA_META_MPS = int(os.environ.get('WA_META_MPS', '20'))
+WA_META_BURST = int(os.environ.get('WA_META_BURST', '20'))
+WA_DESTINO_GAP_SEG = int(os.environ.get('WA_DESTINO_GAP_SEG', '6'))
+META_LIMITE_CONTACTOS_24H = int(os.environ.get('META_LIMITE_CONTACTOS_24H', '1000'))
+CAMPANA_PAUSA_TASA_FALLO = float(os.environ.get('CAMPANA_PAUSA_TASA_FALLO', '0.15'))
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

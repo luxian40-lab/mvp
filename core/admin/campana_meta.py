@@ -131,18 +131,21 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
 
 @admin.register(CampanaMeta)
 class CampanaMetaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'plantilla', 'estado_plantilla', 'conteo_destinatarios', 'ejecutada', 'total_enviados')
-    list_filter = ('ejecutada', 'cliente', 'plantilla__estado')
+    list_display = (
+        'nombre', 'plantilla', 'estado_plantilla', 'conteo_destinatarios',
+        'ejecutada', 'pausada', 'total_enviados',
+    )
+    list_filter = ('ejecutada', 'pausada', 'cliente', 'plantilla__estado')
     search_fields = ('nombre', 'plantilla__meta_name', 'plantilla__nombre_interno')
     filter_horizontal = ('destinatarios',)
     autocomplete_fields = ('cliente', 'grupo')
-    actions = ['ejecutar_campanas']
-    readonly_fields = ('ejecutada', 'total_enviados')
+    actions = ['ejecutar_campanas', 'pausar_campanas', 'reanudar_campanas', 'reenviar_reintentables']
+    readonly_fields = ('ejecutada', 'total_enviados', 'panel_envios')
 
     fieldsets = (
         ('Datos', {
             'classes': ['tab'],
-            'fields': ('nombre', 'cliente'),
+            'fields': ('nombre', 'cliente', 'fecha_programada'),
         }),
         ('Plantilla', {
             'classes': ['tab'],
@@ -159,9 +162,34 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         }),
         ('Resultado', {
             'classes': ['tab'],
-            'fields': ('ejecutada', 'total_enviados'),
+            'fields': ('ejecutada', 'pausada', 'pausa_motivo', 'total_enviados', 'panel_envios'),
         }),
     )
+
+    def panel_envios(self, obj):
+        from django.db.models import Count
+
+        if obj is None or not obj.pk:
+            return '—'
+        estados = {
+            fila['estado']: fila['n']
+            for fila in obj.envios.values('estado').annotate(n=Count('id'))
+        }
+        entregas = {
+            fila['estado_entrega'] or 'sin_entrega': fila['n']
+            for fila in obj.envios.values('estado_entrega').annotate(n=Count('id'))
+        }
+        enviados = estados.get('ENVIADO', 0)
+        entregados = entregas.get('delivered', 0) + entregas.get('read', 0)
+        leidos = entregas.get('read', 0)
+        pct_e = round(100 * entregados / enviados, 1) if enviados else 0
+        pct_l = round(100 * leidos / enviados, 1) if enviados else 0
+        inciertos = estados.get('INCIERTO', 0)
+        return (
+            f'estados {estados} · entrega {entregas} · '
+            f'entregado {pct_e}% · leido {pct_l}% · inciertos {inciertos}'
+        )
+    panel_envios.short_description = 'Panel'
 
     def estado_plantilla(self, obj):
         return obj.plantilla.estado if obj.plantilla_id else '—'
@@ -177,6 +205,26 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         if db_field.name == 'plantilla':
             kwargs['queryset'] = PlantillaMeta.objects.filter(activa=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    @admin.action(description='Pausar campañas Meta')
+    def pausar_campanas(self, request, queryset):
+        queryset.update(pausada=True, pausa_motivo='manual')
+
+    @admin.action(description='Reanudar campañas Meta')
+    def reanudar_campanas(self, request, queryset):
+        from core.campana_meta_ritmo import reanudar
+
+        for campana in queryset:
+            reanudar(campana)
+
+    @admin.action(description='Reenviar errores reintentables (nunca inciertos)')
+    def reenviar_reintentables(self, request, queryset):
+        from core.models_campana_meta import EnvioCampanaMeta
+
+        n = EnvioCampanaMeta.objects.filter(
+            campana__in=queryset, estado='ERROR_REINTENTABLE',
+        ).update(estado='PENDIENTE')
+        self.message_user(request, f'{n} envío(s) volvieron a pendiente.')
 
     @admin.action(description='Ejecutar campañas Meta (envío Cloud API)')
     def ejecutar_campanas(self, request, queryset):

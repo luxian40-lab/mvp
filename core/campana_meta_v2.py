@@ -121,6 +121,31 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
             _omitir(envio, 'sin_plantilla')
             omitidos += 1
             continue
+        if campana.pausada:
+            break
+        from core.campana_meta_ritmo import (
+            anotar_resultado,
+            bajo_tope_contactos,
+            hueco_destino,
+            pedir_token,
+        )
+        from core.locks import telefono_hash
+
+        marca = telefono_hash(str(estudiante.telefono or ''))
+        if not bajo_tope_contactos(marca):
+            break
+        ok_token, espera = pedir_token()
+        if not ok_token:
+            campana.save(update_fields=['total_enviados', 'ejecutada'])
+            return {
+                'enviados': enviados,
+                'fallidos': fallidos,
+                'omitidos': omitidos,
+                'inciertos': inciertos,
+                'espera': espera,
+            }
+        if not hueco_destino(marca):
+            continue
         token = reclamar(envio.pk)
         if token is None:
             continue
@@ -173,6 +198,13 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
             omitido_motivo=motivo[:64] if estado == 'OMITIDO' else '',
             respuesta=(_error_meta(data).get('message') or '')[:2000],
         )
+        if estado == 'ENVIADO':
+            anotar_resultado(campana, fallo=False, nuevo=True)
+        elif estado == 'ERROR':
+            anotar_resultado(campana, fallo=True, nuevo=True)
+        campana.refresh_from_db(fields=['pausada', 'pausa_motivo'])
+        if campana.pausada:
+            break
     campana.total_enviados = EnvioCampanaMeta.objects.filter(
         campana=campana, estado='ENVIADO',
     ).count()
