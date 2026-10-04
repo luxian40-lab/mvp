@@ -570,8 +570,6 @@ def ofrecer_cursos_en_curso(telefono: str, from_number: str) -> bool:
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
-    if ofrecer_cursos_en_curso(telefono_usuario, from_number):
-        return {'success': True, 'mensaje_id': None, 'response': 'cursos_en_curso'}
     plan = resolver_plan(telefono_usuario)
     if not plan.activo:
         return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_SIN_PLAN, agente='sandbox_plan')
