@@ -19,6 +19,15 @@ def _alguna(texto: str, palabras) -> bool:
 # Tokens de uno a tres caracteres que aparecen dentro de frases normales.
 # Solo cuentan si el mensaje tiene como mucho 3 palabras. «no» no es avance.
 _CONTINUAR_CORTAS = frozenset({'si', 'sí', 'ok', 'ya', 'va'})
+_NEGACIONES = ('no quiero', 'no puedo', 'nunca', 'tampoco', 'no', 'ni')
+_AVANCE_QUE_SE_NIEGA = ('seguir', 'continuar', 'listo', 'sigue', 'sigo', 'sigamos', 'seguimos')
+
+
+def _niega_el_avance(texto: str) -> bool:
+    """Negación junto a seguir/continuar/listo: no es avanzar el curso."""
+    niega = any(contiene_palabra(texto, palabra) for palabra in _NEGACIONES)
+    avanza = any(contiene_palabra(texto, palabra) for palabra in _AVANCE_QUE_SE_NIEGA)
+    return niega and avanza
 
 
 def detect_intent(mensaje: str) -> str:
@@ -124,12 +133,14 @@ def detect_intent(mensaje: str) -> str:
         'si', 'sí', 'confirmar', 'confirmo', 'ya', 'claro', 'bueno', 'adelante', 'vamos', 'va',
     ]
     # «si», «ok», «ya» y «va» son ambiguos: solo si el mensaje es corto.
+    # Una negación junto a seguir/continuar/listo cae al tutor (desconocido).
     n_palabras = len(re.findall(r'\w+', texto_limpio, flags=re.UNICODE))
-    for palabra in palabras_continuar:
-        if palabra in _CONTINUAR_CORTAS and n_palabras > 3:
-            continue
-        if contiene_palabra(texto_limpio, palabra):
-            return 'continuar_leccion'
+    if not _niega_el_avance(texto_limpio):
+        for palabra in palabras_continuar:
+            if palabra in _CONTINUAR_CORTAS and n_palabras > 3:
+                continue
+            if contiene_palabra(texto_limpio, palabra):
+                return 'continuar_leccion'
     
     # Módulos específicos (1-5)
     if re.match(r'^(modulo|módulo)\s*[1-5]$', texto_limpio):

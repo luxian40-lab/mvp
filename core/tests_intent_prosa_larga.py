@@ -35,8 +35,16 @@ def test_casi_asi_y_listo_con_puntuacion():
 
 
 def test_no_se_si_seguir_es_ambiguo_pero_seguir_cuenta():
-    """«si» no cuenta en una frase larga. «seguir» sí es la palabra de avance."""
-    assert detect_intent("no se si seguir") == "continuar_leccion"
+    """«no» junto a «seguir» no avanza: cae al tutor."""
+    assert detect_intent("no se si seguir") == "desconocido"
+
+
+def test_negaciones_no_avanzan_el_curso():
+    assert detect_intent("no quiero seguir") == "desconocido"
+    assert detect_intent("no puedo continuar") == "desconocido"
+    assert detect_intent("ya no sigo") == "desconocido"
+    assert detect_intent("nunca termino") == "desconocido"
+    assert detect_intent("seguir") == "continuar_leccion"
 
 
 def test_mensaje_indica_listo_solo_explicito_corto():

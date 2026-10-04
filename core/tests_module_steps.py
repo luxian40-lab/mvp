@@ -229,8 +229,8 @@ class ModuleStepsModelTests(TestCase):
         self.assertIsNotNone(out)
         self.assertIn('incorrecta', out.lower())
         self.assertTrue(out.startswith('[MULTI_MSG]'))
-        self.assertIn('listo', out.lower())
-        self.assertIn('siguiente material', out.lower())
+        self.assertIn('letra', out.lower())
+        self.assertNotIn('listo', out.lower())
 
         out_hint = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
         self.assertIsNotNone(out_hint)
@@ -337,8 +337,8 @@ class ModuleStepsModelTests(TestCase):
         self.assertEqual(len(partes), 1, partes)
         blob = partes[0].lower()
         self.assertIn('casi', blob)
-        self.assertIn('listo', blob)
-        self.assertLess(blob.index('casi'), blob.index('listo'))
+        self.assertIn('letra', blob)
+        self.assertNotIn('listo', blob)
 
         out_listo = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
         self.assertNotIn('siguiente bloque', out_listo.lower())

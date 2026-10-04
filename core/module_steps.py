@@ -47,11 +47,15 @@ def mensaje_neutro_avance_eval_con_cta_listo() -> str:
 
 
 def mensaje_incorrecto_eval_opciones_con_cta_listo(feedback_incorrecto: str) -> str:
-    """Tras fallar A–D: mismo bubble que el acierto (feedback + CTA *listo*)."""
+    """Tras fallar A–D: pide otra letra. No ofrece *listo* para saltar la pregunta."""
     raw = (feedback_incorrecto or '').strip()
     if not raw:
-        raw = '❌ *Respuesta incorrecta*\n\nRevisá las opciones e intentá de nuevo, o seguí cuando quieras.'
-    return f'{raw}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
+        raw = '❌ *Respuesta incorrecta*'
+    return (
+        f'{raw}\n\n'
+        'Esta pregunta sigue abierta. '
+        'Responde con otra letra (*A*, *B*, *C* o *D*).'
+    )
 
 
 def _respuesta_cola_tras_avanzar_eval_opc(
