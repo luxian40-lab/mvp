@@ -297,6 +297,8 @@ from mvp_project.unfold_admin import UNFOLD  # noqa: E402
 # ==========================================
 # 🔌 CREDENCIALES WHATSAPP CLOUD API (META)
 # ==========================================
+# Verificado 2026-10-04 en https://developers.facebook.com/docs/graph-api/changelog/versions/
+# v19.0 dejó de estar disponible el 2026-05-21. El default no se cambia aquí.
 WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')  # Access Token de Meta
 WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID

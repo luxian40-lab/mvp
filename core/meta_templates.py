@@ -41,7 +41,8 @@ def enviar_plantilla_a_meta(nombre_plantilla, contenido, categoria='MARKETING', 
     nombre_sanitizado = ''.join(c for c in nombre_sanitizado if c.isalnum() or c == '_')
     
     # Construir URL del endpoint
-    url = f"https://graph.facebook.com/v19.0/{waba_id}/message_templates"
+    version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+    url = f"https://graph.facebook.com/{version}/{waba_id}/message_templates"
     
     # Construir payload
     payload = {
@@ -133,7 +134,8 @@ def verificar_estado_plantilla_meta(template_id):
     if not access_token:
         return {'success': False, 'message': 'Token no configurado'}
     
-    url = f"https://graph.facebook.com/v19.0/{template_id}"
+    version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+    url = f"https://graph.facebook.com/{version}/{template_id}"
     headers = {"Authorization": f"Bearer {access_token}"}
     
     try:

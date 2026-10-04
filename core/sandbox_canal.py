@@ -264,10 +264,21 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
             from core.salida_usuario import marcar_mensaje_salio
             marcar_mensaje_salio()
             return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
-        err = data.get('error', data)
+        err = data.get('error', data) if isinstance(data, dict) else data
+        if not isinstance(err, dict):
+            err = {'message': str(err)}
+        code = str(err.get('code') or '')[:16]
+        tipo = str(err.get('type') or '')[:80]
+        message = str(err.get('message') or '')[:500]
         log.estado = 'ERROR'
-        log.save(update_fields=['estado'])
-        logger.warning('sandbox_meta_graph_error status=%s err=%s', resp.status_code, err)
+        log.error_codigo = code or None
+        log.error_detalle = ' '.join(parte for parte in (tipo, code, message) if parte)[:2000]
+        log.save(update_fields=['estado', 'error_codigo', 'error_detalle'])
+        logger.warning('sandbox_meta_graph_error status=%s code=%s type=%s', resp.status_code, code, tipo)
+        from core.meta_token import es_token_invalido, marcar_token_invalido
+
+        if es_token_invalido(err):
+            marcar_token_invalido()
         return {'success': False, 'mensaje_id': None, 'response': err}
     except Exception as exc:
         log.estado = 'ERROR'

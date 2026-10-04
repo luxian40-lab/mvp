@@ -85,7 +85,8 @@ class AudioProcessor:
                 'Authorization': f'Bearer {settings.WHATSAPP_TOKEN}'
             }
             
-            url_info = f"https://graph.facebook.com/v19.0/{audio_id}"
+            version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+            url_info = f"https://graph.facebook.com/{version}/{audio_id}"
             response = requests.get(url_info, headers=headers, timeout=30)
             
             if response.status_code != 200:

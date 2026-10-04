@@ -16,6 +16,11 @@ def ejecutar_campana_servicio(campana):
       - template_twilio_id: Envío directo con Content Template de Twilio
       - plantilla Django: Envío con texto personalizado (cuerpo_mensaje)
     """
+    from core.meta_token import token_invalido
+
+    if token_invalido():
+        logger.critical('campana_omitida_token_invalido id=%s', getattr(campana, 'pk', None))
+        return {'total': 0, 'exitosos': 0, 'fallidos': 0, 'omitidos_token': 1}
     if getattr(campana, 'es_campana_curso', False) and getattr(campana, 'curso_destino', None):
         from core.modulo_publicacion import curso_listo_para_campana_wa
 

@@ -1241,6 +1241,12 @@ class WhatsappLog(models.Model):
     )
 
     # Nuevo: campo para guardar detalles de error Twilio
+    error_codigo = models.CharField(
+        max_length=16,
+        blank=True,
+        null=True,
+        help_text='Código de error del proveedor (Graph o Twilio).',
+    )
     error_detalle = models.TextField(
         blank=True,
         null=True,

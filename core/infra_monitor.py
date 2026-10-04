@@ -809,6 +809,38 @@ def _playbook_colas(colas: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _playbook_token_meta() -> dict[str, Any]:
+    from core.meta_token import token_invalido
+
+    activo = False
+    try:
+        activo = token_invalido()
+    except Exception:
+        activo = False
+    if activo:
+        status, label = 'act', 'TOKEN META INVALIDO'
+        reasons = ['Graph devolvio 190. Campanas y reenganche no envian.']
+    else:
+        status, label = 'ok', 'TOKEN META SIN ALERTA'
+        reasons = ['No hay bandera eki:meta:token_invalido.']
+    return {
+        'id': 'meta_token',
+        'title': 'Token de WhatsApp Cloud API',
+        'verdict': {'status': status, 'label': label, 'reasons': reasons},
+        'current': {'invalido': activo},
+        'actions': [
+            {
+                'action_type': 'ROTAR_TOKEN',
+                'when': 'La bandera esta activa.',
+                'do': 'Rotar el token de System User y borrar la clave en Redis.',
+                'specs': 'eki:meta:token_invalido TTL 15 min.',
+                'approx_cost': '0',
+                'how': 'No reenviar hasta que Graph acepte el token nuevo.',
+            },
+        ],
+    }
+
+
 def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     if not force:
         cached = _cache_get()
@@ -823,6 +855,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     colas = _largo_colas_logicas()
     playbooks = _playbooks(redis_s, db, s3)
     playbooks.append(_playbook_colas(colas))
+    playbooks.append(_playbook_token_meta())
 
     overall = 'ok'
     for pb in playbooks:

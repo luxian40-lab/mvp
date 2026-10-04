@@ -405,6 +405,21 @@ def _build_alertas_ops(
     """Tarjetas de alerta operativa para Inicio (63019, media en riesgo, infra)."""
     alertas: list[dict[str, Any]] = []
 
+    try:
+        from core.meta_token import token_invalido
+
+        if token_invalido():
+            alertas.append({
+                'nivel': 'fail',
+                'titulo': 'Token de Meta inválido',
+                'texto': 'Graph devolvió 190. Las campañas y el reenganche no envían hasta que rote el token.',
+                'cta': 'Infra',
+                'url': '/admin/infra/',
+                'icon': 'error',
+            })
+    except Exception:
+        pass
+
     if wa_fallos_24h >= 1:
         detalle = []
         if n_63019:

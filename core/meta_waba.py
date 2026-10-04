@@ -39,7 +39,7 @@ def campana_meta_habilitada() -> bool:
 
 
 def _version() -> str:
-    return (getattr(settings, 'WHATSAPP_API_VERSION', None) or 'v21.0').strip() or 'v21.0'
+    return (getattr(settings, 'WHATSAPP_API_VERSION', None) or 'v19.0').strip() or 'v19.0'
 
 
 def _token() -> str:
@@ -550,6 +550,11 @@ def _destinatarios(campana: CampanaMeta):
 
 
 def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
+    from core.meta_token import token_invalido
+
+    if token_invalido():
+        logger.critical('campana_meta_omitida_token_invalido id=%s', getattr(campana, 'pk', None))
+        return {'enviados': 0, 'fallidos': 0, 'omitidos_token': 1}
     if not campana_meta_habilitada():
         raise ValueError('Campaña Meta está apagada (EKI_CAMPANA_META_ENABLED).')
     plantilla = campana.plantilla
