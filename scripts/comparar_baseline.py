@@ -114,6 +114,30 @@ def _render(resultado: dict) -> str:
     return '\n'.join(lineas) + '\n'
 
 
+def _aviso(titulo: str, lineas: list[str], tope: int = 900) -> None:
+    """Varios avisos cortos: la API de checks corta el mensaje cerca de 4 KB."""
+    if not lineas:
+        print(f'::notice title={titulo}::(ninguno)')
+        return
+    bloque: list[str] = []
+    usado = 0
+    n = 1
+
+    def volcar() -> None:
+        nonlocal n, bloque, usado
+        print(f'::notice title={titulo} {n}::' + '%0A'.join(bloque))
+        n += 1
+        bloque = []
+        usado = 0
+
+    for linea in lineas:
+        if bloque and usado + len(linea) > tope:
+            volcar()
+        bloque.append(linea)
+        usado += len(linea) + 1
+    volcar()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     junit = Path(args[0] if args else 'pytest-junit-suite.xml')
@@ -131,14 +155,9 @@ def main(argv: list[str] | None = None) -> int:
           f"{len(resultado['conocidos'])} conocidos, "
           f"{len(resultado['ahora_pasan'])} ahora pasan, "
           f"{len(resultado['saltados'])} skipped")
-    saltos = '%0A'.join(f'{nid} | {razon}' for nid, razon in resultado['saltados']) or '(ninguno)'
-    print(f'::notice title=skipped::{saltos}')
-    pasan = '%0A'.join(resultado['ahora_pasan']) or '(ninguno)'
-    print(f'::notice title=baseline ahora pasa::{pasan}')
-    lista = '%0A'.join(
-        f'{nid} | {linea}' for nid, linea in resultado['nuevos']
-    ) or '(ninguno)'
-    print(f'::notice title=fallos nuevos::{lista}')
+    _aviso('skipped', [f'{nid} | {razon}' for nid, razon in resultado['saltados']])
+    _aviso('baseline ahora pasa', list(resultado['ahora_pasan']))
+    _aviso('fallos nuevos', [f'{nid} | {linea}' for nid, linea in resultado['nuevos']])
     destino = os.environ.get('GITHUB_STEP_SUMMARY')
     if destino:
         Path(destino).write_text(texto, encoding='utf-8')
