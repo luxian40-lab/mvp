@@ -134,6 +134,7 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             mensaje=mensaje_log,
             estado='PENDING',
             tipo='SENT',
+            canal='twilio',
             fecha=timezone.now()
         )
         
@@ -281,6 +282,7 @@ def enviar_whatsapp_twilio(
                 mensaje_id=mensaje_id_referencia,
                 estado='PENDING',
                 tipo='SENT',
+                canal='twilio',
                 fecha=timezone.now()
             )
         except Exception as log_err:

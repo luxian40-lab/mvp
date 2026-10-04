@@ -245,6 +245,7 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
         mensaje=texto_log or '[META]',
         estado='PENDING',
         tipo='SENT',
+        canal='meta',
         fecha=timezone.now(),
         agente_usado=(agente or 'sandbox_meta')[:50],
     )

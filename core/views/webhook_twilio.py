@@ -24,9 +24,11 @@ from .ventana_drip import _pregunta_abierta_final_pendiente
 
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
-    from core.sandbox_canal import activar_sandbox_meta_si_inbound
+    from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
+    from core.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
 
-    with activar_sandbox_meta_si_inbound(post_data):
+    canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
+    with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
         return _procesar_twilio_webhook_cuerpo(post_data)
 
 def _procesar_twilio_webhook_cuerpo(post_data):
