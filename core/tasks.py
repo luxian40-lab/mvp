@@ -211,7 +211,10 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
                 (post_data or {}).get('MessageSid', ''),
                 forzar_canal,
             )
-            return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
+            from core.wa_canal import CANAL_TWILIO, canal_webhook
+
+            with canal_webhook(CANAL_TWILIO):
+                return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 
@@ -232,7 +235,10 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Línea Meta | sid=%s", (inbound or {}).get('MessageSid', ''))
-            return _aplicar_sandbox_menu(inbound)
+            from core.wa_canal import CANAL_META, canal_webhook
+
+            with canal_webhook(CANAL_META):
+                return _aplicar_sandbox_menu(inbound)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 
@@ -253,7 +259,10 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))
-            return _procesar_twilio_webhook(post_data)
+            from core.wa_canal import CANAL_TWILIO, canal_webhook
+
+            with canal_webhook(CANAL_TWILIO):
+                return _procesar_twilio_webhook(post_data)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 

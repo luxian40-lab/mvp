@@ -45,6 +45,7 @@ class ReengancheMetaTests(TestCase):
             telefono=estudiante.telefono,
             mensaje='listo',
             tipo='INCOMING',
+            canal='meta',
             estudiante=estudiante,
             fecha=timezone.now(),
         )
@@ -66,6 +67,23 @@ class ReengancheMetaTests(TestCase):
         texto.assert_not_called()
         plantilla.assert_called_once()
         self.assertEqual(plantilla.call_args.args[1], 'drip_reenganche')
+
+    def test_entrante_twilio_no_abre_la_ventana_meta(self):
+        estudiante = _par('573001110004')
+        WhatsappLog.objects.create(
+            telefono=estudiante.telefono,
+            mensaje='listo',
+            tipo='INCOMING',
+            canal='twilio',
+            estudiante=estudiante,
+            fecha=timezone.now(),
+        )
+        with patch('core.sandbox_canal.enviar_meta') as texto, \
+                patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla:
+            resultado = reenganche_drip_content_diario()
+        self.assertEqual(resultado['omitidos_sin_ventana'], 1)
+        texto.assert_not_called()
+        plantilla.assert_not_called()
 
     def test_ventana_cerrada_sin_plantilla_no_envia(self):
         _par('573001110003')

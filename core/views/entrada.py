@@ -216,7 +216,10 @@ def whatsapp_webhook(request):
                     )
                 except Exception:
                     logger.exception('meta_template_status_update_fail')
-                resultado_meta = _procesar_meta_por_mensaje(payload)
+                from core.wa_canal import CANAL_META, canal_webhook
+
+                with canal_webhook(CANAL_META):
+                    resultado_meta = _procesar_meta_por_mensaje(payload)
                 if isinstance(resultado_meta, HttpResponse):
                     return resultado_meta
             else:
@@ -240,9 +243,12 @@ def whatsapp_webhook(request):
                     if not seguir_tw:
                         return HttpResponse('OK')
 
-                    resultado_tw = _procesar_twilio_reclamado(
-                        payload, ids_tw, _es_destino_bot_comercial,
-                    )
+                    from core.wa_canal import CANAL_TWILIO, canal_webhook
+
+                    with canal_webhook(CANAL_TWILIO):
+                        resultado_tw = _procesar_twilio_reclamado(
+                            payload, ids_tw, _es_destino_bot_comercial,
+                        )
                     if isinstance(resultado_tw, HttpResponse):
                         return resultado_tw
                 else:
@@ -268,9 +274,12 @@ def whatsapp_webhook(request):
             if not seguir_tw:
                 return HttpResponse('OK')
 
-            twilio_result = _procesar_twilio_reclamado(
-                request.POST, ids_tw, _es_destino_bot_comercial,
-            )
+            from core.wa_canal import CANAL_TWILIO, canal_webhook
+
+            with canal_webhook(CANAL_TWILIO):
+                twilio_result = _procesar_twilio_reclamado(
+                    request.POST, ids_tw, _es_destino_bot_comercial,
+                )
             if isinstance(twilio_result, HttpResponse):
                 return twilio_result
         

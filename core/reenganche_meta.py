@@ -38,7 +38,7 @@ def ultimo_entrante(estudiante):
     if not consulta:
         return None
     return (
-        WhatsappLog.objects.filter(tipo='INCOMING')
+        WhatsappLog.objects.filter(tipo='INCOMING', canal='meta')
         .filter(consulta)
         .order_by('-fecha')
         .first()
@@ -48,9 +48,9 @@ def ultimo_entrante(estudiante):
 def ventana_abierta(estudiante, ahora: datetime | None = None) -> bool:
     ahora = ahora or timezone.now()
     try:
-        horas = int(getattr(settings, 'WA_VENTANA_HORAS', 24) or 24)
+        horas = int(getattr(settings, 'WA_VENTANA_HORAS', 23) or 23)
     except (TypeError, ValueError):
-        horas = 24
+        horas = 23
     log = ultimo_entrante(estudiante)
     if log is None or not log.fecha:
         return False

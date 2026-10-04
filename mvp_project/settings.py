@@ -363,12 +363,12 @@ META_REENGANCHE_ENABLED = os.environ.get('META_REENGANCHE_ENABLED', 'false').str
 )
 META_TEMPLATE_DRIP_REENGANCHE = os.environ.get('META_TEMPLATE_DRIP_REENGANCHE', '')
 META_TEMPLATE_DRIP_IDIOMA = os.environ.get('META_TEMPLATE_DRIP_IDIOMA', 'es')
-# Ventana de sesión de WhatsApp Cloud API. 131047 si se manda texto libre fuera de ella.
-# Verificado 2026-10-03 en la tabla de errores de Meta: más de 24 h desde la última respuesta.
+# Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
+# Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:
-    WA_VENTANA_HORAS = int(os.environ.get('WA_VENTANA_HORAS', '24') or '24')
+    WA_VENTANA_HORAS = int(os.environ.get('WA_VENTANA_HORAS', '23') or '23')
 except (TypeError, ValueError):
-    WA_VENTANA_HORAS = 24
+    WA_VENTANA_HORAS = 23
 # Centro de Éxito: días sin WhatsApp entrante para reenganche automático
 try:
     DIAS_INACTIVIDAD_REENGANCHE = int(os.environ.get('DIAS_INACTIVIDAD_REENGANCHE', '7') or 7)

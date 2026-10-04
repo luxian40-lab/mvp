@@ -1188,6 +1188,13 @@ class WhatsappLog(models.Model):
     mensaje_id = models.CharField(max_length=200, blank=True, null=True, db_index=True)
     estado = models.CharField(max_length=50, default='PENDING')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='INCOMING')
+    canal = models.CharField(
+        max_length=16,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='meta o twilio. Vacío en el histórico: no abre la ventana de la línea Meta.',
+    )
     fecha = models.DateTimeField(auto_now_add=True)
     estudiante = models.ForeignKey(
         Estudiante, 
@@ -1245,6 +1252,12 @@ class WhatsappLog(models.Model):
 
     def save(self, *args, **kwargs):
         # Auto-asignar estudiante por teléfono si el log nace “ciego”.
+        if not (self.canal or '').strip():
+            from core.wa_canal import canal_actual
+
+            marcado = canal_actual()
+            if marcado:
+                self.canal = marcado
         if not self.estudiante_id and self.telefono:
             try:
                 from core.utils_telefono import resolver_estudiante_por_telefono
