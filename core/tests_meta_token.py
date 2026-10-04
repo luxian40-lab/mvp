@@ -20,6 +20,9 @@ class _Redis:
     def get(self, clave):
         return self.datos.get(clave)
 
+    def delete(self, clave):
+        self.datos.pop(clave, None)
+
 
 def _respuesta(code, tipo='OAuthException', message='expired'):
     resp = MagicMock()
@@ -91,3 +94,18 @@ class MetaTokenTests(TestCase):
             })
         self.assertNotIn(CLAVE_TOKEN_INVALIDO, redis.datos)
         self.assertFalse(es_token_invalido({'code': 131026, 'type': 'OAuthException', 'message': 'undeliverable'}))
+
+
+class MetaTokenResetTests(TestCase):
+    def test_comando_borra_la_bandera(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        redis = _Redis()
+        redis.datos[CLAVE_TOKEN_INVALIDO] = '1'
+        out = StringIO()
+        with patch('core.locks._cliente_redis', return_value=redis):
+            call_command('meta_token_reset', stdout=out)
+        self.assertNotIn(CLAVE_TOKEN_INVALIDO, redis.datos)
+        self.assertIn('borrada', out.getvalue())
