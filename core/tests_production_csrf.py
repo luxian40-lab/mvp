@@ -10,6 +10,12 @@ _ENV_OK = {
     'SECRET_KEY': 'x' * 50,
     'EKI_ALLOWED_HOSTS': 'admin.eki.technology,app.eki.technology',
     'CSRF_TRUSTED_ORIGINS': 'https://admin.eki.technology',
+    # settings_production exige DB_* o DATABASE_URL. CI solo define POSTGRES_*.
+    'DB_NAME': 'eki_test',
+    'DB_USER': 'postgres',
+    'DB_PASSWORD': 'postgres',
+    'DB_HOST': 'localhost',
+    'DB_PORT': '5432',
 }
 
 
