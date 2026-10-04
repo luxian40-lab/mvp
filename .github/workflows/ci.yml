@@ -156,16 +156,13 @@ jobs:
             | tee pytest-suite.txt
           status=${PIPESTATUS[0]}
           python << 'PY'
-          import os
           from pathlib import Path
           lines = Path("pytest-suite.txt").read_text(encoding="utf-8", errors="replace").splitlines()
           resumen = [ln.strip() for ln in lines if "passed" in ln and " in " in ln]
           linea = resumen[-1] if resumen else "sin resumen de pytest"
           print(f"::notice title=pytest -rs suite::{linea}")
-          destino = os.environ.get("GITHUB_STEP_SUMMARY")
-          if destino:
-              Path(destino).write_text("## pytest suite\n\n```\n" + linea + "\n```\n", encoding="utf-8")
           PY
+          python scripts/comparar_baseline.py pytest-junit-suite.xml
           exit "$status"
       - name: artefacto junit suite
         if: always()
