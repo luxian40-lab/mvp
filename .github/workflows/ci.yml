@@ -55,8 +55,9 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
       - name: pytest checklist
         run: |
+          set +e
           set -o pipefail
-          pytest --maxfail=20 \
+          pytest --maxfail=20 -rs --junitxml=pytest-junit.xml \
             core/tests_ci_baseline.py \
             core/tests_webhook_idempotencia.py \
             core/tests_telefono_lock.py \
@@ -65,11 +66,14 @@ jobs:
             core/tests_infra_p3.py \
             aprende/tests.py \
             aprende/tests_admin.py \
+            aprende/tests_aula_rate.py \
             core/tests_module_steps.py \
             core/tests_export_estudiantes.py \
             portal/tests_branding.py \
             | tee pytest-gate.txt
+          status=${PIPESTATUS[0]}
           python << 'PY'
+          import os
           from pathlib import Path
           lines = Path("pytest-gate.txt").read_text(encoding="utf-8", errors="replace").splitlines()
           malos = [
@@ -79,11 +83,24 @@ jobs:
           resumen = [ln.strip() for ln in lines if "passed" in ln and " in " in ln]
           linea = resumen[-1] if resumen else "sin resumen de pytest"
           print(f"::notice title=pytest -rs::{linea}")
+          destino = os.environ.get("GITHUB_STEP_SUMMARY")
+          if destino:
+              Path(destino).write_text("## pytest checklist\n\n```\n" + linea + "\n```\n", encoding="utf-8")
           for ln in malos:
               print(f"::error::{ln.strip()}")
           if malos:
               raise SystemExit(1)
           PY
+          py=$?
+          if [ "$py" -ne 0 ]; then exit "$py"; fi
+          exit "$status"
+      - name: artefacto junit checklist
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-junit-checklist
+          path: pytest-junit.xml
+          if-no-files-found: warn
 
   suite-completa:
     runs-on: ubuntu-latest
@@ -130,7 +147,30 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
       - name: pytest repo
-        run: >
-          pytest --maxfail=50 .
-          --ignore=scripts
-          --ignore=core/management/commands/test_evaluacion.py
+        run: |
+          set +e
+          set -o pipefail
+          pytest --maxfail=50 -rs --junitxml=pytest-junit-suite.xml . \
+            --ignore=scripts \
+            --ignore=core/management/commands/test_evaluacion.py \
+            | tee pytest-suite.txt
+          status=${PIPESTATUS[0]}
+          python << 'PY'
+          import os
+          from pathlib import Path
+          lines = Path("pytest-suite.txt").read_text(encoding="utf-8", errors="replace").splitlines()
+          resumen = [ln.strip() for ln in lines if "passed" in ln and " in " in ln]
+          linea = resumen[-1] if resumen else "sin resumen de pytest"
+          print(f"::notice title=pytest -rs suite::{linea}")
+          destino = os.environ.get("GITHUB_STEP_SUMMARY")
+          if destino:
+              Path(destino).write_text("## pytest suite\n\n```\n" + linea + "\n```\n", encoding="utf-8")
+          PY
+          exit "$status"
+      - name: artefacto junit suite
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-junit-suite
+          path: pytest-junit-suite.xml
+          if-no-files-found: warn

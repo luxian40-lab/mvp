@@ -1,12 +1,14 @@
 """Límites del código de aula.
 
-En CI el cliente es Redis real (redis:7). Sin daemon local, un sustituto
-con INCR/TTL para no saltar el test.
+En CI el cliente es Redis real (redis:7, base 15). Sin daemon local, un
+sustituto con INCR/TTL. En CI ese sustituto está prohibido.
 """
+import os
 import uuid
+import warnings
 from unittest.mock import patch
 
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from aprende.models import CodigoAccesoAprende
 from core.models import Estudiante
@@ -48,14 +50,30 @@ class _RedisMem:
         return 1
 
 
+def url_redis_pruebas() -> str:
+    """Siempre la base 15. Un REDIS_URL de broker (db 0) no se vacía aquí."""
+    from django.conf import settings
+
+    url = str(getattr(settings, 'REDIS_URL', '') or '').strip()
+    if url.rstrip('/').endswith('/15'):
+        return url
+    return 'redis://127.0.0.1:6379/15'
+
+
 def redis_de_test():
     try:
         from redis import Redis
 
-        cliente = Redis.from_url('redis://127.0.0.1:6379/0', socket_connect_timeout=0.3)
+        cliente = Redis.from_url(url_redis_pruebas(), socket_connect_timeout=0.3)
         cliente.ping()
         return cliente
-    except Exception:
+    except Exception as exc:
+        if os.environ.get('CI'):
+            raise
+        warnings.warn(
+            f'Redis de prueba no responde ({exc}); se usa memoria',
+            stacklevel=2,
+        )
         return _RedisMem()
 
 
@@ -197,3 +215,11 @@ class AulaRateTests(_Base):
         self.assertIn('inválido', r.content.decode())
         self.assertTrue(CodigoAccesoAprende.objects.filter(codigo='121212').exists())
         self.assertTrue(any('rate_limit_redis_caido' in linea for linea in logs.output))
+
+
+class RedisDeTestTests(SimpleTestCase):
+    def test_ci_sin_redis_no_usa_memoria(self):
+        with patch.dict(os.environ, {'CI': 'true'}):
+            with patch('redis.Redis.from_url', side_effect=ConnectionError('no')):
+                with self.assertRaises(ConnectionError):
+                    redis_de_test()
