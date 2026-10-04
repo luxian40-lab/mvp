@@ -217,6 +217,40 @@ class AulaRateTests(_Base):
         self.assertTrue(any('rate_limit_redis_caido' in linea for linea in logs.output))
 
 
+class IpLoginTests(SimpleTestCase):
+    def _req(self, **meta):
+        from django.test import RequestFactory
+
+        req = RequestFactory().get('/aprende/estudiante/login/')
+        req.META['REMOTE_ADDR'] = '10.0.0.8'
+        req.META.update(meta)
+        return req
+
+    def test_cloudflare_usa_connecting_ip(self):
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        with override_settings(EKI_BEHIND_CLOUDFLARE=True, EKI_TRUSTED_PROXY_COUNT=1):
+            ip = client_ip_from_request(self._req(
+                HTTP_CF_CONNECTING_IP='203.0.113.9',
+                HTTP_X_FORWARDED_FOR='198.51.100.4',
+            ))
+        self.assertEqual(ip, '203.0.113.9')
+
+    def test_sin_cloudflare_y_sin_proxies_ignora_forwarded(self):
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        with override_settings(EKI_BEHIND_CLOUDFLARE=False, EKI_TRUSTED_PROXY_COUNT=0):
+            ip = client_ip_from_request(self._req(HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1'))
+        self.assertEqual(ip, '10.0.0.8')
+
+    def test_proxy_de_confianza_usa_el_ultimo_salto(self):
+        from aprende.acceso_whatsapp import client_ip_from_request
+
+        with override_settings(EKI_BEHIND_CLOUDFLARE=False, EKI_TRUSTED_PROXY_COUNT=1):
+            ip = client_ip_from_request(self._req(HTTP_X_FORWARDED_FOR='198.51.100.4, 203.0.113.1'))
+        self.assertEqual(ip, '203.0.113.1')
+
+
 class RedisDeTestTests(SimpleTestCase):
     def test_ci_sin_redis_no_usa_memoria(self):
         with patch.dict(os.environ, {'CI': 'true'}):

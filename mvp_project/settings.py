@@ -902,6 +902,9 @@ AULA_LOGIN_REQUIERE_DOCUMENTO = os.environ.get(
 EKI_BEHIND_CLOUDFLARE = os.environ.get('EKI_BEHIND_CLOUDFLARE', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Saltos de proxy de confianza delante del origen, sin Cloudflare.
+# 0: se ignora X-Forwarded-For. >0: se usa el último valor si hay al menos esos saltos.
+EKI_TRUSTED_PROXY_COUNT = int(os.environ.get('EKI_TRUSTED_PROXY_COUNT', '0') or 0)
 
 # ==========================================
 # 📧 CONFIGURACIÓN DE EMAIL - GMAIL

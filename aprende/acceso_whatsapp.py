@@ -37,22 +37,6 @@ def _ttl() -> int:
     return int(getattr(settings, 'APRENDE_ACCESO_WA_TTL', 600) or 600)
 
 
-def _otp_max_attempts() -> int:
-    return int(getattr(settings, 'APRENDE_OTP_MAX_ATTEMPTS', 5) or 5)
-
-
-def _otp_lockout_seconds() -> int:
-    return int(getattr(settings, 'APRENDE_OTP_LOCKOUT_SECONDS', 900) or 900)
-
-
-def _otp_ip_max_attempts() -> int:
-    return int(getattr(settings, 'APRENDE_OTP_IP_MAX_ATTEMPTS', 20) or 20)
-
-
-def _otp_ip_window() -> int:
-    return int(getattr(settings, 'APRENDE_OTP_IP_WINDOW', 600) or 600)
-
-
 def _otp_emit_max() -> int:
     return int(getattr(settings, 'APRENDE_OTP_EMIT_MAX', 8) or 8)
 
@@ -67,51 +51,38 @@ MENSAJE_CODIGO_RECHAZADO = (
 
 
 def client_ip_from_request(request) -> str:
-    """IP del login. CF-Connecting-IP solo si EKI_BEHIND_CLOUDFLARE. No usa X-Forwarded-For."""
+    """IP del cliente en el login del aula.
+
+    Una sola de estas redes:
+    - EKI_BEHIND_CLOUDFLARE true: el borde es Cloudflare. Se usa
+      CF-Connecting-IP y no se lee X-Forwarded-For. Si ese header falta,
+      queda REMOTE_ADDR (el par TCP con Cloudflare).
+    - Flag false o sin definir: no hay Cloudflare. Con
+      EKI_TRUSTED_PROXY_COUNT en 0 (default) se usa REMOTE_ADDR y se
+      ignora X-Forwarded-For. Si el conteo es N > 0 y el header trae al
+      menos N saltos, se usa el último valor, el que agregó el proxy más
+      cercano. Un cliente no elige la IP mientras el conteo sea 0.
+    """
     if request is None:
         return ''
+    remoto = (request.META.get('REMOTE_ADDR') or '').strip()
     if getattr(settings, 'EKI_BEHIND_CLOUDFLARE', False):
         cf = (request.META.get('HTTP_CF_CONNECTING_IP') or '').split(',')[0].strip()
-        if cf:
-            return cf
-    return (request.META.get('REMOTE_ADDR') or '').strip()
-
-
-def _otp_msg_lockout() -> str:
-    return (
-        'Demasiados intentos. Espera unos minutos o escribe *aula* '
-        'por WhatsApp para pedir un código nuevo.'
-    )
-
-
-def otp_esta_bloqueado(ip: str) -> bool:
-    if not ip:
-        return False
-    from django.core.cache import cache
-
-    return bool(cache.get(f'aprende_otp_lock:{ip}'))
-
-
-def registrar_otp_fallo(ip: str) -> None:
-    if not ip:
-        return
-    from django.core.cache import cache
-
-    key = f'aprende_otp_fail:{ip}'
-    n = int(cache.get(key, 0) or 0) + 1
-    cache.set(key, n, _otp_ip_window())
-    if n >= _otp_max_attempts():
-        cache.set(f'aprende_otp_lock:{ip}', 1, _otp_lockout_seconds())
-        logger.warning('Aprende OTP lockout ip=%s fails=%s', ip, n)
-
-
-def limpiar_otp_limites(ip: str) -> None:
-    if not ip:
-        return
-    from django.core.cache import cache
-
-    cache.delete(f'aprende_otp_fail:{ip}')
-    cache.delete(f'aprende_otp_lock:{ip}')
+        return cf or remoto
+    try:
+        saltos = int(getattr(settings, 'EKI_TRUSTED_PROXY_COUNT', 0) or 0)
+    except (TypeError, ValueError):
+        saltos = 0
+    if saltos <= 0:
+        return remoto
+    partes = [
+        parte.strip()
+        for parte in (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')
+        if parte.strip()
+    ]
+    if len(partes) >= saltos:
+        return partes[-1]
+    return remoto
 
 
 def mensaje_pide_acceso_aula(texto: str) -> bool:
@@ -188,6 +159,11 @@ def verificar_codigo_web(
     ip: str | None = None,
     documento: str = '',
 ) -> tuple[Optional[int], str]:
+    """Canjea el código de aula.
+
+    Redis caído cierra el login: rechaza con el mensaje genérico y no
+    borra el código. No deja pasar.
+    """
     import hmac
 
     from aprende.models import CodigoAccesoAprende
