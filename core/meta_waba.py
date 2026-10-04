@@ -550,7 +550,27 @@ def _destinatarios(campana: CampanaMeta):
     return campana.destinatarios.filter(activo=True)
 
 
+def _guardar_envio_v1(previo, campana, estudiante, estado, wamid, respuesta):
+    if previo is None:
+        EnvioCampanaMeta.objects.create(
+            campana=campana,
+            estudiante=estudiante,
+            estado=estado,
+            wamid=wamid,
+            respuesta=respuesta,
+        )
+        return
+    previo.estado = estado
+    previo.wamid = wamid
+    previo.respuesta = respuesta
+    previo.save(update_fields=['estado', 'wamid', 'respuesta'])
+
+
 def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
+    if getattr(settings, 'META_CAMPANAS_V2_ENABLED', False):
+        from core.campana_meta_v2 import ejecutar_campana_meta_v2
+
+        return ejecutar_campana_meta_v2(campana)
     from core.meta_token import token_invalido
 
     if token_invalido():
@@ -575,9 +595,10 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
     fallidos = 0
     rate_limit = False
     for estudiante in destinatarios:
-        if EnvioCampanaMeta.objects.filter(
-            campana=campana, estudiante=estudiante, estado='ENVIADO',
-        ).exists():
+        previo = EnvioCampanaMeta.objects.filter(
+            campana=campana, estudiante=estudiante,
+        ).first()
+        if previo is not None and previo.estado == 'ENVIADO':
             continue
         try:
             componentes = _parametros_envio(plantilla, campana, estudiante)
@@ -596,33 +617,17 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
             status, data = _post(url, payload)
             if status in (200, 201) and data.get('messages'):
                 wamid = str((data.get('messages') or [{}])[0].get('id') or '')
-                EnvioCampanaMeta.objects.create(
-                    campana=campana,
-                    estudiante=estudiante,
-                    estado='ENVIADO',
-                    wamid=wamid,
-                    respuesta='sent',
-                )
+                _guardar_envio_v1(previo, campana, estudiante, 'ENVIADO', wamid, 'sent')
                 enviados += 1
             else:
                 err = _error_meta(data)
-                EnvioCampanaMeta.objects.create(
-                    campana=campana,
-                    estudiante=estudiante,
-                    estado='FALLIDO',
-                    respuesta=err['message'][:2000],
-                )
+                _guardar_envio_v1(previo, campana, estudiante, 'FALLIDO', '', err['message'][:2000])
                 fallidos += 1
                 if _es_rate_limit(err['code']):
                     rate_limit = True
                     break
         except ValueError as exc:
-            EnvioCampanaMeta.objects.create(
-                campana=campana,
-                estudiante=estudiante,
-                estado='FALLIDO',
-                respuesta=str(exc)[:2000],
-            )
+            _guardar_envio_v1(previo, campana, estudiante, 'FALLIDO', '', str(exc)[:2000])
             fallidos += 1
         time.sleep(0.35)
 

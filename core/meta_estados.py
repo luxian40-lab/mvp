@@ -56,6 +56,55 @@ def _puede_avanzar(actual: str, nuevo: str) -> bool:
     return _RANGO[nuevo] > _RANGO.get(actual, 0)
 
 
+_ENTREGA = {'sent': 1, 'delivered': 2, 'read': 3}
+
+
+def _aplicar_status_envio(item: dict, mid: str) -> bool:
+    """Actualiza el envío de campaña. No crea WhatsappLog."""
+    from django.utils import timezone
+
+    from core.models_campana_meta import EnvioCampanaMeta
+
+    nuevo = str(item.get('status') or '').strip().lower()
+    envio = EnvioCampanaMeta.objects.filter(wamid=mid).order_by('-id').first()
+    opaco = str(item.get('biz_opaque_callback_data') or '')
+    if envio is None and opaco.startswith('envio:'):
+        try:
+            pk = int(opaco.split(':', 1)[1])
+        except ValueError:
+            pk = 0
+        if pk:
+            envio = EnvioCampanaMeta.objects.filter(pk=pk, estado='INCIERTO').first()
+            if envio is not None:
+                envio.estado = 'ENVIADO'
+                envio.wamid = mid[:200]
+    if envio is None:
+        return False
+    actual = (envio.estado_entrega or '').strip().lower()
+    errores = item.get('errors') or []
+    code = ''
+    if errores and isinstance(errores[0], dict):
+        code = str(errores[0].get('code') or '')[:16]
+    campos = ['estado', 'wamid', 'estado_entrega', 'error_codigo', 'entregado_en', 'leido_en']
+    if nuevo == 'failed':
+        if actual == 'read':
+            return False
+        envio.estado_entrega = 'failed'
+        envio.error_codigo = code
+    elif nuevo in _ENTREGA and _ENTREGA[nuevo] > _ENTREGA.get(actual, 0):
+        envio.estado_entrega = nuevo
+        if nuevo == 'delivered' and not envio.entregado_en:
+            envio.entregado_en = timezone.now()
+        if nuevo == 'read':
+            envio.leido_en = timezone.now()
+            if not envio.entregado_en:
+                envio.entregado_en = envio.leido_en
+    elif envio.estado == 'ENVIADO' and envio.wamid == mid[:200] and actual:
+        return False
+    envio.save(update_fields=campos)
+    return True
+
+
 def aplicar_statuses(statuses) -> int:
     from core.models import WhatsappLog
 
@@ -67,13 +116,17 @@ def aplicar_statuses(statuses) -> int:
         mid = str(item.get('id') or '').strip()
         if not mid:
             continue
+        toco_envio = _aplicar_status_envio(item, mid)
+        if toco_envio:
+            actualizados += 1
         log = (
             WhatsappLog.objects.filter(mensaje_id=mid, tipo='SENT')
             .order_by('-id')
             .first()
         )
         if log is None:
-            logger.debug('meta_status_desconocido id=%s', mid[:32])
+            if not toco_envio:
+                logger.debug('meta_status_desconocido id=%s', mid[:32])
             continue
         nuevo = str(item.get('status') or '').strip().lower()
         if not _puede_avanzar(log.estado, nuevo):

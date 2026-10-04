@@ -1085,6 +1085,13 @@ HABEAS_TEXTO_VERSION = '2026-10-04'
 META_CAMPANAS_V2_ENABLED = os.environ.get('META_CAMPANAS_V2_ENABLED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Códigos de Cloud API según el plan, 2026-10-04. La página de errores no se reabrió ese día.
+META_CODIGOS_REINTENTABLES = ['130429', '131056', '4', '80008', '613']
+META_CODIGOS_ERROR = ['131026', '131048', '131049', '131052', '131053']
+META_CODIGO_VENTANA = '131047'
+META_CODIGO_TOKEN = '190'
+# Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
+META_OPAQUE_MAX = 512
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

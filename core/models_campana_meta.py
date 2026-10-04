@@ -390,21 +390,41 @@ class CampanaMeta(models.Model):
 
 class EnvioCampanaMeta(models.Model):
     ESTADO = [
+        ('PENDIENTE', 'Pendiente'),
+        ('ENVIANDO', 'Enviando'),
         ('ENVIADO', 'Enviado'),
+        ('ERROR', 'Error'),
+        ('ERROR_REINTENTABLE', 'Error reintentable'),
+        ('INCIERTO', 'Incierto'),
+        ('OMITIDO', 'Omitido'),
         ('FALLIDO', 'Fallido'),
     ]
 
     campana = models.ForeignKey(CampanaMeta, on_delete=models.CASCADE, related_name='envios')
     estudiante = models.ForeignKey('Estudiante', on_delete=models.CASCADE, related_name='envios_campana_meta')
     estado = models.CharField(max_length=20, choices=ESTADO, default='FALLIDO')
-    wamid = models.CharField(max_length=200, blank=True, default='')
+    wamid = models.CharField(max_length=200, blank=True, default='', db_index=True)
     respuesta = models.TextField(blank=True, default='')
     fecha = models.DateTimeField(auto_now_add=True)
+    estado_entrega = models.CharField(max_length=16, blank=True, default='')
+    error_codigo = models.CharField(max_length=16, blank=True, default='')
+    entregado_en = models.DateTimeField(null=True, blank=True)
+    leido_en = models.DateTimeField(null=True, blank=True)
+    claim_token = models.UUIDField(null=True, blank=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    intentos = models.PositiveIntegerField(default=0)
+    omitido_motivo = models.CharField(max_length=64, blank=True, default='')
 
     class Meta:
         verbose_name = 'Envío campaña Meta'
         verbose_name_plural = 'Envíos campaña Meta'
         ordering = ['-fecha']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['campana', 'estudiante'],
+                name='uniq_envio_meta_campana_estudiante',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.campana_id} {self.estudiante_id} {self.estado}'
