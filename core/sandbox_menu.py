@@ -991,6 +991,20 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     from_tel, _, body_habeas = _extract_from_body(payload)
     body_habeas = _body_o_audio_transcrito(payload, body_habeas)
     if from_tel:
+        from core.linea_registrados import TEXTO_SOLO_REGISTRADOS, aviso_unico_24h, debe_cortar
+
+        if debe_cortar(from_tel):
+            if aviso_unico_24h(from_tel):
+                try:
+                    enviar_texto_sandbox(
+                        from_tel,
+                        sandbox_number(),
+                        TEXTO_SOLO_REGISTRADOS,
+                        agente='solo_registrados',
+                    )
+                except Exception:
+                    logger.exception('sandbox_solo_registrados_fail')
+            return 'handled'
         corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
         if corte == 'handled':
             return 'handled'

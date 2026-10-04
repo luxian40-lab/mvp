@@ -120,6 +120,7 @@ class SandboxCanalMetaAdapterTests(TestCase):
     SANDBOX_WHATSAPP_PHONE_ID='111222333',
     WHATSAPP_TOKEN='test-token',
     LINEA_META_PLAN_DEFAULT='curso_asesor',
+    LINEA_META_SOLO_REGISTRADOS=False,
 )
 class SandboxCanalMetaSendTests(TestCase):
     @patch('core.sandbox_canal.requests.post')
@@ -173,6 +174,7 @@ class SandboxCanalMetaSendTests(TestCase):
     TWILIO_VALIDATE_SIGNATURE=False,
     SECURE_SSL_REDIRECT=False,
     LINEA_META_PLAN_DEFAULT='curso_asesor',
+    LINEA_META_SOLO_REGISTRADOS=False,
 )
 class SandboxCanalMetaWebhookTests(TestCase):
     def setUp(self):

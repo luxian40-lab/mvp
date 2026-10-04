@@ -143,6 +143,10 @@ def resolver_plan(telefono: str) -> PlanLinea:
     org = _plan_organizacion(tel)
     if org:
         return plan_por_clave(org)
+    from core.linea_registrados import debe_cortar
+
+    if debe_cortar(tel):
+        return SIN_PLAN
     return _plan_default()
 
 

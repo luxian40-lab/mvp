@@ -518,6 +518,33 @@ def _build_alertas_ops(
     return alertas
 
 
+def _gasto_llm_panel() -> dict:
+    """Gasto estimado. Si la tabla aún no existe, el panel sigue."""
+    try:
+        from django.db.models import Sum
+        from django.utils import timezone
+
+        from core.models import Estudiante
+        from core.models_uso_llm import UsoLLM
+        from core.presupuesto_llm import dia_bogota
+
+        hoy = dia_bogota()
+        inicio = timezone.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+        mes = inicio.replace(day=1)
+        total_hoy = UsoLLM.objects.filter(creado__gte=inicio).aggregate(s=Sum('costo_usd_est'))['s'] or 0
+        total_mes = UsoLLM.objects.filter(creado__gte=mes).aggregate(s=Sum('costo_usd_est'))['s'] or 0
+        activos = Estudiante.objects.filter(activo=True).count()
+        por_est = (total_hoy / activos) if activos else total_hoy
+        return {
+            'dia': hoy,
+            'hoy': f'{total_hoy:.4f}',
+            'mes': f'{total_mes:.4f}',
+            'por_estudiante': f'{por_est:.6f}',
+        }
+    except Exception:
+        return {}
+
+
 def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
@@ -1065,6 +1092,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         'ecosistema': ecosistema,
         'health': header_health_strip(force=False),
         'actualizado': timezone.localtime(now).strftime('%H:%M'),
+        'gasto_llm': _gasto_llm_panel(),
     }
 
 

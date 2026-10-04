@@ -35,6 +35,13 @@
     {% endfor %}
   </div>
 
+  {% if snap.gasto_llm.hoy %}
+  <p class="eki-panel-exec__sub">
+    IA hoy {{ snap.gasto_llm.hoy }} USD · mes {{ snap.gasto_llm.mes }} USD
+    · por estudiante activo {{ snap.gasto_llm.por_estudiante }} USD
+  </p>
+  {% endif %}
+
   {% if snap.acciones %}
   <div class="eki-panel-acciones" aria-label="Acciones rápidas">
     {% for a in snap.acciones %}

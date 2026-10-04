@@ -116,7 +116,18 @@ def _procesar_meta_webhook(payload):
                         tipo='INCOMING'
                     )
                     
-                    # Obtener o crear estudiante
+                    from core.linea_registrados import (
+                        TEXTO_SOLO_REGISTRADOS,
+                        debe_cortar,
+                        permitir_numero_nuevo,
+                    )
+
+                    if not Estudiante.objects.filter(telefono=phone).exists() and (
+                        debe_cortar(phone) or not permitir_numero_nuevo(phone)
+                    ):
+                        enviar_whatsapp(phone, TEXTO_SOLO_REGISTRADOS)
+                        continue
+
                     estudiante, _ = Estudiante.objects.get_or_create(
                         telefono=phone,
                         defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}

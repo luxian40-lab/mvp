@@ -36,6 +36,7 @@ def _habeas(telefono: str) -> None:
     BOT_COMERCIAL_WHATSAPP_NUMBER='573001111111',
     EKI_DEMO_RIENDAS_CURSO_ID='36',
     LINEA_META_PLAN_DEFAULT='curso_asesor',
+    LINEA_META_SOLO_REGISTRADOS=False,
 )
 class SandboxMenuTests(TestCase):
     def test_solo_sandbox_es_destino(self):

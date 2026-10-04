@@ -127,6 +127,7 @@ class CursosGeneralesTests(TestCase):
     BOT_COMERCIAL_WHATSAPP_NUMBER='573001111111',
     SECURE_SSL_REDIRECT=False,
     LINEA_META_PLAN_DEFAULT='curso_asesor',
+    LINEA_META_SOLO_REGISTRADOS=False,
 )
 class CatalogoFormacionTests(TestCase):
     def setUp(self):
