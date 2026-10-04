@@ -51,6 +51,9 @@ def _registrar_uso(modelo: str, texto: str, resp) -> None:
             costo_usd_est=costo,
             estimado=estimado,
         )
+        from core.presupuesto_llm import anotar_gasto
+
+        anotar_gasto(costo, ctx.get('cliente_id'))
     except Exception:
         logger.exception('uso_llm_no_guardo')
 

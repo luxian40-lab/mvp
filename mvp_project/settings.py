@@ -1072,6 +1072,10 @@ LLM_PRECIOS_USD_POR_MTOK = {
     'gpt-5': (Decimal('1.25'), Decimal('10')),
     'gpt-5-mini': (Decimal('0.25'), Decimal('2')),
 }
+LLM_PRESUPUESTO_DIARIO_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_USD', '10'))
+LLM_PRESUPUESTO_DIARIO_ORG_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_ORG_USD', '10'))
+LLM_UMBRAL_ECONOMICO = 0.7
+LLM_UMBRAL_ALERTA = 0.8
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

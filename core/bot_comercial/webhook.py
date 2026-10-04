@@ -615,8 +615,18 @@ def _bot_comercial_respuesta_catalogo(
                 max_out = min(max_out, max_tokens_linea_meta())
         except Exception:
             pass
-        from core.openai_compat import completar_chat
-        texto = completar_chat(client, modelo, messages, max_out, temperatura)
+        from core.openai_compat import completar_chat, contexto_uso_llm
+        from core.presupuesto_llm import debe_degradar, modelo_segun_presupuesto
+
+        cliente_id = getattr(cliente, 'pk', None)
+        if debe_degradar(cliente_id):
+            texto = _bot_comercial_respuesta_sin_llm(
+                pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,
+            )
+        else:
+            contexto_uso_llm(cliente_id=cliente_id, agente='nati')
+            modelo = modelo_segun_presupuesto(modelo, cliente_id)
+            texto = completar_chat(client, modelo, messages, max_out, temperatura)
         if not texto:
             texto = _bot_comercial_respuesta_sin_llm(
                 pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,

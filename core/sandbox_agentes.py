@@ -344,6 +344,11 @@ def responder_agente_sandbox(
     if not q:
         return saludo_agente(agente)
 
+    from core.presupuesto_llm import debe_degradar
+
+    if debe_degradar():
+        return _respuesta_si_falla(agente, q)
+
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
     if not api_key:
         return _respuesta_si_falla(agente, q)
@@ -365,9 +370,16 @@ def responder_agente_sandbox(
     try:
         from openai import OpenAI
 
-        from core.openai_compat import completar_chat
+        from core.openai_compat import completar_chat, contexto_uso_llm
+        from core.presupuesto_llm import modelo_segun_presupuesto
 
-        texto = completar_chat(OpenAI(api_key=api_key), _modelo(), messages, _max_tokens())
+        contexto_uso_llm(telefono=telefono, agente=agente)
+        texto = completar_chat(
+            OpenAI(api_key=api_key),
+            modelo_segun_presupuesto(_modelo()),
+            messages,
+            _max_tokens(),
+        )
         if texto:
             return texto
     except Exception:
