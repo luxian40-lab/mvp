@@ -19,15 +19,79 @@ def _alguna(texto: str, palabras) -> bool:
 # Tokens de uno a tres caracteres que aparecen dentro de frases normales.
 # Solo cuentan si el mensaje tiene como mucho 3 palabras. «no» no es avance.
 _CONTINUAR_CORTAS = frozenset({'si', 'sí', 'ok', 'ya', 'va'})
-_NEGACIONES = ('no quiero', 'no puedo', 'nunca', 'tampoco', 'no', 'ni')
-_AVANCE_QUE_SE_NIEGA = ('seguir', 'continuar', 'listo', 'sigue', 'sigo', 'sigamos', 'seguimos')
+_NEGACIONES_TOKEN = frozenset({'no', 'nunca', 'tampoco', 'ni', 'jamas', 'jamás'})
+_OBJETIVOS_AVANCE = frozenset({
+    'seguir', 'continuar', 'sigo', 'listo', 'sigue', 'sigamos', 'seguimos',
+})
+_DUDA = frozenset({'se', 'sé'})
+_SI_DUDA = frozenset({'si', 'sí'})
 
 
-def _niega_el_avance(texto: str) -> bool:
-    """Negación junto a seguir/continuar/listo: no es avanzar el curso."""
-    niega = any(contiene_palabra(texto, palabra) for palabra in _NEGACIONES)
-    avanza = any(contiene_palabra(texto, palabra) for palabra in _AVANCE_QUE_SE_NIEGA)
-    return niega and avanza
+def _tokens_con_clausula(texto: str) -> list[tuple[str, int]]:
+    """Palabras y el número de cláusula. La coma, el punto y el punto y coma cortan."""
+    piezas: list[tuple[str, int]] = []
+    clausula = 0
+    for match in re.finditer(r'\w+|[,;.]', texto, flags=re.UNICODE):
+        tok = match.group()
+        if tok in ',;.':
+            clausula += 1
+            continue
+        piezas.append((tok, clausula))
+    return piezas
+
+
+def _prefijo_niega(piezas: list[tuple[str, int]], indice: int) -> bool:
+    """Negación en las 2 palabras anteriores, en la misma cláusula.
+
+    «no sé si» justo antes del verbo también niega: «no» queda en la tercera
+    posición y el test de esa frase pide que no avance.
+    """
+    clausula = piezas[indice][1]
+    mismos = [tok for tok, numero in piezas[:indice] if numero == clausula]
+    if any(tok in _NEGACIONES_TOKEN for tok in mismos[-2:]):
+        return True
+    tres = mismos[-3:]
+    return (
+        len(tres) == 3
+        and tres[0] == 'no'
+        and tres[1] in _DUDA
+        and tres[2] in _SI_DUDA
+    )
+
+
+def _ocurrencia_negada(texto: str, frase: str) -> bool:
+    """True si cada aparición de la frase está negada, o es un token corto
+    pegado a un verbo de avance negado en la misma cláusula.
+    """
+    objetivo = re.findall(r'\w+', frase, flags=re.UNICODE)
+    piezas = _tokens_con_clausula(texto)
+    if not objetivo or not piezas:
+        return False
+    n = len(objetivo)
+    tokens = [tok for tok, _ in piezas]
+    alguna = False
+    for i in range(len(tokens) - n + 1):
+        if tokens[i:i + n] != objetivo:
+            continue
+        if any(piezas[i + k][1] != piezas[i][1] for k in range(n)):
+            continue
+        alguna = True
+        if _prefijo_niega(piezas, i):
+            continue
+        if objetivo[0] in _CONTINUAR_CORTAS and _corto_junto_a_verbo_negado(piezas, i):
+            continue
+        return False
+    return alguna
+
+
+def _corto_junto_a_verbo_negado(piezas: list[tuple[str, int]], indice: int) -> bool:
+    clausula = piezas[indice][1]
+    for j in range(indice + 1, min(indice + 3, len(piezas))):
+        if piezas[j][1] != clausula:
+            break
+        if piezas[j][0] in _OBJETIVOS_AVANCE and _prefijo_niega(piezas, j):
+            return True
+    return False
 
 
 def detect_intent(mensaje: str) -> str:
@@ -133,14 +197,19 @@ def detect_intent(mensaje: str) -> str:
         'si', 'sí', 'confirmar', 'confirmo', 'ya', 'claro', 'bueno', 'adelante', 'vamos', 'va',
     ]
     # «si», «ok», «ya» y «va» son ambiguos: solo si el mensaje es corto.
-    # Una negación junto a seguir/continuar/listo cae al tutor (desconocido).
+    # Una negación solo anula el verbo si está en las 2 palabras anteriores
+    # de la misma cláusula. «no, listo» avanza: la coma deja «listo» solo.
     n_palabras = len(re.findall(r'\w+', texto_limpio, flags=re.UNICODE))
-    if not _niega_el_avance(texto_limpio):
-        for palabra in palabras_continuar:
-            if palabra in _CONTINUAR_CORTAS and n_palabras > 3:
+    for palabra in palabras_continuar:
+        if palabra in _CONTINUAR_CORTAS and n_palabras > 3:
+            continue
+        if not contiene_palabra(texto_limpio, palabra):
+            continue
+        primero = re.findall(r'\w+', palabra, flags=re.UNICODE)[:1]
+        if primero and primero[0] in _OBJETIVOS_AVANCE | _CONTINUAR_CORTAS:
+            if _ocurrencia_negada(texto_limpio, palabra):
                 continue
-            if contiene_palabra(texto_limpio, palabra):
-                return 'continuar_leccion'
+        return 'continuar_leccion'
     
     # Módulos específicos (1-5)
     if re.match(r'^(modulo|módulo)\s*[1-5]$', texto_limpio):
