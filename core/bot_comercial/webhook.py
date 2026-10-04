@@ -967,9 +967,13 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             pass
         texto_respuesta = armar_saludo_menu(cliente_nati)
     else:
-        from core.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
+        try:
+            from core.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
 
-        cuota_excedida, cuota_usados, cuota_max = evaluar_cuota_nat(telefono_limpio)
+            cuota_excedida, cuota_usados, cuota_max = evaluar_cuota_nat(telefono_limpio)
+        except Exception:
+            logger.exception('nat_cuota_fail')
+            cuota_excedida, cuota_usados, cuota_max = False, 0, 0
         if cuota_excedida:
             logger.info(
                 'Nat cuota agotada | tel=%s | usados=%s | max=%s',
