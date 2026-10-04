@@ -171,10 +171,15 @@ def test_bot_comercial_webhook_encola_celery(mock_delay, mock_proc):
     TWILIO_VALIDATE_SIGNATURE=True,
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
+    WHATSAPP_APP_SECRET='',
+    WHATSAPP_REQUIRE_SIGNATURE=False,
 )
 @patch('core.views.entrada._procesar_meta_webhook')
 def test_meta_json_sin_firma_twilio_pasa(mock_meta):
-    """Payload Meta (entry) no exige X-Twilio-Signature."""
+    """Payload Meta (entry) no exige X-Twilio-Signature.
+
+    El secreto de prueba de CI no aplica: esta prueba aísla la firma de Twilio.
+    """
     client = Client()
     payload = {
         'object': 'whatsapp_business_account',
