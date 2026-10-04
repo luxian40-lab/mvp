@@ -946,6 +946,12 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     """None si ya puede ver el menú. 'handled' si esta vuelta fue solo habeas."""
     t = (body or '').strip().lower()
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo'):
+        from core.consentimiento_wa import registrar_optin
+        from core.models import Estudiante
+
+        est = Estudiante.objects.filter(telefono=telefono).first()
+        if est is not None:
+            registrar_optin(est, 'habeas')
         sesion = _get_or_create_sesion(telefono)
         sesion.habeas_aceptado = True
         sesion.modo = MODO_MENU
@@ -991,6 +997,23 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     from_tel, _, body_habeas = _extract_from_body(payload)
     body_habeas = _body_o_audio_transcrito(payload, body_habeas)
     if from_tel:
+        from core.consentimiento_wa import es_optout, registrar_optout
+        from core.models import Estudiante
+
+        if es_optout(body_habeas):
+            est = Estudiante.objects.filter(telefono=from_tel).order_by('-id').first()
+            if est is not None and not est.wa_optout_fecha:
+                registrar_optout(est)
+                try:
+                    enviar_texto_sandbox(
+                        from_tel,
+                        sandbox_number(),
+                        'Listo. No le enviaremos más recordatorios ni plantillas por esta línea.',
+                        agente='optout',
+                    )
+                except Exception:
+                    logger.exception('sandbox_optout_fail')
+            return 'handled'
         from core.linea_registrados import TEXTO_SOLO_REGISTRADOS, aviso_unico_24h, debe_cortar
 
         if debe_cortar(from_tel):

@@ -1081,6 +1081,10 @@ LINEA_MAX_NUEVOS_DIA = int(os.environ.get('LINEA_MAX_NUEVOS_DIA', '300'))
 LINEA_META_SOLO_REGISTRADOS = os.environ.get('LINEA_META_SOLO_REGISTRADOS', 'true').strip().lower() not in (
     '0', 'false', 'no', 'off',
 )
+HABEAS_TEXTO_VERSION = '2026-10-04'
+META_CAMPANAS_V2_ENABLED = os.environ.get('META_CAMPANAS_V2_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

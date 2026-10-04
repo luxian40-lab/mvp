@@ -25,7 +25,8 @@ _sandbox_meta_ctx: ContextVar[bool] = ContextVar('sandbox_meta_ctx', default=Fal
 
 _TEXTO_HABEAS_SANDBOX = (
     "Antes de continuar, autorice el tratamiento de sus datos "
-    "para la formación y la asesoría en esta línea.\n\n"
+    "para la formación y la asesoría en esta línea, "
+    "incluidos los recordatorios del curso por WhatsApp.\n\n"
     "Pulse *Acepto* o *No acepto*."
 )
 

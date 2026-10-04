@@ -761,6 +761,10 @@ class Estudiante(models.Model):
         verbose_name='Fecha de Aceptación',
         help_text='Fecha y hora en que aceptó los términos'
     )
+    wa_optin_fecha = models.DateTimeField(null=True, blank=True)
+    wa_optin_version = models.CharField(max_length=32, blank=True, default='')
+    wa_optin_origen = models.CharField(max_length=32, blank=True, default='')
+    wa_optout_fecha = models.DateTimeField(null=True, blank=True)
     
     # MÁQUINA DE ESTADOS B2B (estado_chat reemplaza estado_onboarding)
     estado_chat = models.CharField(
