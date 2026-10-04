@@ -69,8 +69,28 @@ def _aplicar_sandbox_menu(data):
         if ruta == 'nat':
             from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
-            if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
-                _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
+            try:
+                if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
+                    _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
+            except Exception:
+                logger.exception('sandbox_nat_proceso_fail')
+                try:
+                    from core.nati import normalizar_telefono_whatsapp
+                    from core.sandbox_menu import enviar_texto_sandbox
+
+                    tel = normalizar_telefono_whatsapp(str(data.get('From') or ''))
+                    destino = str(data.get('To') or sandbox_number())
+                    if tel:
+                        enviar_texto_sandbox(
+                            tel,
+                            destino,
+                            "Nat no pudo completar esa consulta. "
+                            "Escriba de nuevo la pregunta, o *menu* para volver.\n\n"
+                            "_*menu* para el menú principal._",
+                            agente='sandbox_nat',
+                        )
+                except Exception:
+                    logger.exception('sandbox_nat_fallback_fail')
             return HttpResponse('OK')
         if ruta == 'cursos':
             sb = sandbox_number()

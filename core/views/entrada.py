@@ -35,7 +35,7 @@ def _sid_de(data) -> str:
 
 def _error_sincronico(canal, external_id):
     """La lógica de negocio ya arrancó: el reclamo se queda."""
-    logger.error(
+    logger.exception(
         'webhook_proceso_sincrono canal=%s external_id=%s',
         canal,
         external_id,
