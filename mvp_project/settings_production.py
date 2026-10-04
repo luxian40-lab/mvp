@@ -78,8 +78,18 @@ EKI_MODULE_BUILDER_CURSOS = os.environ.get(
 )
 
 # ?: (security.W009) SECRET_KEY debe ser largo y aleatorio
-# Generar nueva clave con: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')
+from django.core.exceptions import ImproperlyConfigured
+
+_SECRET = (os.environ.get('SECRET_KEY') or '').strip()
+_SECRET_DEV = {
+    'django-insecure-mvp-clave-secreta-cambiar-en-produccion',
+    'django-insecure-CAMBIAR-EN-PRODUCCION',
+}
+if not _SECRET or _SECRET in _SECRET_DEV or _SECRET.startswith('django-insecure'):
+    raise ImproperlyConfigured(
+        'SECRET_KEY de producción falta o es la clave de desarrollo'
+    )
+SECRET_KEY = _SECRET
 
 # Hosts permitidos
 _EB_CNAME = os.environ.get(
@@ -100,11 +110,14 @@ _EKI_CSRF_CANONICAL = [
     f'http://{_EB_CNAME}',
 ]
 _csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
-_csrf_from_env = [o.strip() for o in _csrf_env.split(',') if o.strip()] if _csrf_env else []
-# Siempre incluir orígenes eki + EB (evita 403 CSRF si falta env en EB).
+if not _csrf_env:
+    raise ImproperlyConfigured('CSRF_TRUSTED_ORIGINS es obligatorio en producción')
+_csrf_from_env = [o.strip() for o in _csrf_env.split(',') if o.strip()]
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(_csrf_from_env + _EKI_CSRF_CANONICAL))
 
 _explicit_hosts = os.environ.get('EKI_ALLOWED_HOSTS', '').strip()
+if not _explicit_hosts:
+    raise ImproperlyConfigured('EKI_ALLOWED_HOSTS es obligatorio en producción')
 if _explicit_hosts:
     ALLOWED_HOSTS = [h.strip() for h in _explicit_hosts.split(',') if h.strip()]
     if _EB_CNAME not in ALLOWED_HOSTS:
@@ -116,22 +129,6 @@ if _explicit_hosts:
         ALLOWED_HOSTS.append('margen.eki.technology')
     if 'videos.eki.technology' not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append('videos.eki.technology')
-else:
-    ALLOWED_HOSTS = ['*']
-    if 'ALLOWED_HOSTS_EXTRA' in os.environ:
-        extra_hosts = [h.strip() for h in os.environ['ALLOWED_HOSTS_EXTRA'].split(',') if h.strip()]
-        if ALLOWED_HOSTS == ['*']:
-            ALLOWED_HOSTS = list(extra_hosts)
-            if _EB_CNAME not in ALLOWED_HOSTS:
-                ALLOWED_HOSTS.append(_EB_CNAME)
-        else:
-            ALLOWED_HOSTS.extend(extra_hosts)
-        if 'certificados.eki.technology' not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append('certificados.eki.technology')
-        if 'margen.eki.technology' not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append('margen.eki.technology')
-        if 'videos.eki.technology' not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append('videos.eki.technology')
 
 # ============================================
 # SSL/HTTPS - Resolución de Warnings
@@ -141,14 +138,17 @@ else:
 # DESACTIVADO: Cloudflare termina HTTPS; el origen EB (single instance) suele ser HTTP:80
 SECURE_SSL_REDIRECT = False
 
-# ?: (security.W004) HTTP Strict Transport Security
-# DESACTIVADO hasta configurar SSL
+# HSTS solo detrás de Cloudflare. El origen EB sigue en HTTP, sin redirect.
 SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 _behind_cloudflare = os.environ.get('EKI_BEHIND_CLOUDFLARE', 'true').lower() in ('1', 'true', 'yes')
+EKI_BEHIND_CLOUDFLARE = _behind_cloudflare
 if _behind_cloudflare:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # Cloudflare envía X-Forwarded-Proto: https aunque el origen sea HTTP
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     USE_X_FORWARDED_HOST = True

@@ -6,9 +6,46 @@ from unittest import mock
 from django.test import SimpleTestCase
 
 
+_ENV_OK = {
+    'SECRET_KEY': 'x' * 50,
+    'EKI_ALLOWED_HOSTS': 'admin.eki.technology,app.eki.technology',
+    'CSRF_TRUSTED_ORIGINS': 'https://admin.eki.technology',
+}
+
+
 class ProductionCsrfOriginsTests(SimpleTestCase):
+    def test_csrf_vacio_no_arranca(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        env = dict(_ENV_OK)
+        env['CSRF_TRUSTED_ORIGINS'] = ''
+        with mock.patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(ImproperlyConfigured):
+                mod = importlib.import_module('mvp_project.settings_production')
+                importlib.reload(mod)
+
+    def test_secret_de_desarrollo_no_arranca(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        env = dict(_ENV_OK)
+        env['SECRET_KEY'] = 'django-insecure-mvp-clave-secreta-cambiar-en-produccion'
+        with mock.patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(ImproperlyConfigured):
+                mod = importlib.import_module('mvp_project.settings_production')
+                importlib.reload(mod)
+
+    def test_hosts_vacios_no_arranca(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        env = dict(_ENV_OK)
+        env['EKI_ALLOWED_HOSTS'] = ''
+        with mock.patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(ImproperlyConfigured):
+                mod = importlib.import_module('mvp_project.settings_production')
+                importlib.reload(mod)
+
     def test_csrf_trusted_origins_incluye_admin(self):
-        with mock.patch.dict(os.environ, {'CSRF_TRUSTED_ORIGINS': ''}, clear=False):
+        with mock.patch.dict(os.environ, _ENV_OK, clear=False):
             mod = importlib.import_module('mvp_project.settings_production')
             importlib.reload(mod)
             origins = mod.CSRF_TRUSTED_ORIGINS
@@ -20,5 +57,7 @@ class ProductionCsrfOriginsTests(SimpleTestCase):
         )
 
     def test_csrf_cookie_no_httponly(self):
-        mod = importlib.import_module('mvp_project.settings_production')
+        with mock.patch.dict(os.environ, _ENV_OK, clear=False):
+            mod = importlib.import_module('mvp_project.settings_production')
+            importlib.reload(mod)
         self.assertFalse(mod.CSRF_COOKIE_HTTPONLY)
