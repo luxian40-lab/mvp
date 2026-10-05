@@ -82,8 +82,8 @@ REGLAS DE PRECISIÓN (anti-alucinación):
 2. Cite solo cifras, dosis, productos y nombres que aparezcan ahí o en respaldo web dado.
 3. Si no hay base suficiente, indíquelo con claridad; no invente.
 4. Para precios: indique que son referencia sujetos a región y disponibilidad.
-5. WhatsApp: máximo 2–3 párrafos cortos (≈120–180 palabras). Una idea por mensaje.
-   Cierre con UNA pregunta concreta o acción en campo. No essays ni listas largas.
+5. WhatsApp: manda el bloque REGISTRO Y ESTILO (máximo 70 palabras, trato de usted,
+   una sola pregunta). No essays ni listas largas.
 6. Si el contexto trae FUENTE INSTITUCIONAL AGROSAVIA, úselo y atribuya en una frase
    ("según AGROSAVIA…" / título de la cartilla). No pegue abstracts completos.
 7. No mencione cursos ni ventas de eki salvo que lo pregunten.
@@ -343,7 +343,13 @@ def armar_system_prompt(cliente=None, nombre_bot_override: Optional[str] = None)
         or NOMBRE_BOT_DEFAULT
     )
 
-    prompt = f"{NAT_DIAGNOSTICO_PROMPT.strip()}\n\n{NAT_SYSTEM_PROMPT_BASE.format(nombre_bot=nombre_bot)}"
+    from core.sandbox_agentes import BLOQUE_REGISTRO, _CIERRE_REGISTRO
+
+    prompt = (
+        f"{BLOQUE_REGISTRO}\n\n"
+        f"{NAT_DIAGNOSTICO_PROMPT.strip()}\n\n"
+        f"{NAT_SYSTEM_PROMPT_BASE.format(nombre_bot=nombre_bot)}"
+    )
 
     extra_cliente = (getattr(cliente, 'system_prompt_extra', '') or '').strip()
     if extra_cliente:
@@ -372,7 +378,7 @@ def armar_system_prompt(cliente=None, nombre_bot_override: Optional[str] = None)
     else:
         prompt = f"{prompt}{_NAT_SIN_CATALOGO}"
 
-    return prompt
+    return f"{prompt}\n\n{_CIERRE_REGISTRO}"
 
 
 def obtener_nombre_bot(cliente=None) -> str:
