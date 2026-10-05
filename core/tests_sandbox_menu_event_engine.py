@@ -122,6 +122,11 @@ class SandboxMenuTests(TestCase):
             SandboxCanalSesion.objects.get(telefono='573001234572').modo,
             MODO_VENTAS,
         )
+        resolver_ruta_sandbox({**base, 'Body': 'menu'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
+        d5 = resolver_ruta_sandbox({**base, 'Body': '5'})
+        self.assertEqual(d5.action, 'finanzas')
+        self.assertTrue(d5.saludo_entrada)
 
     def test_atajo_ventas_desde_raiz(self):
         d = resolver_ruta_sandbox({
@@ -384,7 +389,8 @@ class SandboxMenuTests(TestCase):
         self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
-        self.assertIn('Profe IA', TEXTO_AGENTES)
+        self.assertIn('Profesor IA', TEXTO_AGENTES)
+        self.assertIn('Experto en finanzas', TEXTO_AGENTES)
         self.assertIn('Ventas', TEXTO_AGENTES)
         self.assertIn('reiniciar', TEXTO_AGENTES)
 
@@ -472,7 +478,10 @@ class SandboxMenuTests(TestCase):
         self.assertIn('¿cómo lo aplica mañana', PROMPT_VENTAS.lower())
         self.assertIn('propuesta de valor', PROMPT_VENTAS.lower())
         self.assertIn('WhatsApp', PROMPT_VENTAS)
-        self.assertIn('mentor de ventas', saludo_agente('ventas').lower())
+        self.assertIn('ventas eki', saludo_agente('ventas').lower())
+        self.assertNotIn('lina', saludo_agente('coach').lower())
+        self.assertIn('qué puede responder', prompt_para('coach').lower())
+        self.assertIn('qué puede responder', prompt_para('ia_campo').lower())
         coach = prompt_para('coach')
         profe = prompt_para('ia_campo')
         self.assertIn('REGISTRO Y ESTILO', coach)

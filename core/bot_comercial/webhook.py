@@ -548,6 +548,10 @@ def _bot_comercial_respuesta_catalogo(
             )
 
         system_prompt = armar_system_prompt(cliente=cliente)
+        from core.sandbox_agentes import IDENTIDAD_AGRONOMO_LINEA, agronomo_sin_nombre_activo
+
+        if agronomo_sin_nombre_activo():
+            system_prompt = f"{system_prompt}\n\n{IDENTIDAD_AGRONOMO_LINEA}"
         bloque_agro = (bloque_contexto_agro or '').strip()
         bloque_ctx_prompt = (
             f"CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n{bloque_agro}\n\n"
@@ -798,9 +802,13 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=
 
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     """Webhook dedicado para bot comercial (texto libre, voz e imagen)."""
+    from contextlib import nullcontext
+
+    from core.sandbox_agentes import identidad_agronomo_eki
     from core.sandbox_canal import activar_sandbox_meta_si_inbound
 
-    with activar_sandbox_meta_si_inbound(post_data):
+    identidad = identidad_agronomo_eki() if forzar_canal else nullcontext()
+    with activar_sandbox_meta_si_inbound(post_data), identidad:
         return _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=forzar_canal)
 
 
@@ -957,7 +965,12 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     routing = None
     # Nat NO usa keywords de cursos (listo/continuar). Solo escapes propios.
     if es_saludo:
-        texto_respuesta = armar_saludo_inicial(cliente_nati)
+        from core.sandbox_agentes import agronomo_sin_nombre_activo, presentacion_agente
+
+        if agronomo_sin_nombre_activo():
+            texto_respuesta = presentacion_agente('nat')
+        else:
+            texto_respuesta = armar_saludo_inicial(cliente_nati)
     elif msg_normalizado in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']:
         try:
             from core.nat_diagnostico import reiniciar_diagnostico

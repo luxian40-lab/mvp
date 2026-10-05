@@ -84,7 +84,7 @@ def _aplicar_sandbox_menu(data):
                         enviar_texto_sandbox(
                             tel,
                             destino,
-                            "Nat no pudo completar esa consulta. "
+                            "El agrónomo no pudo completar esa consulta. "
                             "Escriba de nuevo la pregunta, o *menu* para volver.\n\n"
                             "_*menu* para el menú principal._",
                             agente='sandbox_nat',
