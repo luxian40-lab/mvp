@@ -311,7 +311,8 @@ class PortalMetricasReorganizacionTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Inicio')
         self.assertNotContains(r, 'Reporte B2B')
-        self.assertContains(r, '¿Cómo va mi programa?')
+        self.assertNotContains(r, '¿Cómo va mi programa?')
+        self.assertNotContains(r, 'Centro de Éxito, cobertura')
         self.assertNotContains(r, 'Mejores estudiantes')
         self.assertNotContains(r, '¿Cuál debería ser mi siguiente acción?')
 
