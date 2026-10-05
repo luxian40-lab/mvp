@@ -74,4 +74,4 @@ class NatSandboxRespuestaTests(TestCase):
             resp = _aplicar_sandbox_menu(inbound)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(send.called)
-        self.assertIn('Nat', send.call_args.args[2])
+        self.assertIn('agrónomo', send.call_args.args[2])

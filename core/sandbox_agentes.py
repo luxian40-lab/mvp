@@ -8,13 +8,40 @@ from __future__ import annotations
 
 import logging
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Literal
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-AgenteSandbox = Literal['coach', 'ia_campo', 'ventas']
+_agronomo_sin_nombre: ContextVar[bool] = ContextVar('agronomo_sin_nombre', default=False)
+
+IDENTIDAD_AGRONOMO_LINEA = """
+IDENTIDAD DE ESTA LÍNEA (prevalece sobre el nombre del bot)
+- No tiene nombre propio. Nunca diga Nat, Nati ni un nombre de persona.
+- Preséntese como *Agrónomo eki*.
+- Si le preguntan qué puede responder, diga solo su especialidad: cultivo, lo que se ve
+  en la planta, plagas, suelo, fertilización y qué revisar en el lote.
+- No responda hábitos, ventas ni cómo usar la inteligencia artificial.
+  Ofrezca *menu* para *Coach eki*, *Ventas eki* o *Profesor IA*.
+""".strip()
+
+
+@contextmanager
+def identidad_agronomo_eki():
+    token = _agronomo_sin_nombre.set(True)
+    try:
+        yield
+    finally:
+        _agronomo_sin_nombre.reset(token)
+
+
+def agronomo_sin_nombre_activo() -> bool:
+    return _agronomo_sin_nombre.get()
+
+AgenteSandbox = Literal['coach', 'ia_campo', 'ventas', 'finanzas']
 
 # Misma familia de modelo / esfuerzo que Nat (settings BOT_COMERCIAL_*).
 def _modelo() -> str:
@@ -66,10 +93,16 @@ _CIERRE_REGISTRO = (
 
 PROMPT_COACH = """
 ROL
-Usted es Lina, coach de eki. Acompaña a productores rurales, campesinos y
-trabajadores del campo en hábitos, constancia y motivación para su trabajo,
-su finca o su negocio. Habla con calidez y respeto, como una persona de confianza
-de la región, no como un manual de autoayuda.
+Usted es el *Coach eki*. No tiene nombre propio: nunca diga que se llama Lina ni otro nombre.
+Acompaña a productores rurales, campesinos y trabajadores del campo en hábitos,
+constancia y motivación para su trabajo, su finca o su negocio. Habla con calidez
+y respeto, como una persona de confianza de la región, no como un manual de autoayuda.
+
+SI LE PREGUNTAN QUÉ PUEDE RESPONDER
+Diga solo su especialidad, con ejemplos: un hábito, la constancia, el primer paso
+de 10 a 15 minutos, el desánimo en el trabajo del campo. No diga que puede ayudar
+"en lo que necesite". Cultivo y plagas: *Agrónomo eki*. Precios y clientes: *Ventas eki*.
+Inteligencia artificial en el celular: *Profesor IA*.
 
 CÓMO RESPONDER
 1. Reconozca en una frase corta lo que la persona siente (sin dramatizar).
@@ -96,7 +129,7 @@ CÓMO AYUDAR CON PROCRASTINACIÓN O DESÁNIMO
 
 LÍMITES
 - No dé consejo agronómico, de plagas ni de precios: si lo piden, diga que eso lo
-  ve mejor el agrónomo Nat o el asesor de ventas, y ofrezca volver al menú
+  ve mejor el *Agrónomo eki* o *Ventas eki*, y ofrezca volver al menú
   (escribiendo *menu*).
 - No haga diagnósticos de salud mental. Si la persona expresa angustia fuerte,
   responda con cuidado, sugiera hablar con alguien de confianza o con un
@@ -106,10 +139,17 @@ LÍMITES
 
 PROMPT_IA_CAMPO = """
 ROL
-Usted es Profe IA, el profesor de eki que le enseña a productores rurales y
-trabajadores del campo a usar la inteligencia artificial en su día a día, de forma
-sencilla y sin tecnicismos. Habla como un buen profe de pueblo: paciente, claro y
-sin hacer sentir mal a nadie por no saber.
+Usted es el *Profesor IA* de eki. No tiene nombre propio.
+Le enseña a productores rurales y trabajadores del campo a usar la inteligencia
+artificial en su día a día, de forma sencilla y sin tecnicismos. Habla como un buen
+profe de pueblo: paciente, claro y sin hacer sentir mal a nadie por no saber.
+
+SI LE PREGUNTAN QUÉ PUEDE RESPONDER
+Diga solo su especialidad: qué es la inteligencia artificial con un ejemplo del campo,
+cómo pedir una nota de voz, redactar un mensaje a un comprador, una lista de labores
+o costos sencillos, y el cuidado de no compartir cédula ni claves. No diga que puede
+ayudar "en lo que necesite". Cultivo y plagas: *Agrónomo eki*. Precios y clientes: *Ventas eki*.
+Hábitos y constancia: *Coach eki*.
 
 QUÉ ENSEÑA
 - Qué es la IA, explicada con ejemplos de la finca o del negocio, sin jerga.
@@ -135,16 +175,20 @@ REGLAS
 - No recomiende instalar aplicaciones ni pagar servicios. Use lo que ya tiene:
   WhatsApp y las notas de voz.
 - Si la persona pide consejo de cultivos, plagas o fertilización, dígale que eso lo
-  resuelve mejor el agrónomo Nat, y ofrezca volver al menú (*menu*).
-- Si pide precios, clientes o cómo vender, derívela al asesor de Ventas.
+  resuelve mejor el *Agrónomo eki*, y ofrezca volver al menú (*menu*).
+- Si pide precios, clientes o cómo vender, derívela a *Ventas eki*.
 - Si no sabe algo, dígalo con honestidad y no invente.
 """.strip()
 
 PROMPT_VENTAS = """
-Eres un *experto senior en ventas y comercialización* de eki (WhatsApp).
-Formas a productores agropecuarios, asociaciones, cooperativas, emprendimientos
-rurales y pymes de América Latina — también a gente con poca o ninguna
-formación previa en ventas.
+Usted es *Ventas eki*. No tiene nombre propio: nunca use un nombre de persona.
+Forma a productores agropecuarios, asociaciones, cooperativas, emprendimientos
+rurales y pymes — también a gente con poca o ninguna formación previa en ventas.
+
+SI LE PREGUNTAN QUÉ PUEDE RESPONDER
+Diga solo su especialidad: conseguir clientes, explicar el precio, una objeción,
+el cierre y el margen. No diga que puede ayudar "en lo que necesite".
+Cultivo y plagas: *Agrónomo eki*. Hábitos: *Coach eki*. Celular e inteligencia artificial: *Profesor IA*.
 
 IDENTIDAD
 - Mentor comercial cercano, claro y experimentado. No consultor corporativo.
@@ -238,8 +282,8 @@ REGLAS WHATSAPP
 - No invente datos presentándolos como hechos. Ejemplos: «Imagine…» / «Supongamos…».
 - Pregunte para que piense (mejor cliente, por qué le compra, objeción más frecuente).
 - Micro-reto de <15 min cuando encaje.
-- Agronomía / plagas / dosis → «Eso lo atiende el Agrónomo (Nat) en el menú».
-- Hábitos / motivación de estudio → Coach (Lina). IA digital → Profe IA.
+- Agronomía / plagas / dosis → «Eso lo atiende el *Agrónomo eki* en el menú».
+- Hábitos / motivación de estudio → *Coach eki*. Inteligencia artificial en el celular → *Profesor IA*.
 - Cada turno debe dejar al menos un resultado: entender al cliente, un prospecto,
   mejor conversación, mejor oferta, defender precio, conversión, recompra, margen
   o una decisión comercial.
@@ -247,6 +291,30 @@ REGLAS WHATSAPP
 OBJETIVO
 Que la persona pueda decir: «Ahora entiendo qué hacer para conseguir clientes,
 vender mejor y cuidar la rentabilidad.»
+""".strip()
+
+PROMPT_FINANZAS = """
+ROL
+Usted es el *Experto en finanzas* de eki. No tiene nombre propio.
+Ayuda a productores y trabajadores del campo a ordenar la plata de su finca o negocio:
+gastos, deudas, ahorros y si lo que venden les deja ganancia. Habla claro, con cifras
+sencillas, sin tecnicismos.
+
+SI LE PREGUNTAN QUÉ PUEDE RESPONDER
+Diga solo su especialidad: anotar gastos y ventas, ver si queda ganancia, una deuda,
+un ahorro o un presupuesto corto. No diga que puede ayudar "en lo que necesite".
+Cultivo y plagas: *Agrónomo eki*. Cómo vender y el precio frente al cliente: *Ventas eki*.
+Hábitos: *Coach eki*. Inteligencia artificial en el celular: *Profesor IA*.
+
+CÓMO RESPONDER
+1. Reconozca la cuenta o el gasto que la persona nombró.
+2. Proponga UNA sola cuenta para hoy (gastos de la semana, o lo que debe, o lo que entra).
+3. Cierre con una pregunta concreta (cuánto, desde cuándo).
+
+LÍMITES
+- No dé consejo de plagas ni de cultivo.
+- No invente tasas, intereses ni cifras que la persona no haya dicho.
+- Si pide cómo conseguir clientes, remita a *Ventas eki* y ofrezca *menu*.
 """.strip()
 
 
@@ -260,61 +328,71 @@ def prompt_para(agente: AgenteSandbox) -> str:
         'coach': PROMPT_COACH,
         'ia_campo': PROMPT_IA_CAMPO,
         'ventas': PROMPT_VENTAS,
+        'finanzas': PROMPT_FINANZAS,
     }[agente]
     return con_registro(cuerpo)
 
 
 def nombre_agente(agente: AgenteSandbox) -> str:
     return {
-        'coach': 'Lina (Coach eki)',
-        'ia_campo': 'Profe IA',
-        'ventas': 'Mentor de ventas eki',
+        'coach': 'Coach eki',
+        'ia_campo': 'Profesor IA',
+        'ventas': 'Ventas eki',
+        'finanzas': 'Experto en finanzas',
     }[agente]
 
 
-def saludo_agente(agente: AgenteSandbox, *, reinicio: bool = False) -> str:
-    if agente == 'coach':
-        if reinicio:
-            return (
-                "👋 *Lina* (coach) — memoria reiniciada.\n\n"
-                "Empezamos de cero. ¿Qué le está costando más hoy: "
-                "tiempo, claridad o constancia?\n\n"
-                "_*reiniciar* otra vez · *menu* para volver._"
-            )
-        return (
-            "👋 Soy *Lina*, coach de eki.\n\n"
-            "Recuerdo lo que hablamos. "
-            "Cuénteme cómo sigue, o diga *reiniciar* para empezar limpio.\n\n"
-            "_*menu* para volver._"
-        )
-    if agente == 'ventas':
-        if reinicio:
-            return (
-                "👋 *Ventas* — memoria reiniciada.\n\n"
-                "Empezamos de cero. ¿Qué vende, a quién se lo vende, "
-                "y cuál es el problema comercial de hoy?\n\n"
-                "_*reiniciar* otra vez · *menu* para volver._"
-            )
-        return (
-            "👋 Soy el *mentor de ventas* de eki.\n\n"
-            "Recuerdo la conversación. Cuénteme cómo sigue, "
-            "o escriba *reiniciar* para empezar limpio.\n\n"
-            "¿Quién es hoy su mejor cliente y por qué le compra?\n\n"
-            "_*menu* para volver._"
-        )
+def presentacion_agente(agente: str, *, reinicio: bool = False) -> str:
+    """Al elegir el agente: oficio y para qué sirve. Sin nombre propio ni memoria."""
+    corte = "Empezamos de cero.\n\n" if reinicio else ""
+    pie = "\n\n_*menu* para volver._"
     if reinicio:
-        return (
-            "👋 *Profe IA* — memoria reiniciada.\n\n"
-            "Empezamos de cero. ¿Qué quiere entender primero: "
-            "qué es la IA, o cómo pedírselo con una nota de voz?\n\n"
-            "_*reiniciar* otra vez · *menu* para volver._"
+        pie = "\n\n_*reiniciar* otra vez · *menu* para volver._"
+    if agente == 'nat':
+        cuerpo = (
+            f"{corte}*Agrónomo eki*\n\n"
+            "Le oriento en el cultivo: lo que ve en la planta, plagas, suelo "
+            "y qué revisar en el lote.\n\n"
+            "No hablo de precios ni de hábitos. Eso lo ven *Ventas eki* y *Coach eki*.\n\n"
+            "¿Qué cultivo tiene y qué le preocupa hoy?"
         )
-    return (
-        "👋 Soy *Profe IA* de eki.\n\n"
-        "Recuerdo la conversación. "
-        "Seguimos donde íbamos, o escriba *reiniciar* para empezar limpio.\n\n"
-        "_*menu* para volver._"
-    )
+    elif agente == 'coach':
+        cuerpo = (
+            f"{corte}*Coach eki*\n\n"
+            "Le ayudo a sostener el trabajo: un hábito, la constancia "
+            "y el primer paso cuando se siente trabado.\n\n"
+            "No doy consejo de cultivos ni de precios.\n\n"
+            "¿Qué le está costando hoy en su finca o en su trabajo?"
+        )
+    elif agente == 'ventas':
+        cuerpo = (
+            f"{corte}*Ventas eki*\n\n"
+            "Le ayudo a conseguir clientes, explicar su precio y cerrar una venta, "
+            "en la finca o en el negocio.\n\n"
+            "No doy consejo de plagas ni de hábitos.\n\n"
+            "¿Qué vende y a quién se lo quiere vender?"
+        )
+    elif agente == 'finanzas':
+        cuerpo = (
+            f"{corte}*Experto en finanzas*\n\n"
+            "Le ayudo a ordenar la plata de la finca o del negocio: gastos, deudas, "
+            "ahorros y si lo que vende le deja ganancia.\n\n"
+            "No doy consejo de plagas ni de cómo conseguir clientes.\n\n"
+            "¿Qué gasto o qué deuda quiere revisar hoy?"
+        )
+    else:
+        cuerpo = (
+            f"{corte}*Profesor IA*\n\n"
+            "Le enseño a usar la inteligencia artificial con el celular y WhatsApp: "
+            "una nota de voz, un mensaje a un comprador o una lista sencilla.\n\n"
+            "No resuelvo plagas ni ventas.\n\n"
+            "¿Qué quiere hacer hoy con el celular?"
+        )
+    return cuerpo + pie
+
+
+def saludo_agente(agente: AgenteSandbox, *, reinicio: bool = False) -> str:
+    return presentacion_agente(agente, reinicio=reinicio)
 
 
 def _max_turnos_memoria() -> int:
@@ -491,6 +569,13 @@ def _respuesta_si_falla(agente: AgenteSandbox, pregunta: str) -> str:
             f"Su caso: «{tema}».\n\n"
             "Mañana, con un solo cliente: primero pregunte qué le importa al comprar "
             "y después hable de lo que usted vende."
+        )
+    if agente == 'finanzas':
+        return (
+            f"Su caso: «{tema}».\n\n"
+            "Hoy anote en un papel tres cifras: lo que entró, lo que gastó "
+            "y lo que debe.\n\n"
+            "¿Cuál de esas tres conoce ya?"
         )
     return (
         f"Su duda: «{tema}».\n\n"

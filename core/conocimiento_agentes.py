@@ -10,7 +10,7 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-AGENTES = ('coach', 'ia_campo', 'ventas')
+AGENTES = ('coach', 'ia_campo', 'ventas', 'finanzas')
 _CACHE_KEY = 'conocimiento_agente:v1:{agente}'
 _CACHE_SEGUNDOS = 300
 _MAX_CHARS_PROMPT = 2500

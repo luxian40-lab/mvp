@@ -32,12 +32,15 @@ MODO_NAT = 'nat'
 MODO_COACH = 'coach'
 MODO_IA_CAMPO = 'ia_campo'
 MODO_VENTAS = 'ventas'
+MODO_FINANZAS = 'finanzas'
 MODO_CURSOS = 'cursos'
 MODO_FORMACION = 'formacion'
 MODO_ASESORIA = 'asesoria'
 
-MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS)
-_ACCIONES_ASESOR = frozenset({'show_agentes', 'show_asesoria', 'nat', 'coach', 'ia_campo', 'ventas'})
+MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS, MODO_FINANZAS)
+_ACCIONES_ASESOR = frozenset({
+    'show_agentes', 'show_asesoria', 'nat', 'coach', 'ia_campo', 'ventas', 'finanzas',
+})
 
 TEXTO_MENU = texto_menu_plan(plan_por_clave(PLAN_CURSO_ASESOR))
 
@@ -82,13 +85,13 @@ def texto_cupo_ia(tope: int) -> str:
 TEXTO_CUPO_IA = texto_cupo_ia(30)
 
 TEXTO_AGENTES = (
-    "🤖 *Agentes IA*\n\n"
-    "1️⃣ Agrónomo (Nat) — cultivo y campo\n"
-    "2️⃣ Coach — hábitos y motivación\n"
-    "3️⃣ Profe IA — IA fácil para el campo\n"
-    "4️⃣ Ventas — clientes, precio y cierre\n\n"
-    "Cada agente *recuerda* la conversación.\n"
-    "Escribe *1*, *2*, *3* o *4*.\n"
+    "🤖 *Asesoría*\n\n"
+    "1️⃣ *Agrónomo eki* — cultivo, plagas y suelo\n"
+    "2️⃣ *Coach eki* — hábitos y constancia\n"
+    "3️⃣ *Profesor IA* — inteligencia artificial en el celular\n"
+    "4️⃣ *Ventas eki* — clientes, precio y cierre\n"
+    "5️⃣ *Experto en finanzas* — gastos, deudas y cuentas\n\n"
+    "Escribe *1*, *2*, *3*, *4* o *5*.\n"
     "*reiniciar* = memoria nueva · *menu* = menú principal."
 )
 
@@ -224,8 +227,13 @@ def _set_modo(sesion, modo: str, *, reset_nat: bool = False) -> None:
 def clasificar_asesoria(texto: str) -> str | None:
     """Lleva la pregunta libre al agente. None si no alcanza para decidir."""
     t = (texto or '').strip().lower()
-    if not t or t in ('1', '2', '3', '4'):
+    if not t or t in ('1', '2', '3', '4', '5'):
         return None
+    if any(w in t for w in (
+        'finanza', 'gasto', 'deuda', 'préstamo', 'prestamo', 'crédito', 'credito',
+        'ahorro', 'presupuesto', 'utilidad',
+    )):
+        return MODO_FINANZAS
     if any(w in t for w in ('venta', 'precio', 'cliente', 'cerrar', 'comercial', 'negocio')):
         return MODO_VENTAS
     if any(w in t for w in (
@@ -264,6 +272,8 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
         return MODO_IA_CAMPO
     if t in ('ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
         return MODO_VENTAS
+    if t in ('finanzas', 'finanza', 'experto en finanzas'):
+        return MODO_FINANZAS
     return None
 
 
@@ -279,6 +289,8 @@ def _normalizar_eleccion_agentes(body: str) -> str | None:
         return MODO_IA_CAMPO
     if t in ('4', '4️⃣', 'cuatro', 'ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
         return MODO_VENTAS
+    if t in ('5', '5️⃣', 'cinco', 'finanzas', 'finanza', 'experto en finanzas'):
+        return MODO_FINANZAS
     return None
 
 
@@ -358,6 +370,11 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         if eleccion_ag == MODO_VENTAS:
             _set_modo(sesion, MODO_VENTAS)
             decision.action = 'ventas'
+            decision.saludo_entrada = True
+            return decision
+        if eleccion_ag == MODO_FINANZAS:
+            _set_modo(sesion, MODO_FINANZAS)
+            decision.action = 'finanzas'
             decision.saludo_entrada = True
             return decision
         # Texto libre en submenú → re-mostrar opciones
@@ -449,6 +466,12 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.saludo_entrada = True
         return decision
 
+    if eleccion == MODO_FINANZAS:
+        _set_modo(sesion, MODO_FINANZAS)
+        decision.action = 'finanzas'
+        decision.saludo_entrada = True
+        return decision
+
     if eleccion == MODO_FORMACION:
         _set_modo(sesion, MODO_FORMACION)
         decision.action = 'show_formacion'
@@ -482,6 +505,10 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     if sesion.modo == MODO_VENTAS:
         decision.action = 'ventas'
+        return decision
+
+    if sesion.modo == MODO_FINANZAS:
+        decision.action = 'finanzas'
         return decision
 
     if sesion.modo == MODO_CURSOS:
@@ -714,18 +741,18 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
 
 
 FILAS_AGENTES = [
-    ('nat', 'Agrónomo Nat', 'Cultivo, plagas y campo'),
-    ('coach', 'Coach', 'Hábitos y motivación'),
-    ('profe', 'Profe IA', 'IA fácil para el campo'),
-    ('ventas', 'Ventas', 'Clientes, precio y cierre'),
+    ('nat', 'Agrónomo eki', 'Cultivo, plagas y suelo'),
+    ('coach', 'Coach eki', 'Hábitos y constancia'),
+    ('profe', 'Profesor IA', 'IA en el celular'),
+    ('ventas', 'Ventas eki', 'Clientes, precio y cierre'),
+    ('finanzas', 'Experto en finanzas', 'Gastos, deudas y cuentas'),
 ]
 
 
 def texto_lista_agentes(tope: int) -> str:
     cupo = f"Tiene hasta {tope} preguntas este mes.\n\n" if tope > 0 else ''
     return (
-        "¿Con qué experto quiere hablar? Elija un agente en la lista; "
-        "cada uno recuerda la conversación.\n\n"
+        "¿Con qué experto quiere hablar? Elija un agente en la lista.\n\n"
         "También puede escribir su pregunta y lo llevamos al agente que corresponde.\n\n"
         f"{cupo}"
         "_*reiniciar* = memoria nueva · *menu* = menú principal._"
@@ -874,6 +901,8 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         agente = 'coach'
     elif decision.action == 'ventas':
         agente = 'ventas'
+    elif decision.action == 'finanzas':
+        agente = 'finanzas'
     else:
         agente = 'ia_campo'
     from_n = decision.from_number or sandbox_number()
@@ -1107,13 +1136,12 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         if decision.reset_nat:
             marcar_corte_memoria_nat(decision.telefono_usuario)
             try:
+                from core.sandbox_agentes import presentacion_agente
+
                 enviar_texto_sandbox(
                     decision.telefono_usuario,
                     from_n,
-                    "🌿 *Agrónomo Nat*\n\n"
-                    "Memoria reiniciada. Empezamos de cero.\n"
-                    "¿En qué cultivo o duda te ayudo?\n\n"
-                    "_*reiniciar* otra vez · *menu* para volver._",
+                    presentacion_agente('nat', reinicio=True),
                     agente='sandbox_nat',
                 )
             except Exception:
@@ -1121,13 +1149,12 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             return 'handled'
         if decision.saludo_entrada:
             try:
+                from core.sandbox_agentes import presentacion_agente
+
                 enviar_texto_sandbox(
                     decision.telefono_usuario,
                     from_n,
-                    "🌿 *Agrónomo Nat*\n\n"
-                    "Seguimos donde íbamos (memoria larga).\n"
-                    "Cuéntame la duda, o escribe *reiniciar* para empezar de cero.\n\n"
-                    "_*menu* para volver._",
+                    presentacion_agente('nat'),
                     agente='sandbox_nat',
                 )
             except Exception:
@@ -1151,7 +1178,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         _reaccion_espera(decision.telefono_usuario, _message_id(payload))
         return 'nat'
 
-    if decision.action in ('coach', 'ia_campo', 'ventas'):
+    if decision.action in ('coach', 'ia_campo', 'ventas', 'finanzas'):
         return _manejar_agente_extra(decision, body, _message_id(payload))
 
     if decision.action == 'cursos_bootstrap':
