@@ -466,12 +466,20 @@ class SandboxMenuTests(TestCase):
     def test_prompt_ventas_aplicable_manana(self):
         from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente
 
-        self.assertEqual(prompt_para('ventas'), PROMPT_VENTAS)
+        ventas = prompt_para('ventas')
+        self.assertIn(PROMPT_VENTAS, ventas)
+        self.assertIn('REGISTRO Y ESTILO', ventas)
         self.assertIn('¿cómo lo aplica mañana', PROMPT_VENTAS.lower())
         self.assertIn('propuesta de valor', PROMPT_VENTAS.lower())
         self.assertIn('WhatsApp', PROMPT_VENTAS)
         self.assertIn('mentor de ventas', saludo_agente('ventas').lower())
-        self.assertIn('No cambie de tema', prompt_para('coach'))
+        coach = prompt_para('coach')
+        profe = prompt_para('ia_campo')
+        self.assertIn('REGISTRO Y ESTILO', coach)
+        self.assertIn('10 a 15 minutos', coach)
+        self.assertNotIn('de tú', coach.lower())
+        self.assertIn('nota de voz', profe.lower())
+        self.assertIn('RECORDATORIO FINAL', profe)
 
     def test_coach_reintenta_si_el_modelo_viene_vacio(self):
         vacio = MagicMock(choices=[MagicMock(message=MagicMock(content=''))])

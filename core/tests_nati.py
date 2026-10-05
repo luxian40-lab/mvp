@@ -23,6 +23,8 @@ def test_armar_system_prompt_identidad_agronoma_innegociable():
     prompt = armar_system_prompt()
     assert 'SIEMPRE agrónoma' in prompt or 'NUNCA deje de serlo' in prompt
     assert 'agrónoma de bolsillo' in prompt
+    assert 'REGISTRO Y ESTILO' in prompt
+    assert 'Máximo 70 palabras' in prompt
 
 
 def test_armar_system_prompt_default_usa_nati():
