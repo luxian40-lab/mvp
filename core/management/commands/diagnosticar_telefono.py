@@ -50,7 +50,7 @@ class Command(BaseCommand):
         self.stdout.write('---')
         self.stdout.write(
             f'id={est.id} telefono={tel} estado_chat={est.estado_chat} '
-            f'opt_out={est.wa_optout_fecha}'
+            f'opt_out={getattr(est, "wa_optout_fecha", None)}'
         )
         self.stdout.write(
             f"plan={plan['clave'] or 'vacio'} origen={plan['origen']} causa={plan['causa'] or '-'}"
