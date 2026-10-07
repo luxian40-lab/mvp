@@ -728,7 +728,43 @@ class Estudiante(models.Model):
         verbose_name='Rango de Edad',
         help_text='Rango de edad del estudiante (se calcula automáticamente si se proporciona edad)'
     )
-    
+    rural_disperso = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name='Rural disperso',
+        help_text='Corte de impacto. Vacío = desconocido. No cambia el chat.',
+    )
+    pdet = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name='Municipio PDET',
+        help_text='Corte de impacto. Vacío = desconocido. No cambia el chat.',
+    )
+    consentimiento_impacto = models.BooleanField(
+        default=False,
+        verbose_name='Consentimiento para reportes de impacto',
+        help_text='Distinto del habeas operativo. Hace falta para incluir a esta persona en Impacto.',
+    )
+    consentimiento_impacto_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha del consentimiento de impacto',
+    )
+    consentimiento_impacto_acudiente = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Acudiente (menores)',
+    )
+    area_unidad_ha = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Área de la unidad (ha)',
+        help_text='Para A2 cuando exista práctica adoptada. No se publica como causa.',
+    )
+
     # ORGANIZACIÓN (Multi-tenant B2B)
     cliente = models.ForeignKey(
         Cliente,
