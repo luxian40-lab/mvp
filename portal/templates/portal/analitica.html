@@ -153,6 +153,19 @@
         color: var(--texto);
     }
     html[data-theme="dark"] .imp-circle { background: var(--blanco); }
+    .imp-card {
+        width: 100%;
+        text-align: left;
+        padding: 14px 14px 12px;
+        border: 1px solid var(--borde);
+        border-radius: 12px;
+        background: var(--surface);
+    }
+    html[data-theme="dark"] .imp-card { background: var(--blanco); }
+    .imp-card h3 { margin: 0 0 4px; font-size: 0.92rem; color: var(--texto); }
+    .imp-card .imp-ev { font-size: 11px; color: var(--texto-muted); }
+    .imp-card .imp-val { margin: 8px 0 0; font-size: 1.15rem; font-weight: 700; color: var(--texto); }
+    .imp-card p { margin: 6px 0 0; font-size: 12px; line-height: 1.35; color: var(--texto-muted); }
     .ana-links a { margin-right: 12px; }
     .ana-rank { width: 100%; border-collapse: collapse; }
     .ana-rank th, .ana-rank td {
@@ -335,31 +348,40 @@
     </section>
 
     <section id="ana-impacto" {% if seccion != 'impacto' %}hidden{% endif %}>
+        {% if impacto %}
+        <p class="muted">Últimos {{ impacto.periodo_dias }} días. Un corte con menos de {{ impacto.min_publicacion }} personas no publica porcentaje. E3 y A2 son contribución, no causa.</p>
         <div class="imp-row">
+            {% for grupo, indicadores in impacto.grupos.items %}
             <article class="imp-col">
-                <h2 class="imp-name">Negocios</h2>
-                <span class="imp-arrow" aria-hidden="true"></span>
-                <div class="imp-slot"></div>
-                <div class="imp-slot"></div>
+                <h2 class="imp-name">{{ grupo }}</h2>
+                {% for ind in indicadores %}
+                <div class="imp-card">
+                    <span class="imp-ev">{{ ind.codigo }} · evidencia {{ ind.evidencia }}{% if ind.rotulo %} · {{ ind.rotulo }}{% endif %}</span>
+                    <h3>{{ ind.nombre }}</h3>
+                    {% if ind.estado == 'pendiente_captura' %}
+                    <p>Pendiente de captura. {{ ind.nota }}</p>
+                    {% else %}
+                    <p class="imp-val">
+                        {% if ind.codigo == 'S1' %}{{ ind.numerador }} personas
+                        {% elif ind.pct is not None %}{{ ind.pct }}%
+                        {% elif ind.numerador is not None %}{{ ind.numerador }} / {{ ind.denominador }}
+                        {% else %}—{% endif %}
+                    </p>
+                    {% if ind.denominador is not None %}<p>Denominador: {{ ind.denominador }}</p>{% endif %}
+                    {% if ind.codigo == 'S2' %}
+                    <p>{{ ind.certificados }} certificados / {{ ind.inscritos }} inscritos. Retención día 30: {{ ind.retencion_30.numerador }} / {{ ind.retencion_30.denominador }}{% if ind.retencion_30.pct is not None %} ({{ ind.retencion_30.pct }}%){% endif %}.</p>
+                    {% endif %}
+                    {% if ind.cortes %}
+                    <p>Mujeres {{ ind.cortes.mujeres.n }}{% if ind.cortes.mujeres.pct is not None %} ({{ ind.cortes.mujeres.pct }}%){% endif %} · jóvenes 14–28 {{ ind.cortes.jovenes.n }} · 50+ {{ ind.cortes.mayor_50.n }}{% if ind.cortes.mujeres.nota %} · {{ ind.cortes.mujeres.nota }}{% endif %}</p>
+                    {% endif %}
+                    <p>{{ ind.nota }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </article>
-            <article class="imp-col">
-                <h2 class="imp-name">Power skills</h2>
-                <span class="imp-arrow" aria-hidden="true"></span>
-                <div class="imp-circle"></div>
-            </article>
-            <article class="imp-col">
-                <h2 class="imp-name">Sostenibilidad</h2>
-                <span class="imp-arrow" aria-hidden="true"></span>
-                <div class="imp-slot imp-slot--label">Cultivo</div>
-                <span class="imp-arrow" aria-hidden="true"></span>
-                <div class="imp-circle">IA</div>
-            </article>
-            <article class="imp-col">
-                <h2 class="imp-name">Innovación IA</h2>
-                <span class="imp-arrow" aria-hidden="true"></span>
-                <div class="imp-slot imp-slot--wide"></div>
-            </article>
+            {% endfor %}
         </div>
+        {% endif %}
     </section>
 </div>
 {% endblock %}

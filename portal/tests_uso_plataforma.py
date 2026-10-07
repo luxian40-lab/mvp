@@ -158,7 +158,8 @@ class UsoPlataformaTests(TestCase):
         self.assertIn('id="ana-impacto"', limpio)
         self.assertIn('id="ana-uso" aria-labelledby="ana-uso-title" hidden', limpio)
         self.assertIn('Impacto.', limpio)
-        for nombre in ('Negocios', 'Power skills', 'Sostenibilidad', 'Innovación IA', 'Cultivo'):
-            self.assertIn(nombre, limpio)
+        self.assertIn('Alcance inclusivo', limpio)
+        self.assertIn('S1', limpio)
+        self.assertNotIn('Power skills', limpio)
         self.assertIn('<section id="ana-impacto"', limpio)
         self.assertNotIn('id="ana-impacto" hidden', limpio)

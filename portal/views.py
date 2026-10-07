@@ -1120,12 +1120,18 @@ def portal_analitica(request):
             )
         except Exception:
             ce_data = None
+    impacto = None
+    if seccion == 'impacto':
+        from .impacto import impacto_nucleo
+
+        impacto = impacto_nucleo(org)
     return render(request, 'portal/analitica.html', {
         'org': org,
         'mods': mods,
         'uso': uso_plataforma(org),
         'ranking': ranking_portal(org),
         'ce_data': ce_data,
+        'impacto': impacto,
         'seccion': seccion,
     })
 

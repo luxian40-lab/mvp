@@ -117,7 +117,11 @@ class EstudianteAdmin(admin.ModelAdmin):
         }),
         ('Ubicación y perfil', {
             'classes': ('collapse',),
-            'fields': ('municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad'),
+            'fields': (
+                'municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad',
+                'rural_disperso', 'pdet', 'consentimiento_impacto',
+                'consentimiento_impacto_en', 'consentimiento_impacto_acudiente', 'area_unidad_ha',
+            ),
         }),
     )
     readonly_fields = ('mostrar_cursos_inscritos',)
@@ -141,6 +145,9 @@ class EstudianteAdmin(admin.ModelAdmin):
                     'fields': (
                         'municipio', 'departamento', 'ubicacion_detalle',
                         'genero', 'edad', 'rango_edad',
+                        'rural_disperso', 'pdet', 'consentimiento_impacto',
+                        'consentimiento_impacto_en', 'consentimiento_impacto_acudiente',
+                        'area_unidad_ha',
                     ),
                 }),
             )
