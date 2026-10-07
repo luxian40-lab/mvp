@@ -237,3 +237,98 @@ TEXTO_PLAN_SIN_CURSOS = (
     "Su plan no incluye cursos nuevos.\n\n"
     "Puede usar el asesor. _*menu* para volver._"
 )
+
+
+def explicar_plan(telefono: str) -> dict:
+    """De dónde sale el plan. No cambia la resolución del menú."""
+    from core.nati import normalizar_telefono_whatsapp
+    from core.sandbox_canal import sandbox_via_meta
+
+    tel = normalizar_telefono_whatsapp(telefono or '')
+    vacio = {
+        'telefono': tel,
+        'clave': '',
+        'origen': 'sin_numero',
+        'causa': 'sin_numero',
+        'cursos_mes': 0,
+        'preguntas_mes': 0,
+        'activo': False,
+    }
+    if not tel:
+        return vacio
+    from core.models import SandboxCanalSesion
+
+    propio = (
+        SandboxCanalSesion.objects.filter(telefono=tel).values_list('plan', flat=True).first()
+    )
+    if propio:
+        plan = plan_por_clave(propio)
+        return _fila_plan(tel, plan, 'override', '' if plan.activo else 'override_desconocido')
+    if not sandbox_via_meta():
+        plan = _plan_demo_twilio()
+        return _fila_plan(tel, plan, 'demo_twilio', '')
+    grupo = _plan_grupo(tel)
+    if grupo:
+        return _fila_plan(tel, plan_por_clave(grupo), 'grupo', '')
+    org = _plan_organizacion(tel)
+    if org:
+        return _fila_plan(tel, plan_por_clave(org), 'organizacion', '')
+    from core.linea_registrados import debe_cortar
+
+    if debe_cortar(tel):
+        return _fila_plan(tel, SIN_PLAN, 'ninguno', 'no_registrado')
+    plan = _plan_default()
+    if plan.activo:
+        return _fila_plan(tel, plan, 'default', '')
+    return _fila_plan(tel, SIN_PLAN, 'ninguno', _causa_sin_plan(tel))
+
+
+def _fila_plan(tel: str, plan: PlanLinea, origen: str, causa: str) -> dict:
+    return {
+        'telefono': tel,
+        'clave': plan.clave,
+        'origen': origen,
+        'causa': causa,
+        'cursos_mes': plan.cursos_mes,
+        'preguntas_mes': plan.preguntas_mes,
+        'activo': plan.activo,
+    }
+
+
+def _causa_sin_plan(telefono: str) -> str:
+    """Por qué no hay plan, cuando ni grupo ni organización ni default aplican."""
+    from datetime import date
+
+    from django.conf import settings
+
+    from core.models import Estudiante
+    from core.models_extras import GrupoEstudiantes
+
+    if not (getattr(settings, 'LINEA_META_PLAN_DEFAULT', '') or '').strip():
+        causa_default = 'sin_default'
+    else:
+        causa_default = 'default_desconocido'
+    est = Estudiante.objects.filter(telefono=telefono).order_by('-id').first()
+    if est is None:
+        return causa_default
+    grupo = (
+        GrupoEstudiantes.objects.filter(estudiantes=est, plan_linea_meta__gt='')
+        .order_by('-id')
+        .first()
+    )
+    if grupo is not None and not grupo.activo:
+        return 'grupo_inactivo'
+    if grupo is not None and grupo.cliente_id:
+        fin = getattr(grupo.cliente, 'fecha_fin_suscripcion', None)
+        if fin is not None and fin < date.today():
+            return 'suscripcion_vencida'
+    org = Estudiante.objects.filter(pk=est.pk, cliente__plan_linea_meta__gt='').first()
+    if org is not None:
+        fin = getattr(org.cliente, 'fecha_fin_suscripcion', None)
+        if fin is not None and fin < date.today():
+            return 'suscripcion_vencida'
+        if not getattr(org.cliente, 'activo', True):
+            return 'organizacion_inactiva'
+    if est.cliente_id and not (getattr(est.cliente, 'plan_linea_meta', '') or '').strip():
+        return 'org_sin_plan'
+    return causa_default

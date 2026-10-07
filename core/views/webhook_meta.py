@@ -42,6 +42,15 @@ def _encolar_sandbox_si_async(inbound) -> bool:
 
 def _aplicar_sandbox_menu(data):
     """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción."""
+    from core.meta_inbound import traza_inbound
+
+    with traza_inbound(data):
+        return _aplicar_sandbox_menu_cuerpo(data)
+    return HttpResponse('OK')
+
+
+def _aplicar_sandbox_menu_cuerpo(data):
+    from core.meta_inbound import TEXTO_TIPO_NO_SOPORTADO, marcar_resultado
     from core.sandbox_canal import (
         canal_sandbox_si_meta,
         es_inbound_twilio_http,
@@ -51,6 +60,16 @@ def _aplicar_sandbox_menu(data):
     from core.sandbox_menu import dispatch_sandbox_menu, sandbox_menu_enabled, sandbox_number
     from core.wa_reply_context import reply_from
 
+    if isinstance(data, dict) and data.get('_eki_skip') == 'ignorar':
+        marcar_resultado('ignorado', ruta='ignorado')
+        return HttpResponse('OK')
+    if isinstance(data, dict) and data.get('_eki_skip') == 'tipo_no_soportado':
+        from core.meta_inbound import _enviar_texto
+
+        _enviar_texto(data, TEXTO_TIPO_NO_SOPORTADO)
+        marcar_resultado('tipo_no_soportado', ruta='tipo_no_soportado')
+        return HttpResponse('OK')
+
     if (
         sandbox_menu_enabled()
         and sandbox_via_meta()
@@ -58,6 +77,7 @@ def _aplicar_sandbox_menu(data):
         and to_es_sandbox(data)
     ):
         logger.info('sandbox_twilio_inbound_ignorado To=%s (canal=meta)', data.get('To', ''))
+        marcar_resultado('ignorado_twilio', ruta='ignorado_twilio')
         return HttpResponse('OK')
 
     with canal_sandbox_si_meta():
@@ -122,79 +142,110 @@ def _procesar_meta_webhook(payload):
                 # Mensajes entrantes
                 messages = value.get('messages', [])
                 for m in messages:
-                    phone = m.get('from')
-                    msg_id = m.get('id')
-                    text = ''
-                    if 'text' in m and isinstance(m['text'], dict):
-                        text = m['text'].get('body', '')
-                    
-                    # Guardar mensaje
-                    WhatsappLog.objects.create(
-                        telefono=phone,
-                        mensaje=text,
-                        mensaje_id=msg_id,
-                        tipo='INCOMING'
-                    )
-                    
-                    from core.linea_registrados import (
-                        TEXTO_SOLO_REGISTRADOS,
-                        debe_cortar,
-                        permitir_numero_nuevo,
-                    )
+                    phone = ''
+                    try:
+                        from core.meta_inbound import (
+                            TEXTO_PROBLEMA,
+                            TEXTO_TIPO_NO_SOPORTADO,
+                            clasificar_mensaje,
+                            registrar_mensaje_legacy,
+                        )
+                        from core.utils_telefono import normalizar_e164_co
 
-                    if not Estudiante.objects.filter(telefono=phone).exists() and (
-                        debe_cortar(phone) or not permitir_numero_nuevo(phone)
-                    ):
-                        enviar_whatsapp(phone, TEXTO_SOLO_REGISTRADOS)
-                        continue
+                        phone = normalizar_e164_co(m.get('from') or '')
+                        info = clasificar_mensaje(m)
+                        if info['skip'] == 'ignorar':
+                            registrar_mensaje_legacy(m, 'ignorado')
+                            continue
+                        if info['skip'] == 'tipo_no_soportado':
+                            enviar_whatsapp(phone, TEXTO_TIPO_NO_SOPORTADO)
+                            registrar_mensaje_legacy(m, 'tipo_no_soportado')
+                            continue
+                        msg_id = m.get('id')
+                        text = info['texto']
+                        if info['tipo'] == 'text' and 'text' in m and isinstance(m['text'], dict):
+                            text = m['text'].get('body', '') or text
 
-                    estudiante, _ = Estudiante.objects.get_or_create(
-                        telefono=phone,
-                        defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}
-                    )
-                    
-                    # Verificar seguridad primero
-                    from ..security_handler import verificar_seguridad_completa
-                    bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
-                        estudiante,
-                        text,
-                        telefono=phone,
-                        numero_destino=meta_to,
-                    )
-                    
-                    if bloqueado:
-                        texto_respuesta = respuesta_seguridad
-                    else:
-                        # Detectar intent
-                        intent = detect_intent(text)
-                        
-                        if intent != 'desconocido':
-                            # Usar template
-                            texto_respuesta = get_response_for_intent(
-                                intent, 
-                                estudiante.nombre,
-                                estudiante_id=estudiante.id,
-                                mensaje_original=text
-                            )
-                        else:
-                            # Usar IA solo para preguntas
-                            try:
-                                from ..ai_assistant import responder_con_ia
-                                texto_respuesta = responder_con_ia(text, phone)
-                            except Exception as e:
-                                print(f"Error IA: {e}")
-                                texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
-                    
-                    # Enviar respuesta
-                    resultado_envio = enviar_whatsapp(phone, texto_respuesta)
-                    
-                    if resultado_envio.get('success'):
                         WhatsappLog.objects.create(
                             telefono=phone,
-                            mensaje=texto_respuesta,
-                            mensaje_id=resultado_envio.get('mensaje_id'),
-                            tipo='SENT'
+                            mensaje=text,
+                            mensaje_id=msg_id,
+                            tipo='INCOMING'
                         )
+
+                        from core.linea_registrados import (
+                            TEXTO_SOLO_REGISTRADOS,
+                            debe_cortar,
+                            permitir_numero_nuevo,
+                        )
+
+                        if not Estudiante.objects.filter(telefono=phone).exists() and (
+                            debe_cortar(phone) or not permitir_numero_nuevo(phone)
+                        ):
+                            enviar_whatsapp(phone, TEXTO_SOLO_REGISTRADOS)
+                            registrar_mensaje_legacy(m, 'respondido')
+                            continue
+
+                        estudiante, _ = Estudiante.objects.get_or_create(
+                            telefono=phone,
+                            defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}
+                        )
+
+                        from ..security_handler import verificar_seguridad_completa
+                        bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
+                            estudiante,
+                            text,
+                            telefono=phone,
+                            numero_destino=meta_to,
+                        )
+
+                        if bloqueado:
+                            texto_respuesta = respuesta_seguridad
+                        else:
+                            intent = detect_intent(text)
+
+                            if intent != 'desconocido':
+                                texto_respuesta = get_response_for_intent(
+                                    intent,
+                                    estudiante.nombre,
+                                    estudiante_id=estudiante.id,
+                                    mensaje_original=text
+                                )
+                            else:
+                                try:
+                                    from ..ai_assistant import responder_con_ia
+                                    texto_respuesta = responder_con_ia(text, phone)
+                                except Exception as e:
+                                    print(f"Error IA: {e}")
+                                    texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
+
+                        resultado_envio = enviar_whatsapp(phone, texto_respuesta)
+
+                        if resultado_envio.get('success'):
+                            WhatsappLog.objects.create(
+                                telefono=phone,
+                                mensaje=texto_respuesta,
+                                mensaje_id=resultado_envio.get('mensaje_id'),
+                                tipo='SENT'
+                            )
+                        from core.planes_linea import explicar_plan
+
+                        plan = explicar_plan(phone)
+                        registrar_mensaje_legacy(
+                            m,
+                            'sin_plan' if not plan.get('activo') else 'respondido',
+                        )
+                    except Exception:
+                        logger.exception('meta_mensaje_legacy_fail')
+                        if phone:
+                            try:
+                                enviar_whatsapp(phone, TEXTO_PROBLEMA)
+                            except Exception:
+                                logger.exception('meta_mensaje_legacy_fallback_fail')
+                        try:
+                            registrar_mensaje_legacy(m, 'error', error='Exception')
+                        except Exception:
+                            logger.exception('meta_mensaje_legacy_evento_fail')
     
     except Exception as e:
         print(f"❌ Error en _procesar_meta_webhook: {str(e)}")

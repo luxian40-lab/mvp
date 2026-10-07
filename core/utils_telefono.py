@@ -37,6 +37,20 @@ _PREFIJOS_PAIS = (
 _PREFIJOS_LATAM = _PREFIJOS_PAIS
 
 
+def normalizar_e164_co(numero: str) -> str:
+    """Colombia a dígitos con 57.
+
+    Acepta +57…, 57…, 0057…, espacios y guiones. Un móvil de 10 dígitos
+    recibe el 57. No inventa país si el número ya trae otro prefijo.
+    """
+    limpio = re.sub(r'\D', '', str(numero or ''))
+    if limpio.startswith('0057'):
+        limpio = limpio[2:]
+    if len(limpio) == 10:
+        limpio = f'57{limpio}'
+    return limpio
+
+
 def normalizar_telefono(raw: str) -> str:
     """
     Solo dígitos.

@@ -34,3 +34,4 @@ from .commercial import (  # re-export helpers usados por core.tasks
     _nombre_rag_comercial_unico,
 )
 from .sistema import *  # noqa: F401,F403
+from .meta_webhook import *  # noqa: F401,F403
