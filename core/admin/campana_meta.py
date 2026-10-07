@@ -25,7 +25,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     list_filter = ('estado', 'tipo', 'categoria', 'activa', 'idioma')
     search_fields = ('nombre_interno', 'meta_name', 'meta_template_id', 'cuerpo')
     list_per_page = 50
-    actions = ['sincronizar_seleccionadas', 'enviar_a_meta']
+    actions = ['sincronizar_seleccionadas', 'enviar_a_meta', 'traer_catalogo_meta']
     readonly_fields = (
         'meta_template_id',
         'waba_id',
@@ -128,9 +128,28 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
                 texto = f'{plantilla.nombre_interno}: {resultado.get("message")}'
             self.message_user(request, texto, level=nivel)
 
+    @admin.action(description='Traer de Meta si están aprobadas')
+    def traer_catalogo_meta(self, request, queryset):
+        del queryset
+        from core.meta_waba import sincronizar_catalogo_meta
+
+        resultado = sincronizar_catalogo_meta()
+        if not resultado.get('ok'):
+            self.message_user(request, resultado.get('message'), level=messages.ERROR)
+            return
+        for fila in resultado.get('filas') or []:
+            self.message_user(
+                request,
+                f"{fila['nombre']}: {fila['estado']}",
+                level=messages.SUCCESS if fila['estado'] == 'APPROVED' else messages.WARNING,
+            )
+        if not resultado.get('filas'):
+            self.message_user(request, 'Meta no devolvió plantillas.', level=messages.WARNING)
+
 
 @admin.register(CampanaMeta)
 class CampanaMetaAdmin(admin.ModelAdmin):
+    change_form_template = 'admin/core/campanameta/change_form.html'
     list_display = (
         'nombre', 'plantilla', 'estado_plantilla', 'conteo_destinatarios',
         'ejecutada', 'pausada', 'total_enviados',
@@ -194,6 +213,44 @@ class CampanaMetaAdmin(admin.ModelAdmin):
     def estado_plantilla(self, obj):
         return obj.plantilla.estado if obj.plantilla_id else '—'
     estado_plantilla.short_description = 'Estado plantilla'
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra = extra_context or {}
+        if object_id:
+            from django.urls import reverse
+
+            extra['eki_meta_prueba_url'] = reverse(
+                'admin:core_campanameta_enviar_prueba',
+                args=[object_id],
+            )
+        return super().changeform_view(request, object_id, form_url, extra_context=extra)
+
+    def get_urls(self):
+        from django.urls import path
+
+        custom = [
+            path(
+                '<path:object_id>/enviar-prueba/',
+                self.admin_site.admin_view(self.enviar_prueba_view),
+                name='core_campanameta_enviar_prueba',
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def enviar_prueba_view(self, request, object_id):
+        from django.shortcuts import get_object_or_404, redirect
+
+        from core.meta_waba import enviar_prueba_meta
+        from core.models_campana_meta import CampanaMeta
+
+        campana = get_object_or_404(CampanaMeta, pk=object_id)
+        destino = redirect('admin:core_campanameta_change', campana.pk)
+        if request.method != 'POST':
+            return destino
+        resultado = enviar_prueba_meta(campana, request.POST.get('telefono') or '')
+        nivel = messages.SUCCESS if resultado.get('success') else messages.ERROR
+        self.message_user(request, resultado.get('message') or 'Listo.', level=nivel)
+        return destino
 
     def conteo_destinatarios(self, obj):
         if obj.grupo_id:

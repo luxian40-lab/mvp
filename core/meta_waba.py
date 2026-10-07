@@ -421,6 +421,139 @@ def sincronizar_pendientes() -> int:
     return n
 
 
+def _cuerpo_desde_componentes(componentes) -> str:
+    for comp in componentes or []:
+        if str(comp.get('type') or '').upper() == 'BODY':
+            return str(comp.get('text') or '').strip()
+    return ''
+
+
+def _aplicar_item_catalogo(item: dict, waba: str) -> dict:
+    nombre = sanitizar_nombre_meta(str(item.get('name') or ''))
+    idioma = item.get('language') or 'es'
+    if isinstance(idioma, dict):
+        idioma = idioma.get('code') or 'es'
+    idioma = str(idioma or 'es')[:10]
+    estado = normalizar_estado(str(item.get('status') or ''))
+    if estado == 'ERROR':
+        estado = 'PENDING'
+    motivo = str(item.get('rejected_reason') or '').strip()
+    plantilla = PlantillaMeta.objects.filter(meta_name=nombre, idioma=idioma).first()
+    creada = False
+    if plantilla is None:
+        cuerpo = _cuerpo_desde_componentes(item.get('components')) or 'Texto importado desde Meta.'
+        plantilla = PlantillaMeta(
+            nombre_interno=(nombre or 'plantilla')[:120],
+            meta_name=nombre,
+            idioma=idioma,
+            cuerpo=cuerpo[:1024],
+            categoria='UTILITY',
+        )
+        creada = True
+    plantilla.meta_template_id = str(item.get('id') or plantilla.meta_template_id or '')
+    plantilla.waba_id = waba
+    plantilla.estado = estado
+    plantilla.sincronizada_en = timezone.now()
+    if motivo and motivo.upper() != 'NONE':
+        plantilla.rejected_reason = motivo[:500]
+    plantilla.save()
+    return {
+        'nombre': plantilla.meta_name,
+        'idioma': plantilla.idioma,
+        'estado': plantilla.estado,
+        'creada': creada,
+        'motivo': plantilla.rejected_reason,
+    }
+
+
+def sincronizar_catalogo_meta() -> dict:
+    """Lee el WABA y deja en cada ficha si Meta aprobó, rechazó o sigue pendiente."""
+    waba = _waba()
+    if not waba or not _token():
+        return {
+            'ok': False,
+            'message': 'Faltan WHATSAPP_TOKEN o WHATSAPP_BUSINESS_ACCOUNT_ID.',
+            'filas': [],
+        }
+    url = f'https://graph.facebook.com/{_version()}/{waba}/message_templates'
+    params = {
+        'fields': 'id,name,language,status,rejected_reason,components',
+        'limit': '100',
+    }
+    filas = []
+    for _ in range(20):
+        status, data = _get(url, params)
+        params = None
+        if status != 200:
+            err = _error_meta(data)
+            return {'ok': False, 'message': err['message'], 'filas': filas}
+        for item in data.get('data') or []:
+            if not isinstance(item, dict) or not item.get('name'):
+                continue
+            filas.append(_aplicar_item_catalogo(item, waba))
+        url = str(((data.get('paging') or {}).get('next') or '')).strip()
+        if not url:
+            break
+    return {'ok': True, 'message': '', 'filas': filas}
+
+
+def enviar_prueba_meta(campana: CampanaMeta, telefono: str) -> dict:
+    """Un solo número. No marca la campaña como ejecutada."""
+    from core.utils_telefono import normalizar_e164_co
+
+    plantilla = campana.plantilla
+    if plantilla.estado != 'APPROVED':
+        motivo = (plantilla.rejected_reason or '').strip()
+        texto = f'La plantilla está en {plantilla.estado}.'
+        if motivo:
+            texto = f'{texto} Motivo: {motivo}.'
+        texto = f'{texto} Solo se envía cuando Meta la deja Aprobada.'
+        return {'success': False, 'message': texto}
+    destino = normalizar_e164_co(telefono)
+    if len(destino) < 10:
+        return {'success': False, 'message': 'Escriba el número con indicativo, por ejemplo 57300…'}
+    phone_id = (campana.phone_number_id or _phone_default()).strip()
+    waba = (plantilla.waba_id or _waba()).strip()
+    ok, motivo = phone_pertenece_a_waba(phone_id, waba)
+    if not ok:
+        return {'success': False, 'message': motivo}
+    estudiante = type('Est', (), {'nombre': 'Prueba', 'telefono': destino})()
+    try:
+        componentes = _parametros_envio(plantilla, campana, estudiante)
+    except ValueError as exc:
+        return {'success': False, 'message': str(exc)}
+    payload = {
+        'messaging_product': 'whatsapp',
+        'to': destino,
+        'type': 'template',
+        'template': {
+            'name': plantilla.meta_name,
+            'language': {'code': plantilla.idioma or 'es'},
+        },
+    }
+    if componentes:
+        payload['template']['components'] = componentes
+    url = f'https://graph.facebook.com/{_version()}/{phone_id}/messages'
+    status, data = _post(url, payload)
+    if status in (200, 201) and data.get('messages'):
+        return {
+            'success': True,
+            'message': 'Prueba enviada.',
+            'wamid': str((data.get('messages') or [{}])[0].get('id') or ''),
+        }
+    err = _error_meta(data)
+    return {'success': False, 'message': err['message'], 'error_code': err['code']}
+    if not campana_meta_habilitada():
+        return 0
+    qs = PlantillaMeta.objects.filter(estado__in=('PENDING', 'IN_APPEAL'))
+    n = 0
+    for plantilla in qs.iterator():
+        resultado = sincronizar_plantilla(plantilla)
+        if resultado.get('success'):
+            n += 1
+    return n
+
+
 def aplicar_eventos_plantilla(payload: dict, raw_body: bytes, signature_header: str) -> int:
     """Aplica message_template_status_update solo si la firma Meta es válida."""
     cambios = _cambios_status(payload)
