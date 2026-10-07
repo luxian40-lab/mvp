@@ -251,42 +251,71 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
         fecha=timezone.now(),
         agente_usado=(agente or 'sandbox_meta')[:50],
     )
-    try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=15)
+    ultimo_error = {'code': '', 'detalle': '', 'status': 0, 'err': {}}
+    for intento in range(2):
         try:
-            data = resp.json()
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
+            try:
+                data = resp.json()
+            except Exception:
+                data = {'raw': resp.text}
+            if resp.status_code in (200, 201) and 'messages' in data:
+                mensaje_id = (data.get('messages') or [{}])[0].get('id')
+                log.mensaje_id = mensaje_id
+                log.estado = 'SENT'
+                log.save(update_fields=['mensaje_id', 'estado'])
+                quitar_reaccion_espera(to)
+                from core.salida_usuario import marcar_mensaje_salio
+                marcar_mensaje_salio()
+                return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
+            err = data.get('error', data) if isinstance(data, dict) else data
+            if not isinstance(err, dict):
+                err = {'message': str(err)}
+            code = str(err.get('code') or '')[:16]
+            tipo = str(err.get('type') or '')[:80]
+            message = str(err.get('message') or '')[:500]
+            detalle_extra = ''
+            error_data = err.get('error_data') if isinstance(err.get('error_data'), dict) else {}
+            if error_data:
+                detalle_extra = str(error_data.get('details') or '')[:300]
+            ultimo_error = {
+                'code': code,
+                'detalle': ' '.join(
+                    parte for parte in (tipo, code, message, detalle_extra) if parte
+                )[:2000],
+                'status': resp.status_code,
+                'err': err,
+            }
+            transitorio = code == '130429' or resp.status_code >= 500
+            if transitorio and intento == 0:
+                logger.info('meta_graph_reintento code=%s status=%s', code, resp.status_code)
+                continue
+            break
         except Exception:
-            data = {'raw': resp.text}
-        if resp.status_code in (200, 201) and 'messages' in data:
-            mensaje_id = (data.get('messages') or [{}])[0].get('id')
-            log.mensaje_id = mensaje_id
-            log.estado = 'SENT'
-            log.save(update_fields=['mensaje_id', 'estado'])
-            quitar_reaccion_espera(to)
-            from core.salida_usuario import marcar_mensaje_salio
-            marcar_mensaje_salio()
-            return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
-        err = data.get('error', data) if isinstance(data, dict) else data
-        if not isinstance(err, dict):
-            err = {'message': str(err)}
-        code = str(err.get('code') or '')[:16]
-        tipo = str(err.get('type') or '')[:80]
-        message = str(err.get('message') or '')[:500]
-        log.estado = 'ERROR'
-        log.error_codigo = code or None
-        log.error_detalle = ' '.join(parte for parte in (tipo, code, message) if parte)[:2000]
-        log.save(update_fields=['estado', 'error_codigo', 'error_detalle'])
-        logger.warning('sandbox_meta_graph_error status=%s code=%s type=%s', resp.status_code, code, tipo)
-        from core.meta_token import es_token_invalido, marcar_token_invalido
+            ultimo_error = {
+                'code': '',
+                'detalle': 'graph_exception',
+                'status': 0,
+                'err': {'message': 'graph_exception'},
+            }
+            if intento == 0:
+                logger.info('meta_graph_reintento excepcion')
+                continue
+            break
+    log.estado = 'ERROR'
+    log.error_codigo = ultimo_error['code'] or None
+    log.error_detalle = ultimo_error['detalle'] or 'graph_exception'
+    log.save(update_fields=['estado', 'error_codigo', 'error_detalle'])
+    logger.warning(
+        'sandbox_meta_graph_error status=%s code=%s',
+        ultimo_error['status'],
+        ultimo_error['code'],
+    )
+    from core.meta_token import es_token_invalido, marcar_token_invalido
 
-        if es_token_invalido(err):
-            marcar_token_invalido()
-        return {'success': False, 'mensaje_id': None, 'response': err}
-    except Exception as exc:
-        log.estado = 'ERROR'
-        log.save(update_fields=['estado'])
-        logger.exception('sandbox_meta_graph_fail')
-        return {'success': False, 'mensaje_id': None, 'response': str(exc)}
+    if es_token_invalido(ultimo_error['err']):
+        marcar_token_invalido()
+    return {'success': False, 'mensaje_id': None, 'response': ultimo_error['err']}
 
 
 def _clave_reaccion(to: str) -> str:
@@ -826,8 +855,13 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
     lat = ''
     lng = ''
 
-    if mtype == 'text':
-        body = str((message.get('text') or {}).get('body') or '').strip()
+    from core.meta_inbound import clasificar_mensaje
+
+    info = clasificar_mensaje(message)
+    if info['skip']:
+        body = ''
+    elif mtype == 'text':
+        body = info['texto']
     elif mtype == 'interactive':
         inter = message.get('interactive') or {}
         nfm = inter.get('nfm_reply') or {}
@@ -836,12 +870,10 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
 
             body = MARCA_FLOW + str(nfm.get('response_json') or '{}')
         else:
-            reply = inter.get('button_reply') or inter.get('list_reply') or {}
-            body = str(reply.get('id') or reply.get('title') or '').strip()
+            body = info['texto']
     elif mtype == 'button':
-        btn = message.get('button') or {}
-        body = str(btn.get('payload') or btn.get('text') or '').strip()
-    elif mtype in ('audio', 'image', 'video', 'document', 'sticker', 'voice'):
+        body = info['texto']
+    elif mtype in ('audio', 'image', 'video', 'document', 'voice'):
         kind = 'audio' if mtype == 'voice' else mtype
         blob = message.get(kind) or message.get('audio') or {}
         media_url = str(blob.get('id') or '').strip()
@@ -871,6 +903,8 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
         'MediaContentType0': media_type,
         '_eki_proveedor': PROVEEDOR_META,
         '_eki_phone_number_id': phone_id,
+        '_eki_tipo': info['tipo'],
+        '_eki_skip': info['skip'],
     }
     if lat and lng:
         inbound['Latitude'] = lat

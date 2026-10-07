@@ -107,11 +107,10 @@ NATI_DIAGNOSTICO_PROMPT = NAT_DIAGNOSTICO_PROMPT
 NATI_SYSTEM_PROMPT_BASE = NAT_SYSTEM_PROMPT_BASE
 
 def normalizar_telefono_whatsapp(numero: str) -> str:
-    """Solo dígitos; Colombia 10 dígitos → prefijo 57."""
-    limpio = re.sub(r'\D', '', (numero or '').strip())
-    if len(limpio) == 10:
-        limpio = f'57{limpio}'
-    return limpio
+    """Misma forma que normalizar_e164_co: webhook, ficha y envío."""
+    from core.utils_telefono import normalizar_e164_co
+
+    return normalizar_e164_co(numero)
 
 
 def resolver_cliente_desde_numero_whatsapp(numero_to: str):

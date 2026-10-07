@@ -471,19 +471,26 @@ def limpiar_logs_antiguos():
     try:
         from core.models import MensajeChat
         from core.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
+        from core.models_meta_webhook import MetaWebhookEvento
 
         limite = timezone.now() - timezone.timedelta(days=90)
         eliminados, _ = MensajeChat.objects.filter(fecha__lt=limite).delete()
         eventos = purgar_eventos_procesados(10)
         fallidos = purgar_webhooks_fallidos(10)
+        meta_limite = timezone.now() - timezone.timedelta(days=30)
+        meta_viejos, _ = MetaWebhookEvento.objects.filter(recibido_en__lt=meta_limite).delete()
 
         logger.info(
-            "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 10 días), %s fallidos (> 10 días)",
+            "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 10 días), %s fallidos (> 10 días), %s eventos Meta (> 30 días)",
             eliminados,
             eventos,
             fallidos,
+            meta_viejos,
         )
-        return f'{eliminados} mensajes eliminados; {eventos} eventos webhook; {fallidos} fallidos'
+        return (
+            f'{eliminados} mensajes eliminados; {eventos} eventos webhook; '
+            f'{fallidos} fallidos; {meta_viejos} eventos Meta'
+        )
 
     except Exception as e:
         logger.error(f"[Celery] Error limpiando logs: {e}")
