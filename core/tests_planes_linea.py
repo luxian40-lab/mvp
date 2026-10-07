@@ -643,3 +643,37 @@ class RachaEnMensajeTests(TestCase):
         with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value=OK):
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         self.assertIsNone(SandboxCanalSesion.objects.get(telefono=tel).racha_ultimo_dia)
+
+
+@override_settings(**META)
+class AccesoAulaMetaTests(TestCase):
+    def test_aula_responde_con_codigo_aunque_no_haya_habeas_de_linea(self):
+        tel = '573005550777'
+        org = _org('AulaOrg', PLAN_CURSO_ASESOR)
+        Estudiante.objects.create(
+            nombre='Ana Ruiz', cedula='A777', telefono=tel, cliente=org, acepto_terminos=False,
+        )
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'aula'))
+        self.assertEqual(ruta, 'handled')
+        textos = _textos(send)
+        self.assertEqual(len(textos), 1)
+        self.assertIn('/aprende/estudiante/login/', textos[0])
+        self.assertIn('Ana', textos[0])
+
+    def test_aula_no_entra_al_agronomo(self):
+        tel = '573005550778'
+        org = _org('AulaNat', PLAN_CURSO_ASESOR)
+        Estudiante.objects.create(nombre='Luis', cedula='A778', telefono=tel, cliente=org)
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='nat')
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'aula'))
+        self.assertEqual(ruta, 'handled')
+        self.assertIn('/aprende/estudiante/login/', _textos(send)[0])
+
+    def test_numero_sin_ficha_no_recibe_codigo(self):
+        tel = '573005550779'
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True)
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'aula'))
+        self.assertNotIn('/aprende/estudiante/login/', '\n'.join(_textos(send)))

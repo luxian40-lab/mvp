@@ -1002,6 +1002,29 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     return 'handled'
 
 
+def _responder_acceso_aula(telefono: str, from_number: str, body: str) -> bool:
+    """*aula* en la línea Meta abre Aprende. El curso por Twilio no cambia."""
+    from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+
+    if not mensaje_pide_acceso_aula(body):
+        return False
+    from core.models import Estudiante
+
+    est = Estudiante.objects.filter(telefono=telefono).order_by('-id').first()
+    if est is None:
+        return False
+    try:
+        texto = emitir_acceso_desde_whatsapp(est)
+    except Exception:
+        logger.exception('sandbox_aula_emit_fail')
+        texto = 'No pude generar el acceso al aula. Escriba *aula* otra vez en un momento.'
+    try:
+        enviar_texto_sandbox(telefono, from_number, texto, agente='sandbox_aula')
+    except Exception:
+        logger.exception('sandbox_aula_send_fail')
+    return True
+
+
 def _message_id(payload: Any) -> str:
     try:
         return str(payload.get('MessageSid') or '')
@@ -1054,6 +1077,8 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                     )
                 except Exception:
                     logger.exception('sandbox_solo_registrados_fail')
+            return 'handled'
+        if _responder_acceso_aula(from_tel, sandbox_number(), body_habeas):
             return 'handled'
         corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
         if corte == 'handled':
