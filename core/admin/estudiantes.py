@@ -1,7 +1,7 @@
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.clientes import HabilitacionModuloEstudianteInline
 from django import forms
-from django.db.models import Q
+from django.db.models import Count, F, Prefetch, Q
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
@@ -60,23 +60,151 @@ class EstudianteAdminForm(forms.ModelForm):
         self.fields['cursos_a_inscribir'].queryset = qs
 
 
+# Estado del chat (máquina WhatsApp). No incluye avance de curso.
+_ESTADO_CHAT_GRUPOS = (
+    ('activo', 'Activo', ('ACTIVO',)),
+    ('habeas', 'Habeas', ('ESPERANDO_HABEAS_DATA',)),
+    ('cedula', 'Cédula', ('ESPERANDO_CEDULA',)),
+    ('datos', 'Datos', (
+        'CONFIRMANDO_DATOS',
+        'ESPERANDO_AYUDA_MODIFICAR',
+        'ESPERANDO_CORRECCION_DATOS',
+    )),
+    ('finalizado', 'Finalizado', ('curso_finalizado', 'completado')),
+)
+_ESTADO_CHAT_POR_CODIGO = {
+    codigo: (etiqueta, slug)
+    for slug, etiqueta, codigos in _ESTADO_CHAT_GRUPOS
+    for codigo in codigos
+}
+_ESTADO_CHAT_CODIGOS_NOMBRADOS = frozenset(_ESTADO_CHAT_POR_CODIGO)
+
+
+def etiqueta_estado_chat(codigo):
+    """Etiqueta corta del chat. El curso completado no entra aquí."""
+    return _ESTADO_CHAT_POR_CODIGO.get((codigo or '').strip(), ('Onboarding', 'onboarding'))
+
+
+def _clave_progreso(progreso):
+    avance = progreso.fecha_ultimo_avance
+    inicio = getattr(progreso, 'fecha_inicio', None)
+    return (avance is not None, avance or inicio, progreso.pk or 0)
+
+
+def elegir_progreso_lista(progresos, curso_filter=''):
+    """Un curso visible y cuántos quedan fuera. El filtro de curso manda."""
+    progresos = list(progresos)
+    filtro = (curso_filter or '').strip()
+    if filtro == 'sin_curso' or not progresos:
+        return None, 0
+    if filtro.isdigit():
+        cid = int(filtro)
+        match = next((p for p in progresos if p.curso_id == cid), None)
+        if match is None:
+            return None, 0
+        return match, max(len(progresos) - 1, 0)
+    ordenados = sorted(progresos, key=_clave_progreso, reverse=True)
+    return ordenados[0], max(len(ordenados) - 1, 0)
+
+
+def detalle_progreso(progreso):
+    """Posición de hoy en el curso: módulo n/N, o Completado."""
+    if progreso.completado:
+        return 'Completado'
+    mod = getattr(progreso, 'modulo_actual', None)
+    n_mods = getattr(progreso, '_n_mods', None)
+    if n_mods is None and getattr(progreso, 'curso_id', None):
+        n_mods = progreso.curso.modulos.count()
+    if mod is not None and mod.numero is not None and n_mods:
+        return f'Mód. {mod.numero}/{n_mods}'
+    if mod is not None and mod.numero is not None:
+        return f'Mód. {mod.numero}'
+    return 'Sin iniciar'
+
+
+def resumen_estudiantes(qs):
+    """Reparto con organización / sin organización sobre el queryset ya filtrado."""
+    agg = qs.aggregate(
+        total=Count('pk', distinct=True),
+        con_org=Count('pk', filter=Q(cliente__isnull=False), distinct=True),
+    )
+    total = agg['total'] or 0
+    con_org = agg['con_org'] or 0
+    return {
+        'total': total,
+        'con_org': con_org,
+        'sin_org': total - con_org,
+        'ayuda': (
+            'Con organización = tiene cliente. '
+            'Sin organización = B2C (eki Studio). '
+            'Estas cifras respetan la búsqueda y los filtros activos.'
+        ),
+    }
+
+
+class TipoOrganizacionEstudianteFilter(admin.SimpleListFilter):
+    title = 'Tipo'
+    parameter_name = 'eki_tipo'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('con_org', 'Con organización'),
+            ('b2c', 'B2C (sin organización)'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'con_org':
+            return queryset.filter(cliente__isnull=False)
+        if self.value() == 'b2c':
+            return queryset.filter(cliente__isnull=True)
+        return queryset
+
+
+class EstadoChatEstudianteFilter(admin.SimpleListFilter):
+    title = 'Estado del chat'
+    parameter_name = 'eki_estado_chat'
+
+    def lookups(self, request, model_admin):
+        opciones = [(slug, etiqueta) for slug, etiqueta, _codigos in _ESTADO_CHAT_GRUPOS]
+        opciones.append(('onboarding', 'Onboarding'))
+        return opciones
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if not valor:
+            return queryset
+        if valor == 'onboarding':
+            return queryset.exclude(estado_chat__in=_ESTADO_CHAT_CODIGOS_NOMBRADOS)
+        codigos = next(
+            (grupo for slug, _etiqueta, grupo in _ESTADO_CHAT_GRUPOS if slug == valor),
+            None,
+        )
+        if not codigos:
+            return queryset
+        return queryset.filter(estado_chat__in=codigos)
+
+
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
     form = EstudianteAdminForm
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
-    # Listado limpio P1: 5 columnas operativas (cursos → ficha / filtros).
+    # Seis columnas: ficha+chat, documento, WhatsApp, organización, estado del chat, un curso.
     list_display = (
-        'nombre',
+        'estudiante_celda',
         'cedula_formateada',
         'telefono_formateado',
         'cliente_nombre',
-        'conversacion_link',
-        'activo',
+        'estado_chat_celda',
+        'curso_celda',
     )
+    list_display_links = None
+    list_before_template = 'admin/estudiante_list_resumen.html'
     list_filter = (
         'cliente',
+        TipoOrganizacionEstudianteFilter,
+        EstadoChatEstudianteFilter,
         'activo',
         EstudianteSinProgresoFilter,
         CursosEstudianteFilter,
@@ -84,6 +212,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         'departamento',
     )
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
+    search_help_text = 'Buscar por nombre, cédula o WhatsApp'
     list_select_related = ('cliente',)
     list_per_page = 50
     ordering = ('cliente__nombre', 'nombre')
@@ -221,22 +350,105 @@ class EstudianteAdmin(admin.ModelAdmin):
     telefono_formateado.short_description = "WhatsApp"
     
     def cliente_nombre(self, obj):
-        """Muestra el cliente al que pertenece"""
-        if obj.cliente:
+        """Organización, o B2C cuando no hay cliente."""
+        if obj.cliente_id and obj.cliente:
             return obj.cliente.nombre
-        return format_html('<span style="color:#999;">Sin cliente</span>')
+        return format_html(
+            '<span class="eki-est-b2c" title="Sin organización · eki Studio">B2C</span>',
+        )
     cliente_nombre.short_description = "Organización"
     cliente_nombre.admin_order_field = 'cliente__nombre'
 
-    def conversacion_link(self, obj):
+    def estudiante_celda(self, obj):
         if not obj or not obj.pk:
             return '—'
-        url = reverse('conversaciones') + f'?estudiante={obj.pk}'
+        ficha = reverse('admin:core_estudiante_change', args=[obj.pk])
+        chat = reverse('conversaciones') + f'?estudiante={obj.pk}'
         return format_html(
-            '<a href="{}" style="font-weight:700;color:#7A4E8E;">Chat</a>',
-            url,
+            '<a href="{}">{}</a> · <a href="{}">Chat</a>',
+            ficha,
+            obj.nombre,
+            chat,
         )
-    conversacion_link.short_description = 'WA'
+    estudiante_celda.short_description = 'Estudiante'
+    estudiante_celda.admin_order_field = 'nombre'
+
+    def estado_chat_celda(self, obj):
+        etiqueta, slug = etiqueta_estado_chat(getattr(obj, 'estado_chat', ''))
+        titulo = obj.get_estado_chat_display() if hasattr(obj, 'get_estado_chat_display') else etiqueta
+        return format_html(
+            '<span class="eki-est-estado eki-est-estado--{}" title="{}">{}</span>',
+            slug,
+            titulo,
+            etiqueta,
+        )
+    estado_chat_celda.short_description = 'Estado chat'
+    estado_chat_celda.admin_order_field = 'estado_chat'
+
+    def _enlace_diploma(self, obj, curso_id):
+        if not curso_id:
+            return ''
+        certs = [
+            c for c in obj.certificados.all()
+            if c.curso_id == curso_id and c.emitido and not c.anulado
+        ]
+        if not certs:
+            return ''
+        cert = max(certs, key=lambda c: (c.fecha_emision or c.creado_en, c.pk))
+        url = reverse('admin:learning_certificado_change', args=[cert.pk])
+        return format_html(' · <a href="{}">Diploma</a>', url)
+
+    def curso_celda(self, obj):
+        elegido, extra = elegir_progreso_lista(
+            obj.progresos.all(),
+            getattr(self, '_eki_curso_filter', ''),
+        )
+        if elegido is None or not elegido.curso_id:
+            return 'Sin curso'
+        html = format_html(
+            '{} · {}',
+            elegido.curso.nombre,
+            detalle_progreso(elegido),
+        )
+        if extra:
+            html = format_html(
+                '{} <span class="eki-est-extra">+{}</span>',
+                html,
+                extra,
+            )
+        diploma = self._enlace_diploma(obj, elegido.curso_id)
+        if diploma:
+            html = format_html('{}{}', html, diploma)
+        return html
+    curso_celda.short_description = 'Curso'
+
+    def get_queryset(self, request):
+        from core.models_certificados import Certificado
+
+        self._eki_curso_filter = (request.GET.get('curso') or '').strip()
+        prog_qs = (
+            ProgresoEstudiante.objects.select_related('curso', 'modulo_actual')
+            .annotate(_n_mods=Count('curso__modulos', distinct=True))
+            .order_by(F('fecha_ultimo_avance').desc(nulls_last=True), '-pk')
+        )
+        cert_qs = Certificado.objects.filter(emitido=True, anulado=False).only(
+            'id', 'estudiante_id', 'curso_id', 'emitido', 'anulado',
+            'fecha_emision', 'creado_en',
+        )
+        return super().get_queryset(request).prefetch_related(
+            Prefetch('progresos', queryset=prog_qs),
+            Prefetch('certificados', queryset=cert_qs),
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context=extra_context)
+        contexto = getattr(response, 'context_data', None)
+        if not contexto:
+            return response
+        cl = contexto.get('cl')
+        if cl is not None:
+            contexto['eki_est_resumen'] = resumen_estudiantes(cl.queryset)
+        return response
 
     def grupos_display(self, obj):
         """Muestra los grupos a los que pertenece el estudiante"""

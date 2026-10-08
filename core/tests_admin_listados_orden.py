@@ -5,7 +5,16 @@ from django.test import SimpleTestCase
 
 from core.admin.clientes import ClienteAdmin
 from core.admin.cursos import CursoAdmin, ModuloAdmin
-from core.admin.estudiantes import EstudianteAdmin
+from core.admin.estudiantes import (
+    EstadoChatEstudianteFilter,
+    EstudianteAdmin,
+    TipoOrganizacionEstudianteFilter,
+)
+from core.admin._common import (
+    CursosEstudianteFilter,
+    EstudianteSinProgresoFilter,
+    GruposEstudianteFilter,
+)
 from core.models import Cliente, Curso, Estudiante, Modulo
 
 
@@ -56,14 +65,34 @@ class AdminListadosOrdenTests(SimpleTestCase):
         adm = EstudianteAdmin(Estudiante, site)
         self.assertEqual(adm.ordering, ('cliente__nombre', 'nombre'))
         self.assertEqual(adm.list_filter[0], 'cliente')
-        self.assertIn('cliente_nombre', adm.list_display)
-        self.assertIn('conversacion_link', adm.list_display)
-        self.assertNotIn('cursos_inscritos', adm.list_display)
+        self.assertEqual(
+            adm.list_display,
+            (
+                'estudiante_celda',
+                'cedula_formateada',
+                'telefono_formateado',
+                'cliente_nombre',
+                'estado_chat_celda',
+                'curso_celda',
+            ),
+        )
         self.assertEqual(len(adm.list_display), 6)
+        self.assertIsNone(adm.list_display_links)
+        self.assertNotIn('cursos_inscritos', adm.list_display)
+        self.assertNotIn('activo', adm.list_display)
+        self.assertNotIn('conversacion_link', adm.list_display)
         self.assertNotIn('municipio', adm.list_display)
         self.assertNotIn('fecha_registro', adm.list_display)
         self.assertEqual(adm.list_select_related, ('cliente',))
         self.assertEqual(adm.actions[0], 'asignar_a_grupo_accion')
+        self.assertIn('Buscar por nombre', adm.search_help_text)
+        self.assertIn(TipoOrganizacionEstudianteFilter, adm.list_filter)
+        self.assertIn(EstadoChatEstudianteFilter, adm.list_filter)
+        self.assertIn('activo', adm.list_filter)
+        self.assertIn(EstudianteSinProgresoFilter, adm.list_filter)
+        self.assertIn(CursosEstudianteFilter, adm.list_filter)
+        self.assertIn(GruposEstudianteFilter, adm.list_filter)
+        self.assertIn('departamento', adm.list_filter)
 
     def test_curso_listado_compacto(self):
         adm = CursoAdmin(Curso, site)
