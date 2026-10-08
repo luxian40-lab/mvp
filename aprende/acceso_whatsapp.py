@@ -162,8 +162,8 @@ def verificar_codigo_web(
 ) -> tuple[Optional[int], str]:
     """Canjea el código de aula.
 
-    Redis caído cierra el login: rechaza con el mensaje genérico y no
-    borra el código. No deja pasar.
+    Redis caído no bloquea un código válido en BD: se salta el cupo y
+    se canjea. El cupo vuelve cuando Redis responde.
     """
     import hmac
 
@@ -176,6 +176,7 @@ def verificar_codigo_web(
     ventana = _aula_int('AULA_LOGIN_VENTANA_SEG', 600)
     ip_hash = telefono_hash(ip or 'sin-ip')
     est_hash = ''
+    redis_vivo = True
 
     _ok_global, n_global = hit(
         f'{prefijo}:global',
@@ -183,9 +184,9 @@ def verificar_codigo_web(
         ventana,
     )
     if n_global < 0:
-        logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
-        return None, mensaje
-    if n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
+        redis_vivo = False
+        logger.warning('aula_login_redis_caido_otp_en_bd ip_hash=%s', ip_hash)
+    elif n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
         logger.warning('aula_login_ataque_probable')
         try:
             from core.locks import _cliente_redis
@@ -197,21 +198,24 @@ def verificar_codigo_web(
             )
         except Exception:
             logger.exception('rate_limit_redis_caido')
+            redis_vivo = False
+
+    estricto = False
+    if redis_vivo:
+        try:
+            from core.locks import _cliente_redis
+
+            estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
+        except Exception:
+            logger.exception('rate_limit_redis_caido')
+            redis_vivo = False
+
+    if redis_vivo:
+        limite_ip = 3 if estricto else _aula_int('AULA_LOGIN_MAX_POR_IP', 10)
+        ok_ip, n_ip = hit(f'{prefijo}:ip:{ip_hash}', limite_ip, ventana)
+        if n_ip < 0 or not ok_ip:
+            logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
             return None, mensaje
-
-    try:
-        from core.locks import _cliente_redis
-
-        estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
-    except Exception:
-        logger.exception('rate_limit_redis_caido')
-        return None, mensaje
-
-    limite_ip = 3 if estricto else _aula_int('AULA_LOGIN_MAX_POR_IP', 10)
-    ok_ip, n_ip = hit(f'{prefijo}:ip:{ip_hash}', limite_ip, ventana)
-    if n_ip < 0 or not ok_ip:
-        logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
-        return None, mensaje
 
     from core.models import Estudiante
 
@@ -224,15 +228,17 @@ def verificar_codigo_web(
             logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
             return None, mensaje
         est_hash = telefono_hash(str(estudiante.pk))
-        ok_est, n_est = hit(
-            f'{prefijo}:est:{est_hash}',
-            _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5),
-            ventana,
-        )
-        if n_est < 0 or not ok_est:
-            CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
-            logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
-            return None, mensaje
+        ok_est, n_est = True, 0
+        if redis_vivo:
+            ok_est, n_est = hit(
+                f'{prefijo}:est:{est_hash}',
+                _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5),
+                ventana,
+            )
+            if n_est < 0 or not ok_est:
+                CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
+                logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
+                return None, mensaje
     else:
         ok_est, n_est = True, 0
 

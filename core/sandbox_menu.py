@@ -134,6 +134,7 @@ def sandbox_number() -> str:
 def es_destino_sandbox(to_or_payload: Any) -> bool:
     from core.sandbox_canal import (
         es_inbound_twilio_http,
+        inbound_es_meta,
         phone_id_es_sandbox,
         sandbox_via_meta,
         to_es_sandbox,
@@ -141,6 +142,8 @@ def es_destino_sandbox(to_or_payload: Any) -> bool:
 
     if not sandbox_menu_enabled():
         return False
+    if sandbox_via_meta() and inbound_es_meta(to_or_payload):
+        return True
     if phone_id_es_sandbox(to_or_payload):
         return True
     if not to_es_sandbox(to_or_payload):
@@ -943,6 +946,12 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
             if quedan == 2:
                 texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
+            try:
+                from core.impacto_captura import anexar_cierre
+
+                texto = anexar_cierre(agente, decision.telefono_usuario, texto)
+            except Exception:
+                logger.exception('sandbox_impacto_cierre_fail agente=%s', agente)
     try:
         enviar_texto_sandbox(
             decision.telefono_usuario,
@@ -959,10 +968,10 @@ def _habeas_listo(telefono: str) -> bool:
     sesion = _get_or_create_sesion(telefono)
     if getattr(sesion, 'habeas_aceptado', False):
         return True
-    from core.models import Estudiante
+    from core.utils_telefono import estudiante_por_telefono
 
-    est = Estudiante.objects.filter(telefono=telefono, acepto_terminos=True).first()
-    if est is not None:
+    est = estudiante_por_telefono(telefono)
+    if est is not None and est.acepto_terminos:
         sesion.habeas_aceptado = True
         sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
         return True
@@ -971,12 +980,14 @@ def _habeas_listo(telefono: str) -> bool:
 
 def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     """None si ya puede ver el menú. 'handled' si esta vuelta fue solo habeas."""
+    if _habeas_listo(telefono):
+        return None
     t = (body or '').strip().lower()
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo'):
         from core.consentimiento_wa import registrar_optin
-        from core.models import Estudiante
+        from core.utils_telefono import estudiante_por_telefono
 
-        est = Estudiante.objects.filter(telefono=telefono).first()
+        est = estudiante_por_telefono(telefono)
         if est is not None:
             registrar_optin(est, 'habeas')
         sesion = _get_or_create_sesion(telefono)
@@ -994,34 +1005,29 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
             agente='sandbox_menu',
         )
         return 'handled'
-    if _habeas_listo(telefono):
-        return None
     from core.sandbox_canal import enviar_sandbox_habeas
 
     enviar_sandbox_habeas(telefono)
     return 'handled'
 
 
-def _responder_acceso_aula(telefono: str, from_number: str, body: str) -> bool:
-    """*aula* en la línea Meta abre Aprende. El curso por Twilio no cambia."""
-    from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+def _avisar_aula_es_twilio(telefono: str, from_number: str, body: str) -> bool:
+    """*aula* en Meta no emite código: el aula vive en la línea Twilio."""
+    from aprende.acceso_whatsapp import mensaje_pide_acceso_aula
 
     if not mensaje_pide_acceso_aula(body):
         return False
-    from core.models import Estudiante
-
-    est = Estudiante.objects.filter(telefono=telefono).order_by('-id').first()
-    if est is None:
-        return False
     try:
-        texto = emitir_acceso_desde_whatsapp(est)
+        enviar_texto_sandbox(
+            telefono,
+            from_number,
+            'El *aula* (eki Aprende) se pide por la línea de cursos. '
+            'Escriba *aula* allá para recibir el código. '
+            'En esta línea están *Formación* y *Asesoría*.',
+            agente='sandbox_menu',
+        )
     except Exception:
-        logger.exception('sandbox_aula_emit_fail')
-        texto = 'No pude generar el acceso al aula. Escriba *aula* otra vez en un momento.'
-    try:
-        enviar_texto_sandbox(telefono, from_number, texto, agente='sandbox_aula')
-    except Exception:
-        logger.exception('sandbox_aula_send_fail')
+        logger.exception('sandbox_aula_aviso_fail')
     return True
 
 
@@ -1048,11 +1054,12 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     body_habeas = _body_o_audio_transcrito(payload, body_habeas)
     if from_tel:
         from core.consentimiento_wa import es_optout, registrar_optout
-        from core.models import Estudiante
+        from core.impacto_captura import capturar_si_pendiente
+        from core.utils_telefono import estudiante_por_telefono
 
         if es_optout(body_habeas):
-            est = Estudiante.objects.filter(telefono=from_tel).order_by('-id').first()
-            if est is not None and not est.wa_optout_fecha:
+            est = estudiante_por_telefono(from_tel)
+            if est is not None and not getattr(est, 'wa_optout_fecha', None):
                 registrar_optout(est)
                 try:
                     enviar_texto_sandbox(
@@ -1064,24 +1071,23 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                 except Exception:
                     logger.exception('sandbox_optout_fail')
             return 'handled'
-        from core.linea_registrados import TEXTO_SOLO_REGISTRADOS, aviso_unico_24h, debe_cortar
-
-        if debe_cortar(from_tel):
-            if aviso_unico_24h(from_tel):
-                try:
-                    enviar_texto_sandbox(
-                        from_tel,
-                        sandbox_number(),
-                        TEXTO_SOLO_REGISTRADOS,
-                        agente='solo_registrados',
-                    )
-                except Exception:
-                    logger.exception('sandbox_solo_registrados_fail')
-            return 'handled'
-        if _responder_acceso_aula(from_tel, sandbox_number(), body_habeas):
-            return 'handled'
         corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
         if corte == 'handled':
+            return 'handled'
+        if _avisar_aula_es_twilio(from_tel, sandbox_number(), body_habeas):
+            return 'handled'
+        try:
+            acuse = capturar_si_pendiente(from_tel, body_habeas)
+        except Exception:
+            logger.exception('sandbox_impacto_captura_fail')
+            acuse = None
+        if acuse:
+            try:
+                enviar_texto_sandbox(
+                    from_tel, sandbox_number(), acuse, agente='sandbox_impacto',
+                )
+            except Exception:
+                logger.exception('sandbox_impacto_acuse_fail')
             return 'handled'
         try:
             from core.rachas_linea import registrar_actividad_linea

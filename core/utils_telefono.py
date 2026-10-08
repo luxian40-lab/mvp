@@ -226,3 +226,13 @@ def variantes_telefono(raw: str) -> list[str]:
     if base.startswith('52') and not base.startswith('521') and len(base) >= 12:
         out.add('521' + base[2:])
     return sorted(out)
+
+
+def estudiante_por_telefono(telefono: str):
+    """Ficha más reciente cuyo teléfono coincida en E.164 o en 10 dígitos locales."""
+    from core.models import Estudiante
+
+    vars_tel = variantes_telefono(telefono)
+    if not vars_tel:
+        return None
+    return Estudiante.objects.filter(telefono__in=vars_tel).order_by('-id').first()

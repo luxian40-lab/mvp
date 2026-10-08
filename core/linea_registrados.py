@@ -20,7 +20,7 @@ _BOGOTA = ZoneInfo('America/Bogota')
 
 
 def solo_registrados_activo() -> bool:
-    return bool(getattr(settings, 'LINEA_META_SOLO_REGISTRADOS', True))
+    return bool(getattr(settings, 'LINEA_META_SOLO_REGISTRADOS', False))
 
 
 def _cliente_redis():
@@ -31,14 +31,11 @@ def _cliente_redis():
 
 
 def es_registrado(telefono: str) -> bool:
-    from core.models import Estudiante, ProgresoEstudiante
+    from core.models import ProgresoEstudiante
     from core.models_extras import GrupoEstudiantes
-    from core.nati import normalizar_telefono_whatsapp
+    from core.utils_telefono import estudiante_por_telefono
 
-    tel = normalizar_telefono_whatsapp(telefono or '')
-    if not tel:
-        return False
-    est = Estudiante.objects.filter(telefono=tel).order_by('-id').first()
+    est = estudiante_por_telefono(telefono or '')
     if est is None:
         return False
     if est.cliente_id:

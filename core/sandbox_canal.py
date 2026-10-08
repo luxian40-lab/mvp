@@ -24,10 +24,11 @@ PROVEEDOR_TWILIO = 'twilio'
 _sandbox_meta_ctx: ContextVar[bool] = ContextVar('sandbox_meta_ctx', default=False)
 
 _TEXTO_HABEAS_SANDBOX = (
-    "Antes de continuar, autorice el tratamiento de sus datos "
-    "para la formación y la asesoría en esta línea, "
-    "incluidos los recordatorios del curso por WhatsApp.\n\n"
-    "Pulse *Acepto* o *No acepto*."
+    "eki (Colombia) tratará sus datos para formación, asesoría y tutoría "
+    "asistida por IA en WhatsApp. No los vendemos. Base legal: Ley 1581 de 2012.\n\n"
+    "Política completa: https://www.eki.com.co/habeas-data\n\n"
+    "Acceso, rectificación o supresión: comunidad.educativa@eki.com.co.\n\n"
+    "Pulse *Acepto* para continuar o *No acepto* para no usar el servicio."
 )
 
 

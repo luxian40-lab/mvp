@@ -74,6 +74,36 @@ def _pendiente(codigo: str, nombre: str, evidencia: str, nota: str, *, rotulo: s
     }
 
 
+def _indicador_capturado(codigo, estudiantes, ids_muestra, nombre, evidencia, nota) -> dict:
+    n = 0
+    den = 0
+    for e in estudiantes:
+        if e.id not in ids_muestra:
+            continue
+        fila = (e.impacto_respuestas or {}).get(codigo) or {}
+        if not fila:
+            continue
+        den += 1
+        if fila.get('positivo'):
+            n += 1
+    if den == 0:
+        return _pendiente(codigo, nombre, evidencia, nota)
+    return {
+        'codigo': codigo,
+        'nombre': nombre,
+        'evidencia': evidencia,
+        'estado': 'ok',
+        'numerador': n,
+        'denominador': den,
+        'pct': _pct(n, den),
+        'rotulo': '',
+        'nota': (
+            f'{nota} Captura B del agente. '
+            f'Denominador = quienes respondieron el cierre.'
+        ),
+    }
+
+
 def impacto_nucleo(org, *, ahora=None) -> dict:
     ahora = ahora or timezone.now()
     inicio = ahora - timedelta(days=DIAS_PERIODO)
@@ -81,6 +111,7 @@ def impacto_nucleo(org, *, ahora=None) -> dict:
         Estudiante.objects.filter(cliente=org, activo=True).only(
             'id', 'telefono', 'genero', 'edad',
             'rural_disperso', 'pdet', 'consentimiento_impacto',
+            'impacto_respuestas',
         )
     )
     ids = [e.id for e in estudiantes]
@@ -218,9 +249,17 @@ def impacto_nucleo(org, *, ahora=None) -> dict:
     }
 
     por_codigo = {'S1': s1, 'S2': s2}
+    ids_muestra = {e.id for e in muestra}
     for codigo, nombre, evidencia, nota in _PENDIENTES:
         rotulo = 'contribución' if codigo in ('E3', 'A2') else ''
-        por_codigo[codigo] = _pendiente(codigo, nombre, evidencia, nota, rotulo=rotulo)
+        if codigo in ('E1', 'E2', 'A1', 'A3'):
+            por_codigo[codigo] = _indicador_capturado(
+                codigo, estudiantes, ids_muestra, nombre, evidencia, nota,
+            )
+        else:
+            por_codigo[codigo] = _pendiente(
+                codigo, nombre, evidencia, nota, rotulo=rotulo,
+            )
 
     por_codigo['G1'] = g1
 

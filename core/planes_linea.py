@@ -67,10 +67,12 @@ def _plan_organizacion(telefono: str) -> str:
     from django.db.models import Q
 
     from core.models import Estudiante
+    from core.utils_telefono import variantes_telefono
 
+    tels = variantes_telefono(telefono) or [telefono]
     return (
         Estudiante.objects.filter(
-            telefono=telefono,
+            telefono__in=tels,
             cliente__activo=True,
             cliente__plan_linea_meta__gt='',
         )
@@ -98,12 +100,14 @@ def _plan_grupo(telefono: str) -> str:
     from django.db.models import Q
 
     from core.models_extras import GrupoEstudiantes
+    from core.utils_telefono import variantes_telefono
 
+    tels = variantes_telefono(telefono) or [telefono]
     return (
         GrupoEstudiantes.objects.filter(
             activo=True,
             plan_linea_meta__gt='',
-            estudiantes__telefono=telefono,
+            estudiantes__telefono__in=tels,
             cliente__activo=True,
         )
         .filter(
@@ -143,10 +147,6 @@ def resolver_plan(telefono: str) -> PlanLinea:
     org = _plan_organizacion(tel)
     if org:
         return plan_por_clave(org)
-    from core.linea_registrados import debe_cortar
-
-    if debe_cortar(tel):
-        return SIN_PLAN
     return _plan_default()
 
 
@@ -273,10 +273,6 @@ def explicar_plan(telefono: str) -> dict:
     org = _plan_organizacion(tel)
     if org:
         return _fila_plan(tel, plan_por_clave(org), 'organizacion', '')
-    from core.linea_registrados import debe_cortar
-
-    if debe_cortar(tel):
-        return _fila_plan(tel, SIN_PLAN, 'ninguno', 'no_registrado')
     plan = _plan_default()
     if plan.activo:
         return _fila_plan(tel, plan, 'default', '')

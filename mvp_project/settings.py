@@ -1078,7 +1078,7 @@ LLM_UMBRAL_ECONOMICO = 0.7
 LLM_UMBRAL_ALERTA = 0.8
 LINEA_MAX_MSG_MIN = int(os.environ.get('LINEA_MAX_MSG_MIN', '12'))
 LINEA_MAX_NUEVOS_DIA = int(os.environ.get('LINEA_MAX_NUEVOS_DIA', '300'))
-LINEA_META_SOLO_REGISTRADOS = os.environ.get('LINEA_META_SOLO_REGISTRADOS', 'true').strip().lower() not in (
+LINEA_META_SOLO_REGISTRADOS = os.environ.get('LINEA_META_SOLO_REGISTRADOS', 'false').strip().lower() not in (
     '0', 'false', 'no', 'off',
 )
 HABEAS_TEXTO_VERSION = '2026-10-04'

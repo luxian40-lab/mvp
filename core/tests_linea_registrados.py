@@ -6,7 +6,6 @@ from django.test import TestCase, override_settings
 from core.habeas_respuestas import aplicar_respuesta_habeas
 from core.linea_registrados import debe_cortar, permitir_numero_nuevo
 from core.models import Cliente, Estudiante
-from core.planes_linea import resolver_plan
 from core.sandbox_menu import dispatch_sandbox_menu
 
 SANDBOX = '573009998888'
@@ -36,14 +35,13 @@ def _payload(tel, body):
 class SoloRegistradosTests(TestCase):
     def test_desconocido_no_llama_al_modelo(self):
         tel = '573009990001'
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as envio:
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             with patch('core.openai_compat.completar_chat') as chat:
                 salida = dispatch_sandbox_menu(_payload(tel, 'quiero el curso'))
         self.assertEqual(salida, 'handled')
         chat.assert_not_called()
-        self.assertIn('programas eki', envio.call_args.args[2])
+        habeas.assert_called_once()
         self.assertFalse(Estudiante.objects.filter(telefono=tel).exists())
-        self.assertFalse(resolver_plan(tel).activo)
 
     def test_campana_sigue_hasta_la_cedula(self):
         org = Cliente.objects.create(

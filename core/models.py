@@ -764,6 +764,12 @@ class Estudiante(models.Model):
         verbose_name='Área de la unidad (ha)',
         help_text='Para A2 cuando exista práctica adoptada. No se publica como causa.',
     )
+    impacto_respuestas = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Respuestas de impacto (agentes)',
+        help_text='Captura B por código (E1, E2, A1, A3). No se inventa el dato.',
+    )
 
     # ORGANIZACIÓN (Multi-tenant B2B)
     cliente = models.ForeignKey(

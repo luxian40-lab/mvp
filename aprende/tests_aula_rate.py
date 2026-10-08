@@ -202,7 +202,7 @@ class AulaRateTests(_Base):
         self.assertEqual(cuarto.status_code, 200)
         self.assertTrue(CodigoAccesoAprende.objects.filter(codigo='777888').exists())
 
-    def test_redis_caido_rechaza(self):
+    def test_redis_caido_honra_codigo_valido(self):
         self._codigo('121212')
         with override_settings(AULA_LOGIN_PREFIJO=self.prefijo), \
                 patch('core.locks._cliente_redis', side_effect=ConnectionError('redis')), \
@@ -211,9 +211,9 @@ class AulaRateTests(_Base):
                 'codigo': '121212',
                 'accion': 'codigo',
             })
-        self.assertEqual(r.status_code, 200)
-        self.assertIn('inválido', r.content.decode())
-        self.assertTrue(CodigoAccesoAprende.objects.filter(codigo='121212').exists())
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/aprende/estudiante/clave/', r['Location'])
+        self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='121212').exists())
         self.assertTrue(any('rate_limit_redis_caido' in linea for linea in logs.output))
 
 

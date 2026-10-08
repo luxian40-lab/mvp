@@ -92,6 +92,12 @@ def _aplicar_sandbox_menu_cuerpo(data):
             try:
                 if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
                     _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
+                try:
+                    from core.impacto_captura import enviar_cierre_pendiente
+
+                    enviar_cierre_pendiente(data, 'nat')
+                except Exception:
+                    logger.exception('sandbox_impacto_nat_cierre_fail')
             except Exception:
                 logger.exception('sandbox_nat_proceso_fail')
                 try:

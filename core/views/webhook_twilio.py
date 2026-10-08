@@ -22,6 +22,39 @@ from .twilio_transporte import (
 )
 from .ventana_drip import _pregunta_abierta_final_pendiente
 
+def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
+    """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""
+    from core.sandbox_canal import inbound_es_meta
+
+    if inbound_es_meta(post_data):
+        return False
+    status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
+    if status:
+        return False
+    from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+    from core.habeas_respuestas import texto_desde_webhook_twilio
+    from core.nati import normalizar_telefono_whatsapp
+    from core.utils_telefono import estudiante_por_telefono
+
+    body = texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '')
+    if not mensaje_pide_acceso_aula(body):
+        return False
+    est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
+    if est is None:
+        return False
+    if (est.estado_chat or '') == 'ACTIVO' or (est.estado_onboarding or '') == 'completado':
+        return False
+    try:
+        texto = emitir_acceso_desde_whatsapp(est)
+    except Exception:
+        logger.exception('aula_twilio_emit_fail')
+        return False
+    from core.utils import enviar_whatsapp_twilio
+
+    enviar_whatsapp_twilio(post_data.get('From', ''), texto, agente_evento='aula_twilio')
+    return True
+
+
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
@@ -29,6 +62,8 @@ def _procesar_twilio_webhook(post_data):
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
     with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
+        if canal == CANAL_TWILIO and _intentar_aula_twilio_fuera_de_activo(post_data):
+            return None
         return _procesar_twilio_webhook_cuerpo(post_data)
 
 def _procesar_twilio_webhook_cuerpo(post_data):
