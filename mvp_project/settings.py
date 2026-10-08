@@ -884,7 +884,7 @@ RATE_LIMIT_EXCLUDE_PATHS = [
 ]
 
 # Aprende OTP / código *aula* (login web)
-APRENDE_ACCESO_WA_TTL = int(os.environ.get('APRENDE_ACCESO_WA_TTL', '600') or 600)
+APRENDE_ACCESO_WA_TTL = int(os.environ.get('APRENDE_ACCESO_WA_TTL', '1800') or 1800)
 APRENDE_OTP_MAX_ATTEMPTS = int(os.environ.get('APRENDE_OTP_MAX_ATTEMPTS', '5') or 5)
 APRENDE_OTP_LOCKOUT_SECONDS = int(os.environ.get('APRENDE_OTP_LOCKOUT_SECONDS', '900') or 900)
 APRENDE_OTP_IP_MAX_ATTEMPTS = int(os.environ.get('APRENDE_OTP_IP_MAX_ATTEMPTS', '20') or 20)

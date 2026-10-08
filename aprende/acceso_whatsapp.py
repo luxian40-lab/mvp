@@ -48,6 +48,9 @@ def _otp_emit_window() -> int:
 MENSAJE_CODIGO_RECHAZADO = (
     'Código inválido o vencido. Escribe *aula* por WhatsApp para pedir uno nuevo.'
 )
+MENSAJE_DEMASIADOS_INTENTOS = (
+    'Hay muchos intentos seguidos. Espere un minuto y pruebe de nuevo el código de *aula*.'
+)
 
 
 def client_ip_from_request(request) -> str:
@@ -154,29 +157,48 @@ def _aula_int(nombre: str, default: int) -> int:
         return default
 
 
-def verificar_codigo_web(
-    codigo: str,
-    *,
-    ip: str | None = None,
-    documento: str = '',
-) -> tuple[Optional[int], str]:
-    """Canjea el código de aula.
+def _aware(dt):
+    if dt is None:
+        return None
+    if timezone.is_naive(dt):
+        return timezone.make_aware(dt, timezone.get_default_timezone())
+    return dt
 
-    Redis caído no bloquea un código válido en BD: se salta el cupo y
-    se canjea. El cupo vuelve cuando Redis responde.
-    """
+
+def _codigo_vigente(row) -> bool:
+    creado = _aware(getattr(row, 'creado', None))
+    if creado is None:
+        return False
+    return creado >= timezone.now() - timedelta(seconds=_ttl())
+
+
+def _fila_codigo(raw: str):
     import hmac
 
     from aprende.models import CodigoAccesoAprende
+
+    if len(raw) != 6:
+        return None
+    row = (
+        CodigoAccesoAprende.objects.select_related('estudiante')
+        .filter(codigo=raw)
+        .first()
+    )
+    if row is None:
+        return None
+    if not hmac.compare_digest(row.codigo.encode('utf-8'), raw.encode('utf-8')):
+        return None
+    return row
+
+
+def _cupo_agotado(ip: str | None, estudiante_id: int | None) -> bool:
+    """True si este fallo ya no debe seguir adivinando. Un OTP válido no pasa por aquí."""
     from core.locks import telefono_hash
     from core.rate_limit import hit
 
-    mensaje = MENSAJE_CODIGO_RECHAZADO
     prefijo = _aula_prefijo()
     ventana = _aula_int('AULA_LOGIN_VENTANA_SEG', 600)
     ip_hash = telefono_hash(ip or 'sin-ip')
-    est_hash = ''
-    redis_vivo = True
 
     _ok_global, n_global = hit(
         f'{prefijo}:global',
@@ -184,9 +206,9 @@ def verificar_codigo_web(
         ventana,
     )
     if n_global < 0:
-        redis_vivo = False
         logger.warning('aula_login_redis_caido_otp_en_bd ip_hash=%s', ip_hash)
-    elif n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
+        return False
+    if n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
         logger.warning('aula_login_ataque_probable')
         try:
             from core.locks import _cliente_redis
@@ -198,26 +220,57 @@ def verificar_codigo_web(
             )
         except Exception:
             logger.exception('rate_limit_redis_caido')
-            redis_vivo = False
 
     estricto = False
-    if redis_vivo:
-        try:
-            from core.locks import _cliente_redis
+    try:
+        from core.locks import _cliente_redis
 
-            estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
-        except Exception:
-            logger.exception('rate_limit_redis_caido')
-            redis_vivo = False
+        estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
+    except Exception:
+        logger.exception('rate_limit_redis_caido')
+        return False
 
-    if redis_vivo:
-        limite_ip = 3 if estricto else _aula_int('AULA_LOGIN_MAX_POR_IP', 10)
-        ok_ip, n_ip = hit(f'{prefijo}:ip:{ip_hash}', limite_ip, ventana)
-        if n_ip < 0 or not ok_ip:
-            logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
-            return None, mensaje
+    limite_ip = 3 if estricto else _aula_int('AULA_LOGIN_MAX_POR_IP', 10)
+    ok_ip, n_ip = hit(f'{prefijo}:ip:{ip_hash}', limite_ip, ventana)
+    if n_ip < 0 or not ok_ip:
+        logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
+        return True
 
+    if estudiante_id:
+        est_hash = telefono_hash(str(estudiante_id))
+        tope_est = _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5)
+        ok_est, n_est = hit(
+            f'{prefijo}:est:{est_hash}',
+            tope_est,
+            ventana,
+        )
+        if n_est >= tope_est:
+            from aprende.models import CodigoAccesoAprende
+
+            CodigoAccesoAprende.objects.filter(estudiante_id=estudiante_id).delete()
+        if n_est < 0 or not ok_est:
+            logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
+            return True
+    return False
+
+
+def verificar_codigo_web(
+    codigo: str,
+    *,
+    ip: str | None = None,
+    documento: str = '',
+) -> tuple[Optional[int], str]:
+    """Canjea el código de aula.
+
+    Un código vigente en BD entra aunque la IP del proxy ya haya fallado.
+    El cupo solo cuenta intentos inválidos. Redis caído no bloquea un OTP válido.
+    """
+    from core.locks import telefono_hash
     from core.models import Estudiante
+
+    mensaje = MENSAJE_CODIGO_RECHAZADO
+    ip_hash = telefono_hash(ip or 'sin-ip')
+    raw = re.sub(r'\D', '', (codigo or '').strip())
 
     estudiante = None
     if getattr(settings, 'AULA_LOGIN_REQUIERE_DOCUMENTO', False):
@@ -225,55 +278,38 @@ def verificar_codigo_web(
         if doc:
             estudiante = Estudiante.objects.filter(cedula=doc, activo=True).first()
         if estudiante is None:
+            if _cupo_agotado(ip, None):
+                return None, MENSAJE_DEMASIADOS_INTENTOS
             logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
             return None, mensaje
-        est_hash = telefono_hash(str(estudiante.pk))
-        ok_est, n_est = True, 0
-        if redis_vivo:
-            ok_est, n_est = hit(
-                f'{prefijo}:est:{est_hash}',
-                _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5),
-                ventana,
-            )
-            if n_est < 0 or not ok_est:
-                CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
-                logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
-                return None, mensaje
-    else:
-        ok_est, n_est = True, 0
 
-    raw = re.sub(r'\D', '', (codigo or '').strip())
-    if len(raw) != 6:
-        logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
-        return None, mensaje
-
-    row = (
-        CodigoAccesoAprende.objects.select_related('estudiante')
-        .filter(codigo=raw)
-        .first()
-    )
-    if row and not hmac.compare_digest(row.codigo.encode('utf-8'), raw.encode('utf-8')):
-        row = None
+    row = _fila_codigo(raw)
     if row and estudiante is not None and row.estudiante_id != estudiante.pk:
         row = None
-    if not row or row.creado < timezone.now() - timedelta(seconds=_ttl()):
-        if row:
-            row.delete()
-        if estudiante is not None and n_est >= _aula_int('AULA_LOGIN_MAX_POR_ESTUDIANTE', 5):
-            CodigoAccesoAprende.objects.filter(estudiante=estudiante).delete()
-        logger.warning('aula_login_fallido ip_hash=%s est_hash=%s', ip_hash, est_hash)
-        return None, mensaje
+    if row and not _codigo_vigente(row):
+        row.delete()
+        row = None
+        logger.warning('aula_login_otp_vencido ip_hash=%s', ip_hash)
+    if row:
+        eid = int(row.estudiante_id)
+        est_hash = telefono_hash(str(eid))
+        row.delete()
+        if getattr(settings, 'AULA_LOGIN_REQUIERE_DOCUMENTO', False):
+            try:
+                from core.locks import _cliente_redis
 
-    eid = int(row.estudiante_id)
-    row.delete()
-    if est_hash:
-        try:
-            from core.locks import _cliente_redis
+                _cliente_redis().delete(f'{_aula_prefijo()}:est:{est_hash}')
+            except Exception:
+                logger.exception('rate_limit_redis_caido')
+        logger.info('aula_login_ok est_id=%s', eid)
+        return eid, ''
 
-            _cliente_redis().delete(f'{prefijo}:est:{est_hash}')
-        except Exception:
-            logger.exception('rate_limit_redis_caido')
-    return eid, ''
+    est_id = int(estudiante.pk) if estudiante is not None else None
+    if _cupo_agotado(ip, est_id):
+        return None, MENSAJE_DEMASIADOS_INTENTOS
+    logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
+    return None, mensaje
+
 
 def next_aprende_seguro(raw: Optional[str]) -> str:
     nxt = (raw or '').strip() or '/aprende/estudiante/'

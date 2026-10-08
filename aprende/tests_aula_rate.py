@@ -123,8 +123,7 @@ class AulaRateTests(_Base):
                 self.assertIn(frase, r.content.decode())
         self.assertFalse(CodigoAccesoAprende.objects.filter(estudiante=self.est).exists())
 
-    def test_once_desde_una_ip_bloquea_sin_gastar_el_codigo(self):
-        row = self._codigo('111222')
+    def test_once_desde_una_ip_bloquea_codigos_falsos(self):
         with override_settings(
             AULA_LOGIN_MAX_POR_IP=10,
             AULA_LOGIN_PREFIJO=self.prefijo,
@@ -132,11 +131,33 @@ class AulaRateTests(_Base):
             for _ in range(10):
                 self.http.post('/aprende/estudiante/login/', {'codigo': '000000', 'accion': 'codigo'})
             bloqueado = self.http.post('/aprende/estudiante/login/', {
-                'codigo': '111222',
+                'codigo': '000000',
                 'accion': 'codigo',
             })
         self.assertEqual(bloqueado.status_code, 200)
-        self.assertTrue(CodigoAccesoAprende.objects.filter(pk=row.pk).exists())
+        self.assertIn('intentos', bloqueado.content.decode().lower())
+
+    def test_codigo_nuevo_entra_aunque_la_ip_haya_fallado(self):
+        """Prod: todos caen en la IP del proxy. Un OTP fresco no puede decir vencido."""
+        self._codigo('111222')
+        with override_settings(
+            AULA_LOGIN_MAX_POR_IP=2,
+            AULA_LOGIN_PREFIJO=self.prefijo,
+            AULA_LOGIN_MAX_GLOBAL=500,
+        ):
+            for _ in range(2):
+                malo = self.http.post('/aprende/estudiante/login/', {
+                    'codigo': '000000',
+                    'accion': 'codigo',
+                })
+                self.assertEqual(malo.status_code, 200)
+            ok = self.http.post('/aprende/estudiante/login/', {
+                'codigo': '111222',
+                'accion': 'codigo',
+            })
+        self.assertEqual(ok.status_code, 302, ok.content.decode()[:400])
+        self.assertIn('/aprende/estudiante/clave/', ok['Location'])
+        self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='111222').exists())
 
     def test_exito_resetea_estudiante_y_no_la_ip(self):
         from core.locks import _cliente_redis, telefono_hash
@@ -199,14 +220,13 @@ class AulaRateTests(_Base):
                 'accion': 'codigo',
             })
         self.assertTrue(any('aula_login_ataque_probable' in linea for linea in logs.output))
-        self.assertEqual(cuarto.status_code, 200)
-        self.assertTrue(CodigoAccesoAprende.objects.filter(codigo='777888').exists())
+        self.assertEqual(cuarto.status_code, 302)
+        self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='777888').exists())
 
     def test_redis_caido_honra_codigo_valido(self):
         self._codigo('121212')
         with override_settings(AULA_LOGIN_PREFIJO=self.prefijo), \
-                patch('core.locks._cliente_redis', side_effect=ConnectionError('redis')), \
-                self.assertLogs('core.rate_limit', level='ERROR') as logs:
+                patch('core.locks._cliente_redis', side_effect=ConnectionError('redis')):
             r = self.http.post('/aprende/estudiante/login/', {
                 'codigo': '121212',
                 'accion': 'codigo',
@@ -214,7 +234,31 @@ class AulaRateTests(_Base):
         self.assertEqual(r.status_code, 302)
         self.assertIn('/aprende/estudiante/clave/', r['Location'])
         self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='121212').exists())
-        self.assertTrue(any('rate_limit_redis_caido' in linea for linea in logs.output))
+
+    def test_codigo_recien_emitido_entra_en_zona_bogota(self):
+        import re
+
+        from django.utils import timezone
+
+        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, verificar_codigo_web
+
+        with override_settings(
+            TIME_ZONE='America/Bogota',
+            USE_TZ=True,
+            AULA_LOGIN_PREFIJO=self.prefijo,
+            AULA_LOGIN_MAX_POR_IP=20,
+            APRENDE_ACCESO_WA_TTL=1800,
+        ):
+            msg = emitir_acceso_desde_whatsapp(self.est)
+            codigo = re.search(r'\*(\d{6})\*', msg).group(1)
+            fila = CodigoAccesoAprende.objects.get(codigo=codigo)
+            self.assertLess(
+                (timezone.now() - fila.creado).total_seconds(),
+                30,
+            )
+            eid, err = verificar_codigo_web(codigo, ip='203.0.113.40')
+        self.assertEqual(err, '')
+        self.assertEqual(eid, self.est.pk)
 
 
 class IpLoginTests(SimpleTestCase):

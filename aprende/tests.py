@@ -90,6 +90,9 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, '*aula*')
         self.assertContains(r, 'Cómo entro')
         self.assertNotContains(r, 'Aula virtual')
+        self.assertNotContains(r, 'hero-aula.png')
+        self.assertNotContains(r, 'hero-estudiante.png')
+        self.assertNotContains(r, 'hero-docente.png')
 
     def test_login_estudiante_celebra_whatsapp(self):
         r = self.http.get('/aprende/estudiante/login/')
@@ -98,6 +101,8 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'name="codigo"')
         self.assertContains(r, '*aula*')
         self.assertContains(r, 'Documento + clave')
+        self.assertNotContains(r, 'hero-estudiante.png')
+        self.assertNotContains(r, 'hero-aula.png')
         self.assertContains(r, 'Olvidé')
         self.assertContains(r, 'og:image')
         self.assertContains(r, 'og-aprende-v3')
@@ -272,8 +277,8 @@ class AprendeWebTests(TestCase):
             self.assertContains(r, 'inválido')
         r_lock = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
         self.assertEqual(r_lock.status_code, 200)
-        self.assertContains(r_lock, 'inválido')
-        self.assertNotContains(r_lock, 'Demasiados')
+        self.assertContains(r_lock, 'intentos')
+        self.assertNotContains(r_lock, 'vencido')
 
     def test_pwa_manifest_y_sw(self):
         r = self.http.get('/aprende/manifest.webmanifest')
