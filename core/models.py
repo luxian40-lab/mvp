@@ -4475,6 +4475,8 @@ class SandboxCanalSesion(models.Model):
         (MODO_COACH, 'Coach'),
         (MODO_IA_CAMPO, 'IA para el campo'),
         (MODO_VENTAS, 'Ventas y comercialización'),
+        ('finanzas', 'Experto en finanzas'),
+        ('cafe', 'Experto en café'),
         (MODO_CURSOS, 'Cursos'),
         ('formacion', 'Formación'),
         ('asesoria', 'Asesoría'),

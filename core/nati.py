@@ -428,7 +428,7 @@ def armar_messages_para_openai(
     return messages
 
 
-def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None) -> str:
+def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None, *, ambito: str = '') -> str:
     """
     Fallback web para Nati con prioridad Colombia.
     Usa OpenAI tools web_search cuando está disponible.
@@ -453,7 +453,21 @@ def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None) -> st
     consulta = (query or "").strip()
     if not consulta:
         return ""
-    consulta = f"{consulta} Colombia agricultura ICA Agrosavia Cenicafe Cenicana MADR"
+    if ambito == 'cafe':
+        consulta = f"{consulta} café Colombia Cenicafé Federación Nacional de Cafeteros ICA"
+        instruccion = (
+            "Resuma fuentes técnicas de café en Colombia (Cenicafé, Federación Nacional "
+            "de Cafeteros, ICA, Agrosavia). Solo hechos verificables; sin inventar. "
+            "No use fuentes de caña ni de Cenicana. "
+            f"Máximo {max_fuentes} referencias breves. Consulta: {consulta}"
+        )
+    else:
+        consulta = f"{consulta} Colombia agricultura ICA Agrosavia Cenicafe Cenicana MADR"
+        instruccion = (
+            "Resuma fuentes técnicas agrícolas para Colombia (ICA, Agrosavia, "
+            "Cenicafé, universidades). Solo hechos verificables; sin inventar. "
+            f"Máximo {max_fuentes} referencias breves. Consulta: {consulta}"
+        )
 
     client = OpenAI(api_key=api_key)
     modelo_web = str(
@@ -463,11 +477,7 @@ def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None) -> st
         resp = client.responses.create(
             model=modelo_web,
             tools=[{"type": "web_search_preview"}],
-            input=(
-                "Resuma fuentes técnicas agrícolas para Colombia (ICA, Agrosavia, "
-                "Cenicafé, universidades). Solo hechos verificables; sin inventar. "
-                f"Máximo {max_fuentes} referencias breves. Consulta: {consulta}"
-            ),
+            input=instruccion,
             temperature=0,
         )
         texto = (getattr(resp, "output_text", "") or "").strip()

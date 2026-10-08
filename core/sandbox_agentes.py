@@ -26,6 +26,7 @@ IDENTIDAD DE ESTA LÍNEA (prevalece sobre el nombre del bot)
   en la planta, plagas, suelo, fertilización y qué revisar en el lote.
 - No responda hábitos, ventas ni cómo usar la inteligencia artificial.
   Ofrezca *menu* para *Coach eki*, *Ventas eki* o *Profesor IA*.
+- Si el cultivo es café, ofrezca *Experto en café*.
 """.strip()
 
 
@@ -41,7 +42,7 @@ def identidad_agronomo_eki():
 def agronomo_sin_nombre_activo() -> bool:
     return _agronomo_sin_nombre.get()
 
-AgenteSandbox = Literal['coach', 'ia_campo', 'ventas', 'finanzas']
+AgenteSandbox = Literal['coach', 'ia_campo', 'ventas', 'finanzas', 'cafe']
 
 # Misma familia de modelo / esfuerzo que Nat (settings BOT_COMERCIAL_*).
 def _modelo() -> str:
@@ -101,8 +102,8 @@ y respeto, como una persona de confianza de la región, no como un manual de aut
 SI LE PREGUNTAN QUÉ PUEDE RESPONDER
 Diga solo su especialidad, con ejemplos: un hábito, la constancia, el primer paso
 de 10 a 15 minutos, el desánimo en el trabajo del campo. No diga que puede ayudar
-"en lo que necesite". Cultivo y plagas: *Agrónomo eki*. Precios y clientes: *Ventas eki*.
-Inteligencia artificial en el celular: *Profesor IA*.
+"en lo que necesite". Cultivo y plagas: *Agrónomo eki*. Café: *Experto en café*.
+Precios y clientes: *Ventas eki*. Inteligencia artificial en el celular: *Profesor IA*.
 
 CÓMO RESPONDER
 1. Reconozca en una frase corta lo que la persona siente (sin dramatizar).
@@ -175,7 +176,8 @@ REGLAS
 - No recomiende instalar aplicaciones ni pagar servicios. Use lo que ya tiene:
   WhatsApp y las notas de voz.
 - Si la persona pide consejo de cultivos, plagas o fertilización, dígale que eso lo
-  resuelve mejor el *Agrónomo eki*, y ofrezca volver al menú (*menu*).
+  resuelve mejor el *Agrónomo eki*. Si el cultivo es café, *Experto en café*.
+  Ofrezca volver al menú (*menu*).
 - Si pide precios, clientes o cómo vender, derívela a *Ventas eki*.
 - Si no sabe algo, dígalo con honestidad y no invente.
 """.strip()
@@ -283,6 +285,7 @@ REGLAS WHATSAPP
 - Pregunte para que piense (mejor cliente, por qué le compra, objeción más frecuente).
 - Micro-reto de <15 min cuando encaje.
 - Agronomía / plagas / dosis → «Eso lo atiende el *Agrónomo eki* en el menú».
+  Si es café, *Experto en café*.
 - Hábitos / motivación de estudio → *Coach eki*. Inteligencia artificial en el celular → *Profesor IA*.
 - Cada turno debe dejar al menos un resultado: entender al cliente, un prospecto,
   mejor conversación, mejor oferta, defender precio, conversión, recompra, margen
@@ -303,8 +306,9 @@ sencillas, sin tecnicismos.
 SI LE PREGUNTAN QUÉ PUEDE RESPONDER
 Diga solo su especialidad: anotar gastos y ventas, ver si queda ganancia, una deuda,
 un ahorro o un presupuesto corto. No diga que puede ayudar "en lo que necesite".
-Cultivo y plagas: *Agrónomo eki*. Cómo vender y el precio frente al cliente: *Ventas eki*.
-Hábitos: *Coach eki*. Inteligencia artificial en el celular: *Profesor IA*.
+Cultivo y plagas: *Agrónomo eki*. Café: *Experto en café*. Cómo vender y el precio
+frente al cliente: *Ventas eki*. Hábitos: *Coach eki*. Inteligencia artificial en el
+celular: *Profesor IA*.
 
 CÓMO RESPONDER
 1. Reconozca la cuenta o el gasto que la persona nombró.
@@ -315,6 +319,36 @@ LÍMITES
 - No dé consejo de plagas ni de cultivo.
 - No invente tasas, intereses ni cifras que la persona no haya dicho.
 - Si pide cómo conseguir clientes, remita a *Ventas eki* y ofrezca *menu*.
+""".strip()
+
+
+PROMPT_CAFE = """
+ROL
+Usted es el *Experto en café* de eki. No tiene nombre propio.
+Orienta a caficultores de Colombia en la planta, la broca, la roya, el suelo,
+la cosecha y el beneficio. Habla claro, de usted, como un técnico de extensión.
+
+SI LE PREGUNTAN QUÉ PUEDE RESPONDER
+Diga solo café en Colombia. No diga que puede ayudar "en lo que necesite".
+Otro cultivo o plaga que no sea de café: *Agrónomo eki*. Precios y clientes:
+*Ventas eki*. Gastos y deudas: *Experto en finanzas*. Hábitos: *Coach eki*.
+
+CÓMO RESPONDER
+1. Reconozca el problema de café que la persona nombró.
+2. Dé UNA sola revisión para hoy, solo si el contexto trae una fuente.
+3. Cierre con una pregunta concreta (qué ve en el grano, en la hoja o en el beneficio).
+
+FUENTES
+- Si el contexto trae FUENTE INSTITUCIONAL AGROSAVIA, FUENTES WEB CAFÉ COLOMBIA
+  o FUENTE INSTITUCIONAL FAO, use solo eso para el manejo y atribuya en una frase
+  (según AGROSAVIA, Cenicafé, la Federación Nacional de Cafeteros, el ICA o la FAO).
+- Si no hay ninguna de esas fuentes, diga que no tiene la cartilla a mano.
+  No invente dosis, producto ni manejo.
+- No pegue la cartilla completa.
+
+LÍMITES
+- No hable de plátano, cacao, pastos ni de otro cultivo.
+- No dé precios ni consejo de ventas.
 """.strip()
 
 
@@ -329,6 +363,7 @@ def prompt_para(agente: AgenteSandbox) -> str:
         'ia_campo': PROMPT_IA_CAMPO,
         'ventas': PROMPT_VENTAS,
         'finanzas': PROMPT_FINANZAS,
+        'cafe': PROMPT_CAFE,
     }[agente]
     return con_registro(cuerpo)
 
@@ -339,6 +374,7 @@ def nombre_agente(agente: AgenteSandbox) -> str:
         'ia_campo': 'Profesor IA',
         'ventas': 'Ventas eki',
         'finanzas': 'Experto en finanzas',
+        'cafe': 'Experto en café',
     }[agente]
 
 
@@ -379,6 +415,14 @@ def presentacion_agente(agente: str, *, reinicio: bool = False) -> str:
             "ahorros y si lo que vende le deja ganancia.\n\n"
             "No doy consejo de plagas ni de cómo conseguir clientes.\n\n"
             "¿Qué gasto o qué deuda quiere revisar hoy?"
+        )
+    elif agente == 'cafe':
+        cuerpo = (
+            f"{corte}*Experto en café*\n\n"
+            "Le oriento en el café de Colombia: la planta, la broca, la roya, "
+            "el suelo y el beneficio.\n\n"
+            "No hablo de otros cultivos ni de precios.\n\n"
+            "¿Qué está viendo hoy en el cafetal?"
         )
     else:
         cuerpo = (
@@ -492,6 +536,20 @@ def responder_agente_sandbox(
     except Exception:
         logger.exception('sandbox_conocimiento_fail agente=%s', agente)
         extra = ''
+    if agente == 'ventas':
+        try:
+            from core.fao_connector import enriquecer_contexto_fao
+
+            extra, _meta_fao = enriquecer_contexto_fao(q, extra)
+        except Exception:
+            logger.exception('sandbox_fao_fail agente=%s', agente)
+    if agente == 'cafe':
+        try:
+            from core.cafe_fuentes import enriquecer_contexto_cafe
+
+            extra, _meta_cafe = enriquecer_contexto_cafe(q, extra)
+        except Exception:
+            logger.exception('sandbox_cafe_fuentes_fail agente=%s', agente)
     if extra:
         sistema = f"{sistema}\n\n{extra}"
     messages = [{'role': 'system', 'content': sistema}]
@@ -576,6 +634,12 @@ def _respuesta_si_falla(agente: AgenteSandbox, pregunta: str) -> str:
             "Hoy anote en un papel tres cifras: lo que entró, lo que gastó "
             "y lo que debe.\n\n"
             "¿Cuál de esas tres conoce ya?"
+        )
+    if agente == 'cafe':
+        return (
+            f"Su caso: «{tema}».\n\n"
+            "Ahora no tengo la cartilla a mano, así que no le indico manejo ni dosis.\n\n"
+            "¿Lo revisamos de nuevo en un momento?"
         )
     return (
         f"Su duda: «{tema}».\n\n"

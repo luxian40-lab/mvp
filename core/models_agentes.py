@@ -10,10 +10,12 @@ from django.db import models
 class ConocimientoAgente(models.Model):
     AGENTE_TODOS = 'todos'
     AGENTE_CHOICES = [
-        (AGENTE_TODOS, 'Todos (Coach, Profe IA, Ventas)'),
+        (AGENTE_TODOS, 'Todos (Coach, Profe IA, Ventas, Finanzas, Café)'),
         ('coach', 'Coach (Lina)'),
         ('ia_campo', 'Profe IA'),
         ('ventas', 'Ventas'),
+        ('finanzas', 'Experto en finanzas'),
+        ('cafe', 'Experto en café'),
     ]
     TIPO_CONOCIMIENTO = 'conocimiento'
     TIPO_INSTRUCCION = 'instruccion'

@@ -490,7 +490,8 @@ class ContadorAsesorTests(TestCase):
             self.assertEqual(lista['interactive']['type'], 'list')
             filas = [r['title'] for r in lista['interactive']['action']['sections'][0]['rows']]
             self.assertEqual(filas, [
-                'Agrónomo eki', 'Coach eki', 'Profesor IA', 'Ventas eki', 'Experto en finanzas',
+                'Agrónomo eki', 'Coach eki', 'Profesor IA', 'Ventas eki',
+                'Experto en finanzas', 'Experto en café',
             ])
             self.assertIn('hasta 30 preguntas', lista['interactive']['body']['text'])
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
