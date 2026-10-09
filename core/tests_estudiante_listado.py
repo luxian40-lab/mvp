@@ -169,6 +169,7 @@ class EstudianteListadoAdminTests(TestCase):
         self.assertNotIn('Finalizado', estado)
         self.assertNotIn('Completado', estado)
         self.assertIn('BuenasListadoQa · Completado', curso)
+        self.assertIn('Habeas', curso)
         self.assertIn('Diploma', curso)
         self.assertIn(
             reverse('admin:learning_certificado_change', args=[self.cert.pk]),
@@ -183,9 +184,15 @@ class EstudianteListadoAdminTests(TestCase):
 
     def test_b2c_sin_curso(self):
         est = self._qs().get(pk=self.est_b2c.pk)
-        self.assertIn('B2C', str(self.admin.cliente_nombre(est)))
-        self.assertEqual(str(self.admin.curso_celda(est)), 'Sin curso')
-        self.assertIn('Chat', str(self.admin.estudiante_celda(est)))
+        persona = str(self.admin.estudiante_celda(est))
+        self.assertIn('B2C', persona)
+        self.assertIn(f'+{est.telefono}', persona)
+        self.assertNotIn('Chat', persona)
+        self.assertIn(est.nombre, persona)
+        curso = str(self.admin.curso_celda(est))
+        self.assertIn('Sin curso', curso)
+        self.assertIn('Chat', curso)
+        self.assertIn('Activo', curso)
 
     def test_changelist_totales_siguen_busqueda_y_filtros(self):
         url = reverse('admin:core_estudiante_changelist')
@@ -198,6 +205,13 @@ class EstudianteListadoAdminTests(TestCase):
         self.assertContains(r, '1 sin organización')
         self.assertContains(r, 'LiderazgoListadoQa · Mód. 3/5')
         self.assertContains(r, 'Habeas')
+        self.assertContains(r, f'+{self.est_dos.telefono}')
+        self.assertContains(r, self.cli.nombre)
+        self.assertNotContains(r, self.est_dos.cedula)
+
+        por_doc = self.http.get(url, {'q': self.est_dos.cedula})
+        self.assertContains(por_doc, 'Andreina')
+        self.assertNotContains(por_doc, 'Alexander')
 
         filtrado = self.http.get(url, {
             'q': self.tag,

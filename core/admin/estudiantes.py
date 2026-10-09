@@ -217,32 +217,29 @@ class EstudianteAdmin(admin.ModelAdmin):
     form = EstudianteAdminForm
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
-    # Seis columnas: ficha+chat, documento, WhatsApp, organización, estado del chat, un curso.
+    # Dos celdas: la persona (nombre, org, WhatsApp) y su curso (módulo, estado, chat).
     list_display = (
         'estudiante_celda',
-        'cedula_formateada',
-        'telefono_formateado',
-        'cliente_nombre',
-        'estado_chat_celda',
         'curso_celda',
     )
     list_display_links = None
     list_before_template = 'admin/estudiante_list_resumen.html'
     list_filter = (
-        'cliente',
         TipoOrganizacionEstudianteFilter,
         EstadoChatEstudianteFilter,
-        'activo',
         EstudianteSinProgresoFilter,
+        'activo',
         CursosEstudianteFilter,
+        'cliente',
         GruposEstudianteFilter,
         'departamento',
     )
+    list_filter_submit = True
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
     search_help_text = 'Buscar por nombre, cédula o WhatsApp'
     list_select_related = ('cliente',)
     list_per_page = 50
-    ordering = ('cliente__nombre', 'nombre')
+    ordering = ('nombre',)
     # Primero ops de datos; WhatsApp al final del menú Acciones.
     actions = [
         'asignar_a_grupo_accion',
@@ -328,15 +325,6 @@ class EstudianteAdmin(admin.ModelAdmin):
                 level=messages.SUCCESS,
             )
     
-    def cedula_formateada(self, obj):
-        """Muestra cédula con tipo (sin emoji en listado)."""
-        return format_html(
-            '<span style="font-variant-numeric:tabular-nums;">{} {}</span>',
-            obj.tipo_documento,
-            obj.cedula
-        )
-    cedula_formateada.short_description = "Documento"
-    
     def mostrar_cursos_inscritos(self, obj):
         """Muestra los cursos en los que está inscrito el estudiante"""
         progresos = ProgresoEstudiante.objects.filter(estudiante=obj).select_related('curso')
@@ -371,11 +359,6 @@ class EstudianteAdmin(admin.ModelAdmin):
         )
     cursos_inscritos.short_description = "📚 Cursos"
     
-    def telefono_formateado(self, obj):
-        """Muestra teléfono con formato WhatsApp"""
-        return f"+{obj.telefono}"
-    telefono_formateado.short_description = "WhatsApp"
-    
     def cliente_nombre(self, obj):
         """Organización, o B2C cuando no hay cliente."""
         if obj.cliente_id and obj.cliente:
@@ -390,12 +373,13 @@ class EstudianteAdmin(admin.ModelAdmin):
         if not obj or not obj.pk:
             return '—'
         ficha = reverse('admin:core_estudiante_change', args=[obj.pk])
-        chat = reverse('conversaciones') + f'?estudiante={obj.pk}'
         return format_html(
-            '<a href="{}">{}</a> · <a href="{}">Chat</a>',
+            '<a class="eki-est-nombre" href="{}">{}</a>'
+            '<div class="eki-est-meta">{} · +{}</div>',
             ficha,
             obj.nombre,
-            chat,
+            self.cliente_nombre(obj),
+            obj.telefono,
         )
     estudiante_celda.short_description = 'Estudiante'
     estudiante_celda.admin_order_field = 'nombre'
@@ -431,22 +415,31 @@ class EstudianteAdmin(admin.ModelAdmin):
             getattr(self, '_eki_curso_filter', ''),
         )
         if elegido is None or not elegido.curso_id:
-            return 'Sin curso'
-        html = format_html(
-            '{} · {}',
-            elegido.curso.nombre,
-            detalle_progreso(elegido),
-        )
-        if extra:
-            html = format_html(
-                '{} <span class="eki-est-extra">+{}</span>',
-                html,
-                extra,
+            cuerpo = 'Sin curso'
+        else:
+            cuerpo = format_html(
+                '{} · {}',
+                elegido.curso.nombre,
+                detalle_progreso(elegido),
             )
-        diploma = self._enlace_diploma(obj, elegido.curso_id)
-        if diploma:
-            html = format_html('{}{}', html, diploma)
-        return html
+            if extra:
+                cuerpo = format_html(
+                    '{} <span class="eki-est-extra">+{}</span>',
+                    cuerpo,
+                    extra,
+                )
+            diploma = self._enlace_diploma(obj, elegido.curso_id)
+            if diploma:
+                cuerpo = format_html('{}{}', cuerpo, diploma)
+        if not obj or not obj.pk:
+            return cuerpo
+        chat = reverse('conversaciones') + f'?estudiante={obj.pk}'
+        return format_html(
+            '{}<div class="eki-est-meta">{} · <a href="{}">Chat</a></div>',
+            cuerpo,
+            self.estado_chat_celda(obj),
+            chat,
+        )
     curso_celda.short_description = 'Curso'
 
     def get_queryset(self, request):

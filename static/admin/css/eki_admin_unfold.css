@@ -1785,6 +1785,16 @@ input[type="file"]::-webkit-file-upload-button:hover {
 .eki-est-estado--onboarding { color: #5c4d6e; }
 .eki-est-extra { color: #6b6575; }
 .eki-est-b2c { font-weight: 600; }
+.eki-est-nombre {
+  font-weight: 650;
+  color: var(--eki-accent-deep, #5F3A6E);
+}
+.eki-est-meta {
+  margin-top: 0.15rem;
+  color: #6b6575;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
 
 html.dark .eki-est-estado--activo,
 html[data-theme="dark"] .eki-est-estado--activo,
@@ -1806,6 +1816,9 @@ html[data-eki-tone="noche"] .eki-est-estado--datos,
 html[data-eki-tone="noche"] .eki-est-estado--onboarding { color: #d4c6e0; }
 html.dark .eki-est-extra,
 html[data-theme="dark"] .eki-est-extra,
-html[data-eki-tone="noche"] .eki-est-extra { color: #b7adbf; }
+html[data-eki-tone="noche"] .eki-est-extra,
+html.dark .eki-est-meta,
+html[data-theme="dark"] .eki-est-meta,
+html[data-eki-tone="noche"] .eki-est-meta { color: #b7adbf; }
 
 

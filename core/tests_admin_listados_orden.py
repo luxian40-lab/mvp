@@ -63,33 +63,37 @@ class AdminListadosOrdenTests(SimpleTestCase):
 
     def test_estudiante_orden_y_columnas(self):
         adm = EstudianteAdmin(Estudiante, site)
-        self.assertEqual(adm.ordering, ('cliente__nombre', 'nombre'))
-        self.assertEqual(adm.list_filter[0], 'cliente')
+        self.assertEqual(adm.ordering, ('nombre',))
         self.assertEqual(
             adm.list_display,
-            (
-                'estudiante_celda',
-                'cedula_formateada',
-                'telefono_formateado',
-                'cliente_nombre',
-                'estado_chat_celda',
-                'curso_celda',
-            ),
+            ('estudiante_celda', 'curso_celda'),
         )
-        self.assertEqual(len(adm.list_display), 6)
         self.assertIsNone(adm.list_display_links)
+        self.assertNotIn('cedula_formateada', adm.list_display)
+        self.assertNotIn('telefono_formateado', adm.list_display)
         self.assertNotIn('cursos_inscritos', adm.list_display)
         self.assertNotIn('activo', adm.list_display)
         self.assertNotIn('conversacion_link', adm.list_display)
         self.assertNotIn('municipio', adm.list_display)
         self.assertNotIn('fecha_registro', adm.list_display)
+        self.assertIn('cedula', adm.search_fields)
+        self.assertTrue(adm.list_filter_submit)
+        self.assertEqual(
+            adm.list_filter[:3],
+            (
+                TipoOrganizacionEstudianteFilter,
+                EstadoChatEstudianteFilter,
+                EstudianteSinProgresoFilter,
+            ),
+        )
+        self.assertLess(
+            adm.list_filter.index(TipoOrganizacionEstudianteFilter),
+            adm.list_filter.index('cliente'),
+        )
         self.assertEqual(adm.list_select_related, ('cliente',))
         self.assertEqual(adm.actions[0], 'asignar_a_grupo_accion')
         self.assertIn('Buscar por nombre', adm.search_help_text)
-        self.assertIn(TipoOrganizacionEstudianteFilter, adm.list_filter)
-        self.assertIn(EstadoChatEstudianteFilter, adm.list_filter)
         self.assertIn('activo', adm.list_filter)
-        self.assertIn(EstudianteSinProgresoFilter, adm.list_filter)
         self.assertIn(CursosEstudianteFilter, adm.list_filter)
         self.assertIn(GruposEstudianteFilter, adm.list_filter)
         self.assertIn('departamento', adm.list_filter)
