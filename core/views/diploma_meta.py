@@ -1,5 +1,15 @@
-"""Diploma por Meta. El aula de Twilio no se entera: solo se desvía este envío."""
+"""Diploma por Meta.
+
+El aula es Aprende: el mismo curso. Twilio sigue entregando módulos y audio.
+Este módulo solo desvía la imagen del diploma, y la plantilla cuando hay nombre.
+"""
 from __future__ import annotations
+
+import logging
+
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 _MARCAS_DIPLOMA = (
     '¡tu certificado',
@@ -35,4 +45,45 @@ def entregar_si_es_diploma(
         media_url=media_url,
         canal_evento='certificado',
         agente_evento=agente_evento or 'diploma_meta',
+    )
+
+
+def nombre_plantilla_diploma() -> str:
+    """Entorno gana. Si está vacío, el nombre que se edita en Configuración Global."""
+    env = (getattr(settings, 'META_TEMPLATE_DIPLOMA', '') or '').strip()
+    if env:
+        return env
+    try:
+        from core.models import ConfiguracionGlobal
+        return (ConfiguracionGlobal.get_solo().meta_plantilla_diploma or '').strip()
+    except Exception:
+        logger.exception('diploma_meta_nombre_plantilla')
+        return ''
+
+
+def enviar_diploma_plantilla_meta(
+    telefono,
+    media_url,
+    *,
+    nombre_estudiante: str = '',
+    curso: str = '',
+    codigo: str = '',
+) -> dict | None:
+    """None si no hay plantilla configurada. El caller sigue con la imagen de sesión."""
+    nombre = nombre_plantilla_diploma()
+    if not nombre or not str(media_url or '').strip():
+        return None
+    from core.sandbox_canal import enviar_meta_plantilla_imagen
+    idioma = (getattr(settings, 'META_TEMPLATE_DIPLOMA_IDIOMA', 'es') or 'es').strip() or 'es'
+    return enviar_meta_plantilla_imagen(
+        telefono,
+        nombre,
+        media_url,
+        {
+            '1': (nombre_estudiante or 'estudiante')[:1024],
+            '2': (curso or 'curso')[:1024],
+            '3': (codigo or '')[:1024],
+        },
+        idioma=idioma,
+        agente_evento='diploma_meta',
     )

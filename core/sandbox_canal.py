@@ -553,6 +553,44 @@ def enviar_meta_plantilla(
     }, agente=agente_evento)
 
 
+def enviar_meta_plantilla_imagen(
+    telefono: str,
+    nombre: str,
+    media_url: str,
+    variables: dict,
+    *,
+    idioma: str = 'es',
+    agente_evento: str = 'diploma_meta',
+) -> dict:
+    """Plantilla con imagen en el encabezado. Sirve fuera de la ventana de 24 h."""
+    to = _telefono_graph(telefono)
+    if not to:
+        return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
+    nombre = (nombre or '').strip()
+    link = (media_url or '').strip()
+    if not nombre or not link:
+        return {'success': False, 'mensaje_id': None, 'response': 'sin_plantilla'}
+    parameters = []
+    for clave in sorted(variables or {}, key=lambda k: int(k) if str(k).isdigit() else 0):
+        parameters.append({'type': 'text', 'text': str(variables[clave])[:1024]})
+    components = [{
+        'type': 'header',
+        'parameters': [{'type': 'image', 'image': {'link': link}}],
+    }]
+    if parameters:
+        components.append({'type': 'body', 'parameters': parameters})
+    return _post_graph({
+        'messaging_product': 'whatsapp',
+        'to': to,
+        'type': 'template',
+        'template': {
+            'name': nombre,
+            'language': {'code': (idioma or 'es').strip() or 'es'},
+            'components': components,
+        },
+    }, agente=agente_evento)
+
+
 def enviar_meta_botones(
     telefono: str,
     texto: str,

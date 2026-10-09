@@ -856,13 +856,28 @@ Has completado exitosamente el curso:
 
 ¡Comparte tu logro con orgullo! 🌟"""
 
-            resultado, modo_envio = _intentar_enviar_imagen_diploma(
-                estudiante,
-                certificado,
-                caption=mensaje,
-                media_url=media_url,
-                pausa_inicial=0,
+            from core.views.diploma_meta import enviar_diploma_plantilla_meta
+            r_tpl = enviar_diploma_plantilla_meta(
+                estudiante.telefono,
+                media_url,
+                nombre_estudiante=estudiante.nombre,
+                curso=getattr(curso, 'nombre', '') or '',
+                codigo=certificado.codigo_verificacion,
             )
+            if r_tpl and r_tpl.get('success'):
+                resultado, modo_envio = r_tpl, 'plantilla_meta'
+            else:
+                if r_tpl is not None:
+                    logger.warning(
+                        "diploma plantilla Meta no salió; se intenta la imagen de sesión"
+                    )
+                resultado, modo_envio = _intentar_enviar_imagen_diploma(
+                    estudiante,
+                    certificado,
+                    caption=mensaje,
+                    media_url=media_url,
+                    pausa_inicial=0,
+                )
 
         if resultado.get('success'):
             certificado.enviado_whatsapp = True

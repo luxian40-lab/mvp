@@ -136,6 +136,54 @@ class EnvioCertificadosServiceTests(TestCase):
         cert.refresh_from_db()
         self.assertTrue(cert.enviado_whatsapp)
 
+    def _cert_imagen(self):
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        return Certificado.objects.create(
+            estudiante=self.est,
+            curso=self.curso_pres,
+            calificacion_final=100,
+            fecha_inicio=hoy,
+            fecha_completado=hoy,
+            emitido=True,
+            archivo_imagen='certificados/generados/test.png',
+        )
+
+    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value={'success': True, 'mensaje_id': 'wamid.T'})
+    @patch('core.certificado_service._intentar_enviar_imagen_diploma')
+    def test_plantilla_meta_no_manda_imagen_de_sesion(self, imagen, plantilla, _url):
+        from core.certificado_service import enviar_certificado_whatsapp
+
+        cert = self._cert_imagen()
+        self.assertTrue(enviar_certificado_whatsapp(cert))
+        plantilla.assert_called_once()
+        imagen.assert_not_called()
+        cert.refresh_from_db()
+        self.assertTrue(cert.enviado_whatsapp)
+
+    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value={'success': False, 'response': '132001'})
+    @patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+    def test_si_plantilla_meta_falla_cae_a_imagen(self, imagen, plantilla, _url):
+        from core.certificado_service import enviar_certificado_whatsapp
+
+        cert = self._cert_imagen()
+        self.assertTrue(enviar_certificado_whatsapp(cert))
+        plantilla.assert_called_once()
+        imagen.assert_called_once()
+
+    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value=None)
+    @patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+    def test_sin_plantilla_meta_sigue_la_imagen(self, imagen, plantilla, _url):
+        from core.certificado_service import enviar_certificado_whatsapp
+
+        cert = self._cert_imagen()
+        self.assertTrue(enviar_certificado_whatsapp(cert))
+        plantilla.assert_called_once()
+        imagen.assert_called_once()
+
     @patch('core.certificado_presencial_service._enviar_plantilla_twilio_cert', return_value={'success': True})
     @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_plantilla_inicial_marca_pendiente(self, _mock_gen, mock_tpl):

@@ -97,3 +97,57 @@ class PqrsMetaTests(TestCase):
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, 'pendiente')
         self.assertFalse(solicitud.respuesta)
+
+
+class PlantillaDiplomaMetaTests(SimpleTestCase):
+    @override_settings(META_TEMPLATE_DIPLOMA='diploma_eki', META_TEMPLATE_DIPLOMA_IDIOMA='es')
+    @patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.TPL'})
+    def test_encabezado_imagen_y_cuerpo(self, post):
+        from core.views.diploma_meta import enviar_diploma_plantilla_meta
+
+        r = enviar_diploma_plantilla_meta(
+            '573026480629',
+            'https://eki-produccion.s3.amazonaws.com/cert.png',
+            nombre_estudiante='Julian',
+            curso='Innovación',
+            codigo='eki-E26A',
+        )
+        self.assertTrue(r['success'])
+        body = post.call_args.args[0]
+        self.assertEqual(body['type'], 'template')
+        self.assertEqual(body['template']['name'], 'diploma_eki')
+        comps = body['template']['components']
+        self.assertEqual(comps[0]['parameters'][0]['image']['link'], 'https://eki-produccion.s3.amazonaws.com/cert.png')
+        textos = [p['text'] for p in comps[1]['parameters']]
+        self.assertEqual(textos, ['Julian', 'Innovación', 'eki-E26A'])
+
+    @override_settings(META_TEMPLATE_DIPLOMA='')
+    def test_sin_nombre_no_llama_a_graph(self):
+        from core.views.diploma_meta import enviar_diploma_plantilla_meta
+
+        with patch('core.views.diploma_meta.nombre_plantilla_diploma', return_value=''):
+            self.assertIsNone(
+                enviar_diploma_plantilla_meta('573026480629', 'https://eki-produccion.s3.amazonaws.com/cert.png')
+            )
+
+
+class NombrePlantillaDiplomaTests(TestCase):
+    @override_settings(META_TEMPLATE_DIPLOMA='')
+    def test_lee_el_nombre_de_configuracion_global(self):
+        from core.models import ConfiguracionGlobal
+        from core.views.diploma_meta import nombre_plantilla_diploma
+
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.meta_plantilla_diploma = 'diploma_eki'
+        cfg.save(update_fields=['meta_plantilla_diploma'])
+        self.assertEqual(nombre_plantilla_diploma(), 'diploma_eki')
+
+    @override_settings(META_TEMPLATE_DIPLOMA='desde_entorno')
+    def test_el_entorno_gana_sobre_el_admin(self):
+        from core.models import ConfiguracionGlobal
+        from core.views.diploma_meta import nombre_plantilla_diploma
+
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.meta_plantilla_diploma = 'desde_admin'
+        cfg.save(update_fields=['meta_plantilla_diploma'])
+        self.assertEqual(nombre_plantilla_diploma(), 'desde_entorno')

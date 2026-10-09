@@ -387,6 +387,11 @@ META_REENGANCHE_ENABLED = os.environ.get('META_REENGANCHE_ENABLED', 'false').str
 )
 META_TEMPLATE_DRIP_REENGANCHE = os.environ.get('META_TEMPLATE_DRIP_REENGANCHE', '')
 META_TEMPLATE_DRIP_IDIOMA = os.environ.get('META_TEMPLATE_DRIP_IDIOMA', 'es')
+# Vacío = diploma por imagen de sesión (ventana de 24 h). El nombre que se llena
+# en Configuración Global manda si esta variable está vacía.
+# Verificado 2026-10-08: header image + body {{1}} {{2}} {{3}} es el contrato de Graph.
+META_TEMPLATE_DIPLOMA = os.environ.get('META_TEMPLATE_DIPLOMA', '')
+META_TEMPLATE_DIPLOMA_IDIOMA = os.environ.get('META_TEMPLATE_DIPLOMA_IDIOMA', 'es')
 # Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
 # Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:

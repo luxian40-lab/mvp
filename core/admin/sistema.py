@@ -5,9 +5,19 @@ from core.webhook_evento import WebhookFallido
 @admin.register(_ConfiguracionGlobal)
 class ConfiguracionGlobalAdmin(admin.ModelAdmin):
     """Singleton: solo permite editar la fila id=1, no agregar ni borrar."""
-    list_display = ('__str__', 'content_sid_habeas_data_global', 'fecha_actualizacion')
+    list_display = ('__str__', 'content_sid_habeas_data_global', 'meta_plantilla_diploma', 'fecha_actualizacion')
     readonly_fields = ('fecha_actualizacion',)
     fieldsets = (
+        ('Diploma por Meta', {
+            'fields': ('meta_plantilla_diploma',),
+            'description': (
+                'Nombre de la plantilla ya aprobada en Meta. Encabezado de imagen y cuerpo '
+                'con {{1}} nombre, {{2}} curso y {{3}} código. Con el nombre lleno, el botón '
+                'Enviar certificados por WhatsApp usa esa plantilla (también pasadas 24 horas). '
+                'Si Meta la rechaza, se intenta la imagen de la sesión. Vacío: solo la imagen, '
+                'y la persona tiene que haber escrito en las últimas 24 horas.'
+            ),
+        }),
         ('🛡️ Habeas Data — Plantilla Twilio general', {
             'fields': ('content_sid_habeas_data_global',),
             'description': (

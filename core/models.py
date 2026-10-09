@@ -4216,6 +4216,18 @@ class ConfiguracionGlobal(models.Model):
             'Se usa cuando el cliente no tiene su propio Content SID configurado.'
         ),
     )
+    meta_plantilla_diploma = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        verbose_name='Diploma — nombre de plantilla Meta',
+        help_text=(
+            'Nombre de la plantilla aprobada en Meta (no es un HX de Twilio). '
+            'Encabezado: imagen. Cuerpo: {{1}} nombre, {{2}} curso, {{3}} código. '
+            'Vacío: el diploma se manda como imagen solo si la persona escribió en las últimas 24 horas. '
+            'Si META_TEMPLATE_DIPLOMA está en el entorno, ese valor gana.'
+        ),
+    )
     fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
