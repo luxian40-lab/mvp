@@ -1,0 +1,12 @@
+---
+description: Handoff de octubre 2026. Léelo antes de Twilio, diploma, PQRS o un deploy.
+alwaysApply: true
+---
+
+# Continuar
+
+Antes de tocar Twilio, el diploma, PQRS o de desplegar, lee `docs/CONTINUAR_EKI.md`.
+
+- No desplegar `HEAD` de `slice/escalabilidad-base`. Cherry-pick del commit nuevo sobre el árbol que está en producción (`624113b8` al 8 de octubre de 2026) y deploy desde un worktree limpio.
+- El aula Twilio no se borra. El diploma en imagen y el PQRS ya salen por Meta.
+- El aviso previo del diploma con plantilla `HX…` sigue en Twilio hasta que exista la plantilla equivalente en Meta.
