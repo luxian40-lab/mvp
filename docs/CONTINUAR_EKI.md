@@ -1,13 +1,13 @@
-# Continuar eki — 8 de octubre de 2026
+# Continuar eki — 9 de octubre de 2026
 
 Handoff para la siguiente sesión. La rama local va adelante de producción. No desplegar `HEAD` completo.
 
 ## Dónde quedó el código
 
 - Rama: `slice/escalabilidad-base`. Commits de esta tanda no están en `origin`.
-- Producción `eki-prod-final`: versión `main-plantilla-editor-aula-20261008-233800`.
-- Árbol que está en el aire: commit `791f4229` (el editor de plantillas `d24988d7` y la puerta de Twilio `3d7849e3`, encima de `6ce96dd0`).
-- Rollback de esa versión: `main-diploma-plantilla-meta-20261008-200300`.
+- Producción `eki-prod-final`: versión `main-estudiante-persona-20261009-003102`.
+- Árbol que está en el aire: commit `6b6c6f68` (el listado de estudiantes `9f22213d`, encima de `791f4229`).
+- Rollback de esa versión: `main-plantilla-editor-aula-20261008-233800`.
 - `eb deploy` empaqueta `git archive` de `HEAD` del directorio desde el que se corre. Un archivo nuevo sin commit no sube y el web arranca con `ImportError`.
 
 ## Cómo commitear y desplegar
@@ -15,7 +15,7 @@ Handoff para la siguiente sesión. La rama local va adelante de producción. No 
 1. Un cambio por commit. No mezclar con el árbol sucio (Aprende, settings, docs de auditoría, scripts `qa_*`, conectores ajenos).
 2. Commit en `slice/escalabilidad-base`.
 3. No hacer `eb deploy` desde esa rama. Trae decenas de commits que producción no tiene (webhooks, campañas, consentimiento, presupuesto LLM).
-4. Worktree limpio desde `791f4229`, `git cherry-pick` solo del commit nuevo. Si aplica limpio, desplegar desde esa carpeta. La carpeta usada el 8 de octubre es `C:\Users\luxia\OneDrive\Escritorio\eki_deploy_diploma`.
+4. Worktree limpio desde `6b6c6f68`, `git cherry-pick` solo del commit nuevo. Si aplica limpio, desplegar desde esa carpeta. La carpeta usada el 8 de octubre es `C:\Users\luxia\OneDrive\Escritorio\eki_deploy_diploma`.
 5. Label `main-<tema>-YYYYMMDD-HHMMSS`. Anotar la versión anterior (`eb status`) antes de subir.
 6. Después: `/health/` en `http://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/health/` debe ser 200.
 7. El commit de la rama y el del worktree no son el mismo hash. El siguiente cherry-pick sale del hash que quedó en producción, no de `73989a00`.
