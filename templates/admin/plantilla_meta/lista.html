@@ -1,0 +1,61 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load i18n %}
+
+{% block title %}Plantillas{% endblock %}
+{% block eki_ops_crumb %}Plantillas Meta{% endblock %}
+
+{% block content %}
+{{ block.super }}
+<div class="pm-wrap">
+  <div class="pm-head">
+    <div>
+      <h1>Plantillas</h1>
+      <p>Se crean aquí y se mandan a Meta para aprobación. El curso no sale por Twilio.</p>
+    </div>
+    <a class="pm-primary" href="{% url 'admin:core_plantillameta_tipo' %}">Nueva plantilla</a>
+  </div>
+  <form method="get" class="pm-search">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+  </form>
+  <table class="pm-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Idioma</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+        <th>Actualizada</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in plantillas %}
+      <tr>
+        <td><a href="{% url 'admin:core_plantillameta_escribir_una' p.pk %}">{{ p.nombre_interno }}</a></td>
+        <td>{{ p.idioma }}</td>
+        <td>{{ p.get_tipo_display }}</td>
+        <td><span class="pm-estado pm-estado--{{ p.estado }}">{{ p.get_estado_display }}</span></td>
+        <td>{{ p.fecha_creacion|date:"Y-m-d H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Todavía no hay plantillas. Crea la primera.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<style>
+.pm-wrap{max-width:980px}
+.pm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem}
+.pm-head h1{margin:0;font-size:1.6rem;color:#5F3A6E}
+.pm-head p{margin:.35rem 0 0;color:#5c5366}
+.pm-primary{background:#7A4E8E;color:#fff;text-decoration:none;border-radius:8px;padding:.7rem 1rem;font-weight:700}
+.pm-search input{width:min(360px,100%);padding:.7rem .9rem;border:1px solid #e4dce8;border-radius:10px;margin-bottom:1rem}
+.pm-table{width:100%;border-collapse:collapse;background:#fff}
+.pm-table th,.pm-table td{text-align:left;padding:.75rem .6rem;border-bottom:1px solid #efeaf2;font-size:.95rem}
+.pm-table a{color:#7A4E8E;font-weight:700;text-decoration:none}
+.pm-estado{border-radius:999px;padding:.15rem .55rem;font-size:.78rem;font-weight:700}
+.pm-estado--APPROVED{background:#e8f5e9;color:#2e7d32}
+.pm-estado--PENDING,.pm-estado--IN_APPEAL{background:#fff3e0;color:#e65100}
+.pm-estado--REJECTED,.pm-estado--ERROR,.pm-estado--DISABLED{background:#ffebee;color:#c62828}
+.pm-estado--BORRADOR,.pm-estado--PAUSED{background:#f5f5f5;color:#424242}
+</style>
+{% endblock %}

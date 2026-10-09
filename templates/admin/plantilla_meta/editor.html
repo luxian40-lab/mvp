@@ -1,0 +1,132 @@
+{% extends "admin/eki_ops_base.html" %}
+
+{% block title %}{{ titulo_tipo }}{% endblock %}
+{% block eki_ops_crumb %}{{ titulo_tipo }}{% endblock %}
+{% block eki_ops_extra_nav %}
+<a class="eki-ops-back" href="{% url 'admin:core_plantillameta_changelist' %}">← Plantillas</a>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+<div class="pm-editor">
+  <form method="post" class="pm-form" id="pm-form">
+    {% csrf_token %}
+    <h1>{{ titulo_tipo }}</h1>
+    {% if errores %}
+    <ul class="pm-errores">
+      {% for e in errores %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <label>Nombre
+      <input name="nombre_interno" required maxlength="120" value="{{ nombre }}">
+    </label>
+    <label>Mensaje
+      <textarea name="cuerpo" id="cuerpo" required maxlength="1024" rows="5">{{ cuerpo }}</textarea>
+    </label>
+    <button type="button" class="pm-link" id="pm-var">Añadir variable</button>
+    <label>Ejemplos, si usas variables
+      <input name="ejemplos_cuerpo" value="{{ ejemplos }}" placeholder="Ana|Café">
+    </label>
+    {% if tipo == 'TEXTO' %}
+    <label>Botón, opcional
+      <input name="boton_texto" maxlength="25" value="{{ boton }}">
+    </label>
+    {% endif %}
+    {% if tipo == 'IMAGEN' %}
+    <p class="pm-nota">La foto del diploma se adjunta al enviar el certificado. Aquí escribes el texto que Meta debe aprobar.</p>
+    {% endif %}
+    {% if tipo == 'CARRUSEL' %}
+    <div id="pm-cards">
+      {% for card in tarjetas %}
+      <fieldset class="pm-tarjeta">
+        <legend>Tarjeta {{ forloop.counter }}</legend>
+        <label>Título <input name="card_titulo_{{ forloop.counter0 }}" value="{{ card.titulo }}"></label>
+        <label>Texto <input name="card_cuerpo_{{ forloop.counter0 }}" value="{{ card.cuerpo }}"></label>
+        <label>Foto https <input name="card_imagen_{{ forloop.counter0 }}" value="{{ card.imagen_url }}"></label>
+        <label>Botón ver <input name="card_ver_{{ forloop.counter0 }}" value="{{ card.boton_ver_texto }}"></label>
+        <label>Botón info <input name="card_info_{{ forloop.counter0 }}" value="{{ card.boton_info_texto }}"></label>
+      </fieldset>
+      {% endfor %}
+    </div>
+    <input type="hidden" name="card_count" id="card_count" value="{{ tarjetas|length }}">
+    <button type="button" class="pm-link" id="pm-add-card">Añadir tarjeta</button>
+    {% endif %}
+    <div class="pm-actions">
+      <button type="submit" name="accion" value="guardar">Guardar</button>
+      <button type="submit" class="pm-primary" name="accion" value="enviar">Enviar a Meta para aprobación</button>
+    </div>
+  </form>
+  <aside class="pm-phone" aria-label="Vista del mensaje">
+    <div class="pm-phone-bar">WhatsApp</div>
+    <div class="pm-bubble" id="pm-bubble">{{ cuerpo|default:"Tu mensaje se ve aquí" }}</div>
+    <div class="pm-chip" id="pm-chip">{{ boton }}</div>
+  </aside>
+</div>
+<style>
+.pm-editor{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:1.5rem;max-width:980px;align-items:start}
+.pm-form h1{margin:0 0 .8rem;color:#5F3A6E}
+.pm-form label{display:block;margin:.7rem 0;color:#3d3644;font-weight:650}
+.pm-form input,.pm-form textarea{display:block;width:100%;margin-top:.3rem;padding:.7rem .8rem;border:1px solid #e4dce8;border-radius:10px;background:#f7f4f8;font:inherit}
+.pm-link{background:transparent;border:0;color:#7A4E8E;font-weight:700;cursor:pointer;padding:0}
+.pm-nota{color:#5c5366}
+.pm-tarjeta{border:1px solid #e4dce8;border-radius:12px;margin:.8rem 0;padding:.6rem .8rem}
+.pm-errores{background:#ffebee;color:#c62828;border-radius:8px;padding:.6rem 1rem}
+.pm-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem}
+.pm-primary{background:#7A4E8E;color:#fff;border:0;border-radius:8px;padding:.7rem 1rem;font-weight:700;cursor:pointer}
+.pm-actions button{border-radius:8px;padding:.7rem 1rem;cursor:pointer}
+.pm-phone{background:#efeaf2;border-radius:28px;padding:.7rem;min-height:420px}
+.pm-phone-bar{background:#5F3A6E;color:#fff;border-radius:16px 16px 0 0;padding:.55rem .8rem;font-weight:700}
+.pm-bubble{background:#fff;margin:.8rem .4rem;padding:.7rem .8rem;border-radius:12px;white-space:pre-wrap}
+.pm-chip{display:inline-block;margin:0 .4rem;background:#fff;color:#7A4E8E;border-radius:999px;padding:.25rem .7rem;font-weight:700}
+@media (max-width:800px){.pm-editor{grid-template-columns:1fr}}
+</style>
+<script>
+(function () {
+  var cuerpo = document.getElementById('cuerpo');
+  var bubble = document.getElementById('pm-bubble');
+  var chip = document.getElementById('pm-chip');
+  var boton = document.querySelector('[name="boton_texto"]');
+  function pintar() {
+    bubble.textContent = cuerpo.value || 'Tu mensaje se ve aquí';
+    if (boton) {
+      chip.textContent = boton.value || '';
+      chip.style.display = boton.value ? 'inline-block' : 'none';
+    } else {
+      chip.style.display = 'none';
+    }
+  }
+  cuerpo.addEventListener('input', pintar);
+  if (boton) boton.addEventListener('input', pintar);
+  document.getElementById('pm-var').addEventListener('click', function () {
+    var usados = cuerpo.value.match(/\{\{(\d+)\}\}/g) || [];
+    var n = usados.length + 1;
+    var token = '{' + '{' + n + '}' + '}';
+    var pos = cuerpo.selectionStart || cuerpo.value.length;
+    var antes = cuerpo.value.slice(0, pos);
+    if (!antes || antes.slice(-1) !== ' ') token = ' ' + token;
+    cuerpo.value = antes + token + cuerpo.value.slice(cuerpo.selectionEnd || pos);
+    pintar();
+    cuerpo.focus();
+  });
+  var add = document.getElementById('pm-add-card');
+  if (add) {
+    add.addEventListener('click', function () {
+      var box = document.getElementById('pm-cards');
+      var n = box.querySelectorAll('.pm-tarjeta').length;
+      if (n >= 10) return;
+      var fs = document.createElement('fieldset');
+      fs.className = 'pm-tarjeta';
+      fs.innerHTML = '<legend>Tarjeta ' + (n + 1) + '</legend>'
+        + '<label>Título <input name="card_titulo_' + n + '"></label>'
+        + '<label>Texto <input name="card_cuerpo_' + n + '"></label>'
+        + '<label>Foto https <input name="card_imagen_' + n + '"></label>'
+        + '<label>Botón ver <input name="card_ver_' + n + '" value="Ver curso"></label>'
+        + '<label>Botón info <input name="card_info_' + n + '" value="Más información"></label>';
+      box.appendChild(fs);
+      document.getElementById('card_count').value = String(n + 1);
+    });
+  }
+  pintar();
+})();
+</script>
+{% endblock %}

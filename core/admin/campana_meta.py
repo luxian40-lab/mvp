@@ -20,8 +20,7 @@ class TarjetaPlantillaMetaInline(admin.TabularInline):
 
 @admin.register(PlantillaMeta)
 class PlantillaMetaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_interno', 'tipo', 'categoria', 'estado_badge', 'activa')
-    inlines = [TarjetaPlantillaMetaInline]
+    list_display = ('nombre_interno', 'tipo', 'estado_badge', 'activa')
     list_filter = ('estado', 'tipo', 'categoria', 'activa', 'idioma')
     search_fields = ('nombre_interno', 'meta_name', 'meta_template_id', 'cuerpo')
     list_per_page = 50
@@ -37,21 +36,23 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        ('Datos', {
-            'classes': ['tab'],
-            'fields': ('nombre_interno', 'tipo', 'estado', 'meta_name', 'idioma', 'categoria', 'activa'),
+        ('Mensaje', {
+            'fields': ('nombre_interno', 'tipo', 'cuerpo', 'estado'),
             'description': (
-                'Se crea en el WABA de Cloud API (WHATSAPP_BUSINESS_ACCOUNT_ID). '
-                'No genera Content SID de Twilio. '
-                'El estado se guarda con la ficha: márquelo Aprobada cuando Meta ya la aceptó.'
+                '1. Nombre y tipo. 2. Escribe el mensaje. '
+                '3. En el listado, la acción «Enviar plantilla a Meta para aprobación». '
+                'Cuando Meta la acepte, el estado queda en Aprobada.'
             ),
         }),
-        ('Componentes', {
-            'classes': ['tab'],
+        ('Más opciones', {
+            'classes': ('collapse',),
             'fields': (
+                'meta_name',
+                'idioma',
+                'categoria',
+                'activa',
                 'header_texto',
                 'header_ejemplo',
-                'cuerpo',
                 'ejemplos_cuerpo',
                 'footer',
                 'boton_1_tipo',
@@ -63,9 +64,10 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
                 'boton_2_url',
                 'boton_2_ejemplo',
             ),
+            'description': 'Encabezado, botones y ejemplos. El mensaje de texto no los necesita.',
         }),
         ('Estado en Meta', {
-            'classes': ['tab'],
+            'classes': ('collapse',),
             'fields': (
                 'meta_template_id',
                 'waba_id',
@@ -77,6 +79,152 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    def get_inlines(self, request, obj=None):
+        if obj is not None and obj.tipo == 'CARRUSEL':
+            return [TarjetaPlantillaMetaInline]
+        return []
+
+    def get_urls(self):
+        from django.urls import path
+
+        custom = [
+            path(
+                'nueva/',
+                self.admin_site.admin_view(self.tipo_view),
+                name='core_plantillameta_tipo',
+            ),
+            path(
+                'escribir/<str:tipo>/',
+                self.admin_site.admin_view(self.escribir_view),
+                name='core_plantillameta_escribir',
+            ),
+            path(
+                '<int:pk>/escribir/',
+                self.admin_site.admin_view(self.escribir_view),
+                name='core_plantillameta_escribir_una',
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def changelist_view(self, request, extra_context=None):
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import render
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        q = (request.GET.get('q') or '').strip()
+        qs = self.get_queryset(request)
+        if q:
+            qs = qs.filter(nombre_interno__icontains=q)
+        return render(request, 'admin/plantilla_meta/lista.html', {
+            'plantillas': qs[:200],
+            'q': q,
+            'title': 'Plantillas',
+        })
+
+    def add_view(self, request, form_url='', extra_context=None):
+        from django.shortcuts import redirect
+        return redirect('admin:core_plantillameta_tipo')
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        from django.shortcuts import redirect
+        return redirect('admin:core_plantillameta_escribir_una', pk=object_id)
+
+    def tipo_view(self, request):
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import render
+
+        from core.plantilla_builder import TARJETAS_TIPO
+
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        return render(request, 'admin/plantilla_meta/tipo.html', {
+            'tarjetas': TARJETAS_TIPO,
+            'title': 'Nueva plantilla',
+        })
+
+    def escribir_view(self, request, tipo='TEXTO', pk=None):
+        from django.contrib import messages
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import get_object_or_404, redirect, render
+
+        from core.plantilla_builder import TIPOS_EDITOR, guardar_editor
+
+        plantilla = None
+        if pk is not None:
+            plantilla = get_object_or_404(self.get_queryset(request), pk=pk)
+            tipo = plantilla.tipo if plantilla.tipo in TIPOS_EDITOR else 'TEXTO'
+            if not self.has_change_permission(request, plantilla):
+                raise PermissionDenied
+        else:
+            tipo = (tipo or 'TEXTO').upper()
+            if tipo not in TIPOS_EDITOR:
+                tipo = 'TEXTO'
+            if not self.has_add_permission(request):
+                raise PermissionDenied
+
+        errores = []
+        if request.method == 'POST':
+            guardada, errores = guardar_editor(request.POST, tipo, plantilla)
+            if guardada is not None and not errores:
+                if request.POST.get('accion') == 'enviar':
+                    from core.meta_waba import crear_plantilla_en_meta
+                    resultado = crear_plantilla_en_meta(guardada)
+                    nivel = messages.SUCCESS if resultado.get('success') else messages.WARNING
+                    self.message_user(
+                        request,
+                        resultado.get('message') or f'Enviada. Estado {resultado.get("status")}.',
+                        level=nivel,
+                    )
+                else:
+                    self.message_user(request, 'Plantilla guardada.', level=messages.SUCCESS)
+                return redirect('admin:core_plantillameta_escribir_una', pk=guardada.pk)
+            if guardada is not None:
+                plantilla = guardada
+
+        ctx = self._ctx_editor(plantilla, tipo, errores)
+        if request.method == 'POST' and errores:
+            ctx['nombre'] = request.POST.get('nombre_interno') or ''
+            ctx['cuerpo'] = request.POST.get('cuerpo') or ''
+            ctx['ejemplos'] = request.POST.get('ejemplos_cuerpo') or ''
+            ctx['boton'] = request.POST.get('boton_texto') or ''
+        return render(request, 'admin/plantilla_meta/editor.html', ctx)
+
+    def _ctx_editor(self, plantilla, tipo, errores):
+        titulos = {'TEXTO': 'Texto', 'IMAGEN': 'Imagen', 'CARRUSEL': 'Carrusel'}
+        tarjetas = []
+        if plantilla is not None and plantilla.pk and tipo == 'CARRUSEL':
+            tarjetas = [
+                {
+                    'titulo': t.titulo,
+                    'cuerpo': t.cuerpo,
+                    'imagen_url': t.imagen_url,
+                    'boton_ver_texto': t.boton_ver_texto,
+                    'boton_info_texto': t.boton_info_texto,
+                }
+                for t in plantilla.tarjetas.all()
+            ]
+        if tipo == 'CARRUSEL' and len(tarjetas) < 2:
+            while len(tarjetas) < 2:
+                tarjetas.append({
+                    'titulo': '',
+                    'cuerpo': '',
+                    'imagen_url': '',
+                    'boton_ver_texto': 'Ver curso',
+                    'boton_info_texto': 'Más información',
+                })
+        return {
+            'title': titulos.get(tipo, 'Plantilla'),
+            'titulo_tipo': titulos.get(tipo, 'Plantilla'),
+            'tipo': tipo,
+            'errores': errores,
+            'nombre': plantilla.nombre_interno if plantilla else '',
+            'cuerpo': plantilla.cuerpo if plantilla else '',
+            'ejemplos': plantilla.ejemplos_cuerpo if plantilla else '',
+            'boton': (plantilla.boton_1_texto if plantilla else '') or '',
+            'tarjetas': tarjetas,
+        }
 
     @admin.display(description='Aprobación', ordering='estado')
     def estado_badge(self, obj):
@@ -152,7 +300,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
     change_form_template = 'admin/core/campanameta/change_form.html'
     list_display = (
         'nombre', 'plantilla', 'estado_plantilla', 'conteo_destinatarios',
-        'ejecutada', 'pausada', 'total_enviados',
+        'ejecutada', 'total_enviados',
     )
     list_filter = ('ejecutada', 'pausada', 'cliente', 'plantilla__estado')
     search_fields = ('nombre', 'plantilla__meta_name', 'plantilla__nombre_interno')
@@ -162,25 +310,30 @@ class CampanaMetaAdmin(admin.ModelAdmin):
     readonly_fields = ('ejecutada', 'total_enviados', 'panel_envios')
 
     fieldsets = (
-        ('Datos', {
-            'classes': ['tab'],
-            'fields': ('nombre', 'cliente', 'fecha_programada'),
-        }),
-        ('Plantilla', {
-            'classes': ['tab'],
-            'fields': ('plantilla', 'mapeo_header', 'mapeo_body', 'mapeo_boton', 'phone_number_id'),
+        ('Campaña', {
+            'fields': ('nombre', 'cliente', 'plantilla'),
             'description': (
-                'Solo se envía si la plantilla está Aprobada. '
-                'El envío sale por Cloud API (phone number ID), no por Twilio.'
+                'Elige una plantilla ya Aprobada. '
+                'Para mandarla, en el listado usa «Ejecutar campañas Meta».'
             ),
         }),
-        ('Audiencia', {
-            'classes': ['tab'],
+        ('Destinatarios', {
             'fields': ('grupo', 'destinatarios'),
-            'description': 'Si elige grupo, se usa el grupo. Si no, los destinatarios marcados.',
+            'description': 'Si eliges grupo, sale al grupo. Si no, a las personas marcadas.',
+        }),
+        ('Variables y programación', {
+            'classes': ('collapse',),
+            'fields': (
+                'fecha_programada',
+                'mapeo_header',
+                'mapeo_body',
+                'mapeo_boton',
+                'phone_number_id',
+            ),
+            'description': 'Solo si el mensaje lleva {{1}} o sale por otro número.',
         }),
         ('Resultado', {
-            'classes': ['tab'],
+            'classes': ('collapse',),
             'fields': ('ejecutada', 'pausada', 'pausa_motivo', 'total_enviados', 'panel_envios'),
         }),
     )

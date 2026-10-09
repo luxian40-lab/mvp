@@ -1,0 +1,52 @@
+{% extends "admin/eki_ops_base.html" %}
+
+{% block title %}Nueva plantilla{% endblock %}
+{% block eki_ops_crumb %}Nueva plantilla{% endblock %}
+{% block eki_ops_extra_nav %}
+<a class="eki-ops-back" href="{% url 'admin:core_plantillameta_changelist' %}">← Plantillas</a>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+<div class="pm-wrap">
+  <h1>Nueva plantilla</h1>
+  <p class="pm-lead">Elige el tipo. Después escribes solo lo de esa plantilla.</p>
+  <form method="get" action="{% url 'admin:core_plantillameta_escribir' 'TEXTO' %}" id="pm-tipo">
+    <div class="pm-cards">
+      {% for codigo, titulo, ayuda in tarjetas %}
+      <label class="pm-card">
+        <input type="radio" name="tipo" value="{{ codigo }}" {% if forloop.first %}checked{% endif %}>
+        <span>
+          <strong>{{ titulo }}</strong>
+          <small>{{ ayuda }}</small>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="pm-actions">
+      <a href="{% url 'admin:core_plantillameta_changelist' %}">Cancelar</a>
+      <button type="submit" class="pm-primary">Continuar</button>
+    </div>
+  </form>
+</div>
+<style>
+.pm-wrap{max-width:760px}
+.pm-wrap h1{margin:0;color:#5F3A6E}
+.pm-lead{color:#5c5366}
+.pm-cards{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}
+.pm-card{display:flex;gap:.7rem;align-items:flex-start;border:1px solid #e4dce8;background:#f7f4f8;border-radius:12px;padding:.9rem 1rem;cursor:pointer}
+.pm-card:has(input:checked){border-color:#7A4E8E;background:#fff}
+.pm-card strong{display:block;color:#5F3A6E}
+.pm-card small{display:block;color:#5c5366;margin-top:.25rem}
+.pm-actions{display:flex;justify-content:flex-end;gap:.8rem;align-items:center;margin-top:1rem}
+.pm-actions a{color:#5c5366;text-decoration:none}
+.pm-primary{background:#7A4E8E;color:#fff;border:0;border-radius:8px;padding:.7rem 1.1rem;font-weight:700;cursor:pointer}
+@media (max-width:700px){.pm-cards{grid-template-columns:1fr}}
+</style>
+<script>
+document.getElementById('pm-tipo').addEventListener('submit', function (ev) {
+  var tipo = (new FormData(ev.target).get('tipo') || 'TEXTO');
+  ev.target.action = ev.target.action.replace(/TEXTO\/?$/, tipo + '/');
+});
+</script>
+{% endblock %}

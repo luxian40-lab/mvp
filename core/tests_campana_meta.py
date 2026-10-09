@@ -4,8 +4,9 @@ import hmac
 import json
 from unittest.mock import patch
 
+from django.contrib.admin.sites import site
 from django.contrib.auth.models import User
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core.meta_waba import (
@@ -221,48 +222,41 @@ class CampanaMetaTests(TestCase):
         self.assertEqual(self.plantilla.estado, 'BORRADOR')
         self.assertEqual(self.plantilla.tipo, 'IMAGEN')
 
-    def test_admin_guarda_tipo_y_aprobacion(self):
+    def test_admin_abre_el_editor_y_guarda_el_mensaje(self):
         User.objects.create_superuser('meta_ok', 'ok@t.com', 'pass12345')
         client = Client()
         client.login(username='meta_ok', password='pass12345')
         url = reverse('admin:core_plantillameta_change', args=[self.plantilla.pk])
-        pagina = client.get(url)
+        pagina = client.get(url, follow=True)
         self.assertEqual(pagina.status_code, 200)
-        self.assertContains(pagina, 'name="estado"')
-        self.assertContains(pagina, 'Imagen')
-        self.assertContains(pagina, 'Oferta por tiempo limitado')
-        self.assertContains(pagina, 'Autenticación (código)')
-        resp = client.post(url, {
-            'nombre_interno': self.plantilla.nombre_interno,
-            'meta_name': self.plantilla.meta_name,
-            'idioma': 'es',
-            'categoria': 'UTILITY',
-            'tipo': 'VIDEO',
-            'estado': 'APPROVED',
-            'header_texto': 'Hola {{1}}.',
-            'header_ejemplo': 'Ana',
-            'cuerpo': 'Tu curso {{1}} abre mañana.',
-            'ejemplos_cuerpo': 'Café',
-            'footer': 'eki',
-            'boton_1_tipo': 'QUICK_REPLY',
-            'boton_1_texto': 'Listo',
-            'boton_1_url': '',
-            'boton_1_ejemplo': '',
-            'boton_2_tipo': '',
-            'boton_2_texto': '',
-            'boton_2_url': '',
-            'boton_2_ejemplo': '',
-            'activa': 'on',
-            'tarjetas-TOTAL_FORMS': '0',
-            'tarjetas-INITIAL_FORMS': '0',
-            'tarjetas-MIN_NUM_FORMS': '0',
-            'tarjetas-MAX_NUM_FORMS': '1000',
-            '_save': 'Guardar',
+        self.assertContains(pagina, 'Enviar a Meta para aprobación')
+        self.assertContains(pagina, 'Añadir variable')
+        self.assertContains(pagina, 'pm-phone')
+        self.assertNotContains(pagina, 'Oferta por tiempo limitado')
+        resp = client.post(reverse('admin:core_plantillameta_escribir_una', args=[self.plantilla.pk]), {
+            'nombre_interno': 'Aviso café',
+            'cuerpo': 'Hola Ana, tu curso abre mañana.',
+            'ejemplos_cuerpo': '',
+            'boton_texto': 'Listo',
+            'accion': 'guardar',
         })
-        self.assertEqual(resp.status_code, 302, resp.content[:800])
+        self.assertEqual(resp.status_code, 302)
         self.plantilla.refresh_from_db()
-        self.assertEqual(self.plantilla.tipo, 'VIDEO')
-        self.assertEqual(self.plantilla.estado, 'APPROVED')
+        self.assertEqual(self.plantilla.cuerpo, 'Hola Ana, tu curso abre mañana.')
+        self.assertEqual(self.plantilla.boton_1_texto, 'Listo')
+
+    def test_lista_y_tarjetas_de_tipo(self):
+        User.objects.create_superuser('meta_lista', 'l@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_lista', password='pass12345')
+        lista = client.get(reverse('admin:core_plantillameta_changelist'))
+        self.assertContains(lista, 'Nueva plantilla')
+        self.assertContains(lista, 'Aviso café')
+        tipo = client.get(reverse('admin:core_plantillameta_tipo'))
+        self.assertContains(tipo, 'Texto')
+        self.assertContains(tipo, 'Imagen')
+        self.assertContains(tipo, 'Carrusel')
+        self.assertContains(tipo, 'Continuar')
 
     def test_admin_changelist(self):
         User.objects.create_superuser('meta_admin', 'm@t.com', 'pass12345')
@@ -342,3 +336,32 @@ class CampanaMetaTests(TestCase):
         plantilla.refresh_from_db()
         self.assertEqual(plantilla.estado, 'ERROR')
         self.assertIn('WHATSAPP_APP_ID', plantilla.ultimo_error_mensaje)
+
+
+class PantallaCampanaMetaTests(SimpleTestCase):
+    def test_plantilla_abre_en_el_mensaje(self):
+        from core.admin.campana_meta import PlantillaMetaAdmin
+
+        adm = PlantillaMetaAdmin(PlantillaMeta, site)
+        por_titulo = {nombre: opts for nombre, opts in adm.fieldsets}
+        self.assertEqual(list(por_titulo)[0], 'Mensaje')
+        self.assertEqual(
+            por_titulo['Mensaje']['fields'],
+            ('nombre_interno', 'tipo', 'cuerpo', 'estado'),
+        )
+        self.assertIn('collapse', por_titulo['Más opciones']['classes'])
+        self.assertEqual(adm.get_inlines(None, None), [])
+        carrusel = PlantillaMeta(tipo='CARRUSEL', nombre_interno='x', cuerpo='Hola')
+        self.assertEqual(len(adm.get_inlines(None, carrusel)), 1)
+
+    def test_campana_abre_en_nombre_y_plantilla(self):
+        from core.admin.campana_meta import CampanaMetaAdmin
+
+        adm = CampanaMetaAdmin(CampanaMeta, site)
+        por_titulo = {nombre: opts for nombre, opts in adm.fieldsets}
+        self.assertEqual(
+            por_titulo['Campaña']['fields'],
+            ('nombre', 'cliente', 'plantilla'),
+        )
+        self.assertIn('collapse', por_titulo['Variables y programación']['classes'])
+        self.assertIn('collapse', por_titulo['Resultado']['classes'])
