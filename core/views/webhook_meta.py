@@ -54,6 +54,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
     from core.sandbox_canal import (
         canal_sandbox_si_meta,
         es_inbound_twilio_http,
+        inbound_es_meta,
         sandbox_via_meta,
         to_es_sandbox,
     )
@@ -81,6 +82,11 @@ def _aplicar_sandbox_menu_cuerpo(data):
         return HttpResponse('OK')
 
     with canal_sandbox_si_meta():
+        from core.twilio_puerta import responder_aula_meta
+
+        if inbound_es_meta(data) and responder_aula_meta(data):
+            marcar_resultado('aula', ruta='aula')
+            return HttpResponse('OK')
         ruta = dispatch_sandbox_menu(data)
         if ruta is None:
             return None

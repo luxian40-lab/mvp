@@ -127,6 +127,10 @@ def _procesar_meta_por_mensaje(payload):
 
 
 def _procesar_twilio_reclamado(data, ids, es_comercial):
+    from core.twilio_puerta import aplicar_puerta_twilio
+
+    if aplicar_puerta_twilio(data) != 'seguir':
+        return None
     sid = ids[0] if ids else _sid_de(data)
     try:
         sb = _aplicar_sandbox_menu(data)
