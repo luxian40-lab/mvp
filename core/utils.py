@@ -206,6 +206,17 @@ def enviar_whatsapp_twilio(
     log = None  # Inicializar log como None
 
     try:
+        from core.views.diploma_meta import entregar_si_es_diploma
+
+        diploma = entregar_si_es_diploma(
+            telefono, texto, media_url, agente_evento=agente_evento,
+        )
+        if diploma is not None:
+            return diploma
+    except Exception:
+        logger.exception('diploma_meta_intercept_fail')
+
+    try:
         from core.sandbox_canal import sandbox_meta_activo, enviar_meta
 
         if sandbox_meta_activo():

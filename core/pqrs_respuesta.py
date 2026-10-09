@@ -44,15 +44,14 @@ def aplicar_respuesta_pqrs(
         return False, 'Escribe una respuesta antes de enviar.'
 
     if enviar_whatsapp:
-        from core.utils import enviar_whatsapp_twilio
+        from core.views.pqrs_meta import enviar_respuesta_pqrs_meta
 
         est = solicitud.estudiante
         msg = mensaje_whatsapp_pqrs(est.nombre, texto)
-        resultado = enviar_whatsapp_twilio(
+        resultado = enviar_respuesta_pqrs_meta(
             est.telefono,
             msg,
-            canal_evento='pqrs',
-            agente_evento=user.username if user else 'admin',
+            agente=user.username if user else 'admin',
         )
         if not resultado.get('success'):
             detalle = resultado.get('response') or 'Error desconocido'

@@ -203,7 +203,8 @@ class TestPQRSRespuestaWhatsApp(TestCase):
         self.est = _estudiante()
 
     @patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True, 'mensaje_id': 'SM1'})
-    def test_aplicar_respuesta_envia_y_resuelve(self, _mock_twilio):
+    @patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.PQRS'})
+    def test_aplicar_respuesta_envia_por_meta_y_resuelve(self, mock_meta, mock_twilio):
         from core.pqrs_respuesta import aplicar_respuesta_pqrs
 
         solicitud = SolicitudSoporte.objects.create(
@@ -214,6 +215,9 @@ class TestPQRSRespuestaWhatsApp(TestCase):
         ok, err = aplicar_respuesta_pqrs(solicitud, 'Intente de nuevo con su cédula.', user=None)
         self.assertTrue(ok)
         self.assertIsNone(err)
+        mock_meta.assert_called_once()
+        mock_twilio.assert_not_called()
+        self.assertEqual(mock_meta.call_args.kwargs['canal_evento'], 'pqrs')
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, 'resuelta')
         self.assertIn('cédula', solicitud.respuesta)

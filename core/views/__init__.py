@@ -25,6 +25,9 @@ from core.views.certificados_wa import (
     _intentar_responder_envio_certificado,
 )
 
+from core.views.diploma_meta import entregar_si_es_diploma, es_entrega_diploma
+from core.views.pqrs_meta import enviar_respuesta_pqrs_meta
+
 from core.views.twilio_transporte import (
     _encolar_twilio_edu_si_async,
     _enviar_mensaje_twilio_segmentado,
