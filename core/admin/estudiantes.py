@@ -122,6 +122,33 @@ def detalle_progreso(progreso):
     return 'Sin iniciar'
 
 
+def ordenes_studio(estudiante):
+    """Órdenes de la CuentaAula. Vacío si no hay compra. No crea filas."""
+    from studio.models import CuentaAula, OrdenStudio
+
+    cuenta = CuentaAula.objects.filter(estudiante=estudiante).first()
+    if cuenta is None:
+        return []
+    ordenes = (
+        OrdenStudio.objects.filter(cuenta=cuenta)
+        .prefetch_related('items__curso')
+        .order_by('-creado')[:8]
+    )
+    filas = []
+    for orden in ordenes:
+        cursos = ', '.join(
+            item.curso.nombre for item in orden.items.all() if item.curso_id
+        ) or '—'
+        monto = f'{int(orden.monto_cop):,}'.replace(',', '.')
+        filas.append({
+            'estado': orden.get_estado_display(),
+            'monto': monto,
+            'referencia': orden.wompi_referencia,
+            'cursos': cursos,
+        })
+    return filas
+
+
 def resumen_estudiantes(qs):
     """Reparto con organización / sin organización sobre el queryset ya filtrado."""
     agg = qs.aggregate(
@@ -524,6 +551,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                 reverse('conversaciones')
                 + f'?estudiante={obj.pk}'
             )
+            extra_context['eki_est_ordenes'] = ordenes_studio(obj)
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def importar_estudiantes_view(self, request):

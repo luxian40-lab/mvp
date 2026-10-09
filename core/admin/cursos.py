@@ -311,6 +311,25 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
     verbose_name_plural = 'PREGUNTAS ABIERTAS FINALES (MAX 3)'
 
 
+class TipoOrganizacionCursoFilter(admin.SimpleListFilter):
+    """Con organización / catálogo general. No decide campañas."""
+    title = 'Tipo'
+    parameter_name = 'eki_tipo'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('con_org', 'Con organización'),
+            ('general', 'Catálogo general'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'con_org':
+            return queryset.filter(cliente__isnull=False)
+        if self.value() == 'general':
+            return queryset.filter(cliente__isnull=True)
+        return queryset
+
+
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
@@ -326,7 +345,8 @@ class CursoAdmin(admin.ModelAdmin):
         'activo',
     )
     list_filter = (
-        'cliente', 'activo', 'catalogo_menu', 'modo_aula', 'visible_en_aula',
+        'cliente', TipoOrganizacionCursoFilter, 'activo', 'catalogo_menu',
+        'modo_aula', 'visible_en_aula',
         CursoListoCampanaFilter,
     )
     autocomplete_fields = ('cliente',)

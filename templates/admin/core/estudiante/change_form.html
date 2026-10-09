@@ -65,6 +65,25 @@
     {% endif %}
 </div>
 {% endif %}
+<div class="eki-puente-panel" aria-label="Compras Studio">
+    <div class="eki-puente-panel__head">
+        <h3>Compras Studio</h3>
+    </div>
+    {% if eki_est_ordenes %}
+    <ul class="eki-puente-list">
+        {% for o in eki_est_ordenes %}
+        <li>
+            <strong>{{ o.estado }}</strong>
+            · ${{ o.monto }}
+            · {{ o.referencia }}
+            · {{ o.cursos }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-puente-empty">Sin compra Studio</p>
+    {% endif %}
+</div>
 {% endif %}
 {{ block.super }}
 {% endblock %}
