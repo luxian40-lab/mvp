@@ -20,12 +20,13 @@ CANON_OPS = """Hechos fijos (no los contradigas):
 - Superficies: admin.eki.technology (ops) · app.eki.technology (portal B2B) · aprende.eki.technology (LMS) · studio.eki.technology (vitrina) · certificados.eki.technology (verify).
 - Inicio /admin/ = pulso del día (KPIs, mapa, ecosistema, alertas). Analítica profunda = /admin/dashboard/ (tabs: Cursos y avance, Centro de Éxito, Nat/comercial, IA y Twilio, Pulso con filtros).
 - Tonos del admin: Cielo / Marca / Oscuro (keys CSS manana/tarde/noche). No se llaman Mañana/Tarde/Noche en la UI.
-- Producción EB = eki-prod-final, región us-east-2, S3 eki-produccion. Un número WhatsApp sirve vitrina comercial + LMS.
-- Diccionario de códigos Twilio/WhatsApp está en el JSON (codigos_twilio). Úsalo: 63021 video, 63019 descarga media, 63016 ventana 24h, 63049 plantilla/variables, 21610 opt-out.
+- Producción EB = eki-prod-final, región us-east-2, S3 eki-produccion. El canal de producto es Meta (WhatsApp Cloud API). El número de Twilio solo entrega el código de aula (Aprende). El curso entra por Meta.
+- Diploma en imagen y PQRS salen por Meta. El nombre de la plantilla de diploma está en Configuración Global; vacío, sigue la imagen de sesión (la persona tiene que haber escrito en 24 h). El aviso previo HX de Twilio sigue hasta que un envío real con plantilla de imagen Meta salga bien.
+- Plantillas Meta se crean en el editor: lista, tipo (texto, imagen, carrusel) y mensaje. No en el formulario largo. Texto y carrusel se envían a Meta para aprobación. La foto de una plantilla de imagen se pega al enviar; el alta de encabezado imagen en Graph no está conectada.
+- Campañas nuevas son CampanaMeta, con plantilla ya Aprobada. El HX y el Content SID son el camino viejo, no el de producto.
+- Ventana de 24 h en Meta: error 131047. Códigos Twilio (63021 video, 63019 descarga) solo aplican a restos que aún salen por Twilio, no al curso.
 - Programas vitrina (eki.com.co) están en el JSON programas_vitrina. Solo Tome las riendas es demo hoy; el resto es informativo (Ver más / Solo info).
-- Campañas HSM: variables {{1}}… secuenciales; no mandar plantilla a medias. Content SID HX… vía Twilio Content API.
-- Preview de campaña/plantilla: la burbuja del admin lee Twilio Content API (HX…). NO es el mock «Hola, bienvenida al curso». NO fiarse de cuerpo_mensaje (eso es borrador interno / fallback 24h).
-- Ficha Plantilla: pestaña «HSM Twilio» = SID + body/botones reales. Pestaña «Borrador interno» = texto Django, no es WhatsApp si hay HX.
+- Listado de Estudiantes: dos celdas (nombre + organización o B2C y WhatsApp; curso + estado del chat y enlace al Chat). La cédula se busca, no es columna.
 - Module Builder: /admin/module-builder/<id>/ (secciones + micros, drag por rieles). Flag EKI_MODULE_BUILDER_BETA (local ON; prod OFF salvo =1). Allowlist EKI_MODULE_BUILDER_CURSOS (* = todos). Drip/fechas/agentes siguen en el admin clásico.
 - Course Engine: /admin/curso/<id>/course-engine/ genera video/infografía/podcast; ops publica en PasoModulo / Builder. No es Studio.
 - Knowledge Studio: /admin/knowledge-studio/ HITL de candidatas RAG de Nat. Eventos IA: /admin/ai-ops/eventos/.
@@ -40,11 +41,12 @@ CANON_OPS = """Hechos fijos (no los contradigas):
 
 SYSTEM_PROMPT = """Eres el copiloto de operaciones de eki. Hablas con el fundador/ops en español de Colombia, breve.
 """ + CANON_OPS + """
-Usa el JSON de pulso (admin_hoy, códigos, programas, HSM). Si preguntan por un código (63021, etc.) explícalo y di qué hacer.
+Usa el JSON de pulso (admin_hoy, códigos, programas, HSM). Si preguntan por un código (131047, 63021, etc.) explícalo y di qué hacer.
+Si preguntan aula, Twilio o por dónde entra el curso: Meta es el canal; Twilio solo manda el código de aula.
 Si preguntan programas / vitrina / carrusel / Riendas, usa programas_vitrina (no inventes más cursos).
-Si preguntan preview, HSM, plantilla de campaña o cuerpo_mensaje, usa admin_hsm del JSON.
+Si preguntan plantilla, campaña o preview, usa admin_hsm: editor Meta, no el formulario HX.
 Si preguntan Inicio vs Analítica, Builder, Course Engine, Knowledge Studio o tonos, usa admin_hoy.
-Prioriza: producción, fallos WA con código, Twilio, demo, campañas, media no apta.
+Prioriza: producción, Meta, fallos 131047, plantillas del editor, campañas CampanaMeta, media no apta.
 Máximo 16 líneas. Accionable.
 """
 
@@ -57,21 +59,27 @@ CODIGOS_TWILIO = {
     '63032': 'Límite o calidad de media (tamaño/bitrate). Bajar de 16 MB.',
     '21610': 'El usuario se salió (opt-out / stop). No reenviar marketing.',
     '21211': 'Número inválido o mal formateado.',
+    '131047': 'Fuera de la ventana de 24 h de Meta. La persona debe escribir a ese número, o se usa una plantilla aprobada.',
     '21614': 'No es un número móvil válido de WhatsApp.',
     '21617': 'Cuerpo vacío o no permitido para ese tipo de mensaje.',
     '20003': 'Auth Twilio (SID/token).',
 }
 
 ADMIN_HSM = {
-    'preview_campana': (
-        'La burbuja en /admin/core/campana/ lee Content API con el HX '
-        '(template_twilio_id o plantilla.twilio_template_sid). Cache ~5 min. '
-        'No es un envío real ni un simulador de Meta.'
+    'canal': (
+        'El curso, el diploma en imagen y el PQRS salen por Meta. '
+        'El número de Twilio solo entrega el código de aula.'
     ),
-    'no_usar': 'cuerpo_mensaje local y el mock de bienvenida (ya retirado).',
+    'preview_campana': (
+        'La plantilla se crea en el editor de Plantillas Meta: lista, tipo y mensaje. '
+        'La campaña es CampanaMeta y solo con plantilla Aprobada. '
+        'El HX de Twilio no es el canal de producto.'
+    ),
+    'no_usar': 'el formulario largo de plantilla y el Content SID HX como si fuera el envío del curso.',
     'ficha_plantilla': (
-        'HSM Twilio = SID + preview real. Borrador interno = notas/fallback 24h. '
-        'Listado: HSM / HX sin tilde / Borrador (nunca «DIRECTO» como si fuera el canal).'
+        'Editor: texto y carrusel se mandan a aprobación. '
+        'Imagen: la foto se adjunta al enviar. '
+        'Diploma: nombre en Configuración Global; vacío, imagen de sesión si escribieron en 24 h.'
     ),
     'ops_cliente_modulo': (
         'Mapa y drip: ficha Cliente. Examen de módulo: Module Builder.'
@@ -346,12 +354,18 @@ def _respuesta_reglas(pregunta: str, ctx: dict[str, Any]) -> str:
             + ', '.join(p['nombre'] for p in vitrina)
             + '.'
         )
+    if any(w in q for w in ('aula', 'twilio', 'meta', 'canal')):
+        hsm = ctx.get('admin_hsm') or ADMIN_HSM
+        lineas.append(hsm.get('canal', ''))
     if 'campaña' in q or 'borrador' in q:
-        lineas.append('No ejecute una campaña sin Content SID aprobado y variables {{1}}/{{2}} listas.')
+        lineas.append(
+            'Campaña nueva = CampanaMeta con plantilla Meta ya Aprobada. '
+            'No uses un Content SID HX para el curso.'
+        )
     if any(w in q for w in ('preview', 'hsm', 'cuerpo_mensaje', 'plantilla', 'burbuja', 'mock')):
         hsm = ctx.get('admin_hsm') or ADMIN_HSM
         lineas.append(hsm.get('preview_campana', ''))
-        lineas.append('No fiarse de cuerpo_mensaje: es borrador interno, no el HSM.')
+        lineas.append(hsm.get('ficha_plantilla', ''))
     if any(w in q for w in ('inicio', 'analítica', 'analitica', 'dashboard', 'pulso')):
         hoy = ctx.get('admin_hoy') or {}
         lineas.append(hoy.get('inicio', ''))

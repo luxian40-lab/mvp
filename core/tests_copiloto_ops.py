@@ -31,8 +31,10 @@ class CopilotoOpsTests(TestCase):
         self.assertIn('programas_vitrina', snap)
         self.assertEqual(len(snap['programas_vitrina']), 5)
         self.assertIn('63021', snap['codigos_twilio'])
+        self.assertIn('131047', snap['codigos_twilio'])
         self.assertIn('admin_hsm', snap)
-        self.assertIn('cuerpo_mensaje', snap['admin_hsm']['no_usar'])
+        self.assertIn('editor', snap['admin_hsm']['preview_campana'].lower())
+        self.assertIn('Twilio solo entrega', snap['admin_hsm']['canal'])
         self.assertIn('admin_hoy', snap)
         self.assertIn('inicio', snap['admin_hoy'])
         self.assertIn('module_builder_beta', snap['admin_hoy'])
@@ -53,8 +55,16 @@ class CopilotoOpsTests(TestCase):
     @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
     def test_reglas_preview_hsm(self):
         out = responder_copiloto('¿La preview de plantilla es el HSM?')
-        self.assertIn('content api', out['respuesta'].lower())
-        self.assertIn('cuerpo_mensaje', out['respuesta'].lower())
+        txt = out['respuesta'].lower()
+        self.assertIn('editor', txt)
+        self.assertIn('campanameta', txt)
+
+    @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
+    def test_reglas_canal_meta(self):
+        out = responder_copiloto('¿El curso sale por Meta o por Twilio?')
+        txt = out['respuesta'].lower()
+        self.assertIn('meta', txt)
+        self.assertIn('código de aula', txt)
 
     @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
     def test_reglas_inicio_vs_analitica_y_builder(self):
@@ -102,3 +112,5 @@ class CopilotoOpsTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'eki-copiloto-drawer')
         self.assertContains(r, 'eki_copiloto_chat.js')
+        self.assertContains(r, 'código de aula')
+        self.assertContains(r, '¿Cómo creo una plantilla Meta?')
