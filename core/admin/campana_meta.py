@@ -372,10 +372,26 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         if object_id:
             from django.urls import reverse
 
+            from core.models_campana_meta import CampanaMeta
+
+            campana = CampanaMeta.objects.filter(pk=object_id).select_related('plantilla').first()
             extra['eki_meta_prueba_url'] = reverse(
                 'admin:core_campanameta_enviar_prueba',
                 args=[object_id],
             )
+            extra['eki_meta_enviar_url'] = reverse(
+                'admin:core_campanameta_enviar',
+                args=[object_id],
+            )
+            if campana is not None:
+                n = self._destinatarios_activos(campana)
+                aprobada = bool(campana.plantilla_id and campana.plantilla.estado == 'APPROVED')
+                extra['eki_meta_destinatarios'] = n
+                extra['eki_meta_puede_enviar'] = aprobada and n > 0
+                if not aprobada:
+                    extra['eki_meta_envio_bloqueo'] = 'Meta todavía no aprobó esta plantilla.'
+                elif n == 0:
+                    extra['eki_meta_envio_bloqueo'] = 'Agregue un grupo o personas y guarde.'
         return super().changeform_view(request, object_id, form_url, extra_context=extra)
 
     def get_urls(self):
@@ -386,6 +402,11 @@ class CampanaMetaAdmin(admin.ModelAdmin):
                 '<path:object_id>/enviar-prueba/',
                 self.admin_site.admin_view(self.enviar_prueba_view),
                 name='core_campanameta_enviar_prueba',
+            ),
+            path(
+                '<path:object_id>/enviar/',
+                self.admin_site.admin_view(self.enviar_campana_view),
+                name='core_campanameta_enviar',
             ),
         ]
         return custom + super().get_urls()
@@ -405,16 +426,64 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         self.message_user(request, resultado.get('message') or 'Listo.', level=nivel)
         return destino
 
+    def enviar_campana_view(self, request, object_id):
+        from django.shortcuts import get_object_or_404, redirect
+
+        from core.models_campana_meta import CampanaMeta
+
+        campana = get_object_or_404(
+            CampanaMeta.objects.select_related('plantilla', 'grupo'),
+            pk=object_id,
+        )
+        destino = redirect('admin:core_campanameta_change', campana.pk)
+        if request.method != 'POST':
+            return destino
+        self._lanzar_una(request, campana)
+        return destino
+
     def conteo_destinatarios(self, obj):
-        if obj.grupo_id:
-            return obj.grupo.estudiantes.filter(activo=True).count()
-        return obj.destinatarios.filter(activo=True).count()
+        return self._destinatarios_activos(obj)
     conteo_destinatarios.short_description = 'Destinatarios'
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'plantilla':
-            kwargs['queryset'] = PlantillaMeta.objects.filter(activa=True)
+            kwargs['queryset'] = PlantillaMeta.objects.filter(activa=True, estado='APPROVED')
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def _destinatarios_activos(self, campana):
+        if campana.grupo_id:
+            return campana.grupo.estudiantes.filter(activo=True).count()
+        return campana.destinatarios.filter(activo=True).count()
+
+    def _lanzar_una(self, request, campana):
+        from core.meta_waba import encolar_campana_meta
+
+        if not campana.plantilla_id or campana.plantilla.estado != 'APPROVED':
+            estado = campana.plantilla.estado if campana.plantilla_id else 'sin plantilla'
+            self.message_user(
+                request,
+                f'{campana.nombre}: la plantilla está en {estado}. Solo se envía Aprobada.',
+                level=messages.ERROR,
+            )
+            return
+        n = self._destinatarios_activos(campana)
+        if n == 0:
+            self.message_user(
+                request,
+                f'{campana.nombre}: no tiene destinatarios.',
+                level=messages.WARNING,
+            )
+            return
+        try:
+            modo = encolar_campana_meta(campana.id)
+        except Exception as exc:
+            self.message_user(request, f'{campana.nombre}: {exc}', level=messages.ERROR)
+            return
+        self.message_user(
+            request,
+            f'{campana.nombre} encolada ({modo}) para {n} destinatario(s).',
+            level=messages.SUCCESS,
+        )
 
     @admin.action(description='Pausar campañas Meta')
     def pausar_campanas(self, request, queryset):
@@ -438,35 +507,5 @@ class CampanaMetaAdmin(admin.ModelAdmin):
 
     @admin.action(description='Ejecutar campañas Meta (envío Cloud API)')
     def ejecutar_campanas(self, request, queryset):
-        from core.meta_waba import encolar_campana_meta
-
         for campana in queryset:
-            if campana.plantilla.estado != 'APPROVED':
-                self.message_user(
-                    request,
-                    f'{campana.nombre}: la plantilla está en {campana.plantilla.estado}. '
-                    f'Solo se envía Aprobada.',
-                    level=messages.ERROR,
-                )
-                continue
-            if campana.grupo_id:
-                n = campana.grupo.estudiantes.filter(activo=True).count()
-            else:
-                n = campana.destinatarios.filter(activo=True).count()
-            if n == 0:
-                self.message_user(
-                    request,
-                    f'{campana.nombre}: no tiene destinatarios.',
-                    level=messages.WARNING,
-                )
-                continue
-            try:
-                modo = encolar_campana_meta(campana.id)
-            except Exception as exc:
-                self.message_user(request, f'{campana.nombre}: {exc}', level=messages.ERROR)
-                continue
-            self.message_user(
-                request,
-                f'{campana.nombre} encolada ({modo}) para {n} destinatario(s).',
-                level=messages.SUCCESS,
-            )
+            self._lanzar_una(request, campana)

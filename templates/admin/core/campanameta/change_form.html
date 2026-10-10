@@ -4,7 +4,7 @@
 {{ block.super }}
 {% if original.pk and eki_meta_prueba_url %}
 <div style="margin-top:1rem;padding:0.8rem 1rem;border:1px solid rgba(30,27,36,0.12);border-radius:12px;">
-  <strong>Enviar prueba a mi número</strong>
+  <strong>Prueba</strong>
   <p style="margin:0.35rem 0 0.6rem;">
     Plantilla: {{ original.plantilla.estado }}.
     Solo sale si Meta la dejó en Aprobada. No marca la campaña como enviada.
@@ -14,6 +14,20 @@
     <input type="text" name="telefono" inputmode="tel" placeholder="57300…" aria-label="Número de prueba">
     <button type="submit" class="button">Enviar prueba</button>
   </form>
+</div>
+<div style="margin-top:0.75rem;padding:0.8rem 1rem;border:1px solid rgba(30,27,36,0.12);border-radius:12px;">
+  <strong>Enviar</strong>
+  {% if eki_meta_puede_enviar %}
+  <p style="margin:0.35rem 0 0.6rem;">
+    Sale a {{ eki_meta_destinatarios }} destinatario(s) por Meta.
+  </p>
+  <form method="post" action="{{ eki_meta_enviar_url }}">
+    {% csrf_token %}
+    <button type="submit" class="button">Enviar a {{ eki_meta_destinatarios }}</button>
+  </form>
+  {% else %}
+  <p style="margin:0.35rem 0 0;">{{ eki_meta_envio_bloqueo }}</p>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

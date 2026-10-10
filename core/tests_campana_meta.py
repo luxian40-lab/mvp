@@ -145,6 +145,47 @@ class CampanaMetaTests(TestCase):
         self.plantilla.refresh_from_db()
         self.assertEqual(self.plantilla.estado, 'PENDING')
 
+    def test_ficha_enviar_esta_en_la_campana(self):
+        from core.admin.campana_meta import CampanaMetaAdmin
+
+        borrador = self.plantilla
+        aprobada = PlantillaMeta.objects.get(pk=borrador.pk)
+        aprobada.pk = None
+        aprobada.nombre_interno = 'Aviso aprobado'
+        aprobada.meta_name = ''
+        aprobada.meta_template_id = ''
+        aprobada.estado = 'APPROVED'
+        aprobada.save()
+        from django.test import RequestFactory
+
+        rf = RequestFactory()
+        req = rf.get('/admin/core/campanameta/add/')
+        req.user = User.objects.create_superuser('camp_meta', 'camp@x.co', 'pass12345')
+        adm = CampanaMetaAdmin(CampanaMeta, site)
+        field = adm.formfield_for_foreignkey(CampanaMeta._meta.get_field('plantilla'), req)
+        ids = set(field.queryset.values_list('pk', flat=True))
+        self.assertIn(aprobada.pk, ids)
+        self.assertNotIn(borrador.pk, ids)
+
+        est = Estudiante.objects.create(
+            cedula='100200301', nombre='Ana', telefono='573001112244', activo=True,
+        )
+        campana = CampanaMeta.objects.create(nombre='Lanzamiento ficha', plantilla=aprobada)
+        campana.destinatarios.add(est)
+        self.client.force_login(req.user)
+        pagina = self.client.get(reverse('admin:core_campanameta_change', args=[campana.pk]))
+        self.assertContains(pagina, 'Enviar prueba')
+        self.assertContains(pagina, 'Enviar a 1')
+        with patch('core.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
+            resp = self.client.post(reverse('admin:core_campanameta_enviar', args=[campana.pk]))
+        self.assertEqual(resp.status_code, 302)
+        encolar.assert_called_once_with(campana.id)
+
+        pendiente = CampanaMeta.objects.create(nombre='Sin aprobar', plantilla=borrador)
+        bloqueada = self.client.get(reverse('admin:core_campanameta_change', args=[pendiente.pk]))
+        self.assertContains(bloqueada, 'Meta todavía no aprobó esta plantilla.')
+        self.assertNotContains(bloqueada, 'Enviar a ')
+
     def test_enviar_rechaza_si_no_esta_aprobada(self):
         campana = CampanaMeta.objects.create(nombre='Lanzamiento', plantilla=self.plantilla)
         with self.assertRaises(ValueError):
