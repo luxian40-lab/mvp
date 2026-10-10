@@ -84,6 +84,13 @@ class PanelViewTests(TestCase):
         self.assertIn("atajos", snap)
         self.assertIn("ecosistema", snap)
         self.assertIn("actualizado", snap)
+        self.assertEqual(len(snap["inicio_cifras"]), 3)
+        self.assertEqual(
+            [c["label"] for c in snap["inicio_cifras"]],
+            ["Activos", "Sin progreso", "Fallos 24 h"],
+        )
+        self.assertIsInstance(snap["cola"], list)
+        self.assertLessEqual(len(snap["cola"]), 5)
         eco = snap["ecosistema"]
         self.assertEqual(len(eco["nodos"]), 13)
         self.assertTrue(eco["aristas"])
@@ -117,6 +124,9 @@ class PanelViewTests(TestCase):
     def test_inicio_es_panel_ejecutivo(self):
         r = self.client.get("/admin/", follow=True)
         self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Hoy")
+        self.assertContains(r, "Activos")
+        self.assertContains(r, "Todos los módulos del sistema")
         self.assertContains(r, "Actividad en el territorio")
         self.assertContains(r, "mapa-panel-inicio")
         self.assertContains(r, "Más espacios")
@@ -188,7 +198,15 @@ class AdminTonesCssTests(SimpleTestCase):
         self.assertNotIn("a:not(.button)", css)
         self.assertIn("text-white", css)
         self.assertIn('data-eki-tone="manana"', css)
+        self.assertIn('data-eki-tone="campo"', css)
         self.assertIn("--eki-ink", css)
+        dropdown = Path(
+            "templates/unfold/helpers/eki_tone_switch_dropdown.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('data-tone="campo"', dropdown)
+        self.assertIn('data-tone="noche"', dropdown)
+        self.assertNotIn('data-tone="manana"', dropdown)
+        self.assertNotIn('data-tone="tarde"', dropdown)
 
     def test_ecosistema_grados_suaves(self):
         from pathlib import Path

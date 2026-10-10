@@ -12,6 +12,36 @@
     </time>
   </header>
 
+  <div class="eki-panel-kpis eki-inicio-cifras">
+    {% for k in snap.inicio_cifras %}
+    <a class="eki-panel-kpi eki-inicio-cifra" href="{{ k.url }}">
+      <div class="eki-panel-kpi__label">{{ k.label }}</div>
+      <div class="eki-panel-kpi__value">{{ k.value }}</div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <section class="eki-inicio-cola" aria-label="Hoy">
+    <h2>Hoy</h2>
+    {% if snap.cola %}
+    <ul>
+      {% for f in snap.cola %}
+      <li>
+        <a class="eki-inicio-cola__main" href="{{ f.url }}">
+          <strong>{{ f.titulo }}</strong>
+          <span>{{ f.detalle }}</span>
+        </a>
+        <a class="eki-inicio-cola__cta" href="{{ f.url }}">{{ f.cta }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-panel-empty">Nada urgente hoy.</p>
+    {% endif %}
+  </section>
+
+  <details class="eki-inicio-fold">
+    <summary>Cifras</summary>
   <div class="eki-panel-kpis">
     {% for k in snap.kpis %}
     <article class="eki-panel-kpi eki-panel-kpi--{{ k.tone|default:'purple' }}">
@@ -41,19 +71,11 @@
     · por estudiante activo {{ snap.gasto_llm.por_estudiante }} USD
   </p>
   {% endif %}
-
-  {% if snap.acciones %}
-  <div class="eki-panel-acciones" aria-label="Acciones rápidas">
-    {% for a in snap.acciones %}
-    <a class="eki-panel-accion{% if a.destacada %} eki-panel-accion--alert{% endif %}" href="{{ a.url }}">
-      <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
-      {{ a.label }}
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
+  </details>
 
   {% if snap.alertas %}
+  <details class="eki-inicio-fold">
+    <summary>Alertas</summary>
   <section class="eki-panel-alertas" aria-label="Alertas operativas">
     <div class="eki-panel-card__head">
       <h2>Alertas operativas <span class="eki-panel-badge">Ops</span></h2>
@@ -72,8 +94,11 @@
       {% endfor %}
     </ul>
   </section>
+  </details>
   {% endif %}
 
+  <details class="eki-inicio-fold">
+    <summary>Territorio y señales</summary>
   <div class="eki-panel-mid">
     <section class="eki-panel-card eki-panel-map">
       <div class="eki-panel-card__head">
@@ -140,6 +165,7 @@
       <a class="eki-panel-insights__footer" href="{% url 'dashboard_unificado' %}?tab=retencion">Ir al Centro de Éxito →</a>
     </section>
     </div>
+  </details>
 
   {% if snap.ecosistema %}
   <details class="eki-panel-card eki-panel-eco">
@@ -187,6 +213,8 @@
   </details>
   {% endif %}
 
+  <details class="eki-inicio-fold">
+    <summary>Más espacios</summary>
   <section class="eki-panel-espacios-wrap">
     <div class="eki-panel-card__head eki-panel-espacios-wrap__head">
       <div>
@@ -214,6 +242,7 @@
       {% endfor %}
     </div>
   </section>
+  </details>
 
   {% if snap.atajos %}
   <nav class="eki-panel-atajos" aria-label="Accesos rápidos">

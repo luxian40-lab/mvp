@@ -1,6 +1,6 @@
 {% load i18n %}
 
-{# Apariencia admin: Cielo / Marca / Oscuro (skins). Oscuro = dark Unfold. #}
+{# Apariencia admin: Campo / Oscuro. Oscuro = dark Unfold. #}
 <div class="relative" x-data="{ openEkiTone: false }">
     <a class="block cursor-pointer h-[18px] leading-none hover:text-base-700 dark:hover:text-base-200"
        title="{% trans 'Apariencia' %}"
@@ -18,19 +18,11 @@
          aria-label="{% trans 'Apariencia del admin' %}">
         <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
            href="#"
-           data-tone="manana"
+           data-tone="campo"
            role="menuitem"
-           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('manana'); openEkiTone = false">
-            <span class="material-symbols-outlined mr-2">wb_sunny</span>
-            <span class="leading-none self-center">{% trans "Cielo" %}</span>
-        </a>
-        <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
-           href="#"
-           data-tone="tarde"
-           role="menuitem"
-           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('tarde'); openEkiTone = false">
-            <span class="material-symbols-outlined mr-2">apartment</span>
-            <span class="leading-none self-center">{% trans "Marca" %}</span>
+           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('campo'); openEkiTone = false">
+            <span class="material-symbols-outlined mr-2">grass</span>
+            <span class="leading-none self-center">{% trans "Campo" %}</span>
         </a>
         <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
            href="#"
@@ -39,14 +31,6 @@
            x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('noche'); openEkiTone = false">
             <span class="material-symbols-outlined mr-2">dark_mode</span>
             <span class="leading-none self-center">{% trans "Oscuro" %}</span>
-        </a>
-        <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
-           href="#"
-           data-tone="campo"
-           role="menuitem"
-           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('campo'); openEkiTone = false">
-            <span class="material-symbols-outlined mr-2">grass</span>
-            <span class="leading-none self-center">{% trans "Campo" %}</span>
         </a>
     </nav>
 </div>

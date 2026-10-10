@@ -392,10 +392,45 @@ html[data-eki-tone="campo"] .bg-primary-700 {
 }
 
 html[data-eki-tone="campo"] .eki-hub-hello__title,
-html[data-eki-tone="campo"] .eki-panel-exec__title {
+html[data-eki-tone="campo"] .eki-panel-exec__title,
+html[data-eki-tone="campo"] .eki-inicio-cola h2,
+html[data-eki-tone="campo"] .eki-inicio-cola__main strong {
   color: #2a2418;
 }
 
 html[data-eki-tone="campo"] .eki-panel-kpi--purple {
   border-top-color: #3e6b4a;
+}
+
+html[data-eki-tone="campo"] .bg-primary-600,
+html[data-eki-tone="campo"] .bg-primary-500,
+html[data-eki-tone="campo"] .bg-primary-700,
+html[data-eki-tone="campo"] .button,
+html[data-eki-tone="campo"] input[type="submit"],
+html[data-eki-tone="campo"] button[type="submit"],
+html[data-eki-tone="campo"] .eki-inicio-cola__cta {
+  background-color: #3e6b4a;
+  color: #fff;
+  border-color: #23402c;
+  font-weight: 650;
+}
+
+html[data-eki-tone="campo"] .hover\:bg-primary-700:hover,
+html[data-eki-tone="campo"] .hover\:bg-primary-600:hover,
+html[data-eki-tone="campo"] .eki-inicio-cola__cta:hover {
+  background-color: #23402c;
+  color: #fff;
+}
+
+html[data-eki-tone="noche"] .eki-inicio-cola li {
+  background: #221f27;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-eki-tone="noche"] .eki-inicio-cola__cta,
+html[data-eki-tone="noche"] .bg-primary-600,
+html[data-eki-tone="noche"] button[type="submit"] {
+  background-color: #9A6CAC;
+  color: #fff;
+  font-weight: 650;
 }

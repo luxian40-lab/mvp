@@ -1,17 +1,18 @@
 /**
- * Apariencia admin eki — Cielo / Marca / Oscuro (keys: manana / tarde / noche).
+ * Apariencia admin eki — Campo / Oscuro.
  * Persistencia: localStorage eki-admin-tone
  */
 (function () {
   var KEY = 'eki-admin-tone';
-  var TONES = ['manana', 'tarde', 'noche', 'campo'];
+  var TONES = ['campo', 'noche'];
   var LEGACY = {
-    cielo: 'manana',
-    marca: 'tarde',
+    cielo: 'campo',
+    marca: 'campo',
     oscuro: 'noche',
-    manana: 'manana',
-    tarde: 'tarde',
+    manana: 'campo',
+    tarde: 'campo',
     noche: 'noche',
+    campo: 'campo',
   };
 
   function migrateLegacy() {
@@ -37,7 +38,7 @@
 
   function applyTone(tone) {
     tone = LEGACY[tone] || tone;
-    if (TONES.indexOf(tone) < 0) tone = 'tarde';
+    if (TONES.indexOf(tone) < 0) tone = 'campo';
     document.documentElement.setAttribute('data-eki-tone', tone);
     try {
       localStorage.setItem(KEY, tone);
@@ -68,9 +69,9 @@
   function boot() {
     migrateLegacy();
     removeLegacyBar();
-    var saved = 'tarde';
+    var saved = 'campo';
     try {
-      saved = localStorage.getItem(KEY) || 'tarde';
+      saved = localStorage.getItem(KEY) || 'campo';
       saved = LEGACY[saved] || saved;
     } catch (e) {}
     applyTone(saved);

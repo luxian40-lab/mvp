@@ -1036,7 +1036,55 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
             item['delta_dir'] = 'flat'
         return item
 
+    meta_n = 0
+    if isinstance(meta_fallos_24h, dict):
+        meta_n = sum(int(v or 0) for v in meta_fallos_24h.values())
+    cola = []
+    try:
+        from core.models_campana_meta import CampanaMeta
+
+        for camp in (
+            CampanaMeta.objects.filter(ejecutada=False, plantilla__estado='APPROVED')
+            .select_related('plantilla')
+            .order_by('-id')[:3]
+        ):
+            cola.append({
+                'titulo': camp.nombre,
+                'detalle': 'Plantilla aprobada, lista para enviar',
+                'url': f'/admin/core/campanameta/{camp.pk}/change/',
+                'cta': 'Abrir',
+            })
+    except Exception:
+        pass
+    for acc in acciones:
+        if len(cola) >= 5 or not acc.get('destacada'):
+            continue
+        cola.append({
+            'titulo': acc.get('label') or 'Revisar',
+            'detalle': 'Para revisar hoy',
+            'url': acc.get('url') or '/admin/core/estudiante/',
+            'cta': 'Abrir',
+        })
+
     return {
+        'inicio_cifras': [
+            {
+                'label': 'Activos',
+                'value': est_activos,
+                'url': '/admin/core/estudiante/',
+            },
+            {
+                'label': 'Sin progreso',
+                'value': sin_progreso,
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
+            },
+            {
+                'label': 'Fallos 24 h',
+                'value': wa_fallos_24h + meta_n,
+                'url': '/admin/core/whatsapplog/?codigo_twilio=fallos',
+            },
+        ],
+        'cola': cola[:5],
         'kpis': [
             _kpi(
                 'Estudiantes activos',
