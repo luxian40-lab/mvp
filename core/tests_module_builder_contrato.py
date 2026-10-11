@@ -678,6 +678,7 @@ class ModuleBuilderUiV2LecturaTests(TestCase):
         self.assertEqual(ver.status_code, 200)
         esperado = modulo_disponible_por_calendario(persona, self.mod)
         self.assertEqual(ver.json()['veredicto']['disponible'], esperado)
+        self.assertIn('Hoy no recibe este módulo', ver.json()['veredicto']['veredicto'])
         self.assertTrue(ver.json()['veredicto']['inscrito'])
         self.mod.refresh_from_db()
         self.assertEqual(self.mod.habilitado_desde, antes_mod)
@@ -687,6 +688,96 @@ class ModuleBuilderUiV2LecturaTests(TestCase):
         )
         fuera = self.client.get(url + f'?estudiante={sin.id}', secure=True)
         self.assertEqual(fuera.json()['veredicto']['texto'], 'No está inscrito en este curso')
+
+    def test_veredicto_organizacion_lista_blanca_y_ritmo(self):
+        from datetime import timedelta
+
+        from core.drip_schedule import (
+            drip_bloquea_siguiente_modulo,
+            mensaje_bloqueo_avance_siguiente_modulo,
+            modulo_disponible_por_calendario,
+        )
+        from core.models import (
+            Cliente,
+            Estudiante,
+            HabilitacionModuloDripCliente,
+            HabilitacionModuloEstudiante,
+            ModuloCompletado,
+            ProgresoEstudiante,
+        )
+
+        cliente = Cliente.objects.create(
+            nombre='Org capas', contacto_principal='A', email='org-capas@example.com',
+            telefono='573009990011',
+        )
+        self.curso.cliente = cliente
+        self.curso.save(update_fields=['cliente'])
+        persona = Estudiante.objects.create(
+            cedula='capas-1', nombre='Rita Capas', telefono='573009990012', cliente=cliente,
+        )
+        prog = ProgresoEstudiante.objects.create(
+            estudiante=persona, curso=self.curso, modulo_actual=self.anterior,
+        )
+        url = f'/admin/module-builder/{self.mod.id}/probar-persona/?estudiante={persona.id}'
+
+        def veredicto():
+            antes = ProgresoEstudiante.objects.count()
+            resp = self.client.get(url, secure=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(ProgresoEstudiante.objects.count(), antes)
+            data = resp.json()['veredicto']
+            self.assertEqual(
+                data['disponible'],
+                modulo_disponible_por_calendario(persona, self.mod),
+            )
+            return data
+
+        futuro = veredicto()
+        self.assertFalse(futuro['disponible'])
+        self.assertIn('Hoy no recibe este módulo', futuro['veredicto'])
+        self.assertEqual(futuro['capa'], 'fecha del módulo')
+
+        HabilitacionModuloDripCliente.objects.create(
+            cliente=cliente,
+            curso=self.curso,
+            modulo=self.mod,
+            habilitado_desde=timezone.now() - timedelta(days=1),
+        )
+        org = veredicto()
+        self.assertTrue(org['disponible'])
+        self.assertIn('Hoy recibe este módulo', org['veredicto'])
+        self.assertEqual(org['capa'], 'fecha de la organización')
+
+        cliente.drip_modulos_solo_estudiantes_listados = True
+        cliente.save(update_fields=['drip_modulos_solo_estudiantes_listados'])
+        lista = veredicto()
+        self.assertFalse(lista['disponible'])
+        self.assertIn('Hoy no recibe este módulo', lista['veredicto'])
+        self.assertEqual(lista['capa'], 'personas habilitadas a mano')
+
+        HabilitacionModuloEstudiante.objects.create(
+            estudiante=persona, curso=self.curso, modulo=self.mod, habilitado_desde=None,
+        )
+        self.curso.dias_espera_entre_modulos = 3
+        self.curso.save(update_fields=['dias_espera_entre_modulos'])
+        self.mod.publicado_wa = True
+        self.mod.save(update_fields=['publicado_wa'])
+        prog.fecha_ultimo_avance = timezone.now()
+        prog.save(update_fields=['fecha_ultimo_avance'])
+        ModuloCompletado.objects.create(progreso=prog, modulo=self.anterior)
+        ritmo = veredicto()
+        self.assertTrue(ritmo['disponible'])
+        self.assertEqual(ritmo['ritmo_dias'], 3)
+        self.assertEqual(
+            ritmo['drip_bloquea_siguiente'],
+            drip_bloquea_siguiente_modulo(prog, self.anterior),
+        )
+        self.assertTrue(ritmo['drip_bloquea_siguiente'])
+        self.assertEqual(
+            ritmo['mensaje_listo'],
+            mensaje_bloqueo_avance_siguiente_modulo(persona, prog, self.anterior) or '',
+        )
+        self.assertTrue(ritmo['mensaje_listo'])
 
     def test_vista_previa_y_avisos_no_escriben(self):
         self.paso.media_url = 'https://cdn.ejemplo/clip.mp4'

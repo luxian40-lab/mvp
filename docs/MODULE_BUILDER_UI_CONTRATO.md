@@ -200,6 +200,10 @@ Guardar (Contenido o General) no envía `modulo_habilitado_desde`. Solo el botó
 
 `+ Texto antes` y `+ Texto después` hacen POST `add_micro` con plantilla mensaje. `agregar_micro` siempre inserta al final de la sección; no hay posición en esa action. La persona lo deja al lado con Subir o Bajar. Un mensaje que ya tiene texto y archivo no se parte: se muestra la etiqueta «Texto + archivo» y, en la vista previa, dos burbujas.
 
+## Fase 3 (calendario, solo lectura)
+
+La pestaña Calendario muestra la fecha del módulo (la única que guarda este editor), la fecha por organización, el conteo de personas habilitadas a mano y el ritmo del curso. «Probar con una persona» es un GET: busca por nombre, organización o teléfono, nunca por cédula, y no escribe. El veredicto dice «Hoy recibe este módulo» o «Hoy no recibe este módulo», nombra la capa que ya decidió `modulo_disponible_por_calendario` y muestra el texto de `mensaje_bloqueo_avance_siguiente_modulo` si hoy escribiera listo.
+
 ## Puerta ?ui=v2
 
 Con `EKI_MODULE_BUILDER_UI_V2` en False, la interfaz nueva solo entra si el usuario es superusuario y la URL trae `ui=v2`. Staff sin ser superusuario no puede activarla.

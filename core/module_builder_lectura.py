@@ -219,10 +219,10 @@ def veredicto_persona(modulo, estudiante) -> dict:
         texto = mensaje_bloqueo_avance_siguiente_modulo(estudiante, progreso, anterior)
         mensaje = texto or ''
     if disponible:
-        veredicto = f'Puede recibir este módulo. Lo permite: {capa}.'
+        veredicto = f'Hoy recibe este módulo. Lo permite: {capa}.'
     else:
         cuando = f' ({fecha})' if fecha else ''
-        veredicto = f'No puede recibir este módulo. Lo bloquea: {capa}{cuando}.'
+        veredicto = f'Hoy no recibe este módulo. Lo bloquea: {capa}{cuando}.'
     if fecha:
         veredicto = f'{veredicto} Fecha de esa capa: {fecha}.'
     return {
