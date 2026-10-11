@@ -53,6 +53,12 @@ DASHBOARD_TABS: dict[str, dict] = {
         'legacy_aliases': ['retention'],
         'blurb': 'Quién contactar hoy, mapa de caídas, consultor.',
     },
+    'territorio': {
+        'label': 'Territorio y señales',
+        'panel_id': 'tab-territorio',
+        'legacy_aliases': [],
+        'blurb': 'Mapa de estudiantes. Antes vivía en el inicio.',
+    },
 }
 
 LEARNING_SECTION_PANELS = {

@@ -30,8 +30,12 @@ class UnfoldAdminSmokeTests(TestCase):
         body = r.content.decode("utf-8", errors="ignore").lower()
         self.assertNotIn("jazzmin", body)
         self.assertTrue("unfold" in body or "eki" in body)
-        self.assertIn("actividad en el territorio", body)
-        self.assertIn("mapa-panel-inicio", body)
+        self.assertIn("personas activas", body)
+        mapa = self._get("/admin/dashboard/?tab=territorio")
+        self.assertEqual(mapa.status_code, 200)
+        mapa_body = mapa.content.decode("utf-8", errors="ignore").lower()
+        self.assertIn("territorio y señales", mapa_body)
+        self.assertIn("mapa-panel-inicio", mapa_body)
 
     def test_estudiante_changelist_ok(self):
         r = self._get("/admin/core/estudiante/")

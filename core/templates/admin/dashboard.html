@@ -11,6 +11,7 @@
 {% endblock %}
 
 {% block extrastyle %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
     :root {
@@ -268,6 +269,7 @@
         <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)" title="Nat y campañas">Nat / comercial</button>
         <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)" title="Twilio y activaciones IA">IA y Twilio</button>
         <button class="tab-btn {% if tab_actual == 'executive' %}active{% endif %}" data-tab="executive" onclick="switchTab('executive', this)" title="KPIs filtrables y Excel">Pulso (filtros)</button>
+        <button class="tab-btn {% if tab_actual == 'territorio' %}active{% endif %}" data-tab="territorio" onclick="switchTab('territorio', this)" title="Mapa de estudiantes">Territorio y señales</button>
     </div>
     <div id="learning-sub-nav" class="sub-tab-nav {% if tab_actual == 'learning' %}visible{% endif %}">
         <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
@@ -856,6 +858,10 @@
     </div>
 
     <!-- ===== CENTRO DE ÉXITO ===== -->
+    <div id="tab-territorio" class="tab-content {% if tab_actual == 'territorio' %}active{% endif %}">
+        {% include "admin/partials/eki_territorio_senales.html" %}
+    </div>
+
     <div id="tab-retencion" class="tab-content {% if tab_actual == 'retencion' %}active{% endif %}" {% if tab_actual == 'retencion' %}data-loaded="1"{% endif %}>
         <form method="get" class="filters-bar">
             <input type="hidden" name="tab" value="retencion">
@@ -927,6 +933,7 @@ const TAB_PANELS = {
     ai_ops: 'tab-auditoria',
     commercial: 'tab-metricas_nati',
     retencion: 'tab-retencion',
+    territorio: 'tab-territorio',
 };
 const LEARNING_PANELS = {
     reportes: 'tab-reportes',
@@ -1220,6 +1227,7 @@ function switchTab(tabName, btn) {
     if (tabName === 'executive') initResumenCharts();
     if (tabName === 'ai_ops') initAuditoriaCharts();
     if (tabName === 'commercial') cargarMetricasNati();
+    if (tabName === 'territorio' && typeof ekiBootMapaTerritorio === 'function') ekiBootMapaTerritorio();
 }
 
 const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
@@ -1676,6 +1684,7 @@ function iniciarAutoRefreshResumen() {
 
     if (tab === 'executive') initResumenCharts();
     if (tab === 'ai_ops') initAuditoriaCharts();
+    if (tab === 'territorio' && typeof ekiBootMapaTerritorio === 'function') ekiBootMapaTerritorio();
     if (tab === 'learning') {
         const section = params.get('section') || learningSectionActual;
         if (section === 'metricas_empresa') {
