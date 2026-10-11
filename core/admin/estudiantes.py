@@ -19,6 +19,7 @@ from django.db.models import Count, F, Prefetch, Q
 from io import StringIO
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
+from core.admin.estudiante_alta_flag import alta_v2_activa
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
@@ -317,7 +318,8 @@ class EstudianteAdmin(admin.ModelAdmin):
     
     # ✨ AGREGAR BOTÓN DE IMPORTAR EN LA PARTE SUPERIOR
     change_list_template = 'admin/estudiante_changelist.html'
-    
+    actions_list = ('importar_varios_excel',)
+
     fieldsets = (
         ('Identificación y contacto', {
             'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
@@ -342,6 +344,9 @@ class EstudianteAdmin(admin.ModelAdmin):
     readonly_fields = ('mostrar_cursos_inscritos',)
 
     def get_fieldsets(self, request, obj=None):
+        if alta_v2_activa():
+            from core.admin.estudiante_alta import FIELDSETS_V2, FIELDSETS_V2_EDICION
+            return FIELDSETS_V2_EDICION if obj is not None else FIELDSETS_V2
         if obj is None:
             return (
                 ('Identificación y contacto', {
@@ -370,6 +375,25 @@ class EstudianteAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
+        if alta_v2_activa():
+            grupo = form.cleaned_data.get('grupo')
+            if grupo is not None:
+                grupo.estudiantes.add(obj)
+            if form.cleaned_data.get('enviar_bienvenida'):
+                from core.admin.estudiante_bienvenida import enviar_bienvenida_alta
+                resultado = enviar_bienvenida_alta(
+                    obj, form.cleaned_data.get('cursos_a_inscribir'),
+                )
+                if resultado['ok']:
+                    self.message_user(
+                        request, 'Bienvenida enviada por WhatsApp.', level=messages.SUCCESS,
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        f'El estudiante se guardó. La bienvenida no salió: {resultado["motivo"]}',
+                        level=messages.WARNING,
+                    )
         cursos = form.cleaned_data.get('cursos_a_inscribir')
         if not cursos:
             return
@@ -386,7 +410,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                 f'Inscrito en {nuevos} curso(s).',
                 level=messages.SUCCESS,
             )
-    
+
     def mostrar_cursos_inscritos(self, obj):
         """Muestra los cursos en los que está inscrito el estudiante"""
         progresos = ProgresoEstudiante.objects.filter(estudiante=obj).select_related('curso')
@@ -745,8 +769,116 @@ class EstudianteAdmin(admin.ModelAdmin):
         custom_urls = [
             path('importar/', self.admin_site.admin_view(self.importar_estudiantes_view), name='core_estudiante_importar'),
             path('exportar-plantilla/', self.admin_site.admin_view(self.exportar_plantilla_importacion), name='core_estudiante_exportar_plantilla'),
+            path('alta/contexto/', self.admin_site.admin_view(self.alta_contexto_view), name='core_estudiante_alta_contexto'),
+            path('alta/documento/', self.admin_site.admin_view(self.alta_documento_view), name='core_estudiante_alta_documento'),
+            path('alta/telefono/', self.admin_site.admin_view(self.alta_telefono_view), name='core_estudiante_alta_telefono'),
         ]
         return custom_urls + urls
+
+    def get_actions_list(self, request):
+        acciones = super().get_actions_list(request)
+        if alta_v2_activa():
+            return acciones
+        return [
+            accion for accion in acciones
+            if not str(getattr(accion, 'path', '')).endswith('importar-excel')
+        ]
+
+    def get_form(self, request, obj=None, **kwargs):
+        if alta_v2_activa():
+            from core.admin.estudiante_alta import EstudianteAdminFormV2
+            kwargs['form'] = EstudianteAdminFormV2
+        return super().get_form(request, obj, **kwargs)
+
+    def get_autocomplete_fields(self, request):
+        if alta_v2_activa():
+            return ('cliente',)
+        return ()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if alta_v2_activa() and db_field.name == 'cliente':
+            from core.admin.estudiante_alta import ClienteAltaAutocomplete
+            kwargs['widget'] = ClienteAltaAutocomplete(
+                db_field, self.admin_site, using=kwargs.get('using'),
+            )
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if alta_v2_activa() and db_field.name == 'cliente' and field is not None:
+            field.empty_label = 'Sin organización (B2C)'
+        return field
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        if alta_v2_activa():
+            org = org_en_request(request.GET)
+            if isinstance(org, int):
+                initial['cliente'] = org
+        return initial
+
+    @action(description='Importar varios desde Excel', url_path='importar-excel')
+    def importar_varios_excel(self, request):
+        return redirect('admin:core_estudiante_importar')
+
+    def alta_contexto_view(self, request):
+        from core.admin.estudiante_alta import vista_contexto
+        return vista_contexto(request)
+
+    def alta_documento_view(self, request):
+        from core.admin.estudiante_alta import vista_documento
+        return vista_documento(request)
+
+    def alta_telefono_view(self, request):
+        from core.admin.estudiante_alta import vista_telefono
+        return vista_telefono(request)
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        previo_tpl = self.change_form_template
+        previo_cond = getattr(self, 'conditional_fields', None)
+        if alta_v2_activa():
+            from core.admin.estudiante_alta import resumen_panel
+            from core.admin.estudiante_bienvenida import hay_plantilla_bienvenida
+            self.change_form_template = 'admin/core/estudiante/change_form_v2.html'
+            self.conditional_fields = {'grupo': 'cliente'}
+            obj = self.get_object(request, object_id) if object_id else None
+            org = getattr(obj, 'cliente', None) if obj else None
+            if org is None:
+                marca = org_en_request(request.GET)
+                if isinstance(marca, int):
+                    org = Cliente.objects.filter(pk=marca).first()
+            grupo = None
+            if obj is not None and org is not None:
+                grupo = (
+                    obj.grupos.filter(activo=True, cliente=org)
+                    .order_by('-fecha_creacion', '-id')
+                    .first()
+                )
+            if grupo is None and org is not None:
+                activos = GrupoEstudiantes.objects.filter(cliente=org, activo=True)
+                if activos.count() == 1:
+                    grupo = activos.first()
+            panel = resumen_panel(obj, org, grupo, [])
+            if obj is not None:
+                cursos = [
+                    p.curso.nombre
+                    for p in ProgresoEstudiante.objects.filter(estudiante=obj).select_related('curso')
+                    if p.curso_id
+                ]
+                panel['cursos'] = ', '.join(cursos) if cursos else 'Sin curso por ahora'
+            else:
+                panel['cursos'] = 'Sin curso por ahora'
+            extra_context['eki_hay_bienvenida'] = hay_plantilla_bienvenida()
+            extra_context['eki_drip'] = (
+                '1' if org and org.drip_modulos_solo_estudiantes_listados else '0'
+            )
+            extra_context['eki_panel'] = panel
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        finally:
+            self.change_form_template = previo_tpl
+            if previo_cond is None and hasattr(self, 'conditional_fields'):
+                del self.conditional_fields
+            elif previo_cond is not None:
+                self.conditional_fields = previo_cond
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
@@ -801,6 +933,9 @@ class EstudianteAdmin(admin.ModelAdmin):
         Campos obligatorios: Cédula | Nombre | Teléfono.
         Campos opcionales: Municipio | Departamento | Género | Edad | Curso | Cliente.
         """
+        if alta_v2_activa():
+            from core.admin.estudiante_importar_v2 import responder_importacion
+            return responder_importacion(self, request)
         from django.shortcuts import render, redirect
         from django.contrib import messages
         from django.db import IntegrityError
