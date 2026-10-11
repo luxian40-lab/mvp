@@ -43,6 +43,11 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.sincronizar_plantillas_meta',
         'schedule': 600.0,
     },
+    # Catálogo completo (tipo, calidad, categoría). No borra plantillas locales.
+    'sincronizar-catalogo-plantillas-meta': {
+        'task': 'core.tasks.sincronizar_catalogo_plantillas_meta',
+        'schedule': 1800.0,
+    },
     # Generar reporte de actividad cada hora
     'reporte-actividad-hora': {
         'task': 'core.tasks.generar_reporte_actividad',

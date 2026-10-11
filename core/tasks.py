@@ -923,6 +923,16 @@ def sincronizar_plantillas_meta():
 
 
 @shared_task
+def sincronizar_catalogo_plantillas_meta():
+    """Catálogo del WABA cada 30 minutos. No envía mensajes ni borra filas."""
+    from core.meta_waba import sincronizar_catalogo_meta
+
+    resultado = sincronizar_catalogo_meta()
+    logger.info('plantillas_meta_catalogo ok=%s resumen=%s', resultado.get('ok'), resultado.get('resumen'))
+    return resultado.get('resumen') or {}
+
+
+@shared_task
 def latido_beat():
     """El beat escribe un latido cada minuto. Si falta 3 min, Infra lo muestra."""
     from core.health_deep import escribir_latido
