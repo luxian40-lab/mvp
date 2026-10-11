@@ -41,11 +41,22 @@ def _encolar_sandbox_si_async(inbound) -> bool:
     return True
 
 def _aplicar_sandbox_menu(data):
-    """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción."""
-    from core.meta_inbound import traza_inbound
+    """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción.
 
-    with traza_inbound(data):
-        return _aplicar_sandbox_menu_cuerpo(data)
+    Graph responde por el phone number id al que escribieron. Si no es una
+    línea configurada, sigue la principal.
+    """
+    from core.meta_inbound import traza_inbound
+    from core.sandbox_canal import phone_ids_meta, salida_por_phone_id
+
+    pnid = ''
+    if isinstance(data, dict):
+        candidato = str(data.get('_eki_phone_number_id') or '').strip()
+        if candidato in phone_ids_meta():
+            pnid = candidato
+    with salida_por_phone_id(pnid):
+        with traza_inbound(data):
+            return _aplicar_sandbox_menu_cuerpo(data)
     return HttpResponse('OK')
 
 

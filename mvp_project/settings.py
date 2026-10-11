@@ -324,6 +324,9 @@ META_ERROR_ACCIONES = {
 }
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')  # Access Token de Meta
 WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID
+# Segunda línea de la misma app. Vacío = solo la principal. La respuesta sale por el número al que escribieron.
+WHATSAPP_PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', '')
+WHATSAPP_NUMERO_2_E164 = os.environ.get('WHATSAPP_NUMERO_2_E164', '')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
 WHATSAPP_APP_ID = os.environ.get('WHATSAPP_APP_ID', '')  # App ID: sube las fotos del carrusel
 # App Secret de Meta: firma X-Hub-Signature-256 de message_template_status_update.

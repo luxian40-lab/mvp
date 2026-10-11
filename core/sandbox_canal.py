@@ -140,10 +140,55 @@ def es_inbound_twilio_http(payload: Any) -> bool:
     return sid.startswith(('SM', 'MM', 'IM', 'WA'))
 
 
+_pnid_salida: ContextVar[str] = ContextVar('eki_pnid_salida', default='')
+
+
 def sandbox_e164() -> str:
     return normalizar_telefono_whatsapp(
         getattr(settings, 'BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886') or '14155238886'
     )
+
+
+def phone_ids_meta() -> tuple[str, ...]:
+    """Líneas Cloud API que comparten menú. La 2 vacía no entra."""
+    ids: list[str] = []
+    for raw in (
+        sandbox_phone_id(),
+        getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID_2', '') or '',
+    ):
+        pnid = str(raw or '').strip()
+        if pnid and pnid not in ids:
+            ids.append(pnid)
+    return tuple(ids)
+
+
+def e164_lineas_meta() -> tuple[str, ...]:
+    numeros: list[str] = []
+    for raw in (
+        getattr(settings, 'BOT_COMERCIAL_SANDBOX_NUMBER', '') or '14155238886',
+        getattr(settings, 'WHATSAPP_NUMERO_2_E164', '') or '',
+    ):
+        numero = normalizar_telefono_whatsapp(raw)
+        if numero and numero not in numeros:
+            numeros.append(numero)
+    return tuple(numeros)
+
+
+@contextmanager
+def salida_por_phone_id(pnid: str | None):
+    """Mientras dura el turno, Graph envía por este phone number id."""
+    token = _pnid_salida.set(str(pnid or '').strip())
+    try:
+        yield
+    finally:
+        _pnid_salida.reset(token)
+
+
+def phone_id_de_salida() -> str:
+    explicito = (_pnid_salida.get() or '').strip()
+    if explicito:
+        return explicito
+    return sandbox_phone_id()
 
 
 def to_es_sandbox(to_or_payload: Any) -> bool:
@@ -158,19 +203,19 @@ def to_es_sandbox(to_or_payload: Any) -> bool:
         except Exception:
             to_raw = ''
     to_limpio = normalizar_telefono_whatsapp(to_raw)
-    sb = sandbox_e164()
-    return bool(to_limpio and sb and to_limpio == sb)
+    if not to_limpio:
+        return False
+    return to_limpio in e164_lineas_meta()
 
 
 def phone_id_es_sandbox(payload: Any) -> bool:
-    expected = sandbox_phone_id()
-    if not expected or payload is None or isinstance(payload, str):
+    if payload is None or isinstance(payload, str):
         return False
     try:
         got = str(payload.get('_eki_phone_number_id') or '').strip()
     except Exception:
         return False
-    return bool(got and got == expected)
+    return bool(got and got in phone_ids_meta())
 
 
 def activar_sandbox_meta_si_inbound(post_data):
@@ -214,7 +259,7 @@ def _graph_headers() -> dict[str, str] | None:
 
 
 def _graph_messages_url(api_version: str | None = None) -> str | None:
-    phone_id = sandbox_phone_id()
+    phone_id = phone_id_de_salida()
     if not phone_id:
         return None
     from core.meta_waba import _version
