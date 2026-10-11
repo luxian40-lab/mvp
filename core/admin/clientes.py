@@ -102,7 +102,6 @@ class PortalUsuarioInline(admin.TabularInline):
 # CrearUsuarioPortalForm vive en portal.forms_usuarios (provisión con cupos).
 
 
-@admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
     """Gestión de clientes/organizaciones"""
     change_form_template = 'admin/core/cliente/change_form.html'
@@ -664,5 +663,23 @@ class ClienteAdmin(admin.ModelAdmin):
                 'Ninguna copia realizada. Suba docs a Agronexo o como RAG general (cliente vacío).',
                 level='warning',
             )
+
+
+def registrar_cliente_admin():
+    """Elige la ficha nueva solo si ADMIN_CLIENTES_V2 está encendido."""
+    from core.admin.cliente_v2_flag import admin_clientes_v2_activo
+
+    try:
+        admin.site.unregister(Cliente)
+    except admin.sites.NotRegistered:
+        pass
+    if admin_clientes_v2_activo():
+        from core.admin.clientes_v2 import ClienteAdminV2
+        admin.site.register(Cliente, ClienteAdminV2)
+    else:
+        admin.site.register(Cliente, ClienteAdmin)
+
+
+registrar_cliente_admin()
 
 

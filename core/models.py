@@ -430,6 +430,11 @@ class Cliente(models.Model):
         verbose_name="Activo",
         help_text="Si está inactivo, sus estudiantes no recibirán mensajes"
     )
+    es_demo = models.BooleanField(
+        default=False,
+        verbose_name='Es demo o prueba',
+        help_text='Marca organizaciones de prueba. No cambia envíos ni permisos.',
+    )
     notas_internas = models.TextField(
         blank=True,
         verbose_name="Notas Internas",
