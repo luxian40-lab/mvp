@@ -1,2 +1,3 @@
 # Solo desarrollo y CI. No entra en el pip de Elastic Beanstalk.
 pytest-socket==0.7.0
+pytest-playwright==0.10.0

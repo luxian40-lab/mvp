@@ -47,4 +47,4 @@ Dependencia solo de desarrollo, fuera de `requirements.txt` de Elastic Beanstalk
 3. Pulsar «Subir mensaje» y comprobar que el orden cambió dentro de la sección.
 4. Leer el `href` de `#eki-mb-publicar` y no seguirlo.
 
-No se instala hasta que haya OK. El guion de arriba sigue siendo la prueba manual.
+Está en `requirements-dev.txt` (`pytest-playwright`), fuera de `requirements.txt`. La prueba `core/tests_browser/test_module_builder_humo.py` no corre sola: hace falta `EKI_PLAYWRIGHT=1` y Chromium (`python -m playwright install chromium`). El guion de arriba sigue siendo la prueba manual.
