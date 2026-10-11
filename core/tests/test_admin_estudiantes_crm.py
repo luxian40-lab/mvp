@@ -1,5 +1,6 @@
 """Listado CRM de Estudiantes: cifras, organización y consultas constantes."""
 import uuid
+from pathlib import Path
 from datetime import timedelta
 
 from django.contrib.admin.sites import AdminSite
@@ -240,6 +241,21 @@ class EstudiantesCrmTests(TestCase):
         self.assertContains(respuesta, 'data-kpi="avance">10%<')
         self.assertContains(respuesta, 'data-kpi="habeas">1<')
         self.assertNotContains(respuesta, 'Estado del chat')
+
+    def test_el_boton_de_filtros_abre_el_panel(self):
+        respuesta = self.http.get(self.url, {'q': 'CRM'})
+        self.assertContains(respuesta, 'id="changelist-filter"')
+        self.assertContains(respuesta, 'filter-open-button')
+        self.assertContains(respuesta, 'Curso inscrito')
+        css = Path(__file__).resolve().parents[2].joinpath('static', 'admin', 'estudiantes_crm.css')
+        texto = css.read_text(encoding='utf-8')
+        self.assertNotIn('#changelist-filter', texto)
+        self.assertNotIn('filter-open-button', texto)
+        por_curso = self.http.get(self.url, {'curso': self.curso.pk, 'q': 'CRM'})
+        self.assertContains(por_curso, 'Marta Crm')
+        self.assertContains(por_curso, 'Ana Crm')
+        self.assertNotContains(por_curso, 'Otto Crm')
+        self.assertNotContains(por_curso, 'Luis Crm')
 
     def test_la_nota_queda_en_la_fila(self):
         self.user.first_name = 'Julian'
