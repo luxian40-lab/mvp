@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Eliminar {{ original.nombre }}</h1>
+    {% if bloqueado %}
+    <p>No se puede eliminar: tiene estudiantes, cursos o campañas. Desactivar deja el registro y corta los mensajes.</p>
+    <p><a class="button" href="{{ desactivar_url }}">Desactivar</a></p>
+    {% else %}
+    <p>Esta organización no tiene estudiantes, cursos ni campañas. Escriba el nombre exacto para confirmar.</p>
+    {% if error %}<p class="errornote">{{ error }}</p>{% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="id_confirmacion">Nombre</label>
+            <input id="id_confirmacion" name="confirmacion" type="text" autocomplete="off">
+        </p>
+        <button type="submit" class="button">Eliminar cliente</button>
+        <a href="{{ desactivar_url }}">Cancelar</a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

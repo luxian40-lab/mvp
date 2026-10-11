@@ -355,6 +355,66 @@ class ListadoClienteV2Tests(TestCase):
         self.assertIn('nota de prueba', body)
         self.assertIn('activeFieldsetTab', body)
 
+    def test_eliminar_se_bloquea_con_estudiantes_y_pide_el_nombre_si_esta_vacia(self):
+        ocupada = reverse('admin:core_cliente_eliminar', args=[self.real.pk])
+        r = self.client.get(ocupada)
+        self.assertEqual(r.status_code, 200)
+        cuerpo = r.content.decode('utf-8')
+        self.assertIn('No se puede eliminar', cuerpo)
+        self.assertIn('Desactivar', cuerpo)
+        self.assertTrue(Cliente.objects.filter(pk=self.real.pk).exists())
+
+        vacia = Cliente.objects.create(
+            nombre='Org Vacia',
+            contacto_principal='Ana',
+            email='vacia@test.com',
+            telefono='573009990199',
+        )
+        url = reverse('admin:core_cliente_eliminar', args=[vacia.pk])
+        mal = self.client.post(url, {'confirmacion': 'otro'})
+        self.assertEqual(mal.status_code, 200)
+        self.assertTrue(Cliente.objects.filter(pk=vacia.pk).exists())
+        bien = self.client.post(url, {'confirmacion': 'Org Vacia'})
+        self.assertEqual(bien.status_code, 302)
+        self.assertFalse(Cliente.objects.filter(pk=vacia.pk).exists())
+
+    def test_desactivar_apaga_la_organizacion(self):
+        from django.contrib.messages.storage.fallback import FallbackStorage
+
+        request = RequestFactory().post('/admin/core/cliente/1/change/', {'_desactivar': '1'})
+        request.user = self.user
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+        ClienteAdminV2(Cliente, admin.site).response_change(request, self.real)
+        self.real.refresh_from_db()
+        self.assertFalse(self.real.activo)
+
+    def test_mojibake_lista_y_solo_escribe_con_apply(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from core.models_extras import GrupoEstudiantes
+
+        roto = 'Usaqu\u00c3\u00a9n'
+        cliente = Cliente.objects.create(
+            nombre=roto,
+            contacto_principal='Ana',
+            email='moji@test.com',
+            telefono='573009990188',
+        )
+        grupo = GrupoEstudiantes.objects.create(nombre=roto, cliente=cliente)
+        salida = StringIO()
+        call_command('corregir_nombres_mojibake', '--dry-run', stdout=salida)
+        cliente.refresh_from_db()
+        self.assertEqual(cliente.nombre, roto)
+        self.assertIn('Usaquén', salida.getvalue())
+        call_command('corregir_nombres_mojibake', '--apply', stdout=StringIO())
+        cliente.refresh_from_db()
+        grupo.refresh_from_db()
+        self.assertEqual(cliente.nombre, 'Usaquén')
+        self.assertEqual(grupo.nombre, 'Usaquén')
+
 
 def _datos_formulario(cliente, **cambios):
     form = ClienteAdminFormV2(instance=cliente)

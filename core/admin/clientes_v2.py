@@ -9,7 +9,7 @@ from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.decorators import action
@@ -357,6 +357,7 @@ class ClienteAdminV2(ClienteAdmin):
         'pqrs_resumen',
         'cobertura_departamentos',
         'actividad_reciente',
+        'zona_peligro',
     )
 
     fieldsets = (
@@ -369,6 +370,7 @@ class ClienteAdminV2(ClienteAdmin):
                 ('email', 'es_demo'),
                 'notas_internas',
                 ('activo', 'fecha_registro'),
+                'zona_peligro',
             ),
         }),
         ('Marca', {
@@ -910,6 +912,84 @@ class ClienteAdminV2(ClienteAdmin):
             'opts': self.model._meta,
         }
         return render(request, 'admin/core/cliente/asignar_plan.html', context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                '<int:cliente_id>/eliminar/',
+                self.admin_site.admin_view(self.eliminar_cliente_view),
+                name='core_cliente_eliminar',
+            ),
+        ]
+        return extra + urls
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if change and obj is not None:
+            context['show_delete'] = False
+        return super().render_change_form(
+            request, context, add, change, form_url, obj,
+        )
+
+    def response_change(self, request, obj):
+        if '_desactivar' in request.POST:
+            obj.activo = False
+            obj.save(update_fields=['activo'])
+            self.message_user(
+                request,
+                'Organización desactivada. Sus estudiantes dejan de recibir mensajes.',
+            )
+            return redirect('admin:core_cliente_change', obj.pk)
+        return super().response_change(request, obj)
+
+    def _tiene_trabajo(self, obj):
+        from core.models import Campana
+
+        return (
+            Estudiante.objects.filter(cliente=obj).exists()
+            or Curso.objects.filter(cliente=obj).exists()
+            or Campana.objects.filter(cliente=obj).exists()
+        )
+
+    @admin.display(description='Zona de peligro')
+    def zona_peligro(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde la organización antes de eliminarla.'
+        url = reverse('admin:core_cliente_eliminar', args=[obj.pk])
+        return format_html(
+            '<p>Eliminar sale de esta barra. Desactivar deja el registro y corta los mensajes.</p>'
+            '<p><button type="submit" name="_desactivar" class="button">Desactivar</button> '
+            '<a class="button" href="{}">Eliminar cliente</a></p>',
+            url,
+        )
+
+    def eliminar_cliente_view(self, request, cliente_id):
+        from django.core.exceptions import PermissionDenied
+
+        obj = self.get_object(request, str(cliente_id))
+        if obj is None:
+            return redirect('admin:core_cliente_changelist')
+        if not self.has_delete_permission(request, obj):
+            raise PermissionDenied
+        bloqueado = self._tiene_trabajo(obj)
+        error = ''
+        if request.method == 'POST' and not bloqueado:
+            if (request.POST.get('confirmacion') or '').strip() == obj.nombre:
+                nombre = obj.nombre
+                self.delete_model(request, obj)
+                self.message_user(request, f'Se eliminó {nombre}.')
+                return redirect('admin:core_cliente_changelist')
+            error = 'Escriba el nombre exacto de la organización.'
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Eliminar cliente',
+            'opts': self.model._meta,
+            'original': obj,
+            'bloqueado': bloqueado,
+            'error': error,
+            'desactivar_url': reverse('admin:core_cliente_change', args=[obj.pk]),
+        }
+        return render(request, 'admin/core/cliente/eliminar.html', context)
 
     def get_form(self, request, obj=None, **kwargs):
         kwargs['form'] = self.form
