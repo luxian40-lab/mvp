@@ -275,7 +275,9 @@ class CampanaMetaTests(TestCase):
         self.assertContains(pagina, 'pm-phone')
         self.assertContains(pagina, 'eki-mb-wa-preview')
         self.assertContains(pagina, '_v2')
-        self.assertNotContains(pagina, 'Oferta por tiempo limitado')
+        self.assertContains(pagina, 'Oferta por tiempo limitado')
+        self.assertContains(pagina, 'Video')
+        self.assertContains(pagina, 'Cupón')
         resp = client.post(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]), {
             'nombre_interno': 'Aviso café',
             'cuerpo': 'Hola Ana, tu curso abre mañana.',
@@ -303,7 +305,9 @@ class CampanaMetaTests(TestCase):
         self.assertContains(editor, 'Imagen')
         self.assertContains(editor, 'Carrusel')
         self.assertContains(editor, 'Agregar variable')
-        self.assertNotContains(editor, 'Oferta por tiempo limitado')
+        self.assertContains(editor, 'Oferta por tiempo limitado')
+        self.assertContains(editor, 'Video')
+        self.assertContains(editor, 'Autenticación (código)')
 
     def test_admin_changelist(self):
         User.objects.create_superuser('meta_admin', 'm@t.com', 'pass12345')

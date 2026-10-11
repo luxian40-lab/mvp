@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from core.models_campana_meta import (
+    TIPOS_ALTA_GRAPH,
+    TIPOS_PLANTILLA,
     PlantillaMeta,
     TarjetaPlantillaMeta,
     sanitizar_nombre_meta,
@@ -14,6 +16,7 @@ from core.models_campana_meta import (
 )
 
 TIPOS_EDITOR = ('TEXTO', 'IMAGEN', 'CARRUSEL')
+TIPOS_PANTALLA = tuple(codigo for codigo, _nombre in TIPOS_PLANTILLA if codigo != 'OTRO')
 ESTADOS_SOLO_LECTURA = ('APPROVED', 'PENDING', 'IN_APPEAL')
 ORIGENES = ('estudiante.nombre', 'organizacion.nombre', 'curso.nombre', 'texto_fijo')
 IDIOMAS = (('es', 'Español'), ('en', 'English'))
@@ -109,10 +112,11 @@ def _tarjetas_de(plantilla: PlantillaMeta | None, tipo: str) -> tuple[list[dict]
 
 def armar_inicial(plantilla: PlantillaMeta | None, tipo: str, datos=None, foto_muestra: str = '') -> dict:
     """Estado del formulario. Si hay POST con errores, manda lo que la persona escribió."""
+    permitidos = set(TIPOS_PANTALLA) | {'OTRO'}
     tipo = (tipo or 'TEXTO').upper()
-    if tipo not in TIPOS_EDITOR:
+    if tipo not in permitidos:
         tipo = 'TEXTO'
-    if datos is not None and _txt(datos, 'tipo').upper() in TIPOS_EDITOR:
+    if datos is not None and _txt(datos, 'tipo').upper() in permitidos:
         tipo = _txt(datos, 'tipo').upper()
 
     def campo(clave, defecto):
@@ -190,6 +194,12 @@ def armar_inicial(plantilla: PlantillaMeta | None, tipo: str, datos=None, foto_m
             {'codigo': 'curso.nombre', 'nombre': 'curso.nombre'},
             {'codigo': 'texto_fijo', 'nombre': 'texto fijo'},
         ],
+        'tipos': [
+            {'codigo': codigo, 'nombre': nombre}
+            for codigo, nombre in TIPOS_PLANTILLA
+            if codigo != 'OTRO' or tipo == 'OTRO'
+        ],
+        'alta': sorted(TIPOS_ALTA_GRAPH),
     }
 
 
@@ -374,7 +384,7 @@ def duplicar_plantilla(origen: PlantillaMeta) -> PlantillaMeta:
         ejemplos_cuerpo=origen.ejemplos_cuerpo,
         origen_variables=dict(origen.origen_variables or {}) if isinstance(origen.origen_variables, dict) else {},
         footer=origen.footer,
-        tipo=origen.tipo if origen.tipo in TIPOS_EDITOR else 'TEXTO',
+        tipo=origen.tipo if origen.tipo in {codigo for codigo, _nombre in TIPOS_PLANTILLA} else 'TEXTO',
         boton_1_tipo=origen.boton_1_tipo,
         boton_1_texto=origen.boton_1_texto,
         boton_1_url=origen.boton_1_url,

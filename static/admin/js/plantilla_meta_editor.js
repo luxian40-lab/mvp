@@ -49,6 +49,8 @@
         origenes: inicial.origenes || {},
         ejemplos: inicial.ejemplos || {},
         opcionesOrigen: inicial.opcionesOrigen || [],
+        tipos: inicial.tipos || [],
+        alta: inicial.alta || ['TEXTO', 'CARRUSEL'],
         init: function () {
           var self = this;
           this.$nextTick(function () {
@@ -69,11 +71,13 @@
         },
         elegir: function (tipo) {
           if (this.soloLectura) return;
-          if ((tipo === 'IMAGEN' || tipo === 'CARRUSEL') && !this.appId) return;
           this.tipo = tipo;
           if (tipo === 'CARRUSEL') {
             while (this.tarjetas.length < 2) this.agregarTarjeta();
           }
+        },
+        esAlta: function () {
+          return (this.alta || []).indexOf(this.tipo) !== -1;
         },
         alNombre: function () {
           if (!this.metaBloqueado) this.metaName = tecnico(this.nombre);
@@ -163,6 +167,17 @@
             lista.push({
               ok: n >= 2 && n <= 10,
               texto: 'El carrusel necesita entre 2 y 10 tarjetas.',
+            });
+          }
+          if (!this.esAlta()) {
+            lista.push({
+              ok: false,
+              texto: 'El alta automática cubre Texto y Carrusel. Guarde el borrador: este formato queda como registro.',
+            });
+          } else if (this.tipo === 'CARRUSEL' && !this.appId) {
+            lista.push({
+              ok: false,
+              texto: 'Para el carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.',
             });
           }
           return lista;

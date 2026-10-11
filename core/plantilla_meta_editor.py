@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from core.models_campana_meta import (
+    TIPOS_PLANTILLA,
     PlantillaMeta,
     TarjetaPlantillaMeta,
     ejemplos_lista,
@@ -124,8 +125,8 @@ def guardar_asistente(datos, plantilla: PlantillaMeta | None, *, enviar: bool) -
     """Guarda el borrador. Si enviar, llama a crear_plantilla_en_meta sin cambiar esa función."""
     normal = _datos_reglas(datos)
     tipo = normal['tipo']
-    if tipo not in ('TEXTO', 'IMAGEN', 'CARRUSEL'):
-        return None, ['En el asistente puede crear Texto, Imagen o Carrusel.']
+    if tipo not in {codigo for codigo, _nombre in TIPOS_PLANTILLA}:
+        return None, ['Ese formato no está entre los que ofrece Meta.']
     if enviar and tipo in ('IMAGEN', 'CARRUSEL') and not app_id_listo():
         return None, [
             'Para imagen y carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.',
@@ -173,9 +174,11 @@ def guardar_asistente(datos, plantilla: PlantillaMeta | None, *, enviar: bool) -
     if 'boton_2_texto' in datos or normal['boton_2_texto']:
         plantilla.boton_2_texto = normal['boton_2_texto'][:25]
         plantilla.boton_2_tipo = normal['boton_2_tipo'][:20]
-    if tipo != 'TEXTO' and tipo != 'IMAGEN':
+    if tipo == 'CARRUSEL':
         plantilla.boton_1_tipo = ''
         plantilla.boton_1_texto = ''
+        plantilla.boton_2_tipo = ''
+        plantilla.boton_2_texto = ''
     try:
         plantilla.full_clean()
     except ValidationError as exc:

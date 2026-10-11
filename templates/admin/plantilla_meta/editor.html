@@ -12,8 +12,18 @@
 {% block content %}
 {{ inicial|json_script:"pm-inicial" }}
 <div class="pm-editor" x-data="plantillaEditor(JSON.parse(document.getElementById('pm-inicial').textContent))">
+  <header class="pm-head">
+    <div>
+      <h1>{{ titulo }} <span class="pm-ayuda">{{ estado_label }}</span></h1>
+      <p class="pm-ayuda">Elija el formato. El mensaje, el pie y los botones se conservan al cambiar.</p>
+    </div>
+    <div class="pm-pills" role="tablist" aria-label="Tipo de plantilla">
+      {% for fila in inicial.tipos %}
+      <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === '{{ fila.codigo }}' }" :aria-selected="tipo === '{{ fila.codigo }}'" @click="elegir('{{ fila.codigo }}')" {% if solo_lectura %}disabled{% endif %}>{{ fila.nombre }}</button>
+      {% endfor %}
+    </div>
+  </header>
   <div class="pm-col">
-    <h1>{{ titulo }} <span class="pm-ayuda">{{ estado_label }}</span></h1>
     {% if errores %}
     <ul class="pm-errores">
       {% for e in errores %}<li>{{ e }}</li>{% endfor %}
@@ -23,13 +33,9 @@
     <form method="post" class="pm-form" id="pm-form">
       {% csrf_token %}
       <input type="hidden" name="tipo" value="{{ inicial.tipo }}" :value="tipo">
-      <div class="pm-pills" role="tablist" aria-label="Tipo de plantilla">
-        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'TEXTO' }" :aria-selected="tipo === 'TEXTO'" @click="elegir('TEXTO')" {% if solo_lectura %}disabled{% endif %}>Texto</button>
-        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'IMAGEN' }" :aria-selected="tipo === 'IMAGEN'" @click="elegir('IMAGEN')" {% if solo_lectura %}disabled{% endif %}>Imagen</button>
-        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'CARRUSEL' }" :aria-selected="tipo === 'CARRUSEL'" @click="elegir('CARRUSEL')" {% if solo_lectura %}disabled{% endif %}>Carrusel</button>
-      </div>
+      <p class="pm-nota" x-show="!esAlta()">Este formato se guarda como registro. El alta automática cubre Texto y Carrusel.</p>
       {% if not app_id_listo %}
-      <p class="pm-nota">Para imagen y carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.</p>
+      <p class="pm-nota" x-show="tipo === 'CARRUSEL'">Para el carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.</p>
       {% endif %}
 
       <label>Nombre
@@ -59,9 +65,11 @@
         <button type="button" class="pm-tab" role="tab" :class="{ 'is-on': pestana === 'tarjetas' }" @click="pestana = 'tarjetas'">Tarjetas</button>
       </div>
 
-      <div x-show="tipo === 'IMAGEN'" class="pm-foto">
-        <img src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
-        <p class="pm-nota">Foto de muestra. La foto real se adjunta al enviar.</p>
+      <div x-show="tipo === 'IMAGEN' || tipo === 'VIDEO' || tipo === 'DOCUMENTO'" class="pm-foto">
+        <img x-show="tipo === 'IMAGEN'" src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
+        <p class="pm-nota" x-show="tipo === 'IMAGEN'">Foto de muestra. La foto real se adjunta al enviar.</p>
+        <p class="pm-nota" x-show="tipo === 'VIDEO'">El video real se adjunta al enviar.</p>
+        <p class="pm-nota" x-show="tipo === 'DOCUMENTO'">El documento real se adjunta al enviar.</p>
       </div>
 
       <div x-show="tipo !== 'CARRUSEL' || pestana === 'mensaje'">
@@ -190,8 +198,8 @@
     {% endif %}
   </div>
 
-  <aside class="pm-phone" aria-label="Vista del mensaje">
-    <div class="pm-phone-bar">WhatsApp</div>
+  <aside class="pm-phone" aria-label="Vista previa">
+    <p class="pm-vista">Vista previa</p>
     <div class="eki-mb-wa-preview" data-wa-preview="plantilla">
       <p class="eki-mb-wa-preview__eyebrow">Así llega por WhatsApp</p>
       <template x-if="tipo === 'IMAGEN'">

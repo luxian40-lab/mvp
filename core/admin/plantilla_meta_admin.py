@@ -8,7 +8,7 @@ from django.utils.html import format_html
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
 
-from core.models_campana_meta import CampanaMeta, PlantillaMeta, TarjetaPlantillaMeta, variables_en
+from core.models_campana_meta import CampanaMeta, PlantillaMeta, TIPOS_PLANTILLA, TarjetaPlantillaMeta, variables_en
 from core.plantilla_meta_editor import (
     SOLO_LECTURA,
     app_id_listo,
@@ -295,7 +295,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     def _redir_alta(self, request, tipo=None):
         destino = reverse('admin:core_plantillameta_add')
         tipo_q = (tipo or request.GET.get('tipo') or '').upper()
-        if tipo_q in ('TEXTO', 'IMAGEN', 'CARRUSEL'):
+        if tipo_q in {codigo for codigo, _nombre in TIPOS_PLANTILLA}:
             destino = f'{destino}?tipo={tipo_q}'
         return redirect(destino)
 
@@ -408,10 +408,11 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         return render(request, 'admin/plantilla_meta/editor.html', contexto)
 
     def _tipo_inicial(self, request, plantilla):
+        codigos = {codigo for codigo, _nombre in TIPOS_PLANTILLA}
         if plantilla is not None and plantilla.pk:
-            return plantilla.tipo if plantilla.tipo in ('TEXTO', 'IMAGEN', 'CARRUSEL', 'OTRO') else 'TEXTO'
+            return plantilla.tipo if plantilla.tipo in codigos else 'TEXTO'
         tipo = (request.GET.get('tipo') or 'TEXTO').upper()
-        if tipo not in ('TEXTO', 'IMAGEN', 'CARRUSEL'):
+        if tipo not in codigos or tipo == 'OTRO':
             tipo = 'TEXTO'
         return tipo
 
