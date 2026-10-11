@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -33,6 +34,61 @@ from core.module_builder_config import (
 from core.models import Modulo, PasoModulo, SeccionModulo
 
 logger = logging.getLogger(__name__)
+
+
+def _contexto_drip_solo_lectura(modulo):
+    """Organizaciones y personas habilitadas. Solo lee. No aplica reglas de envío."""
+    from core.models import (
+        Cliente,
+        HabilitacionModuloDripCliente,
+        HabilitacionModuloEstudiante,
+        ProgresoEstudiante,
+    )
+
+    curso = modulo.curso
+    filas = list(
+        HabilitacionModuloDripCliente.objects.filter(modulo=modulo, activo=True)
+        .select_related('cliente')
+        .order_by('cliente_id')
+    )
+    por_cliente = {fila.cliente_id: fila for fila in filas}
+    ids = set(por_cliente)
+    if curso is not None and getattr(curso, 'cliente_id', None):
+        ids.add(curso.cliente_id)
+    if curso is not None:
+        ids.update(
+            ProgresoEstudiante.objects.filter(curso=curso)
+            .exclude(estudiante__cliente_id=None)
+            .values_list('estudiante__cliente_id', flat=True)
+            .distinct()
+        )
+    clientes = Cliente.objects.filter(pk__in=ids).order_by('nombre')
+    organizaciones = []
+    for cliente in clientes:
+        fila = por_cliente.get(cliente.pk)
+        organizaciones.append({
+            'nombre': cliente.nombre,
+            'habilitado_desde': fila.habilitado_desde if fila else None,
+            'usa_fecha_modulo': fila is None,
+        })
+    personas = HabilitacionModuloEstudiante.objects.filter(
+        modulo=modulo,
+        activo=True,
+    ).count()
+    listas = list(
+        Cliente.objects.filter(
+            pk__in=HabilitacionModuloEstudiante.objects.filter(
+                modulo=modulo,
+                activo=True,
+            ).values('estudiante__cliente_id'),
+            drip_modulos_solo_estudiantes_listados=True,
+        ).order_by('nombre').values_list('nombre', flat=True)
+    )
+    return {
+        'drip_organizaciones': organizaciones,
+        'drip_personas_conteo': personas,
+        'drip_orgs_lista_blanca': listas,
+    }
 
 
 def _require_builder(request, curso=None):
@@ -529,5 +585,8 @@ def module_builder_view(request, modulo_id: int):
         ) else '',
         'change_url': f'/admin/core/modulo/{modulo.id}/change/',
         'ce_studio_url': ce_studio_url,
+        'mb_ui_v2': bool(getattr(settings, 'EKI_MODULE_BUILDER_UI_V2', False)),
     }
+    if ctx['mb_ui_v2']:
+        ctx.update(_contexto_drip_solo_lectura(modulo))
     return render(request, 'admin/module_builder.html', ctx)

@@ -175,7 +175,7 @@ Avisos de la página: problemas de media (enlace al paso), secciones intercalada
 ## Choques con el diseño pedido (no improvisar)
 
 1. **Unfold 0.102.0.** El repo fija `django-unfold==0.91.0` (`requirements.txt`). La regla de admin pide no subir de 0.91.x mientras Elastic Beanstalk siga en Python 3.11. La Fase 1 puede heredar el shell 0.91 que ya usa la página. Subir a 0.102.0 es un cambio de plataforma, no de esta plantilla.
-2. **Publicar no es una pantalla.** El enlace ejecuta la publicación. El guion se detiene en el `href`.
+2. **Publicar es un GET que escribe.** `#eki-mb-publicar` apunta a `admin:core_modulo_publicar` (`/admin/core/modulo/<id>/publicar/`). Ese GET corre el checklist y, si pasa, pone `publicado_wa=True`. No envía WhatsApp. No se cambia en esta fase. Propuesta aparte: pasarlo a POST con una pantalla de confirmación, y dejar el GET en solo lectura.
 3. **Guardar General sin calendario.** El servidor ya no toca el drip si falta la clave. El JS de hoy **siempre** la envía, porque fecha y general están en la misma página. Las pestañas nuevas tienen que omitir `modulo_habilitado_desde` al guardar solo General. No hace falta cambiar la vista.
 4. **Texto junto al archivo.** El ensamblado de un paso (`partes_mensaje_paso`) sí mete el texto del paso como pie del mismo `[MEDIA:]` cuando el paso tiene las dos cosas. Ver `docs/MODULE_BUILDER_DIAGNOSTICO_ENVIO.md`. La UI nueva puede dejar de ofrecer «texto que acompaña» sin cambiar ese envío. Los pasos viejos con texto y archivo se conservan.
 5. **Capas de drip que la página no lee.** Lista de organizaciones y personas habilitadas a mano no están en el contexto. Hace falta un OK para pasarlas en solo lectura desde `views_module_builder.py`.
@@ -185,3 +185,9 @@ Avisos de la página: problemas de media (enlace al paso), secciones intercalada
 ## Consultas de la página (antes)
 
 Medido con el cliente de pruebas, módulo de 10 secciones y 2 mensajes cada una (20 pasos), curso sin organización, staff, flag encendido: **8 consultas** en el GET (`test_get_diez_secciones_once_consultas`). No hay una consulta por paso ni por sección. Si el curso tiene cliente, la vista suma una: `HabilitacionModuloDripCliente` de esa empresa. El «después» se mide cuando exista la UI nueva, con el mismo caso.
+
+## Fase 1 (interruptor)
+
+`EKI_MODULE_BUILDER_UI_V2` sale apagado. Apagado: el HTML de siempre, `module_builder.css` y `module_builder.js`, sin botones de mover y con la etiqueta de `paso_builder_ui`. Encendido: el mismo shell Unfold, la hoja `module_builder_v2.css` (variables `--color-primary-*` y `--color-base-*`, que Cielo, Marca y Oscuro ya reescriben), la etiqueta de pantalla Texto / Imagen / Video / Audio / Documento (el `data-step-type` sigue saliendo de `paso_builder_ui`) y botones Subir / Bajar que hacen POST `action=move_micro` con `direction=up|down`.
+
+Con el interruptor encendido el GET añade, en solo lectura, `drip_organizaciones`, `drip_personas_conteo` y `drip_orgs_lista_blanca`. Apagado, esas claves no están y el GET de 10 secciones sigue en 8 consultas.

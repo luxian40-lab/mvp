@@ -213,7 +213,7 @@ class AdminOnda2MejorasTests(TestCase):
         r = self.client.get(reverse('admin:core_curso_change', args=[self.curso.pk]))
         body = r.content.decode('utf-8')
         self.assertIn('Ver módulos', body)
-        self.assertIn('Module Builder', body)
+        self.assertIn('Abrir en el constructor', body)
         self.assertIn('1 módulo', body)
 
     def test_ficha_cliente_contadores(self):

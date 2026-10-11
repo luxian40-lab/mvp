@@ -37,3 +37,14 @@ Preparación: staff, `EKI_MODULE_BUILDER_BETA=1`, curso de la copia (no el de pr
 ## Qué anotar si algo falla
 
 URL, texto del aviso, si la página recargó, y el id del paso. No reintentar Publicar. No subir el resultado a git si incluye datos de estudiantes.
+
+## Plan mínimo de Playwright (sin instalar)
+
+Dependencia solo de desarrollo, fuera de `requirements.txt` de Elastic Beanstalk. Un archivo `core/tests_browser/test_module_builder_humo.py` con `pytest-playwright`, contra el servidor local y un superusuario de prueba.
+
+1. Abrir `/admin/module-builder/<id>/` con `EKI_MODULE_BUILDER_UI_V2=1` y comprobar que «Módulos» queda resaltado.
+2. Renombrar la sección, agregar un mensaje de texto y ver la etiqueta «Texto».
+3. Pulsar «Subir mensaje» y comprobar que el orden cambió dentro de la sección.
+4. Leer el `href` de `#eki-mb-publicar` y no seguirlo.
+
+No se instala hasta que haya OK. El guion de arriba sigue siendo la prueba manual.

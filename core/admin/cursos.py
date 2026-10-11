@@ -2214,7 +2214,7 @@ class ModuloAdmin(admin.ModelAdmin):
         if not obj or not obj.pk or not module_builder_habilitado_para_curso(curso):
             return '—'
         return format_html(
-            '<a href="/admin/module-builder/{}/" style="font-weight:700;color:#7A4E8E;">Builder</a>',
+            '<a href="/admin/module-builder/{}/" style="font-weight:700;color:#7A4E8E;">Abrir en el constructor</a>',
             obj.pk,
         )
     module_builder_link.short_description = 'Builder'

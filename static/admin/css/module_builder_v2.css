@@ -1,0 +1,28 @@
+/* Reskin. Los tres tonos ya reescriben --color-primary-* y --color-base-* de Unfold. */
+
+.eki-mb-shell.eki-mb-shell--v2 {
+  --eki-mb-accent: var(--color-primary-500);
+  --eki-mb-accent-deep: var(--color-primary-700);
+  --eki-mb-ink: var(--color-font-important-light);
+  --eki-mb-muted: var(--color-font-subtle-light);
+  --eki-mb-card: var(--color-base-50);
+  --eki-mb-sec-head: var(--color-base-100);
+  --eki-mb-line: color-mix(in srgb, var(--color-base-900) 12%, transparent);
+  --eki-mb-row-hover: var(--color-base-100);
+  --eki-mb-input-bg: var(--color-base-50);
+  --eki-mb-hero-grad-a: var(--color-primary-50);
+  --eki-mb-hero-grad-b: var(--color-base-100);
+}
+
+html[data-eki-tone="noche"] .eki-mb-shell.eki-mb-shell--v2,
+.dark .eki-mb-shell.eki-mb-shell--v2 {
+  --eki-mb-ink: var(--color-font-important-dark);
+  --eki-mb-muted: var(--color-font-subtle-dark);
+  --eki-mb-card: var(--color-base-900);
+  --eki-mb-sec-head: var(--color-base-800);
+  --eki-mb-input-bg: var(--color-base-950);
+  --eki-mb-row-hover: var(--color-base-800);
+  --eki-mb-hero-grad-a: var(--color-base-900);
+  --eki-mb-hero-grad-b: var(--color-base-800);
+  --eki-mb-line: color-mix(in srgb, var(--color-base-50) 14%, transparent);
+}

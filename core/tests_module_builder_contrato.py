@@ -401,6 +401,125 @@ class ModuleBuilderContratoFase0Tests(TestCase):
         # Curso sin cliente: 8. Con cliente, la vista suma la habilitación por empresa.
         self.assertEqual(len(ctx.captured_queries), 8)
 
+    def test_guardar_general_sin_calendario_no_cambia_el_drip(self):
+        """Guardar General manda persist_general y omite modulo_habilitado_desde."""
+        drip = self.mod.habilitado_desde
+        r = self._post({
+            'action': 'save_modulo',
+            'ajax': '1',
+            'persist_general': '1',
+            'modulo_titulo': 'Módulo intacto',
+            'modulo_descripcion': 'descripcion nueva',
+            'modulo_modo_entrega': self.mod.modo_entrega,
+            'modulo_duracion_dias': str(self.mod.duracion_dias or 0),
+        })
+        self.assertEqual(r.status_code, 200)
+        self.mod.refresh_from_db()
+        self.assertEqual(self.mod.habilitado_desde, drip)
+        self.assertEqual(self.mod.descripcion, 'descripcion nueva')
+
+
+_IDS_CONTRATO = (
+    'id="eki-mb-shell"',
+    'id="eki-mb-csrf"',
+    'id="eki-mb-modulo-titulo"',
+    'data-publicar-url=',
+    'id="eki-mb-sections"',
+    'name="modulo_titulo"',
+    'name="modulo_habilitado_desde"',
+    'name="modulo_descripcion"',
+)
+
+
+@override_settings(**FLAG_ON)
+class ModuleBuilderUiV2Tests(TestCase):
+    def setUp(self):
+        self.curso = Curso.objects.create(nombre='UI v2')
+        self.mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M',
+            descripcion='d',
+            contenido='c',
+            publicado_wa=False,
+        )
+        sec = agregar_seccion(self.mod, 'Sección')
+        self.paso = agregar_micro(self.mod, sec, titulo='Foto', contenido='pie')
+        self.paso.media_url = 'https://cdn.ejemplo/foto.jpg'
+        self.paso.save(update_fields=['media_url'])
+        staff = User.objects.create_user(
+            username='mb_ui_%s' % self.__class__.__name__[-6:],
+            password='x',
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client = Client()
+        self.client.force_login(staff)
+        self.url = f'/admin/module-builder/{self.mod.id}/'
+
+    def test_interruptor_apagado_conserva_la_pantalla_actual(self):
+        r = self.client.get(self.url, secure=True)
+        body = r.content.decode('utf-8')
+        self.assertEqual(r.status_code, 200)
+        for marca in _IDS_CONTRATO:
+            self.assertIn(marca, body)
+        self.assertIn('Lectura', body)
+        self.assertNotIn('Subir mensaje', body)
+        self.assertNotIn('module_builder_v2.css', body)
+        self.assertNotIn('drip_organizaciones', r.context)
+
+
+@override_settings(**FLAG_ON, EKI_MODULE_BUILDER_UI_V2=True)
+class ModuleBuilderUiV2EncendidoTests(ModuleBuilderUiV2Tests):
+    def test_interruptor_apagado_conserva_la_pantalla_actual(self):
+        self.skipTest('Ese caso corre con el interruptor apagado.')
+
+    def test_interruptor_encendido_conserva_el_contrato_y_agrega_controles(self):
+        r = self.client.get(self.url, secure=True)
+        body = r.content.decode('utf-8')
+        self.assertEqual(r.status_code, 200)
+        for marca in _IDS_CONTRATO:
+            self.assertIn(marca, body)
+        self.assertIn('eki-mb__type-chip--lectura">Imagen', body)
+        self.assertNotIn('eki-mb__type-chip--lectura">Lectura', body)
+        self.assertIn('aria-label="Subir mensaje"', body)
+        self.assertIn('aria-label="Bajar mensaje"', body)
+        self.assertIn('value="move_micro"', body)
+        self.assertIn('module_builder_v2.css', body)
+        self.assertIn('eki-mb-shell--v2', body)
+        self.assertIn('/admin/core/modulo/%s/publicar/' % self.mod.pk, body)
+
+    def test_lectura_de_organizaciones_no_escribe(self):
+        from core.models import Cliente, HabilitacionModuloDripCliente, HabilitacionModuloEstudiante
+
+        cliente = Cliente.objects.create(nombre='Org lectura')
+        self.curso.cliente = cliente
+        self.curso.save(update_fields=['cliente'])
+        cuando = _drip()
+        HabilitacionModuloDripCliente.objects.create(
+            cliente=cliente,
+            curso=self.curso,
+            modulo=self.mod,
+            habilitado_desde=cuando,
+            activo=True,
+        )
+        antes_org = HabilitacionModuloDripCliente.objects.count()
+        antes_personas = HabilitacionModuloEstudiante.objects.count()
+        antes_modulos = Modulo.objects.count()
+        r = self.client.get(self.url, secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(HabilitacionModuloDripCliente.objects.count(), antes_org)
+        self.assertEqual(HabilitacionModuloEstudiante.objects.count(), antes_personas)
+        self.assertEqual(Modulo.objects.count(), antes_modulos)
+        orgs = r.context['drip_organizaciones']
+        self.assertEqual(orgs, [{
+            'nombre': 'Org lectura',
+            'habilitado_desde': cuando,
+            'usa_fecha_modulo': False,
+        }])
+        self.assertEqual(r.context['drip_personas_conteo'], 0)
+        self.assertEqual(r.context['drip_orgs_lista_blanca'], [])
+
 
 @override_settings(**FLAG_OFF)
 class ModuleBuilderContratoPuertaTests(TestCase):

@@ -81,6 +81,10 @@ EKI_MODULE_BUILDER_CURSOS = os.environ.get(
     'EKI_MODULE_BUILDER_CURSOS', '*'
 )
 
+# Reskin del Module Builder. Apagado salvo EKI_MODULE_BUILDER_UI_V2=1.
+_EKI_MB_UI = os.environ.get('EKI_MODULE_BUILDER_UI_V2', '').strip().lower()
+EKI_MODULE_BUILDER_UI_V2 = _EKI_MB_UI in ('1', 'true', 'yes', 'on')
+
 # ?: (security.W009) SECRET_KEY debe ser largo y aleatorio
 from django.core.exceptions import ImproperlyConfigured
 

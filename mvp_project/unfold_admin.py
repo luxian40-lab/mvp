@@ -33,6 +33,12 @@ def _eki_copiloto_script(request):
     return static_safe("admin/js/eki_copiloto_chat.js")
 
 
+def modulos_nav_activo(request):
+    """Módulos sigue resaltado en el listado y en el Module Builder."""
+    path = getattr(request, 'path', '') or ''
+    return path.startswith('/admin/core/modulo/') or path.startswith('/admin/module-builder/')
+
+
 def environment_callback(request):
     """Badge esquina superior: saldo Twilio (cache 15 min) o PRODUCCIÓN."""
     from core.twilio_balance import twilio_balance_badge
@@ -258,6 +264,7 @@ UNFOLD = {
                         "title": _("Módulos"),
                         "icon": "view_timeline",
                         "link": reverse_lazy("admin:core_modulo_changelist"),
+                        "active": modulos_nav_activo,
                     },
                     {
                         "title": _("Campañas"),

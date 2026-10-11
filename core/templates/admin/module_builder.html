@@ -1,6 +1,6 @@
 {% extends "admin/eki_ops_base.html" %}
 
-{% load static %}
+{% load static module_builder_ui %}
 
 
 
@@ -13,6 +13,9 @@
 {{ block.super }}
 
 <link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=32">
+{% if mb_ui_v2 %}
+<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=1">
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
@@ -38,7 +41,7 @@
 
 {% block eki_ops_content %}
 
-<div class="eki-mb-shell" id="eki-mb-shell"
+<div class="eki-mb-shell{% if mb_ui_v2 %} eki-mb-shell--v2{% endif %}" id="eki-mb-shell"
 
      data-publicar-url="{{ publicar_url }}"
 
@@ -367,7 +370,7 @@
           {% endif %}
           <span class="eki-mb__row-chips">
 
-            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{{ m.builder_ui.type_label }}</span>
+            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{% if mb_ui_v2 %}{% etiqueta_mensaje m %}{% else %}{{ m.builder_ui.type_label }}{% endif %}</span>
 
             <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
 
@@ -386,6 +389,25 @@
 
 
         <div class="eki-mb__row-quick">
+
+          {% if mb_ui_v2 %}
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="move_micro">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="eki-mb__icon-btn eki-mb-move" title="Subir mensaje" aria-label="Subir mensaje">↑</button>
+          </form>
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="move_micro">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="eki-mb__icon-btn eki-mb-move" title="Bajar mensaje" aria-label="Bajar mensaje">↓</button>
+          </form>
+          {% endif %}
 
           <form method="post" class="eki-mb__inline-form">
 
@@ -634,7 +656,7 @@
 
           <div class="eki-mb__meta-readonly">
 
-            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{{ m.builder_ui.type_label }}</span>
+            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{% if mb_ui_v2 %}{% etiqueta_mensaje m %}{% else %}{{ m.builder_ui.type_label }}{% endif %}</span>
 
             <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
 
