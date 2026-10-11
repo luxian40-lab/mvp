@@ -17,6 +17,10 @@ def _eki_admin_styles(request):
     return static_safe("admin/css/eki_admin_unfold.css")
 
 
+def _eki_inicio_styles(request):
+    return static_safe("admin/css/inicio.css")
+
+
 def _eki_admin_tones_styles(request):
     return static_safe("admin/css/eki_admin_tones.css")
 
@@ -31,6 +35,34 @@ def _eki_admin_tones_script(request):
 
 def _eki_copiloto_script(request):
     return static_safe("admin/js/eki_copiloto_chat.js")
+
+
+def _puede_modelo(codename):
+    def _check(request):
+        user = getattr(request, 'user', None)
+        if user is None or not getattr(user, 'is_authenticated', False):
+            return False
+        if user.is_superuser:
+            return True
+        return user.has_perm(codename)
+    return _check
+
+
+def _es_staff(request):
+    user = getattr(request, 'user', None)
+    return bool(user and getattr(user, 'is_authenticated', False) and user.is_staff)
+
+
+def badge_plantillas_meta(request):
+    from core.admin.home_data import badge_nav
+
+    return badge_nav(request.user, 'plantillas')
+
+
+def badge_modulos_borrador(request):
+    from core.admin.home_data import badge_nav
+
+    return badge_nav(request.user, 'modulos')
 
 
 def modulos_nav_activo(request):
@@ -145,7 +177,7 @@ UNFOLD = {
             "link": "/admin/instrucciones/",
         },
     ],
-    "STYLES": [_eki_admin_styles, _eki_admin_tones_styles],
+    "STYLES": [_eki_admin_styles, _eki_admin_tones_styles, _eki_inicio_styles],
     "SCRIPTS": [_eki_eco_graph_script, _eki_admin_tones_script, _eki_copiloto_script],
     "COLORS": {
         # base un poco más gris → las cajas blancas se leen (antes casi se fundían).
@@ -194,7 +226,7 @@ UNFOLD = {
         "show_search": True,
         "command_search": True,
         # Catálogo de apps/modelos (equivalente al sidebar Jazzmin por app).
-        "show_all_applications": True,
+        "show_all_applications": False,
         "navigation": [
             {
                 "title": _("Operación"),
@@ -205,187 +237,117 @@ UNFOLD = {
                         "title": _("Inicio"),
                         "icon": "home",
                         "link": reverse_lazy("admin:index"),
-                    },
-                    {
-                        "title": _("Manual"),
-                        "icon": "menu_book",
-                        "link": "/admin/instrucciones/",
-                    },
-                    {
-                        "title": _("Analítica"),
-                        "icon": "analytics",
-                        "link": "/admin/dashboard/",
+                        "permission": _es_staff,
                     },
                     {
                         "title": _("Conversaciones"),
                         "icon": "forum",
                         "link": "/admin/conversaciones/",
+                        "permission": _es_staff,
                     },
                 ],
             },
             {
-                "title": _("Captar"),
+                "title": _("Personas"),
                 "separator": True,
-                "collapsible": True,
+                "collapsible": False,
                 "items": [
                     {
-                        "title": _("Clientes"),
+                        "title": _("Estudiantes"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:core_estudiante_changelist"),
+                        "permission": _puede_modelo("core.view_estudiante"),
+                    },
+                    {
+                        "title": _("Grupos"),
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:core_grupoestudiantes_changelist"),
+                        "permission": _puede_modelo("core.view_grupoestudiantes"),
+                    },
+                    {
+                        "title": _("Organizaciones"),
                         "icon": "apartment",
                         "link": reverse_lazy("admin:core_cliente_changelist"),
-                    },
-                    {
-                        "title": _("Bot comercial / Nat"),
-                        "icon": "smart_toy",
-                        "link": "/admin/bot-comercial/",
-                    },
-                    {
-                        "title": _("Knowledge Studio"),
-                        "icon": "lightbulb",
-                        "link": "/admin/knowledge-studio/",
-                    },
-                    {
-                        "title": _("Entrenar agentes"),
-                        "icon": "model_training",
-                        "link": reverse_lazy("admin:core_conocimientoagente_changelist"),
+                        "permission": _puede_modelo("core.view_cliente"),
                     },
                 ],
             },
             {
-                "title": _("Enseñar"),
+                "title": _("Mensajería"),
                 "separator": True,
-                "collapsible": True,
+                "collapsible": False,
+                "items": [
+                    {
+                        "title": _("Campañas"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:core_campanameta_changelist"),
+                        "permission": _puede_modelo("core.view_campanameta"),
+                    },
+                    {
+                        "title": _("Plantillas Meta"),
+                        "icon": "article",
+                        "link": reverse_lazy("admin:core_plantillameta_changelist"),
+                        "permission": _puede_modelo("core.view_plantillameta"),
+                        "badge": "mvp_project.unfold_admin.badge_plantillas_meta",
+                    },
+                ],
+            },
+            {
+                "title": _("Contenido"),
+                "separator": True,
+                "collapsible": False,
                 "items": [
                     {
                         "title": _("Cursos"),
                         "icon": "school",
                         "link": reverse_lazy("admin:core_curso_changelist"),
+                        "permission": _puede_modelo("core.view_curso"),
                     },
                     {
                         "title": _("Módulos"),
                         "icon": "view_timeline",
                         "link": reverse_lazy("admin:core_modulo_changelist"),
                         "active": modulos_nav_activo,
+                        "permission": _puede_modelo("core.view_modulo"),
+                        "badge": "mvp_project.unfold_admin.badge_modulos_borrador",
                     },
                     {
-                        "title": _("Campañas"),
-                        "icon": "campaign",
-                        "link": reverse_lazy("admin:core_campana_changelist"),
-                    },
-                    {
-                        "title": _("Plantillas Meta"),
-                        "icon": "article",
-                        "link": reverse_lazy("admin:core_plantillameta_changelist"),
-                    },
-                    {
-                        "title": _("Campañas Meta"),
-                        "icon": "campaign",
-                        "link": reverse_lazy("admin:core_campanameta_changelist"),
-                    },
-                    {
-                        "title": _("Calendario campañas"),
-                        "icon": "event",
-                        "link": "/admin/calendario/",
-                    },
-                    {
-                        "title": _("Push recordatorios"),
-                        "icon": "notifications_active",
-                        "link": "/admin/push-estudiantes/",
+                        "title": _("Conocimiento de agentes"),
+                        "icon": "model_training",
+                        "link": reverse_lazy("admin:core_conocimientoagente_changelist"),
+                        "permission": _puede_modelo("core.view_conocimientoagente"),
                     },
                 ],
             },
             {
-                "title": _("Retener"),
+                "title": _("Medir"),
                 "separator": True,
-                "collapsible": True,
+                "collapsible": False,
                 "items": [
                     {
-                        "title": _("Estudiantes"),
-                        "icon": "group",
-                        "link": reverse_lazy("admin:core_estudiante_changelist"),
+                        "title": _("Analítica"),
+                        "icon": "analytics",
+                        "link": "/admin/dashboard/",
+                        "permission": _es_staff,
                     },
                     {
-                        "title": _("Centro de Éxito"),
-                        "icon": "trending_up",
-                        "link": "/admin/dashboard/?tab=retencion",
-                    },
-                    {
-                        "title": _("Envío certificados"),
-                        "icon": "verified",
-                        "link": "/admin/envio-certificados/",
-                    },
-                    {
-                        "title": _("WhatsappLog"),
-                        "icon": "history",
-                        "link": reverse_lazy("admin:core_whatsapplog_changelist"),
-                    },
-                ],
-            },
-            # custom_links → core
-            {
-                "title": _("Core (atajos)"),
-                "separator": True,
-                "collapsible": True,
-                "items": [
-                    {
-                        "title": _("Ajustar avance"),
-                        "icon": "tune",
-                        "link": "/admin/ajustar-avance/",
-                    },
-                    {
-                        "title": _("Campaña Meta del día"),
-                        "icon": "view_carousel",
-                        "link": "/admin/campana-meta/",
-                    },
-                    {
-                        "title": _("Cobertura"),
-                        "icon": "map",
-                        "link": "/admin/cobertura/",
-                    },
-                    {
-                        "title": _("Mensajes push (CRUD)"),
-                        "icon": "campaign",
-                        "link": reverse_lazy("admin:core_mensajepush_changelist"),
-                    },
-                ],
-            },
-            # custom_links → analytics
-            {
-                "title": _("Analytics / Infra"),
-                "separator": True,
-                "collapsible": True,
-                "items": [
-                    {
-                        "title": _("AI Ops"),
-                        "icon": "memory",
-                        "link": "/admin/ai-ops/eventos/",
-                    },
-                    {
-                        "title": _("Infra"),
-                        "icon": "monitor_heart",
-                        "link": "/admin/infra/",
-                    },
-                    {
-                        "title": _("Alertas territoriales"),
-                        "icon": "crisis_alert",
-                        "link": "/admin/territorio-alertas/",
-                    },
-                ],
-            },
-            # custom_links → agents_edu + formulario + aprende
-            {
-                "title": _("GEI / Aula / IA"),
-                "separator": True,
-                "collapsible": True,
-                "items": [
-                    {
-                        "title": _("Panel GEI"),
+                        "title": _("GEI"),
                         "icon": "eco",
                         "link": "/admin/gei/panel/",
+                        "permission": _es_staff,
                     },
+                ],
+            },
+            {
+                "title": _("Sistema"),
+                "separator": True,
+                "collapsible": False,
+                "items": [
                     {
-                        "title": _("Aula web"),
-                        "icon": "laptop",
-                        "link": "/admin/aula-web/",
+                        "title": _("Infraestructura"),
+                        "icon": "monitor_heart",
+                        "link": "/admin/infra/",
+                        "permission": _es_staff,
                     },
                 ],
             },

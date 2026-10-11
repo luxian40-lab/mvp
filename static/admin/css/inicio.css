@@ -1,0 +1,294 @@
+/* Inicio del admin. Solo tokens de Unfold, para Cielo, Marca y Oscuro. */
+
+.eki-inicio {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.eki-inicio__hello {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.eki-inicio__title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--color-font-important-light);
+}
+
+html[data-eki-tone="noche"] .eki-inicio__title,
+html[data-eki-tone="noche"] .eki-inicio__cifra-valor,
+html[data-eki-tone="noche"] .eki-inicio__v,
+html[data-eki-tone="noche"] .eki-inicio__linea-top h2,
+html[data-eki-tone="noche"] .eki-inicio__acciones strong,
+html[data-eki-tone="noche"] .eki-inicio__chip,
+html[data-eki-tone="noche"] .eki-inicio__abrir,
+html[data-eki-tone="noche"] .eki-inicio h2 {
+  color: var(--eki-ink);
+}
+
+.eki-inicio__sub {
+  margin: 0.25rem 0 0;
+  color: var(--color-font-subtle-light);
+  font-size: 0.92rem;
+}
+
+html[data-eki-tone="noche"] .eki-inicio__sub,
+html[data-eki-tone="noche"] .eki-inicio__twilio,
+html[data-eki-tone="noche"] .eki-inicio__cifra-label,
+html[data-eki-tone="noche"] .eki-inicio__k,
+html[data-eki-tone="noche"] .eki-inicio__numero,
+html[data-eki-tone="noche"] .eki-inicio__acciones p,
+html[data-eki-tone="noche"] .eki-inicio__actualizar,
+html[data-eki-tone="noche"] .eki-inicio__nota,
+html[data-eki-tone="noche"] .eki-inicio__aprox,
+html[data-eki-tone="noche"] .eki-inicio__muted,
+html[data-eki-tone="noche"] .eki-inicio__sin-dato {
+  color: var(--eki-ink-muted);
+}
+
+.eki-inicio__twilio {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--color-font-subtle-light);
+}
+
+.eki-inicio__lineas,
+.eki-inicio__cifras,
+.eki-inicio__par {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.eki-inicio__lineas {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.eki-inicio__cifras {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.eki-inicio__par {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+.eki-inicio__card,
+.eki-inicio__cifra {
+  background: #fff;
+  border: 1px solid var(--color-base-200);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+html[data-eki-tone="noche"] .eki-inicio__card,
+html[data-eki-tone="noche"] .eki-inicio__cifra,
+html[data-eki-tone="noche"] .eki-inicio .bg-white {
+  background: var(--eki-box-bg);
+  border-color: var(--eki-box-border);
+  color: var(--eki-ink);
+}
+
+.eki-inicio__cifra-label,
+.eki-inicio__k {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-font-subtle-light);
+}
+
+.eki-inicio__cifra-valor,
+.eki-inicio__v {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--color-font-important-light);
+}
+
+.eki-inicio__linea-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eki-inicio__linea-top h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.eki-inicio__chip {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--color-base-300);
+  color: var(--color-font-default-light);
+}
+
+.eki-inicio__chip--ok {
+  border-color: var(--color-primary-300);
+  color: var(--color-primary-700);
+}
+
+.eki-inicio__chip--mal {
+  border-color: var(--color-primary-700);
+  color: var(--color-primary-800);
+}
+
+html[data-eki-tone="noche"] .eki-inicio__chip {
+  border-color: var(--eki-box-border);
+}
+
+.eki-inicio__numero {
+  margin: 0.45rem 0 0.7rem;
+  font-size: 0.85rem;
+  color: var(--color-font-subtle-light);
+}
+
+.eki-inicio__muted,
+.eki-inicio__sin-dato {
+  color: var(--color-base-400);
+}
+
+.eki-inicio__linea-nums {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.eki-inicio__skel {
+  display: inline-block;
+  width: 4.2rem;
+  height: 0.85rem;
+  border-radius: 6px;
+  background: var(--color-base-200);
+  vertical-align: middle;
+}
+
+html.dark .eki-inicio__skel {
+  background: var(--color-base-800);
+}
+
+.eki-inicio__acciones h2,
+.eki-inicio__card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.eki-inicio__acciones ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.eki-inicio__acciones li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.eki-inicio__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-base-400);
+}
+
+.eki-inicio__dot--ambar { background: var(--color-primary-600); }
+.eki-inicio__dot--azul { background: var(--color-primary-400); }
+.eki-inicio__dot--gris { background: var(--color-base-400); }
+
+.eki-inicio__acciones strong { font-weight: 650; }
+.eki-inicio__acciones p {
+  margin: 0.1rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-font-subtle-light);
+}
+
+.eki-inicio__abrir {
+  font-size: 0.82rem;
+  text-decoration: none;
+  border: 1px solid var(--color-base-300);
+  border-radius: 10px;
+  padding: 0.28rem 0.7rem;
+  color: var(--color-font-important-light);
+}
+
+html[data-eki-tone="noche"] .eki-inicio__abrir {
+  border-color: var(--eki-box-border);
+}
+
+.eki-inicio__ok {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--color-font-subtle-light);
+}
+
+.eki-inicio__check {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary-400);
+  color: var(--color-primary-600);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
+.eki-inicio__actualizar {
+  margin-top: 0.85rem;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--color-font-subtle-light);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.eki-inicio__nota,
+.eki-inicio__aprox {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-base-400);
+}
+
+.eki-inicio__ver-todos {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 900px) {
+  .eki-inicio__cifras,
+  .eki-inicio__par {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .eki-inicio__cifras,
+  .eki-inicio__par,
+  .eki-inicio__acciones li {
+    grid-template-columns: 1fr;
+  }
+}

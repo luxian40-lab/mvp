@@ -1,0 +1,99 @@
+{% load unfold %}
+<section class="eki-inicio">
+  <header class="eki-inicio__hello eki-panel-exec__hello">
+    <div>
+      <h1 class="eki-inicio__title">{{ inicio.saludo }}</h1>
+      <p class="eki-inicio__sub">{{ inicio.fecha_linea }}</p>
+      <form method="post" action="{% url 'admin_inicio_actualizar' %}">
+        {% csrf_token %}
+        <button type="submit" class="eki-inicio__actualizar">Actualizar</button>
+      </form>
+    </div>
+    <p class="eki-inicio__twilio">Twilio demo · {% if inicio.twilio_mes == 'Sin dato' %}Sin dato{% else %}{{ inicio.twilio_mes }} este mes{% endif %}</p>
+  </header>
+
+  {% if inicio.lineas %}
+  <div class="eki-inicio__lineas" x-data="ekiInicioLineas()" x-init="cargar()" data-url="{% url 'admin_inicio_lineas' %}">
+    {% for linea in inicio.lineas %}
+    <article class="eki-inicio__card">
+      <div class="eki-inicio__linea-top">
+        <h2>{{ linea.nombre }}</h2>
+        <span :class="chip('{{ linea.id }}')">
+          <template x-if="!listo"><span class="eki-inicio__skel"></span></template>
+          <template x-if="listo"><span x-text="texto('{{ linea.id }}', 'estado')"></span></template>
+        </span>
+      </div>
+      <p class="eki-inicio__numero">
+        <template x-if="!listo"><span class="eki-inicio__skel"></span></template>
+        <template x-if="listo"><span x-text="texto('{{ linea.id }}', 'numero')"></span></template>
+      </p>
+      <dl class="eki-inicio__linea-nums">
+        <div>
+          <dt class="eki-inicio__k">Mensajes hoy</dt>
+          <dd class="eki-inicio__v">{% if linea.mensajes_hoy == None %}<span class="eki-inicio__sin-dato">Sin dato</span>{% else %}{{ linea.mensajes_hoy }}{% endif %}</dd>
+        </div>
+        <div>
+          <dt class="eki-inicio__k">Calidad</dt>
+          <dd class="eki-inicio__v">
+            <template x-if="!listo"><span class="eki-inicio__skel"></span></template>
+            <template x-if="listo"><span x-text="texto('{{ linea.id }}', 'calidad')"></span></template>
+          </dd>
+        </div>
+        <div>
+          <dt class="eki-inicio__k">Sin respuesta 24 h</dt>
+          <dd class="eki-inicio__v">{% if linea.sin_respuesta_24h == None %}<span class="eki-inicio__sin-dato">Sin dato</span>{% else %}{{ linea.sin_respuesta_24h }}{% endif %}</dd>
+        </div>
+      </dl>
+      {% if linea.aproximado %}
+      <p class="eki-inicio__aprox">El historial no distingue la línea.</p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="eki-inicio__cifras">
+    {% for cifra in inicio.cifras %}
+    <article class="eki-inicio__cifra" {% if cifra.tooltip %}title="{{ cifra.tooltip }}"{% endif %}>
+      <span class="eki-inicio__cifra-label">{{ cifra.label }}</span>
+      <span class="eki-inicio__cifra-valor">{{ cifra.valor }}</span>
+    </article>
+    {% endfor %}
+  </div>
+
+  <section class="eki-inicio__card eki-inicio__acciones" aria-label="Requiere acción hoy">
+    <h2>Requiere acción hoy</h2>
+    {% if inicio.acciones %}
+    <ul>
+      {% for fila in inicio.acciones %}
+      <li>
+        <span class="eki-inicio__dot eki-inicio__dot--{{ fila.tono }}" aria-hidden="true"></span>
+        <div>
+          <strong>{{ fila.titulo }} ({{ fila.conteo }})</strong>
+          <p>{{ fila.contexto }}</p>
+        </div>
+        <a class="eki-inicio__abrir" href="{{ fila.url }}">Abrir</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-inicio__ok"><span class="eki-inicio__check" aria-hidden="true">✓</span> Todo al día.</p>
+    {% endif %}
+  </section>
+
+  <div class="eki-inicio__par">
+    {% component "unfold/components/card.html" with title="Mensajes, últimos 14 días" %}
+      {% component "unfold/components/chart/bar.html" with data=inicio.chart_data options=inicio.chart_options height=220 %}{% endcomponent %}
+      {% if inicio.mensajes_nota %}<p class="eki-inicio__nota">{{ inicio.mensajes_nota }}</p>{% endif %}
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" with title="Últimos errores" %}
+      {% if inicio.errores %}
+        {% component "unfold/components/table.html" with table=inicio.errores_tabla card_included=1 %}{% endcomponent %}
+      {% else %}
+        <p class="eki-inicio__muted">Sin errores recientes.</p>
+      {% endif %}
+      <a class="eki-inicio__ver-todos" href="{{ inicio.errores_url }}">Ver todos los errores</a>
+    {% endcomponent %}
+  </div>
+</section>

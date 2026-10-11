@@ -1146,14 +1146,16 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
 
 def unfold_dashboard_callback(request, context):
     """
-    Unfold DASHBOARD_CALLBACK nativo: inyecta el Panel ejecutivo en /admin/.
-    Reemplaza el monkeypatch de AdminSite.index + el tag eki_panel_snap.
+    Unfold DASHBOARD_CALLBACK nativo: inyecta el inicio en /admin/.
     """
     from django.urls import reverse
 
+    from core.admin.home_data import home_para
+
+    user = getattr(request, 'user', None)
     context.update(
         {
-            'snap': build_panel_snapshot(),
+            'inicio': home_para(user),
             'conversaciones_url': reverse('conversaciones'),
             'dashboard_url': reverse('dashboard_unificado'),
             'dashboard_control_url': reverse('dashboard_unificado'),
