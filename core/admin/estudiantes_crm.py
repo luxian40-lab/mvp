@@ -1,4 +1,4 @@
-"""Listado CRM de Estudiantes: cifras, estado y actividad. Sin modelos nuevos."""
+"""Listado CRM de Estudiantes: cifras, estado, actividad y última nota."""
 from __future__ import annotations
 
 import hashlib
@@ -22,6 +22,7 @@ from core.models import (
     Curso,
     Modulo,
     ModuloCompletado,
+    NotaEstudiante,
     ProgresoEstudiante,
     WhatsappLog,
 )
@@ -43,9 +44,9 @@ TONOS_ORG = (
 TONO_SIN_ORG = '#8a6a2f'
 
 _ESTADO_TEXTO = {
-    'habeas': 'Habeas pendiente',
     'completado': 'Completado',
-    'sin_respuesta': 'Sin respuesta',
+    'habeas': 'Habeas pendiente',
+    'sin_actividad': 'Sin actividad',
     'sin_iniciar': 'Sin iniciar',
     'activo': 'Activo',
 }
@@ -83,22 +84,28 @@ def texto_actividad(cuando, ahora=None):
     return f'hace {dias} días'
 
 
-def clasificar_estado(*, estado_chat, ultima_entrada, completo, fecha_avance, n_completados, ahora=None):
-    """Un chip por persona. Habeas tapa al curso: el curso va en la otra columna."""
+def clasificar_estado(
+    *,
+    estado_chat,
+    completo,
+    fecha_avance,
+    n_completados=0,
+    ahora=None,
+    ultima_entrada=None,
+):
+    """Un chip. Completado manda. Sin actividad es el mismo corte de 14 días que la cifra."""
+    del ultima_entrada
     ahora = ahora or timezone.now()
-    if (estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
-        slug = 'habeas'
-    elif completo:
+    if completo:
         slug = 'completado'
+    elif (estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
+        slug = 'habeas'
+    elif fecha_avance is not None and fecha_avance < ahora - timedelta(days=DIAS_SIN_AVANCE):
+        slug = 'sin_actividad'
+    elif fecha_avance is None and not n_completados:
+        slug = 'sin_iniciar'
     else:
-        limite = ahora - timedelta(days=DIAS_SIN_AVANCE)
-        sin_mensaje = ultima_entrada is None or ultima_entrada < limite
-        if sin_mensaje:
-            slug = 'sin_respuesta'
-        elif fecha_avance is None and not n_completados:
-            slug = 'sin_iniciar'
-        else:
-            slug = 'activo'
+        slug = 'activo'
     return slug, _ESTADO_TEXTO[slug]
 
 
@@ -140,6 +147,26 @@ def anotar_progresos_lista():
     ).order_by(F('fecha_ultimo_avance').desc(nulls_last=True), '-pk')
 
 
+def firma_nota(nombre, apellido, usuario):
+    visible = ' '.join(
+        parte for parte in ((nombre or '').strip(), (apellido or '').strip()) if parte
+    ).strip()
+    return visible or (usuario or '').strip()
+
+
+def anotar_ultima_nota(qs):
+    """La nota más reciente, en la misma consulta de la página."""
+    if '_nota_texto' in qs.query.annotations:
+        return qs
+    ultima = NotaEstudiante.objects.filter(estudiante_id=OuterRef('pk')).order_by('-creado', '-pk')
+    return qs.annotate(
+        _nota_texto=Subquery(ultima.values('texto')[:1]),
+        _nota_nombre=Subquery(ultima.values('autor__first_name')[:1]),
+        _nota_apellido=Subquery(ultima.values('autor__last_name')[:1]),
+        _nota_usuario=Subquery(ultima.values('autor__username')[:1]),
+    )
+
+
 def anotar_ultima_entrada(qs):
     if '_crm_ultima' in qs.query.annotations:
         return qs
@@ -170,7 +197,8 @@ def filtrar_sin_avanzar(qs, curso_param=None, ahora=None):
         )
         .filter(_crm_diploma=False)
         .filter(Q(_crm_hecho=False) | Q(_crm_hecho__isnull=True))
-        .filter(Q(_crm_cuando__isnull=True) | Q(_crm_cuando__lt=limite))
+        .exclude(estado_chat='ESPERANDO_HABEAS_DATA')
+        .filter(_crm_cuando__lt=limite)
     )
 
 
@@ -194,31 +222,72 @@ def clave_crm(request):
     return f'eki_crm_est_{resumen}'
 
 
+_ANOTACIONES_DE_PAGINA = (
+    '_crm_ultima',
+    '_nota_texto',
+    '_nota_nombre',
+    '_nota_apellido',
+    '_nota_usuario',
+)
+
+
+def _plano(qs):
+    """Sin el prefetch de la página ni la última nota: las cifras no los necesitan."""
+    plano = qs.all()
+    plano.query = qs.query.clone()
+    for nombre in _ANOTACIONES_DE_PAGINA:
+        plano.query.annotations.pop(nombre, None)
+    plano._prefetch_related_lookups = ()
+    return plano.order_by().select_related(None)
+
+
+def _es_mas_reciente(nuevo, viejo):
+    """Misma prioridad que _ultimo_progreso: fecha desc, nulos al final, pk desc."""
+    fn = nuevo['fecha_ultimo_avance']
+    fv = viejo['fecha_ultimo_avance']
+    if fn is None and fv is None:
+        return nuevo['pk'] > viejo['pk']
+    if fn is None:
+        return False
+    if fv is None:
+        return True
+    if fn != fv:
+        return fn > fv
+    return nuevo['pk'] > viejo['pk']
+
+
 def _filas(qs, curso_param):
-    """Una fila por estudiante del queryset, más tres consultas de apoyo."""
-    latest = _ultimo_progreso(curso_param)
-    base = anotar_ultima_entrada(qs).order_by().annotate(
-        prog_id=Subquery(latest.values('pk')[:1]),
-        curso_id_crm=Subquery(latest.values('curso_id')[:1]),
-        curso_nombre=Subquery(latest.values('curso__nombre')[:1]),
-        hecho=Subquery(latest.values('completado')[:1], output_field=BooleanField()),
-        cuando=Subquery(latest.values('fecha_ultimo_avance')[:1], output_field=DateTimeField()),
+    """Una fila por estudiante, con consultas planas. No recorre el admin otra vez."""
+    personas = list(
+        _plano(qs).values('pk', 'estado_chat', 'cliente_id', 'cliente__nombre').distinct()
     )
-    filas = list(base.values(
-        'pk',
-        'estado_chat',
-        'cliente_id',
-        'cliente__nombre',
-        'prog_id',
-        'curso_id_crm',
-        'curso_nombre',
-        'hecho',
-        'cuando',
-        '_crm_ultima',
-    ))
-    prog_ids = [fila['prog_id'] for fila in filas if fila['prog_id']] or [-1]
-    curso_ids = [fila['curso_id_crm'] for fila in filas if fila['curso_id_crm']] or [-1]
-    est_ids = [fila['pk'] for fila in filas] or [-1]
+    est_ids = [fila['pk'] for fila in personas] or [-1]
+    curso = (curso_param or '').strip()
+    progresos = []
+    if curso != 'sin_curso':
+        base = ProgresoEstudiante.objects.filter(estudiante_id__in=est_ids)
+        if curso.isdigit():
+            base = base.filter(curso_id=int(curso))
+        progresos = list(base.values(
+            'pk',
+            'estudiante_id',
+            'curso_id',
+            'completado',
+            'fecha_ultimo_avance',
+            'curso__nombre',
+        ))
+    por_estudiante = {}
+    for progreso in progresos:
+        por_estudiante.setdefault(progreso['estudiante_id'], []).append(progreso)
+    elegidos = {}
+    for est_id, opciones in por_estudiante.items():
+        elegido = None
+        for opcion in opciones:
+            if elegido is None or _es_mas_reciente(opcion, elegido):
+                elegido = opcion
+        elegidos[est_id] = elegido
+    prog_ids = [fila['pk'] for fila in elegidos.values() if fila] or [-1]
+    curso_ids = [fila['curso_id'] for fila in elegidos.values() if fila and fila['curso_id']] or [-1]
     completados = {
         prog_id: n
         for prog_id, n in (
@@ -248,39 +317,49 @@ def _filas(qs, curso_param):
             anulado=False,
         ).values_list('estudiante_id', 'curso_id')
     )
-    for fila in filas:
-        curso_id = fila['curso_id_crm']
-        fila['n_completados'] = completados.get(fila['prog_id'], 0)
-        fila['n_publicados'] = publicados.get(curso_id, 0)
-        fila['completo'] = bool(fila['hecho']) or (fila['pk'], curso_id) in diplomas
+    filas = []
+    for persona in personas:
+        elegido = elegidos.get(persona['pk'])
+        curso_id = elegido['curso_id'] if elegido else None
+        persona['prog_id'] = elegido['pk'] if elegido else None
+        persona['curso_id_crm'] = curso_id
+        persona['curso_nombre'] = elegido['curso__nombre'] if elegido else None
+        persona['hecho'] = elegido['completado'] if elegido else None
+        persona['cuando'] = elegido['fecha_ultimo_avance'] if elegido else None
+        persona['n_completados'] = completados.get(persona['prog_id'], 0)
+        persona['n_publicados'] = publicados.get(curso_id, 0)
+        persona['completo'] = bool(persona['hecho']) or (persona['pk'], curso_id) in diplomas
+        persona['_crm_ultima'] = None
+        filas.append(persona)
     return filas
 
 
 def _pct(fila):
+    """0 si no tiene curso. El promedio de la organización incluye a toda la lista."""
     if not fila.get('curso_id_crm'):
-        return None
+        return 0
     if fila['completo']:
         return 100
     total = fila['n_publicados'] or 0
     if total <= 0:
-        return None
+        return 0
     return int(fila['n_completados'] * 100 / total)
 
 
 def _sin_actividad(fila, ahora):
-    if fila['completo']:
+    if fila['completo'] or (fila.get('estado_chat') or '') == 'ESPERANDO_HABEAS_DATA':
         return False
     cuando = fila['cuando']
     if cuando is None:
-        return True
+        return False
     return cuando < ahora - timedelta(days=DIAS_SIN_AVANCE)
 
 
 def _promedio(filas):
-    valores = [pct for pct in (_pct(fila) for fila in filas) if pct is not None]
-    if not valores:
+    if not filas:
         return 0
-    return int(round(sum(valores) / len(valores)))
+    total = sum(_pct(fila) for fila in filas)
+    return int(total / len(filas) + 0.5)
 
 
 def _url(request, cambios=None, quitar_cliente=False, quitar_curso=False):
@@ -417,25 +496,52 @@ def _pestanas(request, est_ids, panel):
     return pestanas
 
 
-def _queryset_sin_org_ni_curso(modeladmin, request):
-    original = request.GET
-    curso = (original.get('curso') or '').strip()
-    limpio = original.copy()
-    for clave in list(limpio):
-        if clave.startswith('cliente') or clave in ('curso', 'page', 'crm_refresh'):
-            limpio.pop(clave, None)
-    request.GET = limpio
-    try:
-        return modeladmin.get_changelist_instance(request).queryset
-    finally:
-        request.GET = original
-        modeladmin._eki_curso_filter = curso
+def _queryset_crm(modeladmin, request, cl, *, sin_cliente=False, sin_curso=False):
+    """El queryset del listado ya armado, sin volver a construir el admin."""
+    from django.contrib.admin.utils import (
+        build_q_object_from_lookup_parameters,
+        prepare_lookup_value,
+    )
+    from django.contrib.admin.views.main import ERROR_FLAG, IGNORED_PARAMS, PAGE_VAR
+
+    saltar = set()
+    if sin_cliente:
+        saltar.update({'cliente__id__exact', 'cliente__isnull', 'cliente__id'})
+    if sin_curso:
+        saltar.add('curso')
+    ignorar = set(IGNORED_PARAMS) | {PAGE_VAR, ERROR_FLAG, 'crm_refresh'}
+    qs = cl.root_queryset
+    for spec in cl.filter_specs:
+        esperados = set(spec.expected_parameters())
+        if esperados and esperados <= saltar:
+            continue
+        nuevo = spec.queryset(request, qs)
+        if nuevo is not None:
+            qs = nuevo
+    restantes = {}
+    for clave, valores in request.GET.lists():
+        if clave in ignorar:
+            continue
+        restantes[clave] = valores
+    for spec in cl.filter_specs:
+        for nombre in spec.expected_parameters():
+            restantes.pop(nombre, None)
+    if restantes:
+        limpio = {
+            clave: prepare_lookup_value(clave, valores)
+            for clave, valores in restantes.items()
+        }
+        qs = qs.filter(build_q_object_from_lookup_parameters(limpio))
+    qs, duplica = modeladmin.get_search_results(request, qs, cl.query)
+    if duplica:
+        qs = qs.distinct()
+    return qs
 
 
-def armar_crm(modeladmin, request, ahora=None):
+def armar_crm(modeladmin, request, cl, ahora=None):
     ahora = ahora or timezone.now()
     elegida = org_en_request(request.GET)
-    qs = _queryset_sin_org_ni_curso(modeladmin, request)
+    qs = _queryset_crm(modeladmin, request, cl, sin_cliente=True, sin_curso=True)
     filas = _filas(qs, curso_param=None)
     if elegida == 'sin':
         del_org = [fila for fila in filas if not fila['cliente_id']]
@@ -444,17 +550,8 @@ def armar_crm(modeladmin, request, ahora=None):
     else:
         del_org = filas
     curso_param = (request.GET.get('curso') or '').strip()
-    qs_vis = qs
-    if elegida == 'sin':
-        qs_vis = qs_vis.filter(cliente__isnull=True)
-    elif isinstance(elegida, int):
-        qs_vis = qs_vis.filter(cliente_id=elegida)
-    if curso_param == 'sin_curso':
-        qs_vis = qs_vis.filter(progresos__isnull=True)
-        visibles = _filas(qs_vis, 'sin_curso')
-    elif curso_param.isdigit():
-        qs_vis = qs_vis.filter(progresos__curso_id=int(curso_param)).distinct()
-        visibles = _filas(qs_vis, curso_param)
+    if curso_param:
+        visibles = _filas(cl.queryset, curso_param)
     else:
         visibles = del_org
     opciones = _opciones(filas, request, elegida)
@@ -494,7 +591,7 @@ def armar_crm(modeladmin, request, ahora=None):
     }
 
 
-def datos_crm(modeladmin, request):
+def datos_crm(modeladmin, request, cl):
     from django.core.cache import cache
 
     clave = clave_crm(request)
@@ -504,7 +601,7 @@ def datos_crm(modeladmin, request):
         guardado = None
     if guardado is not None:
         return guardado
-    payload = armar_crm(modeladmin, request)
+    payload = armar_crm(modeladmin, request, cl)
     try:
         cache.set(clave, payload, CACHE_SEGUNDOS)
     except Exception:

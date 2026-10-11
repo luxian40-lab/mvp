@@ -3,9 +3,11 @@ from core.admin.clientes import HabilitacionModuloEstudianteInline
 from core.admin.estudiantes_crm import (
     anotar_progresos_lista,
     anotar_ultima_entrada,
+    anotar_ultima_nota,
     clasificar_estado,
     datos_crm,
     filtrar_sin_avanzar,
+    firma_nota,
     iniciales,
     org_en_request,
     texto_actividad,
@@ -16,6 +18,7 @@ from django import forms
 from django.db.models import Count, F, Prefetch, Q
 from io import StringIO
 from unfold.decorators import action, display
+from unfold.forms import BaseDialogForm
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
@@ -225,6 +228,34 @@ class EstadoChatEstudianteFilter(admin.SimpleListFilter):
         return queryset.filter(estado_chat__in=codigos)
 
 
+class NotaEquipoForm(BaseDialogForm):
+    texto = forms.CharField(
+        label='Nota',
+        max_length=2000,
+        widget=forms.Textarea(attrs={'rows': 4}),
+    )
+
+
+def _html_nota(obj):
+    texto = (getattr(obj, '_nota_texto', None) or '').strip()
+    if not texto:
+        return ''
+    if len(texto) > 160:
+        texto = texto[:157].rstrip() + '…'
+    firma = firma_nota(
+        getattr(obj, '_nota_nombre', None),
+        getattr(obj, '_nota_apellido', None),
+        getattr(obj, '_nota_usuario', None),
+    )
+    if firma:
+        return format_html(
+            '<span class="eki-crm-nota">{}<span class="eki-crm-nota-autor">{}</span></span>',
+            texto,
+            firma,
+        )
+    return format_html('<span class="eki-crm-nota">{}</span>', texto)
+
+
 class SinAvanzarEstudianteFilter(admin.SimpleListFilter):
     """Más de 14 días sin avance de módulo, y sin haber completado."""
     title = 'Sin avanzar'
@@ -255,7 +286,7 @@ class EstudianteAdmin(admin.ModelAdmin):
     list_display_links = None
     list_before_template = 'admin/estudiante_crm_barra.html'
     list_fullwidth = True
-    actions_row = ('crm_abrir_chat', 'crm_diagnosticar')
+    actions_row = ('crm_abrir_chat', 'crm_diagnosticar', 'crm_anadir_nota')
     list_filter = (
         TipoOrganizacionEstudianteFilter,
         EstadoChatEstudianteFilter,
@@ -521,16 +552,18 @@ class EstudianteAdmin(admin.ModelAdmin):
             return '—'
         ficha = reverse('admin:core_estudiante_change', args=[obj.pk])
         telefono = obj.telefono or 'sin teléfono'
+        nota = _html_nota(obj)
         return format_html(
             '<span class="eki-crm-persona">'
             '<span class="eki-crm-avatar" style="background:{}">{}</span>'
             '<span><a href="{}">{}</a>'
-            '<span class="eki-crm-tel">{}</span></span></span>',
+            '<span class="eki-crm-tel">{}</span>{}</span></span>',
             tono_organizacion(obj.cliente_id),
             iniciales(obj.nombre),
             ficha,
             obj.nombre or '—',
             telefono,
+            nota,
         )
 
     @display(description='Organización', ordering='cliente__nombre')
@@ -613,6 +646,46 @@ class EstudianteAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/estudiante_crm_diagnostico.html', contexto)
 
+    @action(
+        description='Añadir nota',
+        url_path='crm-nota',
+        icon='edit_note',
+        permissions=['change'],
+        dialog={
+            'title': 'Nota del equipo',
+            'description': 'Queda en esta fila. No se envía por WhatsApp.',
+            'form_class': NotaEquipoForm,
+            'form_submit_text': 'Guardar',
+        },
+    )
+    def crm_anadir_nota(self, request, form, object_id):
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        from core.models import NotaEstudiante
+
+        lista = reverse('admin:core_estudiante_changelist')
+        est = self.get_object(request, object_id)
+        if est is None:
+            messages.error(request, 'No se encontró el estudiante.')
+            return redirect(lista)
+        NotaEstudiante.objects.create(
+            estudiante=est,
+            autor=request.user,
+            texto=form.cleaned_data['texto'].strip(),
+        )
+        messages.success(request, 'Nota guardada.')
+        referer = request.META.get('HTTP_REFERER') or ''
+        destino = lista
+        if (
+            url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()})
+            and lista in referer
+            and '/crm-nota/' not in referer
+        ):
+            destino = referer
+        respuesta = redirect(destino)
+        respuesta['HX-Redirect'] = destino
+        return respuesta
+
     def get_queryset(self, request):
         from core.models_certificados import Certificado
 
@@ -625,7 +698,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             Prefetch('progresos', queryset=anotar_progresos_lista()),
             Prefetch('certificados', queryset=cert_qs),
         )
-        return anotar_ultima_entrada(qs)
+        return anotar_ultima_nota(anotar_ultima_entrada(qs))
 
     def changelist_view(self, request, extra_context=None):
         if request.GET.get('crm_refresh') == '1':
@@ -648,7 +721,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             return response
         cl = contexto.get('cl')
         if cl is not None:
-            contexto['eki_crm'] = datos_crm(self, request)
+            contexto['eki_crm'] = datos_crm(self, request, cl)
         return response
 
     def grupos_display(self, obj):

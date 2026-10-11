@@ -238,8 +238,8 @@
     color: #1e4e86;
 }
 
-.eki-crm-chip--sin_respuesta,
-.eki-crm-estado--sin_respuesta {
+.eki-crm-chip--sin_actividad,
+.eki-crm-estado--sin_actividad {
     background: #f8d9d6;
     color: #8a2e2e;
 }
@@ -260,8 +260,8 @@
 .dark .eki-crm-estado--habeas,
 .dark .eki-crm-chip--completado,
 .dark .eki-crm-estado--completado,
-.dark .eki-crm-chip--sin_respuesta,
-.dark .eki-crm-estado--sin_respuesta {
+.dark .eki-crm-chip--sin_actividad,
+.dark .eki-crm-estado--sin_actividad {
     background: var(--color-base-800);
     color: var(--color-base-100);
 }
@@ -337,6 +337,31 @@
     color: inherit;
     font-weight: 650;
     text-decoration: none;
+}
+
+.eki-crm-nota {
+    display: block;
+    margin-top: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--color-base-100);
+    color: var(--color-base-700);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 450;
+    max-width: 280px;
+}
+
+.eki-crm-nota-autor {
+    display: block;
+    margin-top: 2px;
+    color: var(--color-base-500);
+    font-size: 12px;
+}
+
+.dark .eki-crm-nota {
+    background: var(--color-base-800);
+    color: var(--color-base-200);
 }
 
 .eki-crm-tel,

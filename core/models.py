@@ -3739,6 +3739,7 @@ from .gamificacion import (
 # ========== CERTIFICADOS ==========
 # Importar modelos de certificados desde archivo separado
 from .models_certificados import Certificado, PlantillaCertificado
+from .models_notas import NotaEstudiante
 
 # ========== AUDITORÍA ==========
 # Importar modelos de auditoría desde archivo separado
@@ -4654,6 +4655,7 @@ __all__ = [
     'PerfilGamificacion', 'Badge', 'BadgeEstudiante', 'TransaccionPuntos',
     'EvaluacionNotaGamificacion',
     'Certificado', 'PlantillaCertificado',
+    'NotaEstudiante',
     'AuditLog',
     'GrupoEstudiantes', 'EnvioProgramado', 'PQRS',
     'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo',

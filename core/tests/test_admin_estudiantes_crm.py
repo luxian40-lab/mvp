@@ -15,7 +15,16 @@ from django.utils import timezone
 
 from core.admin.estudiantes import EstudianteAdmin
 from core.admin.estudiantes_crm import clasificar_estado, texto_actividad
-from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante, WhatsappLog
+from core.models import (
+    Cliente,
+    Curso,
+    Estudiante,
+    Modulo,
+    ModuloCompletado,
+    NotaEstudiante,
+    ProgresoEstudiante,
+    WhatsappLog,
+)
 from core.signals_conocimientos import curso_actualizado, modulo_actualizado
 
 
@@ -131,14 +140,15 @@ class EstudiantesCrmTests(TestCase):
     def test_kpis_cuadran_con_el_calculo(self):
         respuesta = self.http.get(self.url, {'q': 'CRM'})
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, 'data-kpi="avance">25%<')
+        self.assertContains(respuesta, 'data-kpi="avance">13%<')
         self.assertContains(respuesta, 'data-kpi="completaron">0<')
         self.assertContains(respuesta, 'data-kpi="habeas">1<')
-        self.assertContains(respuesta, 'data-kpi="sin-actividad">3<')
+        self.assertContains(respuesta, 'data-kpi="sin-actividad">1<')
         self.assertContains(respuesta, 'Mód. 1/2')
         self.assertContains(respuesta, 'hace 3 días')
         self.assertContains(respuesta, 'Habeas pendiente')
-        self.assertContains(respuesta, 'Sin respuesta')
+        self.assertContains(respuesta, 'Sin actividad')
+        self.assertNotContains(respuesta, 'Sin respuesta')
 
     def test_organizacion_conserva_la_busqueda(self):
         respuesta = self.http.get(self.url, {
@@ -168,7 +178,8 @@ class EstudiantesCrmTests(TestCase):
     def test_ver_sin_avanzar_filtra(self):
         respuesta = self.http.get(self.url, {'q': 'CRM', 'eki_sin_avanzar': '1'})
         self.assertContains(respuesta, 'Ana Crm')
-        self.assertContains(respuesta, 'Otto Crm')
+        self.assertNotContains(respuesta, 'Otto Crm')
+        self.assertNotContains(respuesta, 'Luis Crm')
         self.assertNotContains(respuesta, 'Marta Crm')
 
     def test_staff_sin_permiso_no_ve_el_selector(self):
@@ -221,6 +232,32 @@ class EstudiantesCrmTests(TestCase):
         self.assertEqual(n1, n80)
         self.assertLessEqual(n80 - n0, 8)
 
+    def test_la_nota_queda_en_la_fila(self):
+        self.user.first_name = 'Julian'
+        self.user.last_name = 'Mesa'
+        self.user.save(update_fields=['first_name', 'last_name'])
+        url = reverse('admin:core_estudiante_crm_anadir_nota', args=[self.al_dia.pk])
+        dialogo = self.http.get(url)
+        self.assertEqual(dialogo.status_code, 200)
+        self.assertContains(dialogo, 'Nota del equipo')
+        antes = WhatsappLog.objects.count()
+        respuesta = self.http.post(url, {
+            'texto': 'nota vieja unica',
+            '_form_submitted': 'True',
+        })
+        self.assertEqual(respuesta.status_code, 302)
+        self.http.post(url, {
+            'texto': 'Llamar el martes por la cosecha',
+            '_form_submitted': 'True',
+        })
+        self.assertEqual(NotaEstudiante.objects.filter(estudiante=self.al_dia).count(), 2)
+        self.assertEqual(WhatsappLog.objects.count(), antes)
+        cache.clear()
+        lista = self.http.get(self.url, {'q': 'Marta'})
+        self.assertContains(lista, 'Llamar el martes por la cosecha')
+        self.assertContains(lista, 'Julian Mesa')
+        self.assertNotContains(lista, 'nota vieja unica')
+
     def test_texto_de_actividad_y_prioridad_de_habeas(self):
         self.assertEqual(texto_actividad(None), 'nunca escribió')
         slug, texto = clasificar_estado(
@@ -230,4 +267,4 @@ class EstudiantesCrmTests(TestCase):
             fecha_avance=None,
             n_completados=2,
         )
-        self.assertEqual((slug, texto), ('habeas', 'Habeas pendiente'))
+        self.assertEqual((slug, texto), ('completado', 'Completado'))

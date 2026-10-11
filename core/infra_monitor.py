@@ -111,8 +111,8 @@ def _redis_status() -> dict[str, Any]:
             host=u.hostname or '127.0.0.1',
             port=u.port or 6379,
             db=int((u.path or '/0').lstrip('/') or 0),
-            socket_connect_timeout=1.5,
-            socket_timeout=1.5,
+            socket_connect_timeout=0.25,
+            socket_timeout=0.25,
             ssl=broker.startswith('rediss://'),
         )
         out['ok'] = bool(r.ping())
@@ -753,8 +753,8 @@ def _largo_colas_logicas() -> dict[str, Any]:
             host=u.hostname or '127.0.0.1',
             port=u.port or 6379,
             db=int((u.path or '/0').lstrip('/') or 0),
-            socket_connect_timeout=1.5,
-            socket_timeout=1.5,
+            socket_connect_timeout=0.25,
+            socket_timeout=0.25,
             ssl=broker.startswith('rediss://'),
         )
         try:
@@ -1005,11 +1005,11 @@ def header_health_strip(*, force: bool = False) -> list[dict[str, Any]]:
         except Exception:
             pass
 
-    snap = snapshot_infra(force=False)
-    redis_ok = bool((snap.get('redis') or {}).get('ok'))
-    db_ok = bool((snap.get('db') or {}).get('ok'))
-    s3_ok = bool((snap.get('s3') or {}).get('ok'))
-    celery = _celery_workers_ok()
+    # La barra va en cada listado. No dispara el snapshot completo (colas y playbooks).
+    redis_ok = bool(_redis_status().get('ok'))
+    db_ok = bool(_db_status().get('ok'))
+    s3_ok = bool(_s3_status().get('ok')) if getattr(settings, 'USE_S3', False) else False
+    celery = _celery_workers_ok() if redis_ok else {'ok': False, 'mode': 'no_workers'}
     wa = _whatsapp_configured()
 
     chips = [
