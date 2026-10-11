@@ -1,0 +1,44 @@
+.eki-mu {
+  color: var(--eki-mu-ink, inherit);
+  font: inherit;
+}
+
+.eki-mu__item {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--eki-mu-line, currentColor);
+  border-radius: var(--eki-mu-radius, 8px);
+  background: var(--eki-mu-bg, transparent);
+}
+
+.eki-mu__barra {
+  height: 0.4rem;
+  margin: 0.35rem 0;
+  background: var(--eki-mu-track, transparent);
+  border: 1px solid var(--eki-mu-line, currentColor);
+  border-radius: var(--eki-mu-radius, 8px);
+  overflow: hidden;
+}
+
+.eki-mu__barra > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--eki-mu-fill, currentColor);
+}
+
+.eki-mu__acciones {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.eki-mu__btn {
+  font: inherit;
+  color: var(--eki-mu-ink, inherit);
+  background: var(--eki-mu-btn, transparent);
+  border: 1px solid var(--eki-mu-line, currentColor);
+  border-radius: var(--eki-mu-radius, 8px);
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+}
