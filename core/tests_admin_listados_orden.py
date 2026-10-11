@@ -63,11 +63,18 @@ class AdminListadosOrdenTests(SimpleTestCase):
 
     def test_estudiante_orden_y_columnas(self):
         adm = EstudianteAdmin(Estudiante, site)
-        self.assertEqual(adm.ordering, ('nombre',))
+        self.assertEqual(adm.ordering, ('cliente__nombre', 'nombre'))
         self.assertEqual(
             adm.list_display,
-            ('estudiante_celda', 'curso_celda'),
+            (
+                'crm_estudiante',
+                'crm_organizacion',
+                'crm_curso',
+                'crm_estado',
+                'crm_actividad',
+            ),
         )
+        self.assertTrue(adm.list_fullwidth)
         self.assertIsNone(adm.list_display_links)
         self.assertNotIn('cedula_formateada', adm.list_display)
         self.assertNotIn('telefono_formateado', adm.list_display)

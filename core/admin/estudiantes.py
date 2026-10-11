@@ -1,7 +1,21 @@
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.clientes import HabilitacionModuloEstudianteInline
+from core.admin.estudiantes_crm import (
+    anotar_progresos_lista,
+    anotar_ultima_entrada,
+    clasificar_estado,
+    datos_crm,
+    filtrar_sin_avanzar,
+    iniciales,
+    org_en_request,
+    texto_actividad,
+    tono_organizacion,
+    clave_crm,
+)
 from django import forms
 from django.db.models import Count, F, Prefetch, Q
+from io import StringIO
+from unfold.decorators import action, display
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
@@ -211,19 +225,37 @@ class EstadoChatEstudianteFilter(admin.SimpleListFilter):
         return queryset.filter(estado_chat__in=codigos)
 
 
+class SinAvanzarEstudianteFilter(admin.SimpleListFilter):
+    """Más de 14 días sin avance de módulo, y sin haber completado."""
+    title = 'Sin avanzar'
+    parameter_name = 'eki_sin_avanzar'
+
+    def lookups(self, request, model_admin):
+        return (('1', 'Más de 14 días'),)
+
+    def queryset(self, request, queryset):
+        if self.value() != '1':
+            return queryset
+        return filtrar_sin_avanzar(queryset, request.GET.get('curso'))
+
+
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
     form = EstudianteAdminForm
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
-    # Dos celdas: la persona (nombre, org, WhatsApp) y su curso (módulo, estado, chat).
     list_display = (
-        'estudiante_celda',
-        'curso_celda',
+        'crm_estudiante',
+        'crm_organizacion',
+        'crm_curso',
+        'crm_estado',
+        'crm_actividad',
     )
     list_display_links = None
-    list_before_template = 'admin/estudiante_list_resumen.html'
+    list_before_template = 'admin/estudiante_crm_barra.html'
+    list_fullwidth = True
+    actions_row = ('crm_abrir_chat', 'crm_diagnosticar')
     list_filter = (
         TipoOrganizacionEstudianteFilter,
         EstadoChatEstudianteFilter,
@@ -233,13 +265,17 @@ class EstudianteAdmin(admin.ModelAdmin):
         'cliente',
         GruposEstudianteFilter,
         'departamento',
+        SinAvanzarEstudianteFilter,
     )
     list_filter_submit = True
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
-    search_help_text = 'Buscar por nombre, cédula o WhatsApp'
+    search_help_text = 'Buscar por nombre, cédula o WhatsApp. Con 4 dígitos, busca el final del teléfono.'
     list_select_related = ('cliente',)
     list_per_page = 50
-    ordering = ('nombre',)
+    ordering = ('cliente__nombre', 'nombre')
+
+    class Media:
+        css = {'all': ('admin/estudiantes_crm.css',)}
     # Primero ops de datos; WhatsApp al final del menú Acciones.
     actions = [
         'asignar_a_grupo_accion',
@@ -442,32 +478,177 @@ class EstudianteAdmin(admin.ModelAdmin):
         )
     curso_celda.short_description = 'Curso'
 
+    def get_list_display(self, request):
+        columnas = list(self.list_display)
+        if org_en_request(request.GET) is not None and 'crm_organizacion' in columnas:
+            columnas.remove('crm_organizacion')
+        return columnas
+
+    def get_search_results(self, request, queryset, search_term):
+        termino = (search_term or '').strip()
+        if len(termino) == 4 and termino.isdigit():
+            return queryset.filter(
+                Q(telefono__endswith=termino)
+                | Q(nombre__icontains=termino)
+                | Q(cedula__icontains=termino)
+                | Q(cliente__nombre__icontains=termino)
+            ), True
+        return super().get_search_results(request, queryset, search_term)
+
+    def _estado_crm(self, obj):
+        elegido, _extra = elegir_progreso_lista(
+            obj.progresos.all(),
+            getattr(self, '_eki_curso_filter', ''),
+        )
+        completo = False
+        fecha = None
+        n_ok = 0
+        if elegido is not None:
+            fecha = elegido.fecha_ultimo_avance
+            n_ok = getattr(elegido, '_n_completados', 0) or 0
+            completo = bool(elegido.completado) or bool(self._enlace_diploma(obj, elegido.curso_id))
+        return clasificar_estado(
+            estado_chat=getattr(obj, 'estado_chat', ''),
+            ultima_entrada=getattr(obj, '_crm_ultima', None),
+            completo=completo,
+            fecha_avance=fecha,
+            n_completados=n_ok,
+        )
+
+    @display(description='Estudiante', ordering='nombre')
+    def crm_estudiante(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        ficha = reverse('admin:core_estudiante_change', args=[obj.pk])
+        telefono = obj.telefono or 'sin teléfono'
+        return format_html(
+            '<span class="eki-crm-persona">'
+            '<span class="eki-crm-avatar" style="background:{}">{}</span>'
+            '<span><a href="{}">{}</a>'
+            '<span class="eki-crm-tel">{}</span></span></span>',
+            tono_organizacion(obj.cliente_id),
+            iniciales(obj.nombre),
+            ficha,
+            obj.nombre or '—',
+            telefono,
+        )
+
+    @display(description='Organización', ordering='cliente__nombre')
+    def crm_organizacion(self, obj):
+        if obj.cliente_id and obj.cliente:
+            return format_html('<span class="eki-crm-orgchip">{}</span>', obj.cliente.nombre)
+        return format_html('<span class="eki-crm-orgchip eki-crm-op--sin">Sin organización</span>')
+
+    @display(description='Curso y avance')
+    def crm_curso(self, obj):
+        elegido, extra = elegir_progreso_lista(
+            obj.progresos.all(),
+            getattr(self, '_eki_curso_filter', ''),
+        )
+        if elegido is None or not elegido.curso_id:
+            return format_html('<span class="eki-crm-vacio">Sin curso</span>')
+        n_ok = getattr(elegido, '_n_completados', 0) or 0
+        n_tot = getattr(elegido, '_n_publicados', None)
+        if n_tot is None:
+            n_tot = getattr(elegido, '_n_mods', 0) or 0
+        diploma = self._enlace_diploma(obj, elegido.curso_id)
+        if elegido.completado or diploma:
+            texto = 'Completado'
+            pct = 100
+        elif n_tot:
+            texto = f'Mód. {n_ok}/{n_tot}'
+            pct = int(n_ok * 100 / n_tot)
+        else:
+            texto = 'Sin iniciar'
+            pct = 0
+        extra_html = ''
+        if extra:
+            extra_html = format_html(' <span class="eki-crm-extra">+{} más</span>', extra)
+        return format_html(
+            '<div class="eki-crm-curso-celda"><div>{} · {}{}{}</div>'
+            '<span class="eki-crm-fila-bar" role="progressbar" aria-valuenow="{}" aria-valuemin="0" aria-valuemax="100">'
+            '<span style="width:{}%"></span></span></div>',
+            elegido.curso.nombre,
+            texto,
+            extra_html,
+            diploma,
+            pct,
+            pct,
+        )
+
+    @display(description='Estado')
+    def crm_estado(self, obj):
+        slug, texto = self._estado_crm(obj)
+        return format_html(
+            '<span class="eki-crm-chip eki-crm-estado--{}">{}</span>',
+            slug,
+            texto,
+        )
+
+    @display(description='Última actividad', ordering='_crm_ultima')
+    def crm_actividad(self, obj):
+        return texto_actividad(getattr(obj, '_crm_ultima', None))
+
+    @action(description='Abrir conversación', url_path='crm-chat', icon='forum', permissions=['view'])
+    def crm_abrir_chat(self, request, object_id):
+        return redirect(reverse('conversaciones') + f'?estudiante={object_id}')
+
+    @action(description='Diagnosticar', url_path='crm-diagnostico', icon='troubleshoot', permissions=['view'])
+    def crm_diagnosticar(self, request, object_id):
+        from django.core.management import call_command
+
+        est = self.get_object(request, object_id)
+        if est is None:
+            messages.error(request, 'No se encontró el estudiante.')
+            return redirect('admin:core_estudiante_changelist')
+        buf = StringIO()
+        try:
+            call_command('diagnosticar_telefono', est.telefono or '', stdout=buf)
+        except Exception as exc:
+            buf.write(f'No se pudo diagnosticar: {exc}')
+        contexto = {
+            **self.admin_site.each_context(request),
+            'title': f'Diagnóstico de {est.nombre}',
+            'texto': buf.getvalue(),
+        }
+        return render(request, 'admin/estudiante_crm_diagnostico.html', contexto)
+
     def get_queryset(self, request):
         from core.models_certificados import Certificado
 
         self._eki_curso_filter = (request.GET.get('curso') or '').strip()
-        prog_qs = (
-            ProgresoEstudiante.objects.select_related('curso', 'modulo_actual')
-            .annotate(_n_mods=Count('curso__modulos', distinct=True))
-            .order_by(F('fecha_ultimo_avance').desc(nulls_last=True), '-pk')
-        )
         cert_qs = Certificado.objects.filter(emitido=True, anulado=False).only(
             'id', 'estudiante_id', 'curso_id', 'emitido', 'anulado',
             'fecha_emision', 'creado_en',
         )
-        return super().get_queryset(request).prefetch_related(
-            Prefetch('progresos', queryset=prog_qs),
+        qs = super().get_queryset(request).prefetch_related(
+            Prefetch('progresos', queryset=anotar_progresos_lista()),
             Prefetch('certificados', queryset=cert_qs),
         )
+        return anotar_ultima_entrada(qs)
 
     def changelist_view(self, request, extra_context=None):
+        if request.GET.get('crm_refresh') == '1':
+            from django.core.cache import cache
+
+            try:
+                cache.delete(clave_crm(request))
+            except Exception:
+                pass
+            params = request.GET.copy()
+            params.pop('crm_refresh', None)
+            destino = request.path
+            encoded = params.urlencode()
+            if encoded:
+                destino = f'{destino}?{encoded}'
+            return redirect(destino)
         response = super().changelist_view(request, extra_context=extra_context)
         contexto = getattr(response, 'context_data', None)
         if not contexto:
             return response
         cl = contexto.get('cl')
         if cl is not None:
-            contexto['eki_est_resumen'] = resumen_estudiantes(cl.queryset)
+            contexto['eki_crm'] = datos_crm(self, request)
         return response
 
     def grupos_display(self, obj):

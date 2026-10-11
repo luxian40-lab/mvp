@@ -1,0 +1,9 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="eki-crm-diag">
+    <p><a href="{% url 'admin:core_estudiante_changelist' %}">Volver al listado</a></p>
+    <h1>{{ title }}</h1>
+    <pre>{{ texto }}</pre>
+</div>
+{% endblock %}

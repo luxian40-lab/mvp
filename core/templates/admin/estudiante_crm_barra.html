@@ -1,0 +1,159 @@
+{% if eki_crm %}
+<section
+    class="eki-crm"
+    x-data="{
+        abierto: false,
+        resumen: false,
+        busca: '',
+        indice: 0,
+        init() {
+            this.resumen = window.localStorage.getItem('eki-crm-resumen') === '1';
+        },
+        guardarResumen() {
+            this.resumen = !this.resumen;
+            window.localStorage.setItem('eki-crm-resumen', this.resumen ? '1' : '0');
+        },
+        opciones() {
+            return [...this.$refs.lista.querySelectorAll('[data-crm-op]')];
+        },
+        visibles() {
+            const q = this.busca.trim().toLowerCase();
+            const lista = this.opciones().filter((el) => {
+                const ok = !q || (el.dataset.nombre || '').toLowerCase().includes(q);
+                el.hidden = !ok;
+                return ok;
+            });
+            if (this.indice >= lista.length) this.indice = 0;
+            lista.forEach((el, i) => {
+                el.classList.toggle('is-active', i === this.indice);
+                el.setAttribute('aria-selected', i === this.indice ? 'true' : 'false');
+            });
+            return lista;
+        },
+        abrir() {
+            this.abierto = true;
+            this.indice = Math.max(0, this.opciones().findIndex((el) => el.classList.contains('is-chosen')));
+            this.$nextTick(() => {
+                this.visibles();
+                this.$refs.busca.focus();
+            });
+        },
+        cerrar() {
+            this.abierto = false;
+            this.busca = '';
+        },
+        mover(delta) {
+            const lista = this.visibles();
+            if (!lista.length) return;
+            this.indice = (this.indice + delta + lista.length) % lista.length;
+            this.visibles();
+            lista[this.indice].scrollIntoView({ block: 'nearest' });
+        },
+        elegir() {
+            const lista = this.visibles();
+            if (lista[this.indice]) window.location = lista[this.indice].href;
+        }
+    }"
+    @keydown.escape.window="cerrar()"
+>
+    <div class="eki-crm-bar">
+        <div class="eki-crm-org">
+            <button
+                type="button"
+                class="eki-crm-combo"
+                role="combobox"
+                aria-haspopup="listbox"
+                aria-controls="eki-crm-lista"
+                :aria-expanded="abierto ? 'true' : 'false'"
+                :aria-activedescendant="abierto ? 'eki-crm-op-' + indice : ''"
+                @click="abierto ? cerrar() : abrir()"
+            >
+                <span class="eki-crm-combo__nombre">{{ eki_crm.elegida_nombre }}</span>
+                <span class="eki-crm-combo__n">{{ eki_crm.elegida_n }}</span>
+            </button>
+            <div class="eki-crm-drop" x-show="abierto" x-cloak @click.outside="cerrar()">
+                <input
+                    x-ref="busca"
+                    class="eki-crm-busca"
+                    type="text"
+                    placeholder="Buscar organización"
+                    x-model="busca"
+                    @input="indice = 0; visibles()"
+                    @keydown.arrow-down.prevent="mover(1)"
+                    @keydown.arrow-up.prevent="mover(-1)"
+                    @keydown.enter.prevent="elegir()"
+                    @keydown.escape.prevent="cerrar()"
+                    aria-label="Buscar organización"
+                    autocomplete="off"
+                >
+                <div id="eki-crm-lista" class="eki-crm-lista" role="listbox" x-ref="lista" aria-label="Organizaciones">
+                    {% for opcion in eki_crm.opciones %}
+                    <a
+                        data-crm-op
+                        data-nombre="{{ opcion.nombre }}"
+                        id="eki-crm-op-{{ forloop.counter0 }}"
+                        class="eki-crm-op{% if opcion.sin %} eki-crm-op--sin{% endif %}{% if opcion.activa %} is-chosen{% endif %}"
+                        role="option"
+                        href="{{ opcion.url }}"
+                        {% if opcion.activa %}aria-selected="true"{% endif %}
+                    >
+                        <span class="eki-crm-op__nombre">{{ opcion.nombre }}</span>
+                        <span class="eki-crm-op__n">{{ opcion.n }}</span>
+                        <span class="eki-crm-mini" aria-hidden="true"><span style="width: {{ opcion.avance }}%"></span></span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <p class="eki-crm-kpis">
+            <span><strong data-kpi="avance">{{ eki_crm.avance }}%</strong> avance</span>
+            <span><strong data-kpi="completaron">{{ eki_crm.completaron }}</strong> completaron</span>
+            <span><strong data-kpi="sin-actividad">{{ eki_crm.sin_actividad }}</strong> sin actividad</span>
+            <span><strong data-kpi="habeas">{{ eki_crm.habeas }}</strong> habeas</span>
+        </p>
+        <button type="button" class="eki-crm-resumen" @click="guardarResumen()" :aria-expanded="resumen ? 'true' : 'false'">
+            Ver resumen
+        </button>
+    </div>
+    <div class="eki-crm-panel" x-show="resumen" x-cloak>
+        <div class="eki-crm-panel__top">
+            <a class="eki-crm-actualizar" href="{{ eki_crm.actualizar_url }}">Actualizar</a>
+        </div>
+        {% if eki_crm.cursos %}
+        <div class="eki-crm-cursos">
+            {% for curso in eki_crm.cursos %}
+            <div class="eki-crm-curso">
+                <div class="eki-crm-curso__txt">
+                    <strong>{{ curso.nombre }}</strong>
+                    <span>{{ curso.texto }}</span>
+                </div>
+                <span class="eki-crm-bar" role="progressbar" aria-valuenow="{{ curso.pct }}" aria-valuemin="0" aria-valuemax="100">
+                    <span style="width: {{ curso.pct }}%"></span>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <ul class="eki-crm-estados">
+            {% for estado in eki_crm.estados %}
+            <li class="eki-crm-chip eki-crm-chip--{{ estado.slug }}">{{ estado.label }} <strong>{{ estado.n }}</strong></li>
+            {% endfor %}
+        </ul>
+        {% if eki_crm.sin_avanzar_n %}
+        <p class="eki-crm-aviso">
+            <span>{{ eki_crm.sin_avanzar_n }} personas llevan más de 14 días sin avanzar</span>
+            <a href="{{ eki_crm.sin_avanzar_url }}">Ver</a>
+        </p>
+        {% endif %}
+    </div>
+    {% if eki_crm.pestanas %}
+    <div class="eki-crm-tabs" role="tablist">
+        {% for tab in eki_crm.pestanas %}
+        <a role="tab" class="eki-crm-tab{% if tab.activa %} is-active{% endif %}" href="{{ tab.url }}" {% if tab.activa %}aria-selected="true"{% endif %}>
+            {{ tab.nombre }} <span>{{ tab.n }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endif %}
