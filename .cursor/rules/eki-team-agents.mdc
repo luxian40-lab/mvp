@@ -50,6 +50,7 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
 - Diseñador → `.cursor/skills/eki-designer/SKILL.md` + `reference.md` (tokens `#9A6CAC` / tipografías)
 - Twilio Content variables → https://www.twilio.com/docs/content/using-variables-with-content-api
 - Webhooks → raw body → HMAC → `hmac.compare_digest` (nunca `==`)
+- Split de `core/views` → `docs/REFACTOR_VIEWS.md` (mover, no reescribir; un bloque por commit)
 
 ## Modelo (obligatorio)
 

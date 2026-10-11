@@ -1,0 +1,11 @@
+---
+description: Al partir core/views, mover sin reescribir. Canon en docs/REFACTOR_VIEWS.md
+globs: core/views/**/*.py,docs/REFACTOR_VIEWS.md,scripts/verificar_split_views.py
+alwaysApply: false
+---
+
+# Refactor de core/views
+
+Antes de mover funciones de `core/views/legacy.py` (o cerrar un bloque del split), leer y seguir `docs/REFACTOR_VIEWS.md`.
+
+Mover, no reescribir. Un bloque por commit. No cambiar lógica, nombres, decoradores ni el orden dentro de una función. No correr `ruff --fix` ni borrar F401 de `legacy.py`. No tocar un `patch()` sin avisar. El estado de los bloques y la verificación están en ese doc.
