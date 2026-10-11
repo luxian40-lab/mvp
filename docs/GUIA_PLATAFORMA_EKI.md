@@ -2,18 +2,22 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 22 septiembre 2026  
+**Producto vigente (6 octubre 2026):** [`docs/GUIA_PLATAFORMA_1.md`](GUIA_PLATAFORMA_1.md). Ese archivo es la guía 1.0 de lo que está en producción: línea Meta, cinco agentes por oficio, portal sin el pulso del inicio, y el hueco de la cuenta WABA. Lo de abajo sigue como mapa largo.
+
+**Última actualización del mapa largo:** 6 octubre 2026 (cabecera y sección 26). El cuerpo de julio no se reescribió.  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
-**Último deploy relevante:** ver historial EB `main-*` / `eki-prod-final`. Esta guía describe el **código y las superficies vigentes a septiembre 2026**, no un zip de un solo deploy.  
+**Deploy vigente:** `main-20261005-183847`. Rollback inmediato: `main-20261005-182543`.  
 **Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. El **admin Unfold** es la consola del equipo eki (Inicio ejecutivo, analítica por tabs, Copiloto ops, Module Builder, Course Engine, Knowledge Studio). La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
 
 **Documentos relacionados:**
 
 | Documento | Para qué sirve |
 |-----------|----------------|
+| `docs/GUIA_PLATAFORMA_1.md` | Producto vigente al 6 de octubre 2026 (línea Meta, agentes, portal) |
 | `docs/EKI_PRODUCTO_PROFUNDO.md` | Entender eki a detalle: por qué / si falla / cómo probar / refactor / pitch por módulo |
 | `docs/AUDITORIA_ARQUITECTURA_EKI.md` | Deuda técnica, archivos críticos, seguridad P0–P3 |
+| `docs/REFACTOR_VIEWS.md` | Cómo se partió `core/views.py` en el paquete `core/views/` (movimiento, sin reescribir) |
 | `docs/CHECKLIST_PRE_DEPLOY.md` | Comandos y smoke tests antes de cada deploy |
 | `docs/EKI_STUDIO.md` | Catálogo, inscripción y DNS de eki Studio |
 | `docs/EKI_APRENDE_REFERENCES.md` | Aprende como producto LMS: Moodle/Canvas + diseño M3/Carbon/Primer/Mobbin/Tabler |
@@ -58,29 +62,141 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 23. [Historial de capacidades (julio 2026)](#23-historial-de-capacidades-julio-2026)
 24. [CTO — Clima Open-Meteo para Nat](#24-cto--clima-open-meteo-para-nat)
 25. [CTO — Seguridad frente a inyección de datos](#25-cto--seguridad-frente-a-inyección-de-datos)
+26. [Línea Meta, planes y agentes (1 octubre 2026)](#26-línea-meta-planes-y-agentes-1-octubre-2026)
 
 > **Entender el producto a fondo** (por qué / fallos / pruebas / refactor / pitch): [`docs/EKI_PRODUCTO_PROFUNDO.md`](EKI_PRODUCTO_PROFUNDO.md).
 
 ---
 
-## Estado del producto al 22 septiembre 2026 (resumen ejecutivo)
+## Estado del producto al 1 octubre 2026 (resumen ejecutivo)
 
 Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
 
 | Superficie | Qué está vivo |
 |------------|----------------|
-| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones **A–D no saltables con listo**, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** 2+ cursos activos → menú; 1 → avance directo. **Media:** reintento auto ante 63019 + *reenvía video* sin perder avance; gate `media_wa_apto` (63021 = H.264+AAC). |
-| **Portal** (`app.eki.technology`) | Coordinación B2B: Inicio, métricas, gamificación, branding, **Guía EKI**, **Centro de Éxito**, **Suscripción** (vence/cupos), **Recuperar contraseña**, certificados (verify + PDF + CSV). Productos opcionales: GEI, Nat, empleabilidad. |
+| **WhatsApp Meta** | Línea principal de producto. Menú Formación / Asesoría según plan (OP1, OP2, OP3). *listo* entrega el módulo completo de una vez. Reacción ⏳ en el mensaje del usuario y ✅ cuando llega la respuesta. Rachas dentro del primer mensaje del día. Twilio queda como **canal demo**. |
+| **Portal** (`app.eki.technology`) | Coordinación B2B. El inicio ya no muestra «¿Cómo va mi programa?» ni la tarjeta de Métricas. Siguen cursos, herramientas y el mapa. Centro de Éxito, suscripción, certificados y productos opcionales siguen en sus pantallas. |
 | **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código (no OTP saliente en frío). |
 | **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. Producto **aparte** de Aprende (sin cable en el mapa del admin). |
 | **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` — org, documento enmascarado, horas, SHA-256, **Descargar PDF**. WhatsApp sigue enviando PNG. |
 | **Admin** (`admin.eki.technology`) | Consola maestra Unfold: **Inicio** (KPIs, mapa Colombia, ecosistema, alertas), **Analítica** por tabs, **Copiloto ops**, campañas HSM, Module Builder, Course Engine, Knowledge Studio, AI Ops, cobertura, infra. Tonos **Cielo / Marca / Oscuro**. |
-| **Nat** | Bot comercial WhatsApp (RAG + catálogo + clima Open-Meteo + visión de foto). Inbound a **Celery**. HITL en Knowledge Studio. No es el Copiloto del admin. |
-| **Infra** | EB `eki-prod-final` (Python 3.11), RDS, S3 `eki-produccion`, Celery+Redis (reenganche drip 08:00 + inactivos 09:00), Cloudflare. |
+| **Agentes de la línea Meta** | Cinco oficios, sin nombre propio: Agrónomo eki, Coach eki, Profesor IA, Ventas eki, Experto en finanzas. Chat en **gpt-5-mini**; la pregunta técnica del agrónomo sube a **gpt-5**. Si el modelo falla, hay un segundo intento y luego una respuesta del mismo oficio. |
+| **Infra** | EB `eki-prod-final` (Python 3.11), RDS, S3 `eki-produccion`, Celery+Redis. El beat vivo es el de `mvp_project/celery.py`: reenganche drip a las **08:00** (`America/Bogota`). Cloudflare. Deploy `main-20261005-183847`. |
 
 **Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7A4E8E` / profundo `#5F3A6E`. Admin Unfold + skins Cielo (azul ops) / Marca (lavanda) / Oscuro (carbón). Favicons distintos por producto.
 
-**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo y **sí** dispara reenganche WA automático por inactividad (Celery).
+**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo. El reenganche automático que está en el beat es el de drip a las 08:00, no un envío de inactivos a las 09:00.
+
+---
+
+## 26. Línea Meta, planes y agentes (1 octubre 2026)
+
+Esta sección es la que manda si choca con un párrafo de julio o septiembre. El producto que el estudiante usa hoy es la **línea Meta** (Cloud API). Twilio sigue para campañas HSM históricas y como línea demo.
+
+### 26.1 Dos canales
+
+| Canal | Rol | Plan si la persona no tiene uno asignado |
+|-------|-----|-------------------------------------------|
+| **Meta** | Producto. Menú, cursos, asesoría, fichas GEI. | `LINEA_META_PLAN_DEFAULT=curso_asesor` (OP1 temporal, para no dejar a nadie en blanco hasta asignar planes). |
+| **Twilio** | Demo y campañas. No acumula rachas de la línea Meta. | `LINEA_DEMO_TWILIO_PLAN`, por defecto también OP1. |
+
+Código: `core/planes_linea.py`, `core/sandbox_canal.py`, `core/sandbox_menu.py`.
+
+### 26.2 Planes OP1, OP2 y OP3
+
+El plan vive en la **organización** (`Cliente.plan_linea_meta`) y se puede **pisar por grupo** (`GrupoEstudiantes.plan_linea_meta`). Una misma empresa puede tener un grupo en OP1 y otro en OP2. Si la persona está en dos grupos con plan, gana el grupo más nuevo. Un grupo inactivo no cambia el plan del cliente. La suscripción vencida del cliente apaga también el plan del grupo.
+
+Hay un override por persona en Admin → Sesiones menú sandbox (`SandboxCanalSesion.plan`). Ese gana sobre el grupo.
+
+| Plan (valor en admin) | Qué ve | Cursos nuevos en el mes | Preguntas al asesor en el mes |
+|------------------------|--------|-------------------------|-------------------------------|
+| **OP1** `curso_asesor` | Formación y Asesoría | 1 | 30 |
+| **OP2** `cursos` | Solo Formación | 2 | 0 |
+| **OP3** `asesor` | Solo Asesoría | 0 | 60 |
+| Vacío y sin default | Nada de la línea | 0 | 0 |
+
+El cupo de cursos cuenta `ProgresoEstudiante.fecha_inicio` desde el día 1 del mes en Bogotá. El cupo de preguntas cuenta las que ya se registraron este mes.
+
+**Menú y Formación cuando ya hay curso abierto este mes**
+
+- Un curso abierto → entra a ese curso («Seguimos *nombre*», *listo* para seguir). No muestra el carrusel de cero.
+- Dos o más → pregunta cuál (lista de WhatsApp).
+- Cero → menú del plan y carrusel de Formación.
+
+OP2 con un solo curso abierto entra a ese curso. El segundo cupo se usa cuando no hay ninguno abierto, o desde la ficha *ver curso*. *hola* y *menu* con un curso abierto entran al curso (o preguntan cuál). Asesoría se alcanza escribiendo *asesoria*. Si el plan incluye asesor, el mensaje del curso único lo recuerda.
+
+### 26.3 Carrusel de Formación
+
+No está fijo a tres cursos. Sale de `Curso` con `catalogo_menu=True`, `activo=True` y `cliente` vacío, ordenado por `orden`, nombre e id. Un curso general nuevo queda en el menú solo al crearlo. Para esconderlo, se desmarca **En el menú de Formación**. Los cursos de un cliente no salen para todo el mundo.
+
+WhatsApp acepta de 2 a 10 tarjetas por carrusel. Si hay más de 10, sale un segundo carrusel (11 se parte en 9+2, porque una sola tarjeta no es válida). La imagen es la portada https del primer módulo, o una imagen conocida por nombre, o `carrusel_tiempo.jpg`. Los botones son *Ver curso* / *Más información*. Tarjetas viejas (`ver_riendas`, `ver_tiempo`, `ver_innovacion`) siguen inscribiendo.
+
+### 26.4 *listo*, reacciones y rachas
+
+- Un solo *listo* entrega el módulo. Un segundo *listo* mientras el primero va en camino no dispara otra copia. El candado dura mientras se envía y se suelta al terminar; si queda colgado más de 90 segundos, el siguiente *listo* lo toma.
+- Los módulos de varias partes se envían **todas** en ese turno (texto, video, imagen, audio), no solo la primera.
+- La espera no es un mensaje. Al mensaje del usuario se le pone ⏳ y, cuando la respuesta sale, cambia a ✅. No se guarda en el log de WhatsApp y no gasta cupo.
+- La racha va **dentro** del primer mensaje del día, anclada a las insignias activas de tipo **RACHA** (3, 7, 14, 21 y 30 días: Constancia, Semana firme, Dos semanas, Hábito, Mes completo). El 🔥 va solo en la línea de la racha. El texto de la insignia no lleva emoji. Twilio no acumula esos avisos.
+
+### 26.5 Asesoría: cinco oficios
+
+Asesoría abre la lista de agentes. Cada uno recuerda su propia conversación. *reiniciar* corta esa memoria. *menu* vuelve al menú. No se presentan con nombre propio.
+
+| Agente | Oficio | Para qué |
+|--------|--------|----------|
+| **Agrónomo eki** | Cultivo, plagas y suelo | El lote. No precios ni hábitos. En la línea comercial de una org el bot sigue entrando por `numero_whatsapp_nat`. |
+| **Coach eki** | Hábitos y constancia | El primer paso. No cultivo ni precios. |
+| **Profesor IA** | IA en el celular | Un ejemplo con el teléfono. No plagas ni ventas. |
+| **Ventas eki** | Clientes, precio y cierre | A quién le vende. No plagas ni hábitos. |
+| **Experto en finanzas** | Gastos, deudas y cuentas | El gasto o la deuda. No plagas ni cómo conseguir clientes. |
+
+**Modelos (octubre 2026)**
+
+| Uso | Variable | Default |
+|-----|----------|---------|
+| Chat normal (los cinco oficios, y el agrónomo en conversación) | `BOT_COMERCIAL_OPENAI_MODEL` | `gpt-5-mini` |
+| Pregunta técnica del agrónomo (dosis, plaga, suelo, ficha) | `BOT_COMERCIAL_MODEL_TECNICO` | `gpt-5` |
+| Clasificador corto de Nat | `BOT_COMERCIAL_MODEL_ROUTER` | `gpt-5-nano` |
+| Foto | `BOT_COMERCIAL_VISION_MODEL` | `gpt-5-mini` |
+
+No están en GPT-4.1. Mini alcanza para el chat corto. El modelo grande se paga solo en la pregunta técnica de Nat. Precios de referencia por millón de tokens: mini $0,25 entrada / $2 salida; gpt-5 $1,25 / $10; gpt-4.1 $2 / $8. Con 30 preguntas al mes, mini queda en centavos por persona.
+
+**Si el modelo falla, igual se contesta**
+
+1. Primer intento, con cupo de tokens suficiente para que el razonamiento no se coma la respuesta.
+2. Si viene vacío o el intento falla (red, timeout), segundo intento con menos razonamiento.
+3. Si tampoco hay texto, una respuesta del **mismo tema**: miedo a fallar, estancamiento, precio, duda de IA o, en Nat, la ficha que ya había o la pregunta de cultivo. No se manda una frase genérica de «20 minutos» ni «no pude construir una respuesta».
+
+Entrenar sin deploy: Admin → conocimiento de agentes. Lo aprobado entra al prompt. Lo que sale de una conversación queda sugerido hasta que alguien lo aprueba.
+
+### 26.6 Ficha Preserva / GEI
+
+Sigue siendo el formulario de la finca (contexto y balance). En la línea Meta el código puede abrir un **formulario nativo de WhatsApp** (botón *Llenar ficha*). Las respuestas caen en la misma ficha que el chat. Si el formulario no abre, se responde pregunta por pregunta; ese camino no se apagó.
+
+Para que el botón salga hace falta `WHATSAPP_BUSINESS_ACCOUNT_ID` en el servidor. **Hoy esa variable está vacía**, así que en producción la ficha llega como preguntas en el chat. Publicar el Flow no lista la cuenta sola: el token manda mensajes, pero no está ligado a un negocio de Meta. Cuando se cargue el id, el tipo de formulario guarda `meta_flow_id`. Para volver a publicar después de editar preguntas, se borra ese id en Admin → Formularios → tipo.
+
+### 26.7 Aula, portal y Studio siguen separados
+
+| Producto | Host | Qué no mezclar |
+|----------|------|----------------|
+| **Aprende** | `aprende.eki.technology` | Aula del estudiante. Entra con *aula* en WhatsApp. No es el portal ni Studio. |
+| **Portal** | `app.eki.technology` | Coordinación de la organización. |
+| **Studio** | `studio.eki.technology` | Vitrina y compra. El handoff al aula es un puente firmado, no la misma interfaz. |
+| **Admin** | `admin.eki.technology` | Operación eki. El Inicio dice **Ecosistema eki**. |
+
+### 26.8 Dónde se opera en el admin
+
+Detalle de pantallas: `docs/EKI_UNFOLD_ADMIN.md`.
+
+- Cliente → **Datos y logo** → Plan línea Meta. También es columna del listado.
+- Grupos de estudiantes → plan del grupo (vacío = el del cliente).
+- Curso → **En el menú de Formación** (`catalogo_menu`).
+- Insignias tipo RACHA, sin emoji en el texto.
+- Formularios → `meta_flow_id`.
+
+### 26.9 Probar
+
+Teléfono interno autorizado: `573026480629` (celular `3026480629`). No usar el número de un cliente que esté en una sesión real.
 
 ---
 
@@ -334,10 +450,12 @@ Servicio catálogo: `studio/catalogo_service.py` (filtra `visible_en_studio=True
 
 **Quién:** cualquier estudiante registrado con teléfono válido.
 
+**Canal vigente:** línea **Meta**. Twilio queda como demo y para campañas HSM. El detalle de planes, menú, carrusel, *listo*, reacciones, rachas y agentes está en [§26](#26-línea-meta-planes-y-agentes-1-octubre-2026).
+
 **Para qué:**
 
 - Onboarding, lecciones, evaluaciones, certificados, PQRS, campañas.
-- 100 % del journey pedagógico activo.
+- Formación y asesoría según el plan de la organización o del grupo.
 
 **Número de prueba interno:** `573026480629` (celular `3026480629`).
 
@@ -356,6 +474,7 @@ Representa la empresa u organización contratante. Campos relevantes:
 - `modo_gamificacion`: puntos, calificación 1–5 o desactivada.
 - `drip_modulos_solo_estudiantes_listados`: si True, solo estudiantes en lista blanca ven módulos fuera de calendario general.
 - `portal_productos`: qué módulos del portal están contratados (`cursos`, `gei`, `empleabilidad`, etc.).
+- `plan_linea_meta`: OP1, OP2 u OP3 de la línea Meta. Vacío usa el default del servidor mientras no se asignen planes. Se edita en **Datos y logo**. Un grupo puede pisarlo.
 - Branding: `logo_url`, `portal_subtitulo`.
 
 Un estudiante (`Estudiante.cliente`) hereda configuración de drip y gamificación de su organización.
@@ -391,6 +510,7 @@ Modelo: `core.Curso`
 - `activo`, `orden`, `nombre`, `descripcion`, `emoji` (solo admin; no se muestra en aula académica).
 - `visible_en_studio`: aparece en catálogo eki Studio e permite inscripción web.
 - `visible_en_aula`: legado interno; el catálogo público ya no vive en `/aprende/`.
+- `catalogo_menu`: si el curso es general (`cliente` vacío) y está activo, entra al carrusel de Formación de la línea Meta. Al crear un curso general queda marcado. Desmarcarlo lo esconde. Tope de WhatsApp: 10 tarjetas por carrusel.
 - Configuración drip a nivel curso: días entre módulos, etc.
 - Relación: `curso.modulos` ordenados por `numero`.
 
@@ -425,6 +545,8 @@ En flujo B2B moderno, la campaña **define el curso** sin menú 1-2-3.
 Modelo: `core.models_extras.GrupoEstudiantes`
 
 Agrupa estudiantes para campañas, drip por lista, o reportes. Admin: `/admin/core/grupoestudiantes/` (atajo en índice admin).
+
+`plan_linea_meta` en **Información del Grupo**: vacío hereda el plan del cliente. Un grupo puede ser OP1 y otro OP2 en la misma empresa. Gana el grupo activo más nuevo. Un grupo inactivo no cambia el plan.
 
 ---
 
@@ -516,12 +638,35 @@ En el **aula** (si módulo 1 está liberado):
 
 ### 6.1 Entrada técnica del mensaje
 
-1. Twilio POST a `/webhook/whatsapp/`.
-2. `core/views.py` → `_procesar_twilio_webhook`.
-3. Se normaliza teléfono, se busca o crea `Estudiante`, se registra `WhatsappLog`.
-4. Según `estado_chat`, se procesa o se deriva a detección de intent.
+`core/views.py` ya no existe. Desde el 1 de octubre de 2026 es el paquete `core/views/`. Se movieron las funciones, sin cambiar la lógica. El mapa y las reglas están en `docs/REFACTOR_VIEWS.md`. En producción desde `main-20261001-213708`. Rollback: `main-agentes-fallback-20261001-171500`.
 
-Archivos: `core/views.py`, `core/intent_detector.py`, `core/response_templates.py`.
+La puerta única es `whatsapp_webhook` en `core/views/entrada.py`.
+
+1. Meta (JSON de Cloud API) o Twilio (form) llegan a `/webhook/whatsapp/`.
+2. Meta sigue en `core/views/webhook_meta.py` (`_procesar_meta_webhook`). El menú está en `core/sandbox_menu.py`.
+3. Twilio educativo entra a `core/views/webhook_twilio.py` (`_procesar_twilio_webhook`). Nat comercial entra por `core/views/webhook_comercial.py` y, si el flag está activo, encola Celery.
+4. Se normaliza el teléfono, se busca o crea `Estudiante` y se registra `WhatsappLog`.
+5. Según `estado_chat`, el cuerpo de Twilio sigue siendo **una** función: `_procesar_twilio_webhook_cuerpo` (~3.500 líneas). Partirla por estado (habeas, cédula, confirmación, *listo*, evaluación, certificado) es la Fase 2 y todavía no está hecha.
+
+| Módulo | Qué quedó ahí |
+|--------|----------------|
+| `entrada.py` | Puerta Meta / Twilio / Nat |
+| `webhook_meta.py` | Línea Meta |
+| `webhook_twilio.py` | Cuerpo educativo Twilio |
+| `webhook_comercial.py` | Entrada Nat y encolado |
+| `twilio_transporte.py` | Envío, segmentos, callback de estado |
+| `audio.py` | Transcripción (Whisper / Vosk) |
+| `media.py` | Proxy y descarga de archivos del módulo |
+| `admin_panel.py` | Dashboards y vistas de admin que vivían en el mismo archivo |
+| `empleabilidad.py`, `certificados_wa.py`, `ventana_drip.py` | Radar de empleo, acuse de certificado, ventana del curso |
+| `__init__.py` | Reexporta los mismos nombres. También `_extraer_texto_archivo_simple` desde Nat: antes `from core.views import` ese nombre fallaba |
+| `legacy.py` | Restos que otros módulos todavía importan |
+
+El worker importa `core.views` **dentro** de las tareas (`core/tasks.py`), no al cargar el archivo. `core/bot_comercial/webhook.py` hace lo mismo dentro de dos funciones. No hay ciclo al arrancar Celery.
+
+El avance por *listo* en Twilio usa `_mensaje_indica_listo`. `detect_intent` (`core/intent_detector.py`) sigue buscando la palabra como subcadena (`si`, `seguir`): en la línea Meta, «casi» o «perseguir» pueden salir como `continuar_leccion`. Ese arreglo no iba en el deploy del split.
+
+Archivos de respuesta: `core/intent_detector.py`, `core/response_templates.py`.
 
 ### 6.2 Onboarding detallado
 
@@ -763,7 +908,7 @@ WhatsApp Business no entrega mensajes de texto libre si el alumno no ha escrito 
 4. Sesión: `iniciar_sesion_estudiante` → `cycle_key()` + limpia `portal_usuario_id`.
 5. `?next=` solo bajo `/aprende/`.
 
-Código: `aprende/acceso_whatsapp.py`, `aprende/session_auth.py`, hook en `core/views.py` (estudiante ACTIVO).
+Código: `aprende/acceso_whatsapp.py`, `aprende/session_auth.py`, hook en `core/views/webhook_twilio.py` (estudiante ACTIVO, palabra *aula*).
 
 **Alternativa correo:** Studio (`CuentaAula`) → handoff firmado `via=studio` (`studio/aprende_bridge.py`). **No mezclar con WhatsApp.**
 
@@ -945,7 +1090,7 @@ Son **módulos opcionales** del portal B2B. Se activan por organización en Admi
 |---|---|
 | **Siglas** | GEI = Gases de Efecto Invernadero |
 | **Para qué sirve** | Recolectar datos de la finca del productor (área, cultivos, fertilizantes, combustible, residuos, etc.) y calcular un **balance de emisiones** útil para reportes, trazabilidad y programas de clima. |
-| **Canal** | **WhatsApp**: un agente de formulario hace preguntas **una por una** (como una encuesta guiada). Tiene prioridad sobre el tutor del curso mientras la sesión está activa. |
+| **Canal** | **WhatsApp**. En la línea Meta puede abrir el formulario nativo (*Llenar ficha*) si hay `WHATSAPP_BUSINESS_ACCOUNT_ID`. Si no abre, las preguntas van **una por una** en el chat. Mientras la sesión está abierta, ese hilo tiene prioridad sobre el tutor. Ver [§26.6](#266-ficha-preserva--gei). |
 | **Dónde se guarda** | Modelo `FichaGEI` (app `formulario`), una ficha por productor/curso. Pasos configurables en Admin → Formulario → Tipos de formulario. |
 | **Qué ve el coordinador** | Portal → **Inventario GEI**: total de fichas, % completitud, gráficos, filtros por curso/fecha, **export a Excel**. |
 | **Relación con cursos** | Suele dispararse al llegar a un módulo concreto del curso (ej. módulo de balance). No es un chat libre: es recolección **estructurada** de variables. |
@@ -1347,11 +1492,14 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 
 ### 16.3 IA generativa
 
+Detalle de modelos, cupos y fallback: [§26.5](#265-asesoría-nat-lina-profe-ia-y-ventas).
+
+- **Línea Meta:** Nat, Lina, Profe IA y Ventas (`core/sandbox_agentes.py` + webhook de Nat). Chat en `gpt-5-mini`. Nat técnico en `gpt-5`. Si el modelo no devuelve texto, segundo intento y luego una respuesta del mismo tema (`core/openai_compat.py`).
 - **Tutor del curso** (estudiante en formación): respuestas en flujo de módulo, RAG educativo (`DocumentoRAG` / agentes edu).
-- **Nat comercial** (línea WhatsApp comercial): asesoría + catálogo + RAG de documentos (`core/views.py` webhook comercial, `core/nat_router.py`). Identidad/prompt en `core/nati.py` (nombre histórico del módulo; **no** es el tutor).
+- **Nat comercial** (línea WhatsApp de la org): asesoría + catálogo + RAG (`core/nat_router.py`). Identidad en `core/nati.py`. **No** es el tutor ni el Copiloto.
 - **Consultor de retención** (portal Centro de Éxito): `portal/agente_retencion.py` — OpenAI o reglas; **no** es Nat.
 - **PQRS:** `core/pqrs_agent.py`.
-- **Formulario GEI:** agente secuencial sin RAG (`formulario/agent.py`).
+- **Formulario GEI / Preserva:** preguntas en chat, y formulario nativo si el Flow está publicado (`formulario/flow_gei.py`).
 - Base conocimientos educativa: señales en `signals_conocimientos` actualizan índice al guardar cursos.
 
 ### 16.4 API LXP
@@ -1369,6 +1517,7 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 ```
 web: gunicorn ...
 worker: celery -A mvp_project worker
+worker_rag: celery -A mvp_project worker -Q rag_index
 beat: celery -A mvp_project beat
 ```
 
@@ -1377,12 +1526,18 @@ beat: celery -A mvp_project beat
 | Tarea | Frecuencia | Función |
 |-------|------------|---------|
 | `enviar_campanas_programadas` | 5 min | Campañas con fecha |
-| `reenganche_drip_content_diario` | Diario **08:00** | Recordatorios cuando el drip ya liberó el siguiente módulo |
-| `reenganche_inactivos_diario` | Diario **09:00** | Centro de Éxito: sin WA entrante X días → WhatsApp *listo* (`[REENGANCHE_INACTIVIDAD]`) |
-| `procesar_twilio_webhook_async` | Bajo demanda | Webhook no bloqueante |
+| `sincronizar_plantillas_meta` | 10 min | Estado PENDING/IN_APPEAL de plantillas Meta |
+| `generar_reporte_actividad` | Cada hora | Reporte de actividad |
+| `reenganche_drip_content_diario` | Diario **08:00** `America/Bogota` | Recordatorios cuando el drip ya liberó el siguiente módulo |
+| `limpiar_logs_antiguos` | Diario 02:00 | Limpieza de logs |
+| `revisar_infra_advisor` | Cada hora a :15 | Snapshot de infra |
+| `correlacionar_alertas_territoriales` | Cada hora a :20 | Cluster territorial y reintento del data lake |
+| `procesar_twilio_webhook_async` | Bajo demanda | Webhook educativo sin bloquear Gunicorn |
+| `procesar_bot_comercial_webhook_async` | Bajo demanda | Nat, si `NAT_WEBHOOK_CELERY_ASYNC` está activo |
+| `procesar_sandbox_meta_async` | Bajo demanda | Línea Meta, si `SANDBOX_CELERY_ASYNC` está activo |
 | `generar_certificado_async` | Bajo demanda | Generación de diploma en background |
 
-Horario en `mvp_project/celery.py`.
+Horario en `mvp_project/celery.py`. No hay una tarea `reenganche_inactivos_diario` a las 09:00: el beat que quedó activo en el deploy del 1 de octubre es el de las 08:00. El Centro de Éxito sigue mostrando el riesgo en el portal; el envío automático de las 09:00 no está en el schedule.
 
 ### 17.3 Cuándo importa
 
@@ -1408,7 +1563,7 @@ cd ruta\eki_mvp
 .\scripts\eb_deploy_main.ps1
 ```
 
-El script etiqueta versión `main-YYYYMMDD-HHMMSS`, sube zip a S3 EB, ejecuta hook de migraciones.
+El script etiqueta versión `main-YYYYMMDD-HHMMSS`, sube el archivo de `HEAD` (`.elasticbeanstalk` con `sc: git`: lo que no está commiteado no sube) y ejecuta el hook de migraciones. El deploy del paquete `core/views/` es `main-20261001-213708`. Rollback de ese corte: `eb deploy eki-prod-final --version main-agentes-fallback-20261001-171500`.
 
 ### 18.3 Migraciones recientes relevantes
 
@@ -1690,7 +1845,8 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 | **PQRS aislado del curso** | Reenvío sin avanzar; `listo` libera ticket; prioridad pedagógica | Desplegado |
 | **Eval A–D no saltables** | *listo* no cierra evaluación abierta; CTA pide letra | Desplegado (22 jul 2026) |
 | **Media: reintento + reenvía video** | Callback 63019 → retry; frase de campo sin avanzar; `MediaPaqueteEntrega` | Desplegado (`ops-20260722-media-portal`) |
-| **Reenganche inactivos WA** | Celery 09:00: X días sin entrante → WhatsApp *listo* | Desplegado |
+| **Reenganche drip WA** | Celery 08:00 `America/Bogota`: `reenganche_drip_content_diario` | Desplegado. No hay tarea aparte a las 09:00 |
+| **Paquete `core/views/`** | El webhook dejó de ser un solo `views.py`. Misma lógica, módulos por responsabilidad. Fase 2 (partir el cuerpo Twilio por `estado_chat`) pendiente | Desplegado (`main-20261001-213708`) |
 | **Certificados PDF + hash + CSV portal** | PNG+PDF+SHA-256; verify con descarga; portal export | Desplegado |
 | **Portal recuperar contraseña** | `/portal/recuperar/` por email | Desplegado |
 | **Portal suscripción visible** | Vence, cupos, % media fallida | Desplegado |
@@ -1798,7 +1954,7 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 | Course Engine | `core/course_engine/`, `core/views_course_engine_studio.py` |
 | Knowledge Studio | `core/knowledge_studio.py`, `core/views_knowledge_studio.py` |
 | Métricas empresa | `core/metricas_empresa.py`, `core/domains/analytics/metricas.py` |
-| Webhook WA | `core/views.py`, `core/whatsapp_service.py` |
+| Webhook WA | `core/views/` (`entrada.py`, `webhook_meta.py`, `webhook_twilio.py`, `webhook_comercial.py`, `twilio_transporte.py`, `audio.py`), `core/whatsapp_service.py`. Mapa: `docs/REFACTOR_VIEWS.md` |
 | Intents / respuestas | `core/intent_detector.py`, `core/response_templates.py` |
 | Microcontenidos | `core/module_steps.py`, `core/admin/cursos.py` |
 | Drip | `core/drip_schedule.py`, `aprende/acceso_modulos.py` |
@@ -1828,4 +1984,4 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 
 ---
 
-*Documento mantenido por el equipo eki. Versión septiembre 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*
+*Documento mantenido por el equipo eki. Versión 3 octubre 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*

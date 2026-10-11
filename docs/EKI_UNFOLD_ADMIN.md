@@ -77,6 +77,60 @@ Si `eki_modulo_jump.js` pone `activeTab = 'clase'`, el alta/edición queda **en 
 - **CTO** (`.cursor/skills/eki-cto`): pin de versión, no reescritura.
 - **Dev** implementa; **QA** smoke admin si toca más que CSS.
 
+## Operación vigente (1 octubre 2026)
+
+Deploy en prod: `main-agentes-fallback-20261001-171500`. El mapa de producto (planes, menú, agentes, ficha) está en `docs/GUIA_PLATAFORMA_EKI.md` §26. Aquí solo está **dónde se toca en el admin**.
+
+### Cliente — plan de la línea Meta
+
+`Cliente.plan_linea_meta` está en el bloque **Datos y logo** (siempre visible, no en una pestaña escondida) y es columna del listado.
+
+| Valor | Producto |
+|-------|----------|
+| vacío | Usa el plan del servidor (`LINEA_META_PLAN_DEFAULT`, hoy OP1) hasta que se asigne uno. |
+| `curso_asesor` | OP1: 1 curso al mes y 30 preguntas al asesor. |
+| `cursos` | OP2: 2 cursos al mes, sin asesor. |
+| `asesor` | OP3: solo asesor, 60 preguntas al mes. |
+
+### Grupo — el mismo cliente con planes distintos
+
+`GrupoEstudiantes.plan_linea_meta` está en **Información del Grupo**, en el listado y en el filtro. Vacío = plan del cliente. Si la persona está en dos grupos con plan, gana el más nuevo (`fecha_creacion`, luego id). Un grupo inactivo no pisa al cliente. La suscripción vencida del cliente también apaga el plan del grupo.
+
+Override por una sola persona: Sesiones menú sandbox → `plan`. Ese gana sobre el grupo.
+
+### Curso — carrusel de Formación
+
+En **Datos del curso**, checkbox **En el menú de Formación** (`catalogo_menu`), también filtro del listado.
+
+- Curso general (`cliente` vacío) nuevo: queda marcado al crearlo.
+- Para sacarlo del carrusel: desmarcar. No hace falta deploy.
+- Cursos de un cliente no salen en el carrusel de todo el mundo.
+- Máximo 10 tarjetas por mensaje de WhatsApp. Del 11 en adelante sale un segundo carrusel.
+- La imagen es la portada https del primer módulo. Si no hay, una imagen fija de respaldo.
+
+Los cursos generales creados antes de esta regla hay que revisarlos una vez en el listado (filtro del checkbox) y marcar los que deban verse.
+
+### Insignias de racha
+
+Admin → insignias, tipo **RACHA**, activas. Hitos sembrados: 3, 7, 14, 21 y 30 días. El texto de la insignia **no lleva emoji**. El 🔥 lo pone el sistema solo en la línea de la racha, dentro del primer mensaje del día en la línea Meta. Twilio no acumula esa racha.
+
+### Entrenar agentes
+
+Conocimiento de agentes: lo **aprobado** entra al prompt de Nat, Lina, Profe IA o Ventas sin deploy. Una conversación puede dejar una fila **sugerida**; no se usa hasta aprobarla. No pegar teléfonos ni correos en el texto.
+
+### Ficha Preserva (formulario GEI)
+
+Formularios → tipo de formulario → `meta_flow_id`.
+
+- Vacío: al iniciar la ficha en Meta se intenta publicar el Flow y guardar el id.
+- Con id: se reutiliza ese formulario de WhatsApp.
+- Para republicar después de cambiar preguntas: borrar el id y volver a disparar la ficha.
+- Hoy en el servidor **falta** `WHATSAPP_BUSINESS_ACCOUNT_ID`, así que el botón *Llenar ficha* no se publica y la persona responde en el chat. El chat es el respaldo, no un error del tipo de formulario.
+
+### Inicio
+
+El panel (`templates/admin/partials/eki_panel_exec.html`) titula **Ecosistema eki**. Studio y Aprende se dibujan como productos aparte. El saludo usa el nombre del staff.
+
 ## Cambios recientes (2026-08-07 · deploy `main-20260807-185849`)
 
 Desplegado a `eki-prod-final` (Health Green, `/health/` 200). Sin migración de datos salvo el campo aditivo `PasoModulo.media_wa_apto` (migración `0131`).
@@ -88,4 +142,4 @@ Desplegado a `eki-prod-final` (Health Green, `/health/` 200). Sin migración de 
 
 **Restringir Builder en prod:** `EKI_MODULE_BUILDER_CURSOS=impulso joven rural` (coma-sep) o allowlist vacía + beta OFF. Superusuario: `?builder=1`.
 
-Última actualización: 2026-09-22.
+Última actualización: 2026-10-01.
