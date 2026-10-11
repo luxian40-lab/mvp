@@ -1,4 +1,5 @@
 """Admin de Cliente v2. El interruptor sigue apagado por defecto."""
+import json
 import sys
 from datetime import timedelta
 
@@ -14,7 +15,7 @@ from django.utils import timezone
 
 from core.admin.cliente_v2_flag import admin_clientes_v2_activo
 from core.admin.clientes import ClienteAdmin
-from core.admin.clientes_v2 import ClienteAdminV2
+from core.admin.clientes_v2 import ClienteAdminFormV2, ClienteAdminV2
 from core.models import (
     Cliente,
     Curso,
@@ -297,4 +298,97 @@ class ListadoClienteV2Tests(TestCase):
 
         demo = self.client.get(reverse('admin:core_cliente_change', args=[self.demo.pk]))
         self.assertEqual(demo.status_code, 200)
-        self.assertIn('Sin plan Meta', demo.content.decode('utf-8'))
+        demo_body = demo.content.decode('utf-8')
+        self.assertIn('Sin plan Meta', demo_body)
+        self.assertIn('Vencida hace 3 días', demo_body)
+        self.assertIn('1 curso al mes y asesor (30 preguntas)', demo_body)
+        self.assertIn('2 cursos al mes, sin asesor', demo_body)
+        self.assertIn('60 preguntas al mes', demo_body)
+
+
+def _datos_formulario(cliente, **cambios):
+    form = ClienteAdminFormV2(instance=cliente)
+    data = {}
+    for name, field in form.fields.items():
+        if getattr(field, 'disabled', False):
+            continue
+        initial = form.get_initial_for_field(field, name)
+        if isinstance(initial, bool):
+            if initial:
+                data[name] = 'on'
+        elif isinstance(initial, (list, tuple)):
+            data[name] = list(initial)
+        elif isinstance(initial, dict):
+            data[name] = json.dumps(initial)
+        elif initial is None:
+            data[name] = ''
+        elif hasattr(initial, 'isoformat'):
+            data[name] = initial.isoformat()
+        else:
+            data[name] = initial
+    data.update(cambios)
+    return data
+
+
+class GuardadoClienteV2Tests(TestCase):
+    def _cliente(self, **kwargs):
+        base = dict(
+            nombre='Org Form',
+            contacto_principal='Ana',
+            email='form@test.com',
+            telefono='573009991111',
+        )
+        base.update(kwargs)
+        return Cliente.objects.create(**base)
+
+    def test_casillas_iguales_conservan_el_texto(self):
+        cliente = self._cliente(portal_productos='nat,cursos')
+        form = ClienteAdminFormV2(
+            _datos_formulario(cliente, portal_modulos=['cursos', 'nat']),
+            instance=cliente,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        guardado = form.save()
+        self.assertEqual(guardado.portal_productos, 'nat,cursos')
+
+    def test_casillas_nuevas_guardan_el_texto_separado_por_comas(self):
+        cliente = self._cliente(portal_productos='cursos')
+        form = ClienteAdminFormV2(
+            _datos_formulario(cliente, portal_modulos=['cursos', 'gei']),
+            instance=cliente,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        guardado = form.save()
+        self.assertEqual(guardado.portal_productos, 'cursos,gei')
+
+    def test_numero_nat_invalido_y_duplicado(self):
+        otro = self._cliente(
+            nombre='Org Dueña',
+            email='duena@test.com',
+            telefono='573009991112',
+            numero_whatsapp_nat='573001112233',
+        )
+        cliente = self._cliente(
+            nombre='Org Nueva',
+            email='nueva@test.com',
+            telefono='573009991113',
+        )
+        invalido = ClienteAdminFormV2(
+            _datos_formulario(cliente, numero_whatsapp_nat='12'),
+            instance=cliente,
+        )
+        self.assertFalse(invalido.is_valid())
+        self.assertIn('dígitos', str(invalido.errors['numero_whatsapp_nat']))
+
+        duplicado = ClienteAdminFormV2(
+            _datos_formulario(cliente, numero_whatsapp_nat='573001112233'),
+            instance=cliente,
+        )
+        self.assertFalse(duplicado.is_valid())
+        self.assertIn(otro.nombre, str(duplicado.errors['numero_whatsapp_nat']))
+
+    def test_numero_nat_sin_cambios_pasa_aunque_sea_corto(self):
+        cliente = self._cliente(numero_whatsapp_nat='123')
+        form = ClienteAdminFormV2(_datos_formulario(cliente), instance=cliente)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.save().numero_whatsapp_nat, '123')

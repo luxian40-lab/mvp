@@ -241,6 +241,9 @@ class ClienteAdminFormV2(ClientePortalAdminForm):
             'wallpaper_aula_url': 'O pegue la URL del fondo. Si sube un archivo, se completa al guardar.',
             'quitar_wallpaper': 'Quita el fondo y vuelve al de eki.',
             'portal_subtitulo': 'Texto corto bajo el nombre en el portal.',
+            'plan_linea_meta': 'Vacío = sin plan. Un grupo puede tener otro plan.',
+            'fecha_fin_suscripcion': 'Al pasar esta fecha, el plan de la organización deja de aplicar.',
+            'numero_whatsapp_nat': 'Solo dígitos, entre 8 y 15, con indicativo de país.',
         }
         for nombre, texto in ayudas.items():
             if nombre in self.fields:
@@ -349,6 +352,7 @@ class ClienteAdminV2(ClienteAdmin):
         'fecha_registro',
         'peso_gamificacion_reto',
         'peso_gamificacion_abierta',
+        'resumen_suscripcion',
     )
 
     fieldsets = (
@@ -380,6 +384,7 @@ class ClienteAdminV2(ClienteAdmin):
         ('Suscripción y plan', {
             'classes': ['tab'],
             'fields': (
+                'resumen_suscripcion',
                 ('fecha_inicio_suscripcion', 'fecha_fin_suscripcion'),
                 'cupos_portal',
                 'plan_linea_meta',
@@ -387,6 +392,7 @@ class ClienteAdminV2(ClienteAdmin):
         }),
         ('Productos y canales', {
             'classes': ['tab'],
+            'description': 'Las casillas se guardan como el texto separado por comas de siempre.',
             'fields': (
                 'tipo_proyecto',
                 'portal_modulos',
@@ -450,6 +456,47 @@ class ClienteAdminV2(ClienteAdmin):
             'fields': ('mapa_cobertura_rapido',),
         }),
     )
+
+    @admin.display(description='Estado de la suscripción')
+    def resumen_suscripcion(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde para ver el estado de la suscripción.'
+        hoy = timezone.localdate()
+        fin = obj.fecha_fin_suscripcion
+        if not obj.activo:
+            estado = 'Inactivo'
+            detalle = 'Sus estudiantes dejan de recibir mensajes y el plan no aplica.'
+        elif not fin:
+            estado = 'Sin dato'
+            detalle = 'No hay fecha de fin. El plan sigue mientras el cliente esté activo.'
+        else:
+            dias = (fin - hoy).days
+            if dias < 0:
+                estado = f'Vencida hace {abs(dias)} días'
+                detalle = (
+                    'La suscripción venció: el plan de la organización no aplica. '
+                    'No abre cursos nuevos ni el asesor. Los cursos ya empezados siguen.'
+                )
+            elif dias < 30:
+                estado = f'Por vencer, faltan {dias} días'
+                detalle = 'Al pasar la fecha de fin, el plan de la organización deja de aplicar.'
+            else:
+                estado = f'Vigente, faltan {dias} días'
+                detalle = 'Al pasar la fecha de fin, el plan de la organización deja de aplicar.'
+        filas = format_html(
+            '<tr><td>OP1</td><td>1 curso al mes y asesor (30 preguntas)</td></tr>'
+            '<tr><td>OP2</td><td>2 cursos al mes, sin asesor</td></tr>'
+            '<tr><td>OP3</td><td>Asesor, 60 preguntas al mes, sin cursos nuevos</td></tr>'
+        )
+        return format_html(
+            '<p><strong>{}</strong> {}</p>'
+            '<table><thead><tr><th>Plan</th><th>Qué incluye</th></tr></thead>'
+            '<tbody>{}</tbody></table><p>{}</p>',
+            estado,
+            detalle,
+            filas,
+            _texto_sin_plan(),
+        )
 
     def get_fieldsets(self, request, obj=None):
         salida = []
