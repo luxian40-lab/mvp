@@ -1928,6 +1928,11 @@ class ModuloAdmin(admin.ModelAdmin):
                 name='core_modulo_preview_voz',
             ),
             path(
+                '<int:modulo_id>/publicar/confirmar/',
+                self.admin_site.admin_view(self.publicar_modulo_confirmar_view),
+                name='core_modulo_publicar_confirmar',
+            ),
+            path(
                 '<int:modulo_id>/publicar/',
                 self.admin_site.admin_view(self.publicar_modulo_view),
                 name='core_modulo_publicar',
@@ -1974,6 +1979,13 @@ class ModuloAdmin(admin.ModelAdmin):
             curso_or_modulo_id=obj.pk, es_modulo=True,
         )
     course_engine_voz_preview.short_description = 'Prueba QA'
+
+    def publicar_modulo_confirmar_view(self, request, modulo_id):
+        from core.views_publicar_confirmar import publicar_confirmar_view
+
+        return publicar_confirmar_view(
+            request, modulo_id, self.admin_site.each_context(request),
+        )
 
     def publicar_modulo_view(self, request, modulo_id):
         from core.modulo_publicacion import (
