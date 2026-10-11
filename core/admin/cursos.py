@@ -1976,7 +1976,10 @@ class ModuloAdmin(admin.ModelAdmin):
     course_engine_voz_preview.short_description = 'Prueba QA'
 
     def publicar_modulo_view(self, request, modulo_id):
-        from core.modulo_publicacion import publicar_modulo_wa
+        from core.modulo_publicacion import (
+            evaluar_checklist_publicacion_detalle,
+            publicar_modulo_wa,
+        )
 
         modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
         if not modulo:
@@ -1985,18 +1988,33 @@ class ModuloAdmin(admin.ModelAdmin):
         if not request.user.has_perm('core.change_modulo'):
             messages.error(request, 'Sin permiso para publicar módulos.')
             return redirect('admin:core_modulo_change', modulo_id)
-        ok, errores = publicar_modulo_wa(modulo, usuario=request.user)
-        if ok:
-            messages.success(
-                request,
-                f'Módulo {modulo.numero} («{modulo.titulo}») publicado para WhatsApp.',
-            )
-        else:
-            messages.error(
-                request,
-                'No se pudo publicar: ' + '; '.join(errores[:3]),
-            )
-        return redirect('admin:core_modulo_change', modulo_id)
+        if request.method == 'POST':
+            ok, errores = publicar_modulo_wa(modulo, usuario=request.user)
+            if ok:
+                messages.success(
+                    request,
+                    f'Módulo {modulo.numero} («{modulo.titulo}») publicado para WhatsApp.',
+                )
+            else:
+                messages.error(
+                    request,
+                    'No se pudo publicar: ' + '; '.join(errores[:3]),
+                )
+            return redirect('admin:core_modulo_change', modulo_id)
+        checklist = evaluar_checklist_publicacion_detalle(modulo)
+        return render(
+            request,
+            'admin/core/modulo/publicar_confirmar.html',
+            {
+                **self.admin_site.each_context(request),
+                'title': 'Publicar en WhatsApp',
+                'modulo': modulo,
+                'checklist': checklist,
+                'builder_url': reverse(
+                    'admin_module_builder', kwargs={'modulo_id': modulo.pk}
+                ),
+            },
+        )
 
     def activar_videos_listos_view(self, request, modulo_id):
         from core.media_pasos_listos import activar_pasos_video_wa_listos, contar_videos_wa_listos_inactivos

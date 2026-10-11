@@ -32,7 +32,7 @@ Preparación: staff, `EKI_MODULE_BUILDER_BETA=1`, curso de la copia (no el de pr
 
 11. **General y calendario.** En «General, entrega y calendario (drip)», cambiar la descripción. No tocar la fecha. Guardar. Esperado: la descripción nueva; la fecha de drip que había sigue igual en «Drip guardado» (el JS de hoy igual manda la fecha que ya está en los inputs; no debe borrarla). Luego poner una fecha y hora, guardar, recargar. Esperado: «Drip guardado» con esa fecha. Limpiar con «Limpiar», guardar, recargar. Esperado: sin fecha. Anotar el valor anterior si el curso de la copia lo necesitaba y restaurarlo al terminar.
 
-12. **Llegar a publicar, sin publicar.** Localizar `#eki-mb-publicar`. Leer el `href`: debe ser `/admin/core/modulo/<MODULO_ID>/publicar/`. **No hacer clic.** Ese GET publica el módulo (`publicado_wa`) si el checklist pasa. No envía WhatsApp, pero sí escribe. Fin del guion.
+12. **Llegar a publicar, sin publicar.** Localizar `#eki-mb-publicar`. Leer el `href`: debe ser `/admin/core/modulo/<MODULO_ID>/publicar/`. Se puede abrir: el GET muestra el checklist y no escribe. **No pulsar el botón** de esa pantalla. El POST es el que publica. No envía WhatsApp. Fin del guion.
 
 ## Qué anotar si algo falla
 
