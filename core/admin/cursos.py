@@ -2443,6 +2443,82 @@ class ModuloAdmin(admin.ModelAdmin):
                 level=messages.SUCCESS,
             )
 
+    def add_view(self, request, form_url='', extra_context=None):
+        """Con la interfaz nueva, Nuevo abre el constructor. Sin ella, el alta Unfold."""
+        from django.conf import settings
+
+        if not getattr(settings, 'EKI_MODULE_BUILDER_UI_V2', False):
+            return super().add_view(request, form_url, extra_context)
+        from django.core.exceptions import PermissionDenied
+
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        if request.method == 'POST':
+            return self._crear_modulo_y_abrir_constructor(request)
+        return self._pantalla_alta_constructor(request)
+
+    def _pantalla_alta_constructor(self, request, *, error='', titulo='', curso_id=''):
+        from django.shortcuts import render
+
+        from core.models import Curso
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Nuevo módulo',
+            'cursos': Curso.objects.order_by('nombre'),
+            'error': error,
+            'titulo': titulo,
+            'curso_id': str(curso_id or ''),
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/core/modulo/alta_constructor.html', context)
+
+    def _crear_modulo_y_abrir_constructor(self, request):
+        from django.db.models import Max
+        from django.shortcuts import redirect
+
+        from core.models import Curso
+        from core.modulo_authoring_mode import MODO_BUILDER, set_modulo_modo
+
+        curso_id = (request.POST.get('curso') or '').strip()
+        titulo = (request.POST.get('titulo') or '').strip()
+        curso = None
+        if curso_id.isdigit():
+            curso = Curso.objects.filter(pk=int(curso_id)).first()
+        if curso is None:
+            return self._pantalla_alta_constructor(
+                request,
+                error='Elija el curso.',
+                titulo=titulo,
+                curso_id=curso_id,
+            )
+        if not titulo:
+            return self._pantalla_alta_constructor(
+                request,
+                error='Escriba el nombre del módulo.',
+                titulo=titulo,
+                curso_id=curso_id,
+            )
+        ultimo = self.model.objects.filter(curso=curso).aggregate(m=Max('numero'))['m']
+        modulo = self.model(
+            curso=curso,
+            numero=int(ultimo or 0) + 1,
+            titulo=titulo[:200],
+            descripcion=titulo[:200],
+            contenido='',
+            publicado_wa=False,
+        )
+        modulo._eki_skip_contenido_model_clean = True
+        modulo.save()
+        sembrar_plantilla_modulo(modulo)
+        set_modulo_modo(request, modulo.pk, MODO_BUILDER)
+        self.message_user(
+            request,
+            'Módulo creado. Siga en el constructor.',
+            level=messages.SUCCESS,
+        )
+        return redirect('admin_module_builder', modulo_id=modulo.pk)
+
     def response_add(self, request, obj, post_url_continue=None):
         """Tras crear: CRUD Unfold (clase) por defecto; Builder solo si lo eligió y está ON."""
         if '_addanother' in request.POST:

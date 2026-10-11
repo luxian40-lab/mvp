@@ -1,0 +1,38 @@
+{% extends "admin/eki_ops_base.html" %}
+
+{% block eki_ops_crumb %}Nuevo módulo{% endblock %}
+
+{% block eki_ops_content %}
+<h1>Nuevo módulo</h1>
+<p>Elija el curso y el nombre. Después se abre el constructor para armar las secciones y los mensajes.</p>
+
+{% if error %}
+<p role="alert">{{ error }}</p>
+{% endif %}
+
+{% if not cursos %}
+<p>Primero cree un curso. Sin curso no hay dónde guardar el módulo.</p>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+  <p>
+    <label for="id_curso">Curso</label><br>
+    <select name="curso" id="id_curso" required>
+      <option value="">—</option>
+      {% for c in cursos %}
+      <option value="{{ c.pk }}" {% if curso_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+  </p>
+  <p>
+    <label for="id_titulo">Nombre</label><br>
+    <input type="text" name="titulo" id="id_titulo" maxlength="200" required value="{{ titulo }}">
+  </p>
+  <p>
+    <button type="submit">Crear y abrir el constructor</button>
+  </p>
+</form>
+{% endif %}
+
+<p><a href="{% url 'admin:core_modulo_changelist' %}">Volver a módulos</a></p>
+{% endblock %}

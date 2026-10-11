@@ -229,6 +229,40 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         self.assertIn('publicado_wa', mas)
         self.assertIn('habilitado_desde', mas)
 
+    @override_settings(
+        SECURE_SSL_REDIRECT=False,
+        EKI_MODULE_BUILDER_UI_V2=True,
+        EKI_MODULE_BUILDER_BETA=True,
+    )
+    def test_nuevo_con_ui_v2_abre_el_constructor(self):
+        """Nuevo, con la interfaz nueva, no es el formulario largo: crea y abre el constructor."""
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_modulo_add'))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('Crear y abrir el constructor', body)
+        self.assertNotIn('name="modo_creacion"', body)
+        self.assertNotIn('clase_texto', body)
+
+        antes = Modulo.objects.count()
+        r = self.client.post(
+            reverse('admin:core_modulo_add'),
+            {'curso': str(self.curso.pk), 'titulo': 'Módulo desde nuevo'},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Modulo.objects.count(), antes + 1)
+        mod = Modulo.objects.get(titulo='Módulo desde nuevo')
+        self.assertFalse(mod.publicado_wa)
+        self.assertEqual(mod.secciones.count(), 1)
+        self.assertIn(f'/admin/module-builder/{mod.pk}/', r.url)
+
+        vacio = self.client.post(
+            reverse('admin:core_modulo_add'),
+            {'curso': '', 'titulo': ''},
+        )
+        self.assertEqual(vacio.status_code, 200)
+        self.assertIn('Elija el curso.', vacio.content.decode('utf-8'))
+
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_alta_html_muestra_campos_no_solo_intro(self):
         """Regresión: alta no debe quedar en blanco (tabs Unfold + jump IR A)."""
