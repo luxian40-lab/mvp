@@ -1,0 +1,235 @@
+/* Campañas Meta. Solo layout. Color y tipo salen de Unfold. */
+.eki-cm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.eki-cm__side {
+  position: sticky;
+  top: 1rem;
+}
+
+.eki-cm-block {
+  margin-top: 1rem;
+}
+
+.eki-cm-block h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.eki-cm-card,
+.eki-cm-var,
+.eki-cm-conteo,
+.eki-cm-chips,
+.eki-mb-wa-preview {
+  border: 1px solid var(--color-base-200, #e5e7eb);
+  border-radius: var(--border-radius, 6px);
+  padding: 0.75rem;
+  background: var(--color-white, #fff);
+}
+
+.dark .eki-cm-card,
+.dark .eki-cm-var,
+.dark .eki-cm-conteo,
+.dark .eki-cm-chips,
+.dark .eki-mb-wa-preview {
+  border-color: var(--color-base-700, #374151);
+  background: var(--color-base-900, #111827);
+}
+
+.eki-cm-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eki-cm-card code {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.eki-cm-var {
+  display: grid;
+  grid-template-columns: 6rem 1fr 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: end;
+}
+
+.eki-cm-var label,
+.eki-cm-block > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.eki-cm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 2rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.eki-cm-chip {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-base-300, #d1d5db);
+  font-size: 0.8rem;
+}
+
+.eki-cm-conteo {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+}
+
+.eki-cm-conteo div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eki-cm-conteo dt {
+  margin: 0;
+}
+
+.eki-cm-conteo dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.eki-cm-aviso {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-amber-300, #fcd34d);
+  background: var(--color-amber-50, #fffbeb);
+  border-radius: var(--border-radius, 6px);
+}
+
+.dark .eki-cm-aviso {
+  background: transparent;
+}
+
+.eki-cm-sub,
+.eki-cm-footer,
+.eki-cm-header {
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0;
+}
+
+.eki-mb-wa-preview {
+  margin-bottom: 0.75rem;
+}
+
+.eki-mb-wa-preview__eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eki-mb-wa-preview__bubble {
+  border: 1px solid var(--color-base-200, #e5e7eb);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+
+.eki-mb-wa-preview__body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.eki-cm-boton {
+  display: inline-block;
+  margin-top: 0.35rem;
+  margin-right: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--color-base-300, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.eki-cm-btn {
+  display: inline-flex;
+  margin: 0.35rem 0.35rem 0 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--color-base-300, #d1d5db);
+  border-radius: var(--border-radius, 6px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.eki-cm-btn--primary {
+  background: var(--color-primary-600, #9a6cac);
+  color: #fff;
+  border-color: transparent;
+}
+
+.eki-cm-opciones {
+  list-style: none;
+  margin: 0.25rem 0;
+  padding: 0;
+  border: 1px solid var(--color-base-200, #e5e7eb);
+}
+
+.eki-cm-opciones button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.eki-cm-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.eki-cm-tabla th,
+.eki-cm-tabla td {
+  border-bottom: 1px solid var(--color-base-200, #e5e7eb);
+  text-align: left;
+  padding: 0.35rem 0.25rem;
+  vertical-align: top;
+}
+
+.eki-cm-funnel {
+  font-size: 0.8rem;
+}
+
+#eki-cm-dialog {
+  border: 1px solid var(--color-base-300, #d1d5db);
+  border-radius: var(--border-radius, 6px);
+  padding: 1rem;
+  max-width: 32rem;
+}
+
+.eki-cm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .eki-cm {
+    grid-template-columns: 1fr;
+  }
+
+  .eki-cm__side {
+    position: static;
+  }
+
+  .eki-cm-var {
+    grid-template-columns: 1fr;
+  }
+}

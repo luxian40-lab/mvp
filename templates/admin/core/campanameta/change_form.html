@@ -1,33 +1,202 @@
 {% extends "admin/change_form.html" %}
+{% load i18n %}
 
-{% block submit_buttons_bottom %}
-{{ block.super }}
-{% if original.pk and eki_meta_prueba_url %}
-<div style="margin-top:1rem;padding:0.8rem 1rem;border:1px solid rgba(30,27,36,0.12);border-radius:12px;">
-  <strong>Prueba</strong>
-  <p style="margin:0.35rem 0 0.6rem;">
-    Plantilla: {{ original.plantilla.estado }}.
-    Solo sale si Meta la dejó en Aprobada. No marca la campaña como enviada.
-  </p>
-  <form method="post" action="{{ eki_meta_prueba_url }}">
-    {% csrf_token %}
-    <input type="text" name="telefono" inputmode="tel" placeholder="57300…" aria-label="Número de prueba">
-    <button type="submit" class="button">Enviar prueba</button>
-  </form>
+{% block field_sets %}
+<div class="eki-cm" id="eki-cm"
+     data-autoguardar="{{ eki_meta_autoguardar_url|default:'' }}"
+     data-audiencia="{{ eki_meta_audiencia_url|default:'' }}"
+     data-buscar-personas="{{ eki_buscar_personas }}"
+     data-buscar-grupos="{{ eki_buscar_grupos }}"
+     data-variables="{% url 'admin:core_campanameta_variables' 0 %}">
+  <div class="eki-cm__main">
+    {{ block.super }}
+
+    {% if original %}
+    <section class="eki-cm-block" id="plantilla-tarjeta">
+      <h2>Plantilla elegida</h2>
+      {% if original.plantilla_id %}
+      <article class="eki-cm-card">
+        <div>
+          <strong>{{ original.plantilla.nombre_interno }}</strong>
+          <code>{{ original.plantilla.meta_name }}</code>
+          <p>{{ original.plantilla.get_tipo_display }} · {{ original.plantilla.get_categoria_display }} · {{ original.plantilla.idioma }}
+            <span class="eki-cm-chip">{{ original.plantilla.get_estado_display }}</span>
+          </p>
+        </div>
+        <p class="eki-cm-links">
+          <a href="#id_plantilla">Cambiar</a>
+          <a href="{% url 'admin:core_plantillameta_change' original.plantilla_id %}">Ver plantilla</a>
+        </p>
+      </article>
+      {% endif %}
+
+      <h2>Variables de la plantilla</h2>
+      <div id="eki-cm-variables">
+        {% for numero, regla in reglas_ui.items %}
+        <div class="eki-cm-var" data-n="{{ numero }}">
+          <span>Variable {{ numero }}</span>
+          <label>Origen
+            <select data-origen>
+              {% for valor, etiqueta in origenes %}
+              <option value="{{ valor }}" {% if regla.origen == valor %}selected{% endif %}>{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Si falta
+            <select data-si-falta>
+              {% for valor, etiqueta in si_falta %}
+              <option value="{{ valor }}" {% if regla.si_falta == valor %}selected{% endif %}>{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Texto fijo o de respaldo
+            <input type="text" data-texto value="{% if regla.origen == 'fijo' %}{{ regla.texto }}{% else %}{{ regla.respaldo }}{% endif %}">
+          </label>
+        </div>
+        {% empty %}
+        <p>Esta plantilla no tiene variables.</p>
+        {% endfor %}
+      </div>
+      {{ adminform.form.personas_ids }}
+      {{ adminform.form.grupos_ids }}
+      {{ adminform.form.reglas_json }}
+    </section>
+
+    <section class="eki-cm-block" id="audiencia">
+      <h2>Audiencia</h2>
+      <p>Puede combinar grupos y personas. Una persona que esté en los dos entra una sola vez.</p>
+      <label for="eki-cm-grupo-q">Grupos</label>
+      <input type="search" id="eki-cm-grupo-q" placeholder="Buscar grupo" autocomplete="off">
+      <ul id="eki-cm-grupo-opciones" class="eki-cm-opciones" hidden></ul>
+      <div id="eki-cm-grupos" class="eki-cm-chips">
+        {% for grupo in grupos_ui %}
+        <span class="eki-cm-chip" data-id="{{ grupo.id }}">{{ grupo.etiqueta }} <button type="button" data-quitar="grupo">Quitar</button></span>
+        {% endfor %}
+      </div>
+
+      <label for="eki-cm-persona-q">Personas</label>
+      <input type="search" id="eki-cm-persona-q" placeholder="Buscar por nombre, organización o teléfono" autocomplete="off">
+      <ul id="eki-cm-persona-opciones" class="eki-cm-opciones" hidden></ul>
+      <div id="eki-cm-personas" class="eki-cm-chips">
+        {% for persona in personas_ui %}
+        <span class="eki-cm-chip" data-id="{{ persona.id }}">{{ persona.etiqueta }} <button type="button" data-quitar="persona">Quitar</button></span>
+        {% endfor %}
+      </div>
+
+      <dl class="eki-cm-conteo" id="eki-cm-conteo">
+        <div><dt>Suma de grupos y personas</dt><dd data-k="suma">{{ resumen.suma }}</dd></div>
+        <div><dt>Repetidas</dt><dd data-k="repetidas">{{ resumen.repetidas }}</dd></div>
+        <div><dt>Pidieron no recibir más</dt><dd data-k="optout">{{ resumen.optout }}</dd></div>
+        <div><dt>Recibieron esta plantilla hace menos de {{ resumen.dias }} días</dt><dd data-k="recientes">{{ resumen.recientes }}</dd></div>
+        <div><dt>Sin WhatsApp válido</dt><dd data-k="sin_whatsapp">{{ resumen.sin_whatsapp }}</dd></div>
+        <div><dt>Sin el dato de una variable</dt><dd data-k="sin_variable">{{ resumen.sin_variable }}</dd></div>
+      </dl>
+      <p class="eki-cm-reciben"><strong data-k="reciben">{{ resumen.reciben }}</strong> personas recibirán esta campaña.
+        <a href="{{ eki_meta_lista_url }}">Ver la lista</a>
+      </p>
+      <div id="eki-cm-avisos">
+        {% for aviso in avisos %}
+        <p class="eki-cm-aviso">{{ aviso.texto }}</p>
+        {% endfor %}
+        {% if alternativa %}
+        <p class="eki-cm-aviso">Hay una plantilla más corta, sin organización:
+          <a href="{% url 'admin:core_campanameta_change' original.pk %}?plantilla={{ alternativa.pk }}">{{ alternativa.nombre_interno }}</a>
+        </p>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="eki-cm__side">
+    {% if mostrar_resultado %}
+    <section class="eki-cm-block" id="resultado">
+      <h2>Resultado</h2>
+      <dl class="eki-cm-conteo">
+        <div><dt>Enviados</dt><dd>{{ embudo.enviados }}</dd></div>
+        <div><dt>Entregados</dt><dd>{{ embudo.entregados }}</dd></div>
+        <div><dt>Leídos</dt><dd>{{ embudo.leidos }}</dd></div>
+        <div><dt>Respondieron</dt><dd>{{ embudo.respondieron }}</dd></div>
+        <div><dt>Fallidos</dt><dd>{{ embudo.fallidos }}</dd></div>
+      </dl>
+      <table class="eki-cm-tabla">
+        <thead><tr><th>Persona</th><th>Estado</th><th>Entrega</th><th>Motivo</th></tr></thead>
+        <tbody>
+          {% for fila in envios_ui %}
+          <tr>
+            <td>{{ fila.etiqueta }}</td>
+            <td>{{ fila.estado }}</td>
+            <td>{{ fila.entrega }}</td>
+            <td>{{ fila.motivo }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4">Todavía no hay envíos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if hay_reintento %}
+      <form method="post" action="{{ eki_meta_reintentar_url }}">
+        {% csrf_token %}
+        <button type="submit" class="eki-cm-btn">Reintentar fallidos</button>
+      </form>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="eki-cm-block" id="vista-previa">
+      <h2>Vista previa</h2>
+      <div class="eki-mb-wa-preview">
+        <p class="eki-mb-wa-preview__eyebrow">WhatsApp</p>
+        <div class="eki-mb-wa-preview__bubble">
+          {% if previa.header %}<p class="eki-cm-header" data-preview="header">{{ previa.header }}</p>{% endif %}
+          <p class="eki-mb-wa-preview__body" data-preview="cuerpo">{{ previa.cuerpo }}</p>
+          {% if previa.footer %}<p class="eki-cm-footer" data-preview="footer">{{ previa.footer }}</p>{% endif %}
+          <div data-preview="botones">
+            {% for boton in previa.botones %}
+            <span class="eki-cm-boton">{{ boton }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <p class="eki-cm-sub" data-preview="persona">{{ previa.persona }}</p>
+      <dl class="eki-cm-conteo">
+        <div><dt>Línea</dt><dd>{{ linea }}</dd></div>
+        <div><dt>Personas</dt><dd data-k="reciben-side">{{ resumen.reciben|default:0 }}</dd></div>
+        <div><dt>Fecha de envío</dt><dd>{% if original.fecha_programada %}{{ original.fecha_programada }}{% else %}Ahora{% endif %}</dd></div>
+      </dl>
+      {% if original.pk %}
+        {% if eki_meta_puede_enviar %}
+        <button type="button" class="eki-cm-btn eki-cm-btn--primary" id="eki-cm-abrir-envio">
+          {% if original.fecha_programada %}Programar para {{ resumen.reciben }} personas{% else %}Enviar a {{ resumen.reciben }}{% endif %}
+        </button>
+        {% else %}
+        <p>{{ eki_meta_envio_bloqueo }}</p>
+        {% endif %}
+        <form method="post" action="{{ eki_meta_prueba_url }}">
+          {% csrf_token %}
+          <input type="hidden" name="telefono" value="{{ prueba_numero }}">
+          <button type="submit" class="eki-cm-btn">Enviar prueba a mi número</button>
+        </form>
+      {% endif %}
+      <p class="eki-cm-sub">El borrador se guarda al editar.</p>
+    </section>
+    {% endif %}
+  </aside>
 </div>
-<div style="margin-top:0.75rem;padding:0.8rem 1rem;border:1px solid rgba(30,27,36,0.12);border-radius:12px;">
-  <strong>Enviar</strong>
-  {% if eki_meta_puede_enviar %}
-  <p style="margin:0.35rem 0 0.6rem;">
-    Sale a {{ eki_meta_destinatarios }} destinatario(s) por Meta.
-  </p>
+
+{% if original.pk and eki_meta_puede_enviar %}
+<dialog id="eki-cm-dialog">
   <form method="post" action="{{ eki_meta_enviar_url }}">
     {% csrf_token %}
-    <button type="submit" class="button">Enviar a {{ eki_meta_destinatarios }}</button>
+    <h2>Confirme el envío</h2>
+    <p id="eki-cm-confirmacion">{{ confirmacion }}</p>
+    <input type="hidden" name="reciben" value="{{ resumen.reciben }}" data-k="reciben-input">
+    <div class="eki-cm-dialog-actions">
+      <button type="button" id="eki-cm-cerrar">Volver</button>
+      <button type="submit" class="eki-cm-btn eki-cm-btn--primary">
+        {% if original.fecha_programada %}Programar{% else %}Enviar{% endif %}
+      </button>
+    </div>
   </form>
-  {% else %}
-  <p style="margin:0.35rem 0 0;">{{ eki_meta_envio_bloqueo }}</p>
-  {% endif %}
-</div>
+</dialog>
 {% endif %}
 {% endblock %}

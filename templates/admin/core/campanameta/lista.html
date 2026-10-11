@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main" class="eki-cm-lista">
+  <p><a href="{% url 'admin:core_campanameta_change' campana.pk %}">Volver a la campaña</a></p>
+  <h1>{{ campana.nombre }}</h1>
+  <p>{{ filas|length }} personas recibirán esta campaña.</p>
+  <ul>
+    {% for fila in filas %}
+    <li>{{ fila }}</li>
+    {% empty %}
+    <li>Nadie recibe esta campaña con las exclusiones actuales.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

@@ -479,9 +479,11 @@ class PantallaCampanaMetaTests(SimpleTestCase):
 
         adm = CampanaMetaAdmin(CampanaMeta, site)
         por_titulo = {nombre: opts for nombre, opts in adm.fieldsets}
+        self.assertEqual(por_titulo['Campaña']['fields'], ('nombre',))
+        self.assertEqual(por_titulo['Plantilla de Meta']['fields'], ('cliente', 'plantilla'))
         self.assertEqual(
-            por_titulo['Campaña']['fields'],
-            ('nombre', 'cliente', 'plantilla'),
+            por_titulo['Envío']['fields'],
+            ('phone_number_id', 'fecha_programada', 'dias_repeticion'),
         )
-        self.assertIn('collapse', por_titulo['Variables y programación']['classes'])
-        self.assertIn('collapse', por_titulo['Resultado']['classes'])
+        for opts in por_titulo.values():
+            self.assertNotIn('collapse', opts.get('classes') or ())
