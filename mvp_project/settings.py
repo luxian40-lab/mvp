@@ -533,6 +533,19 @@ try:
     )
 except (TypeError, ValueError):
     BOT_COMERCIAL_AGROSAVIA_MAX_CHARS = 2200
+# FAO live solo para Ventas eki. Apagar con BOT_VENTAS_FAO_ENABLED=false.
+# Umbral de la API verificado el 8 de octubre de 2026: el WAF exige User-Agent de navegador.
+BOT_VENTAS_FAO_ENABLED = os.environ.get(
+    'BOT_VENTAS_FAO_ENABLED', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+try:
+    BOT_VENTAS_FAO_SIZE = int(os.environ.get('BOT_VENTAS_FAO_SIZE', '3'))
+except (TypeError, ValueError):
+    BOT_VENTAS_FAO_SIZE = 3
+try:
+    BOT_VENTAS_FAO_MAX_CHARS = int(os.environ.get('BOT_VENTAS_FAO_MAX_CHARS', '1800'))
+except (TypeError, ValueError):
+    BOT_VENTAS_FAO_MAX_CHARS = 1800
 # Nat + Open-Meteo: probabilidad climática por municipio (WhatsApp)
 NAT_OPEN_METEO_ENABLED = os.environ.get('NAT_OPEN_METEO_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
@@ -998,6 +1011,10 @@ if not _is_testing_runtime:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': _cache_src,
+            'OPTIONS': {
+                'socket_connect_timeout': 0.25,
+                'socket_timeout': 0.25,
+            },
         }
     }
 CELERY_ACCEPT_CONTENT = ['json']
