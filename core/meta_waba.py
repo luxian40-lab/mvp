@@ -779,12 +779,9 @@ def _cambios_status(payload: dict) -> list[dict]:
 
 
 def _resolver_valor(token: str, estudiante) -> str:
-    clave = (token or '').strip()
-    if clave == 'nombre':
-        return (getattr(estudiante, 'nombre', None) or 'Estudiante').strip() or 'Estudiante'
-    if clave == 'telefono':
-        return str(getattr(estudiante, 'telefono', None) or '').strip()
-    return clave
+    from core.campana_audiencia import resolver_token
+
+    return resolver_token(token, estudiante)
 
 
 def resolver_mapeo(mapeo: str, cantidad: int, estudiante) -> list[str]:
@@ -857,9 +854,9 @@ def phone_pertenece_a_waba(phone_id: str, waba_id: str) -> tuple[bool, str]:
 
 
 def _destinatarios(campana: CampanaMeta):
-    if campana.grupo_id:
-        return campana.grupo.estudiantes.filter(activo=True)
-    return campana.destinatarios.filter(activo=True)
+    from core.campana_audiencia import personas_que_reciben
+
+    return personas_que_reciben(campana)
 
 
 def _guardar_envio_v1(previo, campana, estudiante, estado, wamid, respuesta):
@@ -902,6 +899,8 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
     if not ok:
         raise ValueError(motivo)
 
+    from core.campana_audiencia import debe_omitir_reintento
+
     destinatarios = list(_destinatarios(campana))
     enviados = 0
     fallidos = 0
@@ -910,7 +909,7 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
         previo = EnvioCampanaMeta.objects.filter(
             campana=campana, estudiante=estudiante,
         ).first()
-        if previo is not None and previo.estado == 'ENVIADO':
+        if debe_omitir_reintento(previo):
             continue
         try:
             componentes = _parametros_envio(plantilla, campana, estudiante)
