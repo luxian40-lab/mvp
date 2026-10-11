@@ -17,6 +17,23 @@ from core.models_campana_meta import (
 
 TIPOS_EDITOR = ('TEXTO', 'IMAGEN', 'CARRUSEL')
 TIPOS_PANTALLA = tuple(codigo for codigo, _nombre in TIPOS_PLANTILLA if codigo != 'OTRO')
+AYUDA_TIPO = {
+    'TEXTO': 'Un mensaje de texto, con pie y botones si hace falta.',
+    'IMAGEN': 'El mensaje lleva una foto. La foto real se adjunta al enviar.',
+    'VIDEO': 'El mensaje lleva un video. El archivo real se adjunta al enviar.',
+    'DOCUMENTO': 'El mensaje lleva un documento. El archivo real se adjunta al enviar.',
+    'UBICACION': 'El mensaje lleva un punto en el mapa.',
+    'CARRUSEL': 'Varias tarjetas que se deslizan. De 2 a 10, con la misma estructura.',
+    'OFERTA_LIMITADA': 'Una oferta con fecha de cierre.',
+    'CUPON': 'Un cupón que la persona puede copiar.',
+    'CATALOGO': 'Abre el catálogo de WhatsApp.',
+    'PRODUCTOS': 'Muestra varios productos del catálogo.',
+    'FLUJO': 'Abre un flujo de WhatsApp.',
+    'LLAMADA': 'Pide permiso para llamar.',
+    'AUTENTICACION': 'Entrega un código de un solo uso.',
+    'PEDIDO': 'Informa el estado o el detalle de un pedido.',
+    'OTRO': 'Formato que Meta envió y este editor no reconoce.',
+}
 ESTADOS_SOLO_LECTURA = ('APPROVED', 'PENDING', 'IN_APPEAL')
 ORIGENES = ('estudiante.nombre', 'organizacion.nombre', 'curso.nombre', 'texto_fijo')
 IDIOMAS = (('es', 'Español'), ('en', 'English'))
@@ -195,7 +212,7 @@ def armar_inicial(plantilla: PlantillaMeta | None, tipo: str, datos=None, foto_m
             {'codigo': 'texto_fijo', 'nombre': 'texto fijo'},
         ],
         'tipos': [
-            {'codigo': codigo, 'nombre': nombre}
+            {'codigo': codigo, 'nombre': nombre, 'ayuda': AYUDA_TIPO.get(codigo, '')}
             for codigo, nombre in TIPOS_PLANTILLA
             if codigo != 'OTRO' or tipo == 'OTRO'
         ],

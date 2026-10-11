@@ -404,3 +404,160 @@ html.dark .eki-mb-wa-preview__body {
     justify-content: flex-start;
   }
 }
+
+.pm-tip {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted var(--color-base-400);
+}
+
+.pm-tip:hover::after,
+.pm-tip:focus::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  top: calc(100% + 0.25rem);
+  width: 16rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: var(--color-base-900, #1c1917);
+  color: #f5f5f4;
+  font-size: 0.78rem;
+  font-weight: 450;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.pm-device {
+  width: min(100%, 280px);
+  margin: 0 auto;
+  border: 10px solid #1c1917;
+  border-radius: 28px;
+  background: #efeae2;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+
+.pm-device-notch {
+  height: 18px;
+  background: #1c1917;
+}
+
+.pm-device-home {
+  height: 16px;
+  background: #1c1917;
+}
+
+.pm-wa-top {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.65rem;
+  background: #075e54;
+  color: #fff;
+}
+
+.pm-wa-top strong,
+.pm-wa-top small {
+  display: block;
+}
+
+.pm-wa-top strong {
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.pm-wa-top small {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.pm-wa-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #128c7e;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+}
+
+.pm-device .eki-mb-wa-preview {
+  flex: 1;
+  margin: 0;
+  padding: 0.7rem 0.55rem 0.8rem;
+  border: 0;
+  border-radius: 0;
+  background: #efeae2;
+}
+
+.pm-device .eki-mb-wa-preview__bubble {
+  background: #fff;
+  max-width: 100%;
+}
+
+.pm-media {
+  margin: -0.2rem -0.2rem 0.45rem;
+  padding: 0.7rem 0.45rem;
+  border-radius: 8px;
+  background: #d8efe4;
+  color: #245c3e;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.pm-media img {
+  display: block;
+  max-width: 100%;
+  max-height: 72px;
+  margin: 0 auto 0.3rem;
+  object-fit: contain;
+}
+
+.pm-media-oferta {
+  background: #f3e7c3;
+  color: #7a5b12;
+}
+
+.pm-otp {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #111;
+}
+
+.pm-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+html.dark .pm-device .eki-mb-wa-preview {
+  background: #efeae2;
+  border: 0;
+}
+
+html.dark .pm-device .eki-mb-wa-preview__bubble,
+html.dark .pm-device .pm-reply,
+html.dark .pm-device .pm-snap-card {
+  background: #fff;
+  color: #3d3546;
+  border-color: #d7e8de;
+}
+
+html.dark .pm-device .eki-mb-wa-preview__body {
+  color: #3d3546;
+}
+
+html.dark .pm-tip:hover::after,
+html.dark .pm-tip:focus::after {
+  background: #f5f5f4;
+  color: #1c1917;
+}
+

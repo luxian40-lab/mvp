@@ -19,7 +19,7 @@
     </div>
     <div class="pm-pills" role="tablist" aria-label="Tipo de plantilla">
       {% for fila in inicial.tipos %}
-      <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === '{{ fila.codigo }}' }" :aria-selected="tipo === '{{ fila.codigo }}'" @click="elegir('{{ fila.codigo }}')" {% if solo_lectura %}disabled{% endif %}>{{ fila.nombre }}</button>
+      <button type="button" class="pm-pill" role="tab" title="{{ fila.ayuda }}" :class="{ 'is-on': tipo === '{{ fila.codigo }}' }" :aria-selected="tipo === '{{ fila.codigo }}'" @click="elegir('{{ fila.codigo }}')" {% if solo_lectura %}disabled{% endif %}>{{ fila.nombre }}</button>
       {% endfor %}
     </div>
   </header>
@@ -38,21 +38,25 @@
       <p class="pm-nota" x-show="tipo === 'CARRUSEL'">Para el carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.</p>
       {% endif %}
 
-      <label>Nombre
+      <label>
+        <span class="pm-tip" tabindex="0" data-tip="Nombre que ve el equipo en el admin. No es el texto que llega a WhatsApp.">Nombre</span>
         <input name="nombre_interno" required maxlength="120" x-model="nombre" @input="alNombre()" value="{{ inicial.nombre }}" {% if solo_lectura %}readonly{% endif %}>
       </label>
-      <label>Nombre técnico
+      <label>
+        <span class="pm-tip" tabindex="0" data-tip="Identificador en Meta. Sale del nombre visible, en minúsculas, números y guion bajo. Después no se cambia: para otro nombre, duplique y queda con _v2.">Nombre técnico</span>
         <input class="pm-tecnico" name="meta_name" readonly tabindex="-1" x-model="metaName" value="{{ inicial.metaName }}">
         <span class="pm-ayuda">Se arma del nombre visible: minúsculas, números y guion bajo. Si ya existe, duplíquela: el nombre técnico queda con _v2.</span>
       </label>
-      <label>Categoría
+      <label>
+        <span class="pm-tip" tabindex="0" data-tip="Marketing o Utilidad. Meta revisa esta categoría al aprobar.">Categoría</span>
         <select name="categoria" x-model="categoria" {% if solo_lectura %}disabled{% endif %}>
           {% for fila in inicial.categorias %}
           <option value="{{ fila.codigo }}" {% if fila.codigo == inicial.categoria %}selected{% endif %}>{{ fila.nombre }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Idioma
+      <label>
+        <span class="pm-tip" tabindex="0" data-tip="Idioma en el que Meta registra la plantilla.">Idioma</span>
         <select name="idioma" x-model="idioma" {% if solo_lectura %}disabled{% endif %}>
           {% for fila in inicial.idiomas %}
           <option value="{{ fila.codigo }}" {% if fila.codigo == inicial.idioma %}selected{% endif %}>{{ fila.nombre }}</option>
@@ -73,7 +77,8 @@
       </div>
 
       <div x-show="tipo !== 'CARRUSEL' || pestana === 'mensaje'">
-        <label>Mensaje
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Texto de la burbuja. Las variables van entre dobles llaves, con un número, y no pueden ir al inicio ni al final.">Mensaje</span>
           <span class="pm-count" x-text="(cuerpo || '').length + ' / 1024'"></span>
           <div class="pm-cuerpo">
             <pre class="pm-cuerpo-hl" x-ref="hl" x-html="cuerpoHtml()"></pre>
@@ -81,15 +86,15 @@
           </div>
         </label>
         {% if not solo_lectura %}
-        <button type="button" class="pm-link" id="pm-var" @click="agregarVariable()">Agregar variable</button>
+        <button type="button" class="pm-link" id="pm-var" title="Inserta la siguiente variable en el lugar del cursor." @click="agregarVariable()">Agregar variable</button>
         {% endif %}
 
         <table class="pm-vars" x-show="variables().length">
           <thead>
             <tr>
-              <th>Variable</th>
-              <th>Ejemplo</th>
-              <th>Campo de origen</th>
+              <th><span class="pm-tip" tabindex="0" data-tip="Número que Meta reemplaza al enviar.">Variable</span></th>
+              <th><span class="pm-tip" tabindex="0" data-tip="Texto de muestra. Meta lo exige para aprobar, y se ve en el celular.">Ejemplo</span></th>
+              <th><span class="pm-tip" tabindex="0" data-tip="De dónde sale el valor: estudiante, organización, curso o un texto fijo.">Campo de origen</span></th>
             </tr>
           </thead>
           <tbody>
@@ -116,11 +121,13 @@
 
       <div x-show="tipo === 'CARRUSEL' && pestana === 'tarjetas'">
         <p class="pm-ayuda">De 2 a 10 tarjetas, con la misma estructura. Arrastra para ordenar.</p>
-        <label>Botón ver, en todas
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Texto del botón Ver, igual en todas las tarjetas. Máximo 20 caracteres.">Botón ver, en todas</span>
           <span class="pm-count" x-text="(botonVer || '').length + ' / 20'"></span>
           <input name="card_ver" maxlength="20" x-model="botonVer" value="{{ inicial.botonVer }}" {% if solo_lectura %}readonly{% endif %}>
         </label>
-        <label>Botón info, en todas
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Texto del botón de información, igual en todas las tarjetas. Máximo 20 caracteres.">Botón info, en todas</span>
           <span class="pm-count" x-text="(botonInfo || '').length + ' / 20'"></span>
           <input name="card_info" maxlength="20" x-model="botonInfo" value="{{ inicial.botonInfo }}" {% if solo_lectura %}readonly{% endif %}>
         </label>
@@ -132,9 +139,9 @@
                 <span x-text="'Tarjeta ' + (i + 1)"></span>
                 <button type="button" class="pm-link" @click="quitarTarjeta(i)" x-show="tarjetas.length > 2 && !soloLectura">Quitar</button>
               </div>
-              <label>Título <input :name="'card_titulo_' + i" x-model="tarjeta.titulo" maxlength="200" {% if solo_lectura %}readonly{% endif %}></label>
-              <label>Texto <input :name="'card_cuerpo_' + i" x-model="tarjeta.cuerpo" maxlength="160" {% if solo_lectura %}readonly{% endif %}></label>
-              <label>Foto https <input :name="'card_imagen_' + i" x-model="tarjeta.imagen_url" maxlength="1000" placeholder="https://" {% if solo_lectura %}readonly{% endif %}></label>
+              <label><span class="pm-tip" tabindex="0" data-tip="Título de esta tarjeta. Se ve en el celular al deslizar.">Título</span> <input :name="'card_titulo_' + i" x-model="tarjeta.titulo" maxlength="200" {% if solo_lectura %}readonly{% endif %}></label>
+              <label><span class="pm-tip" tabindex="0" data-tip="Texto de esta tarjeta, debajo del título.">Texto</span> <input :name="'card_cuerpo_' + i" x-model="tarjeta.cuerpo" maxlength="160" {% if solo_lectura %}readonly{% endif %}></label>
+              <label><span class="pm-tip" tabindex="0" data-tip="Dirección https de la foto de muestra. La foto real se adjunta al enviar.">Foto https</span> <input :name="'card_imagen_' + i" x-model="tarjeta.imagen_url" maxlength="1000" placeholder="https://" {% if solo_lectura %}readonly{% endif %}></label>
               <input type="hidden" :name="'card_ver_' + i" :value="botonVer">
               <input type="hidden" :name="'card_info_' + i" :value="botonInfo">
             </fieldset>
@@ -146,19 +153,22 @@
         {% endif %}
       </div>
 
-      <label>Pie
+      <label>
+        <span class="pm-tip" tabindex="0" data-tip="Línea gris debajo del mensaje. Máximo 60 caracteres.">Pie</span>
         <span class="pm-count" x-text="(footer || '').length + ' / 60'"></span>
         <input name="footer" maxlength="60" x-model="footer" value="{{ inicial.footer }}" {% if solo_lectura %}readonly{% endif %}>
       </label>
 
       <div class="pm-campo">
-        <span>Botones de respuesta rápida <span class="pm-count">/ 25</span></span>
-        <label>Botón 1
+        <span class="pm-tip" tabindex="0" data-tip="Respuestas rápidas que la persona toca bajo la burbuja. Máximo 25 caracteres cada una.">Botones de respuesta rápida <span class="pm-count">/ 25</span></span>
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Primera respuesta rápida. Si lo deja vacío, no se envía.">Botón 1</span>
           <span class="pm-count" x-text="(boton1 || '').length + ' / 25'"></span>
           <input type="hidden" name="boton_1_tipo" :value="(boton1 || '').trim() ? 'QUICK_REPLY' : ''">
           <input name="boton_1_texto" x-model="boton1" maxlength="25" value="{{ inicial.boton1 }}" {% if solo_lectura %}readonly{% endif %}>
         </label>
-        <label>Botón 2
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Segunda respuesta rápida. Si lo deja vacío, no se envía.">Botón 2</span>
           <span class="pm-count" x-text="(boton2 || '').length + ' / 25'"></span>
           <input type="hidden" name="boton_2_tipo" :value="(boton2 || '').trim() ? 'QUICK_REPLY' : ''">
           <input name="boton_2_texto" x-model="boton2" maxlength="25" value="{{ inicial.boton2 }}" {% if solo_lectura %}readonly{% endif %}>
@@ -172,10 +182,10 @@
       </ul>
 
       <div class="pm-actions">
-        <a href="{% url 'admin:core_plantillameta_changelist' %}">Cancelar</a>
+        <a href="{% url 'admin:core_plantillameta_changelist' %}" title="Vuelve al listado sin guardar.">Cancelar</a>
         {% if not solo_lectura %}
-        <button type="submit" name="accion" value="guardar">Guardar borrador</button>
-        <button type="submit" class="pm-primary" name="accion" value="enviar" :disabled="!puedeEnviar()">Guardar y enviar a aprobación</button>
+        <button type="submit" name="accion" value="guardar" title="Guarda el borrador en eki. No lo envía a Meta.">Guardar borrador</button>
+        <button type="submit" class="pm-primary" name="accion" value="enviar" :disabled="!puedeEnviar()" title="Guarda y pide la aprobación de Meta. Solo Texto y Carrusel.">Guardar y enviar a aprobación</button>
         <p class="pm-motivo" x-show="motivoEnvio()" x-text="motivoEnvio()"></p>
         {% endif %}
       </div>
@@ -185,56 +195,82 @@
     <div class="pm-actions">
       <form method="post">
         {% csrf_token %}
-        <button type="submit" name="accion" value="duplicar">Duplicar</button>
+        <button type="submit" name="accion" value="duplicar" title="Crea un borrador nuevo. El nombre técnico queda con _v2.">Duplicar</button>
       </form>
       <form method="post" class="pm-prueba">
         {% csrf_token %}
-        <label>Número
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Número de prueba, con indicativo. No envía a la lista de estudiantes.">Número</span>
           <input name="telefono" inputmode="tel" placeholder="57300…" required>
         </label>
-        <button type="submit" class="pm-primary" name="accion" value="probar">Enviar prueba</button>
+        <button type="submit" class="pm-primary" name="accion" value="probar" title="Envía esta plantilla aprobada al número indicado.">Enviar prueba</button>
       </form>
     </div>
     {% endif %}
   </div>
 
   <aside class="pm-phone" aria-label="Vista previa">
-    <p class="pm-vista">Vista previa</p>
-    <div class="eki-mb-wa-preview" data-wa-preview="plantilla">
-      <p class="eki-mb-wa-preview__eyebrow">Así llega por WhatsApp</p>
-      <template x-if="tipo === 'IMAGEN'">
-        <img class="pm-preview-foto" src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
-      </template>
-      <div class="eki-mb-wa-preview__bubble" id="pm-bubble">
-        <p class="eki-mb-wa-preview__body" x-html="cuerpoHtml()"></p>
-      </div>
-      <p class="pm-footer-prev" x-show="(footer || '').trim()" x-text="footer"></p>
-      <div>
-        <span class="pm-reply" x-show="(boton1 || '').trim()" x-text="boton1"></span>
-        <span class="pm-reply" x-show="(boton2 || '').trim()" x-text="boton2"></span>
-      </div>
-      <div x-show="tipo === 'CARRUSEL'">
-        <div class="pm-snap" x-ref="snap">
-          <template x-for="(tarjeta, i) in tarjetas" :key="tarjeta.uid">
-            <article class="pm-snap-card">
-              <img x-show="tarjeta.imagen_url" :src="tarjeta.imagen_url" alt="">
-              <strong x-text="tarjeta.titulo || ('Tarjeta ' + (i + 1))"></strong>
-              <p x-text="tarjeta.cuerpo"></p>
-              <span class="pm-reply" x-text="botonVer"></span>
-              <span class="pm-reply" x-text="botonInfo"></span>
-            </article>
-          </template>
+    <p class="pm-vista"><span class="pm-tip" tabindex="0" data-tip="Así se verá en el celular. Cambia al escribir y al elegir otro formato.">Vista previa</span></p>
+    <div class="pm-device">
+      <div class="pm-device-notch" aria-hidden="true"></div>
+      <header class="pm-wa-top">
+        <span class="pm-wa-avatar" aria-hidden="true">e</span>
+        <div>
+          <strong x-text="(nombre || '').trim() || 'Plantilla'"></strong>
+          <small x-text="etiquetaTipo()"></small>
         </div>
-        <div class="pm-snap-nav">
-          <button type="button" class="pm-link" @click="moverPreview(-1)">Anterior</button>
-          <button type="button" class="pm-link" @click="moverPreview(1)">Siguiente</button>
+      </header>
+      <div class="pm-wa-chat eki-mb-wa-preview" data-wa-preview="plantilla">
+        <div class="eki-mb-wa-preview__bubble" id="pm-bubble" x-show="tipo !== 'CARRUSEL'">
+          <div class="pm-media" x-show="tipo === 'IMAGEN'">
+            <img src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
+            <span>Foto de muestra</span>
+          </div>
+          <div class="pm-media" x-show="tipo === 'VIDEO'">Video</div>
+          <div class="pm-media" x-show="tipo === 'DOCUMENTO'">Documento</div>
+          <div class="pm-media pm-media-pin" x-show="tipo === 'UBICACION'">Ubicación</div>
+          <div class="pm-media pm-media-oferta" x-show="tipo === 'OFERTA_LIMITADA'">Oferta por tiempo limitado</div>
+          <div class="pm-media" x-show="tipo === 'CUPON'">Cupón</div>
+          <div class="pm-media" x-show="tipo === 'CATALOGO'">Catálogo</div>
+          <div class="pm-media" x-show="tipo === 'PRODUCTOS'">Varios productos</div>
+          <div class="pm-media" x-show="tipo === 'PEDIDO'">Pedido</div>
+          <p class="pm-otp" x-show="tipo === 'AUTENTICACION'" x-text="codigoVista()"></p>
+          <p class="eki-mb-wa-preview__body" x-html="cuerpoVista()"></p>
+          <p class="pm-footer-prev" x-show="(footer || '').trim()" x-text="footer"></p>
+        </div>
+        <div class="pm-replies" x-show="tipo !== 'CARRUSEL'">
+          <span class="pm-reply" x-show="tipo === 'FLUJO'">Continuar</span>
+          <span class="pm-reply" x-show="tipo === 'LLAMADA'">Permitir llamada</span>
+          <span class="pm-reply" x-show="tipo === 'CATALOGO'">Ver catálogo</span>
+          <span class="pm-reply" x-show="tipo === 'AUTENTICACION'">Copiar código</span>
+          <span class="pm-reply" x-show="tipo !== 'FLUJO' && tipo !== 'LLAMADA' && tipo !== 'CATALOGO' && tipo !== 'AUTENTICACION' && (boton1 || '').trim()" x-text="boton1"></span>
+          <span class="pm-reply" x-show="tipo !== 'FLUJO' && tipo !== 'LLAMADA' && tipo !== 'CATALOGO' && tipo !== 'AUTENTICACION' && (boton2 || '').trim()" x-text="boton2"></span>
+        </div>
+        <div x-show="tipo === 'CARRUSEL'">
+          <p class="eki-mb-wa-preview__body" x-html="cuerpoVista()"></p>
+          <div class="pm-snap" x-ref="snap">
+            <template x-for="(tarjeta, i) in tarjetas" :key="i">
+              <article class="pm-snap-card">
+                <img x-show="tarjeta.imagen_url" :src="tarjeta.imagen_url" alt="">
+                <strong x-text="tarjeta.titulo || ('Tarjeta ' + (i + 1))"></strong>
+                <p x-text="tarjeta.cuerpo"></p>
+                <span class="pm-reply" x-text="botonVer"></span>
+                <span class="pm-reply" x-text="botonInfo"></span>
+              </article>
+            </template>
+          </div>
+          <div class="pm-snap-nav">
+            <button type="button" class="pm-link" @click="moverPreview(-1)">Anterior</button>
+            <button type="button" class="pm-link" @click="moverPreview(1)">Siguiente</button>
+          </div>
         </div>
       </div>
+      <div class="pm-device-home" aria-hidden="true"></div>
     </div>
   </aside>
 {% if plantilla and plantilla.pk %}
 <section class="pm-campanas" id="campanas">
-  <h2>Campañas</h2>
+  <h2><span class="pm-tip" tabindex="0" data-tip="Campañas que usan esta plantilla y cuántas veces se envió.">Campañas</span></h2>
   <p>{{ usos_campana }} usos de esta plantilla.</p>
   <ul>
     {% for fila in campanas_ui %}

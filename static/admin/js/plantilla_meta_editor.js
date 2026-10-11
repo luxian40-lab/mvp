@@ -123,6 +123,24 @@
             }
           );
         },
+        etiquetaTipo: function () {
+          var codigo = this.tipo;
+          var fila = (this.tipos || []).find(function (item) { return item.codigo === codigo; });
+          return fila ? fila.nombre : codigo;
+        },
+        cuerpoVista: function () {
+          var ejemplos = this.ejemplos || {};
+          var texto = (this.cuerpo || '').trim() ? this.cuerpo : 'Su mensaje se ve aquí';
+          return escapar(texto).replace(/\{\{(\d+)\}\}/g, function (todo, n) {
+            var ejemplo = (ejemplos[String(n)] || '').trim();
+            return '<span class="pm-var-chip">' + (ejemplo ? escapar(ejemplo) : todo) + '</span>';
+          });
+        },
+        codigoVista: function () {
+          var nums = this.variables();
+          if (!nums.length) return 'Código';
+          return (this.ejemplos[String(nums[0])] || '').trim() || 'Código';
+        },
         moverPreview: function (delta) {
           var siguiente = this.previewCard + delta;
           if (siguiente < 0) siguiente = 0;
