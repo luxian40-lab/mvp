@@ -131,6 +131,13 @@ class PlantillaMeta(models.Model):
         verbose_name='Ejemplo del header',
         help_text='Obligatorio si el header tiene {{1}}.',
     )
+    media_url = models.URLField(
+        max_length=1000,
+        blank=True,
+        default='',
+        verbose_name='URL de muestra',
+        help_text='https de la imagen o el video de muestra. El archivo real se adjunta al enviar.',
+    )
     cuerpo = models.TextField(
         verbose_name='Cuerpo',
         help_text='Texto que ve la persona. Variables {{1}}, {{2}}…',

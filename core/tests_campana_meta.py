@@ -290,6 +290,38 @@ class CampanaMetaTests(TestCase):
         self.assertEqual(self.plantilla.cuerpo, 'Hola Ana, tu curso abre mañana.')
         self.assertEqual(self.plantilla.boton_1_texto, 'Listo')
         self.assertEqual(self.plantilla.footer, 'eki')
+        self.assertContains(pagina, 'name="media_url"')
+        self.assertContains(pagina, 'URL de la imagen')
+
+    def test_admin_guarda_la_url_de_imagen_y_de_video(self):
+        User.objects.create_superuser('meta_media', 'media@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_media', password='pass12345')
+        url = reverse('admin:core_plantillameta_change', args=[self.plantilla.pk])
+        imagen = client.post(url, {
+            'nombre_interno': 'Aviso café',
+            'tipo': 'IMAGEN',
+            'cuerpo': 'Hola Ana, tu curso abre mañana.',
+            'media_url': 'https://eki.example/foto.jpg',
+            'accion': 'guardar',
+        })
+        self.assertEqual(imagen.status_code, 302)
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.tipo, 'IMAGEN')
+        self.assertEqual(self.plantilla.media_url, 'https://eki.example/foto.jpg')
+        ficha = client.get(url, follow=True)
+        self.assertContains(ficha, 'https://eki.example/foto.jpg')
+        video = client.post(url, {
+            'nombre_interno': 'Aviso café',
+            'tipo': 'VIDEO',
+            'cuerpo': 'Hola Ana, tu curso abre mañana.',
+            'media_url': 'https://eki.example/clip.mp4',
+            'accion': 'guardar',
+        })
+        self.assertEqual(video.status_code, 302)
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.tipo, 'VIDEO')
+        self.assertEqual(self.plantilla.media_url, 'https://eki.example/clip.mp4')
 
     def test_lista_y_tarjetas_de_tipo(self):
         User.objects.create_superuser('meta_lista', 'l@t.com', 'pass12345')

@@ -69,11 +69,17 @@
         <button type="button" class="pm-tab" role="tab" :class="{ 'is-on': pestana === 'tarjetas' }" @click="pestana = 'tarjetas'">Tarjetas</button>
       </div>
 
-      <div x-show="tipo === 'IMAGEN' || tipo === 'VIDEO' || tipo === 'DOCUMENTO'" class="pm-foto">
-        <img x-show="tipo === 'IMAGEN'" src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
-        <p class="pm-nota" x-show="tipo === 'IMAGEN'">Foto de muestra. La foto real se adjunta al enviar.</p>
-        <p class="pm-nota" x-show="tipo === 'VIDEO'">El video real se adjunta al enviar.</p>
-        <p class="pm-nota" x-show="tipo === 'DOCUMENTO'">El documento real se adjunta al enviar.</p>
+      <div x-show="tipo === 'IMAGEN' || tipo === 'VIDEO'" class="pm-foto">
+        <label>
+          <span class="pm-tip" tabindex="0" data-tip="Dirección https de muestra. Se ve en el celular. El archivo real se adjunta al enviar." x-text="tipo === 'VIDEO' ? 'URL del video' : 'URL de la imagen'"></span>
+          <input name="media_url" x-model="mediaUrl" maxlength="1000" placeholder="https://" inputmode="url" {% if solo_lectura %}readonly{% endif %}>
+        </label>
+        <img x-show="tipo === 'IMAGEN' && esUrl(mediaUrl)" :src="mediaUrl" alt="Foto de muestra">
+        <p class="pm-nota" x-show="tipo === 'IMAGEN' && !esUrl(mediaUrl)">Pegue una URL https para ver la foto aquí y en el celular.</p>
+        <p class="pm-nota" x-show="tipo === 'VIDEO' && !esUrl(mediaUrl)">Pegue una URL https para ver el video en el celular.</p>
+      </div>
+      <div x-show="tipo === 'DOCUMENTO'" class="pm-foto">
+        <p class="pm-nota">El documento real se adjunta al enviar.</p>
       </div>
 
       <div x-show="tipo !== 'CARRUSEL' || pestana === 'mensaje'">
@@ -223,10 +229,13 @@
       <div class="pm-wa-chat eki-mb-wa-preview" data-wa-preview="plantilla">
         <div class="eki-mb-wa-preview__bubble" id="pm-bubble" x-show="tipo !== 'CARRUSEL'">
           <div class="pm-media" x-show="tipo === 'IMAGEN'">
-            <img src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
-            <span>Foto de muestra</span>
+            <img x-show="esUrl(mediaUrl)" :src="mediaUrl" alt="Foto de muestra">
+            <span x-show="!esUrl(mediaUrl)">URL de la imagen</span>
           </div>
-          <div class="pm-media" x-show="tipo === 'VIDEO'">Video</div>
+          <div class="pm-media" x-show="tipo === 'VIDEO'">
+            <video x-show="esUrl(mediaUrl)" :src="mediaUrl" controls muted playsinline></video>
+            <span x-show="!esUrl(mediaUrl)">URL del video</span>
+          </div>
           <div class="pm-media" x-show="tipo === 'DOCUMENTO'">Documento</div>
           <div class="pm-media pm-media-pin" x-show="tipo === 'UBICACION'">Ubicación</div>
           <div class="pm-media pm-media-oferta" x-show="tipo === 'OFERTA_LIMITADA'">Oferta por tiempo limitado</div>

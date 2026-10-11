@@ -158,6 +158,8 @@ def guardar_asistente(datos, plantilla: PlantillaMeta | None, *, enviar: bool) -
     plantilla.cuerpo = normal['cuerpo']
     if 'footer' in datos:
         plantilla.footer = (datos.get('footer') or '')[:60]
+    if 'media_url' in datos and tipo in ('IMAGEN', 'VIDEO'):
+        plantilla.media_url = (datos.get('media_url') or '').strip()[:1000]
     if normal['ejemplos_cuerpo'] or 'ejemplos_cuerpo' in datos or normal['origenes_cuerpo']:
         plantilla.ejemplos_cuerpo = normal['ejemplos_cuerpo'][:500]
     plantilla.origen_variables = normal['_origenes']

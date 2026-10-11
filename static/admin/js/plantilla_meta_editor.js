@@ -46,6 +46,7 @@
         metaGuardado: inicial.metaName || '',
         appId: !!inicial.appId,
         tarjetas: inicial.tarjetas || [],
+        mediaUrl: inicial.mediaUrl || '',
         origenes: inicial.origenes || {},
         ejemplos: inicial.ejemplos || {},
         opcionesOrigen: inicial.opcionesOrigen || [],
@@ -75,6 +76,9 @@
           if (tipo === 'CARRUSEL') {
             while (this.tarjetas.length < 2) this.agregarTarjeta();
           }
+        },
+        esUrl: function (valor) {
+          return /^https:\/\/\S+$/i.test((valor || '').trim());
         },
         esAlta: function () {
           return (this.alta || []).indexOf(this.tipo) !== -1;
