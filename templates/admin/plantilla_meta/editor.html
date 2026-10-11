@@ -1,132 +1,228 @@
-{% extends "admin/eki_ops_base.html" %}
+{% extends "admin/base_site.html" %}
+{% load static %}
 
-{% block title %}{{ titulo_tipo }}{% endblock %}
-{% block eki_ops_crumb %}{{ titulo_tipo }}{% endblock %}
-{% block eki_ops_extra_nav %}
-<a class="eki-ops-back" href="{% url 'admin:core_plantillameta_changelist' %}">← Plantillas</a>
+{% block title %}{{ titulo }}{% endblock %}
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/plantilla_meta_editor.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
+<script src="{% static 'admin/js/plantilla_meta_editor.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-{{ block.super }}
-<div class="pm-editor">
-  <form method="post" class="pm-form" id="pm-form">
-    {% csrf_token %}
-    <h1>{{ titulo_tipo }}</h1>
+{{ inicial|json_script:"pm-inicial" }}
+<div class="pm-editor" x-data="plantillaEditor(JSON.parse(document.getElementById('pm-inicial').textContent))">
+  <div class="pm-col">
+    <h1>{{ titulo }} <span class="pm-ayuda">{{ estado_label }}</span></h1>
     {% if errores %}
     <ul class="pm-errores">
       {% for e in errores %}<li>{{ e }}</li>{% endfor %}
     </ul>
     {% endif %}
-    <label>Nombre
-      <input name="nombre_interno" required maxlength="120" value="{{ nombre }}">
-    </label>
-    <label>Mensaje
-      <textarea name="cuerpo" id="cuerpo" required maxlength="1024" rows="5">{{ cuerpo }}</textarea>
-    </label>
-    <button type="button" class="pm-link" id="pm-var">Añadir variable</button>
-    <label>Ejemplos, si usas variables
-      <input name="ejemplos_cuerpo" value="{{ ejemplos }}" placeholder="Ana|Café">
-    </label>
-    {% if tipo == 'TEXTO' %}
-    <label>Botón, opcional
-      <input name="boton_texto" maxlength="25" value="{{ boton }}">
-    </label>
-    {% endif %}
-    {% if tipo == 'IMAGEN' %}
-    <p class="pm-nota">La foto del diploma se adjunta al enviar el certificado. Aquí escribes el texto que Meta debe aprobar.</p>
-    {% endif %}
-    {% if tipo == 'CARRUSEL' %}
-    <div id="pm-cards">
-      {% for card in tarjetas %}
-      <fieldset class="pm-tarjeta">
-        <legend>Tarjeta {{ forloop.counter }}</legend>
-        <label>Título <input name="card_titulo_{{ forloop.counter0 }}" value="{{ card.titulo }}"></label>
-        <label>Texto <input name="card_cuerpo_{{ forloop.counter0 }}" value="{{ card.cuerpo }}"></label>
-        <label>Foto https <input name="card_imagen_{{ forloop.counter0 }}" value="{{ card.imagen_url }}"></label>
-        <label>Botón ver <input name="card_ver_{{ forloop.counter0 }}" value="{{ card.boton_ver_texto }}"></label>
-        <label>Botón info <input name="card_info_{{ forloop.counter0 }}" value="{{ card.boton_info_texto }}"></label>
-      </fieldset>
-      {% endfor %}
-    </div>
-    <input type="hidden" name="card_count" id="card_count" value="{{ tarjetas|length }}">
-    <button type="button" class="pm-link" id="pm-add-card">Añadir tarjeta</button>
-    {% endif %}
+
+    <form method="post" class="pm-form" id="pm-form">
+      {% csrf_token %}
+      <input type="hidden" name="tipo" value="{{ inicial.tipo }}" :value="tipo">
+      <div class="pm-pills" role="tablist" aria-label="Tipo de plantilla">
+        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'TEXTO' }" :aria-selected="tipo === 'TEXTO'" @click="elegir('TEXTO')" {% if solo_lectura %}disabled{% endif %}>Texto</button>
+        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'IMAGEN' }" :aria-selected="tipo === 'IMAGEN'" @click="elegir('IMAGEN')" {% if solo_lectura %}disabled{% endif %}>Imagen</button>
+        <button type="button" class="pm-pill" role="tab" :class="{ 'is-on': tipo === 'CARRUSEL' }" :aria-selected="tipo === 'CARRUSEL'" @click="elegir('CARRUSEL')" {% if solo_lectura %}disabled{% endif %}>Carrusel</button>
+      </div>
+      {% if not app_id_listo %}
+      <p class="pm-nota">Para imagen y carrusel hace falta WHATSAPP_APP_ID. Texto sigue disponible.</p>
+      {% endif %}
+
+      <label>Nombre
+        <input name="nombre_interno" required maxlength="120" x-model="nombre" @input="alNombre()" value="{{ inicial.nombre }}" {% if solo_lectura %}readonly{% endif %}>
+      </label>
+      <label>Nombre técnico
+        <input class="pm-tecnico" name="meta_name" readonly tabindex="-1" x-model="metaName" value="{{ inicial.metaName }}">
+        <span class="pm-ayuda">Se arma del nombre visible: minúsculas, números y guion bajo. Si ya existe, duplíquela: el nombre técnico queda con _v2.</span>
+      </label>
+      <label>Categoría
+        <select name="categoria" x-model="categoria" {% if solo_lectura %}disabled{% endif %}>
+          {% for fila in inicial.categorias %}
+          <option value="{{ fila.codigo }}" {% if fila.codigo == inicial.categoria %}selected{% endif %}>{{ fila.nombre }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Idioma
+        <select name="idioma" x-model="idioma" {% if solo_lectura %}disabled{% endif %}>
+          {% for fila in inicial.idiomas %}
+          <option value="{{ fila.codigo }}" {% if fila.codigo == inicial.idioma %}selected{% endif %}>{{ fila.nombre }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="pm-tabs" x-show="tipo === 'CARRUSEL'" role="tablist" aria-label="Partes del carrusel">
+        <button type="button" class="pm-tab" role="tab" :class="{ 'is-on': pestana === 'mensaje' }" @click="pestana = 'mensaje'">Mensaje</button>
+        <button type="button" class="pm-tab" role="tab" :class="{ 'is-on': pestana === 'tarjetas' }" @click="pestana = 'tarjetas'">Tarjetas</button>
+      </div>
+
+      <div x-show="tipo === 'IMAGEN'" class="pm-foto">
+        <img src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
+        <p class="pm-nota">Foto de muestra. La foto real se adjunta al enviar.</p>
+      </div>
+
+      <div x-show="tipo !== 'CARRUSEL' || pestana === 'mensaje'">
+        <label>Mensaje
+          <span class="pm-count" x-text="(cuerpo || '').length + ' / 1024'"></span>
+          <div class="pm-cuerpo">
+            <pre class="pm-cuerpo-hl" x-ref="hl" x-html="cuerpoHtml()"></pre>
+            <textarea name="cuerpo" id="cuerpo" x-ref="cuerpo" x-model="cuerpo" @scroll="syncScroll" required maxlength="1024" rows="5" {% if solo_lectura %}readonly{% endif %}>{{ inicial.cuerpo }}</textarea>
+          </div>
+        </label>
+        {% if not solo_lectura %}
+        <button type="button" class="pm-link" id="pm-var" @click="agregarVariable()">Agregar variable</button>
+        {% endif %}
+
+        <table class="pm-vars" x-show="variables().length">
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Ejemplo</th>
+              <th>Campo de origen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="n in variables()" :key="n">
+              <tr>
+                <td x-text="'{' + '{' + n + '}' + '}'"></td>
+                <td>
+                  <input :name="'ejemplo_' + n" :value="ejemplo(n)" @input="fijarEjemplo(n, $event.target.value)" required maxlength="80" aria-label="Ejemplo" {% if solo_lectura %}readonly{% endif %}>
+                </td>
+                <td>
+                  <select :name="'origen_' + n" x-model="origenes[String(n)]" aria-label="Campo de origen" {% if solo_lectura %}disabled{% endif %}>
+                    <template x-for="op in opcionesOrigen" :key="op.codigo">
+                      <option :value="op.codigo" :selected="origen(n) === op.codigo" x-text="op.nombre"></option>
+                    </template>
+                  </select>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <input type="hidden" name="ejemplos_cuerpo" value="{{ inicial.ejemplosPipe }}">
+        <input type="hidden" name="variable_nums" :value="variables().join(',')">
+      </div>
+
+      <div x-show="tipo === 'CARRUSEL' && pestana === 'tarjetas'">
+        <p class="pm-ayuda">De 2 a 10 tarjetas, con la misma estructura. Arrastra para ordenar.</p>
+        <label>Botón ver, en todas
+          <span class="pm-count" x-text="(botonVer || '').length + ' / 20'"></span>
+          <input name="card_ver" maxlength="20" x-model="botonVer" value="{{ inicial.botonVer }}" {% if solo_lectura %}readonly{% endif %}>
+        </label>
+        <label>Botón info, en todas
+          <span class="pm-count" x-text="(botonInfo || '').length + ' / 20'"></span>
+          <input name="card_info" maxlength="20" x-model="botonInfo" value="{{ inicial.botonInfo }}" {% if solo_lectura %}readonly{% endif %}>
+        </label>
+        <div id="pm-cards" data-pm-cards>
+          <template x-for="(tarjeta, i) in tarjetas" :key="i">
+            <fieldset class="pm-tarjeta" data-pm-card :data-pm-card="i">
+              <div class="pm-tarjeta-head">
+                <button type="button" class="pm-drag pm-mover" aria-label="Arrastrar" {% if solo_lectura %}disabled{% endif %}>Arrastrar</button>
+                <span x-text="'Tarjeta ' + (i + 1)"></span>
+                <button type="button" class="pm-link" @click="quitarTarjeta(i)" x-show="tarjetas.length > 2 && !soloLectura">Quitar</button>
+              </div>
+              <label>Título <input :name="'card_titulo_' + i" x-model="tarjeta.titulo" maxlength="200" {% if solo_lectura %}readonly{% endif %}></label>
+              <label>Texto <input :name="'card_cuerpo_' + i" x-model="tarjeta.cuerpo" maxlength="160" {% if solo_lectura %}readonly{% endif %}></label>
+              <label>Foto https <input :name="'card_imagen_' + i" x-model="tarjeta.imagen_url" maxlength="1000" placeholder="https://" {% if solo_lectura %}readonly{% endif %}></label>
+              <input type="hidden" :name="'card_ver_' + i" :value="botonVer">
+              <input type="hidden" :name="'card_info_' + i" :value="botonInfo">
+            </fieldset>
+          </template>
+        </div>
+        <input type="hidden" name="card_count" :value="tarjetas.length">
+        {% if not solo_lectura %}
+        <button type="button" class="pm-link" id="pm-add-card" @click="agregarTarjeta()" x-show="tarjetas.length < 10">Añadir tarjeta</button>
+        {% endif %}
+      </div>
+
+      <label>Pie
+        <span class="pm-count" x-text="(footer || '').length + ' / 60'"></span>
+        <input name="footer" maxlength="60" x-model="footer" value="{{ inicial.footer }}" {% if solo_lectura %}readonly{% endif %}>
+      </label>
+
+      <div class="pm-campo">
+        <span>Botones de respuesta rápida <span class="pm-count">/ 25</span></span>
+        <label>Botón 1
+          <span class="pm-count" x-text="(boton1 || '').length + ' / 25'"></span>
+          <input type="hidden" name="boton_1_tipo" :value="(boton1 || '').trim() ? 'QUICK_REPLY' : ''">
+          <input name="boton_1_texto" x-model="boton1" maxlength="25" value="{{ inicial.boton1 }}" {% if solo_lectura %}readonly{% endif %}>
+        </label>
+        <label>Botón 2
+          <span class="pm-count" x-text="(boton2 || '').length + ' / 25'"></span>
+          <input type="hidden" name="boton_2_tipo" :value="(boton2 || '').trim() ? 'QUICK_REPLY' : ''">
+          <input name="boton_2_texto" x-model="boton2" maxlength="25" value="{{ inicial.boton2 }}" {% if solo_lectura %}readonly{% endif %}>
+        </label>
+      </div>
+
+      <ul class="pm-checks" id="pm-validaciones">
+        <template x-for="(v, i) in reglas()" :key="i">
+          <li :class="v.ok ? 'is-ok' : 'is-off'" x-text="v.ok ? v.texto : v.texto"></li>
+        </template>
+      </ul>
+
+      <div class="pm-actions">
+        <a href="{% url 'admin:core_plantillameta_changelist' %}">Cancelar</a>
+        {% if not solo_lectura %}
+        <button type="submit" name="accion" value="guardar">Guardar borrador</button>
+        <button type="submit" class="pm-primary" name="accion" value="enviar" :disabled="!puedeEnviar()">Guardar y enviar a aprobación</button>
+        <p class="pm-motivo" x-show="motivoEnvio()" x-text="motivoEnvio()"></p>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if solo_lectura %}
     <div class="pm-actions">
-      <button type="submit" name="accion" value="guardar">Guardar</button>
-      <button type="submit" class="pm-primary" name="accion" value="enviar">Enviar a Meta para aprobación</button>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="accion" value="duplicar">Duplicar</button>
+      </form>
+      <form method="post" class="pm-prueba">
+        {% csrf_token %}
+        <label>Número
+          <input name="telefono" inputmode="tel" placeholder="57300…" required>
+        </label>
+        <button type="submit" class="pm-primary" name="accion" value="probar">Enviar prueba</button>
+      </form>
     </div>
-  </form>
+    {% endif %}
+  </div>
+
   <aside class="pm-phone" aria-label="Vista del mensaje">
     <div class="pm-phone-bar">WhatsApp</div>
-    <div class="pm-bubble" id="pm-bubble">{{ cuerpo|default:"Tu mensaje se ve aquí" }}</div>
-    <div class="pm-chip" id="pm-chip">{{ boton }}</div>
+    <div class="eki-mb-wa-preview" data-wa-preview="plantilla">
+      <p class="eki-mb-wa-preview__eyebrow">Así llega por WhatsApp</p>
+      <template x-if="tipo === 'IMAGEN'">
+        <img class="pm-preview-foto" src="{% static 'certificados/eki-wordmark.png' %}" alt="Foto de muestra">
+      </template>
+      <div class="eki-mb-wa-preview__bubble" id="pm-bubble">
+        <p class="eki-mb-wa-preview__body" x-html="cuerpoHtml()"></p>
+      </div>
+      <p class="pm-footer-prev" x-show="(footer || '').trim()" x-text="footer"></p>
+      <div>
+        <span class="pm-reply" x-show="(boton1 || '').trim()" x-text="boton1"></span>
+        <span class="pm-reply" x-show="(boton2 || '').trim()" x-text="boton2"></span>
+      </div>
+      <div x-show="tipo === 'CARRUSEL'">
+        <div class="pm-snap" x-ref="snap">
+          <template x-for="(tarjeta, i) in tarjetas" :key="tarjeta.uid">
+            <article class="pm-snap-card">
+              <img x-show="tarjeta.imagen_url" :src="tarjeta.imagen_url" alt="">
+              <strong x-text="tarjeta.titulo || ('Tarjeta ' + (i + 1))"></strong>
+              <p x-text="tarjeta.cuerpo"></p>
+              <span class="pm-reply" x-text="botonVer"></span>
+              <span class="pm-reply" x-text="botonInfo"></span>
+            </article>
+          </template>
+        </div>
+        <div class="pm-snap-nav">
+          <button type="button" class="pm-link" @click="moverPreview(-1)">Anterior</button>
+          <button type="button" class="pm-link" @click="moverPreview(1)">Siguiente</button>
+        </div>
+      </div>
+    </div>
   </aside>
 </div>
-<style>
-.pm-editor{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:1.5rem;max-width:980px;align-items:start}
-.pm-form h1{margin:0 0 .8rem;color:#5F3A6E}
-.pm-form label{display:block;margin:.7rem 0;color:#3d3644;font-weight:650}
-.pm-form input,.pm-form textarea{display:block;width:100%;margin-top:.3rem;padding:.7rem .8rem;border:1px solid #e4dce8;border-radius:10px;background:#f7f4f8;font:inherit}
-.pm-link{background:transparent;border:0;color:#7A4E8E;font-weight:700;cursor:pointer;padding:0}
-.pm-nota{color:#5c5366}
-.pm-tarjeta{border:1px solid #e4dce8;border-radius:12px;margin:.8rem 0;padding:.6rem .8rem}
-.pm-errores{background:#ffebee;color:#c62828;border-radius:8px;padding:.6rem 1rem}
-.pm-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem}
-.pm-primary{background:#7A4E8E;color:#fff;border:0;border-radius:8px;padding:.7rem 1rem;font-weight:700;cursor:pointer}
-.pm-actions button{border-radius:8px;padding:.7rem 1rem;cursor:pointer}
-.pm-phone{background:#efeaf2;border-radius:28px;padding:.7rem;min-height:420px}
-.pm-phone-bar{background:#5F3A6E;color:#fff;border-radius:16px 16px 0 0;padding:.55rem .8rem;font-weight:700}
-.pm-bubble{background:#fff;margin:.8rem .4rem;padding:.7rem .8rem;border-radius:12px;white-space:pre-wrap}
-.pm-chip{display:inline-block;margin:0 .4rem;background:#fff;color:#7A4E8E;border-radius:999px;padding:.25rem .7rem;font-weight:700}
-@media (max-width:800px){.pm-editor{grid-template-columns:1fr}}
-</style>
-<script>
-(function () {
-  var cuerpo = document.getElementById('cuerpo');
-  var bubble = document.getElementById('pm-bubble');
-  var chip = document.getElementById('pm-chip');
-  var boton = document.querySelector('[name="boton_texto"]');
-  function pintar() {
-    bubble.textContent = cuerpo.value || 'Tu mensaje se ve aquí';
-    if (boton) {
-      chip.textContent = boton.value || '';
-      chip.style.display = boton.value ? 'inline-block' : 'none';
-    } else {
-      chip.style.display = 'none';
-    }
-  }
-  cuerpo.addEventListener('input', pintar);
-  if (boton) boton.addEventListener('input', pintar);
-  document.getElementById('pm-var').addEventListener('click', function () {
-    var usados = cuerpo.value.match(/\{\{(\d+)\}\}/g) || [];
-    var n = usados.length + 1;
-    var token = '{' + '{' + n + '}' + '}';
-    var pos = cuerpo.selectionStart || cuerpo.value.length;
-    var antes = cuerpo.value.slice(0, pos);
-    if (!antes || antes.slice(-1) !== ' ') token = ' ' + token;
-    cuerpo.value = antes + token + cuerpo.value.slice(cuerpo.selectionEnd || pos);
-    pintar();
-    cuerpo.focus();
-  });
-  var add = document.getElementById('pm-add-card');
-  if (add) {
-    add.addEventListener('click', function () {
-      var box = document.getElementById('pm-cards');
-      var n = box.querySelectorAll('.pm-tarjeta').length;
-      if (n >= 10) return;
-      var fs = document.createElement('fieldset');
-      fs.className = 'pm-tarjeta';
-      fs.innerHTML = '<legend>Tarjeta ' + (n + 1) + '</legend>'
-        + '<label>Título <input name="card_titulo_' + n + '"></label>'
-        + '<label>Texto <input name="card_cuerpo_' + n + '"></label>'
-        + '<label>Foto https <input name="card_imagen_' + n + '"></label>'
-        + '<label>Botón ver <input name="card_ver_' + n + '" value="Ver curso"></label>'
-        + '<label>Botón info <input name="card_info_' + n + '" value="Más información"></label>';
-      box.appendChild(fs);
-      document.getElementById('card_count').value = String(n + 1);
-    });
-  }
-  pintar();
-})();
-</script>
 {% endblock %}

@@ -56,8 +56,8 @@ UNFOLD = {
     # Sin THEME forzado → switcher light/dark/auto (sidebar usuario + barra superior vía userlinks override).
     # Paletas/COLORS = branding eki en código; no hay skins Jazzmin.
     "BORDER_RADIUS": "12px",
-    # Pestañas del listado de organizaciones. Vacío si ADMIN_CLIENTES_V2 está apagado.
-    "TABS": "core.admin.clientes_v2.tabs_cliente",
+    # Pestañas de organizaciones y de plantillas Meta. Cada callback devuelve [] fuera de su listado.
+    "TABS": "core.admin.unfold_tabs.tabs_admin",
     "ENVIRONMENT": "mvp_project.unfold_admin.environment_callback",
     "DASHBOARD_CALLBACK": "core.views_admin_panel.unfold_dashboard_callback",
     "SITE_FAVICONS": [

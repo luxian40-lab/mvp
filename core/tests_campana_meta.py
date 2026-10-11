@@ -270,11 +270,13 @@ class CampanaMetaTests(TestCase):
         url = reverse('admin:core_plantillameta_change', args=[self.plantilla.pk])
         pagina = client.get(url, follow=True)
         self.assertEqual(pagina.status_code, 200)
-        self.assertContains(pagina, 'Enviar a Meta para aprobación')
-        self.assertContains(pagina, 'Añadir variable')
+        self.assertContains(pagina, 'Guardar y enviar a aprobación')
+        self.assertContains(pagina, 'Agregar variable')
         self.assertContains(pagina, 'pm-phone')
+        self.assertContains(pagina, 'eki-mb-wa-preview')
+        self.assertContains(pagina, '_v2')
         self.assertNotContains(pagina, 'Oferta por tiempo limitado')
-        resp = client.post(reverse('admin:core_plantillameta_escribir_una', args=[self.plantilla.pk]), {
+        resp = client.post(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]), {
             'nombre_interno': 'Aviso café',
             'cuerpo': 'Hola Ana, tu curso abre mañana.',
             'ejemplos_cuerpo': '',
@@ -285,6 +287,7 @@ class CampanaMetaTests(TestCase):
         self.plantilla.refresh_from_db()
         self.assertEqual(self.plantilla.cuerpo, 'Hola Ana, tu curso abre mañana.')
         self.assertEqual(self.plantilla.boton_1_texto, 'Listo')
+        self.assertEqual(self.plantilla.footer, 'eki')
 
     def test_lista_y_tarjetas_de_tipo(self):
         User.objects.create_superuser('meta_lista', 'l@t.com', 'pass12345')
@@ -294,10 +297,13 @@ class CampanaMetaTests(TestCase):
         self.assertContains(lista, 'Nueva plantilla')
         self.assertContains(lista, 'Aviso café')
         tipo = client.get(reverse('admin:core_plantillameta_tipo'))
-        self.assertContains(tipo, 'Texto')
-        self.assertContains(tipo, 'Imagen')
-        self.assertContains(tipo, 'Carrusel')
-        self.assertContains(tipo, 'Continuar')
+        self.assertRedirects(tipo, reverse('admin:core_plantillameta_add'))
+        editor = client.get(reverse('admin:core_plantillameta_add') + '?tipo=TEXTO')
+        self.assertContains(editor, 'Texto')
+        self.assertContains(editor, 'Imagen')
+        self.assertContains(editor, 'Carrusel')
+        self.assertContains(editor, 'Agregar variable')
+        self.assertNotContains(editor, 'Oferta por tiempo limitado')
 
     def test_admin_changelist(self):
         User.objects.create_superuser('meta_admin', 'm@t.com', 'pass12345')
@@ -377,6 +383,75 @@ class CampanaMetaTests(TestCase):
         plantilla.refresh_from_db()
         self.assertEqual(plantilla.estado, 'ERROR')
         self.assertIn('WHATSAPP_APP_ID', plantilla.ultimo_error_mensaje)
+
+
+    def test_editor_guarda_pie_origen_y_ejemplo(self):
+        User.objects.create_superuser('meta_origen', 'o@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_origen', password='pass12345')
+        resp = client.post(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]), {
+            'tipo': 'TEXTO',
+            'nombre_interno': 'Aviso café',
+            'meta_name': 'aviso_cafe',
+            'categoria': 'UTILITY',
+            'idioma': 'es',
+            'cuerpo': 'Hola {{1}}, tu curso abre mañana.',
+            'footer': 'eki aula',
+            'variable_nums': '1',
+            'ejemplo_1': 'Ana',
+            'origen_1': 'estudiante.nombre',
+            'boton_1_texto': 'Listo',
+            'boton_1_tipo': 'QUICK_REPLY',
+            'accion': 'guardar',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.footer, 'eki aula')
+        self.assertEqual(self.plantilla.ejemplos_cuerpo, 'Ana')
+        self.assertEqual(self.plantilla.origen_variables, {'1': 'estudiante.nombre'})
+        self.assertEqual(self.plantilla.meta_name, 'aviso_cafe')
+
+    def test_aprobada_se_abre_en_solo_lectura_y_se_duplica(self):
+        User.objects.create_superuser('meta_dup', 'd2@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_dup', password='pass12345')
+        self.plantilla.estado = 'APPROVED'
+        self.plantilla.meta_template_id = 'tpl-1'
+        self.plantilla.save()
+        pagina = client.get(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]))
+        self.assertContains(pagina, 'Duplicar')
+        self.assertContains(pagina, 'Enviar prueba')
+        self.assertNotContains(pagina, 'Guardar y enviar a aprobación')
+        resp = client.post(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]), {
+            'nombre_interno': 'Cambiada',
+            'cuerpo': 'No debe guardarse.',
+            'accion': 'guardar',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.plantilla.refresh_from_db()
+        self.assertEqual(self.plantilla.nombre_interno, 'Aviso café')
+        copia_resp = client.post(reverse('admin:core_plantillameta_change', args=[self.plantilla.pk]), {
+            'accion': 'duplicar',
+        })
+        self.assertEqual(copia_resp.status_code, 302)
+        copia = PlantillaMeta.objects.exclude(pk=self.plantilla.pk).get()
+        self.assertEqual(copia.estado, 'BORRADOR')
+        self.assertEqual(copia.meta_name, 'aviso_cafe_v2')
+        self.assertIn('copia', copia.nombre_interno)
+        self.assertEqual(copia.meta_template_id, '')
+
+    @patch('core.meta_waba.enviar_prueba_meta')
+    def test_enviar_prueba_usa_los_ejemplos(self, prueba):
+        from core.meta_waba import enviar_prueba_de_plantilla
+
+        prueba.return_value = {'success': True, 'message': 'Prueba enviada.'}
+        self.plantilla.estado = 'APPROVED'
+        self.plantilla.save()
+        resultado = enviar_prueba_de_plantilla(self.plantilla, '573001112233')
+        self.assertTrue(resultado['success'])
+        campana = prueba.call_args.args[0]
+        self.assertEqual(campana.mapeo_body, 'Café')
+        self.assertEqual(prueba.call_args.args[1], '573001112233')
 
 
 class PantallaCampanaMetaTests(SimpleTestCase):

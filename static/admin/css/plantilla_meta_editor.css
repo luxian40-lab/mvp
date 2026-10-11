@@ -1,0 +1,253 @@
+/* Asistente de plantillas. Tokens de Unfold: Cielo, Marca y Oscuro. */
+.pm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.pm-panel,
+.pm-wa {
+  border: 1px solid var(--color-base-200);
+  border-radius: 12px;
+  background: var(--color-white, #fff);
+  padding: 1rem;
+}
+
+.pm-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.pm-pill {
+  border: 1px solid var(--color-base-300);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.pm-pill.is-on {
+  background: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+  color: #fff;
+}
+
+.pm-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-field {
+  display: block;
+  margin: 0.75rem 0;
+}
+
+.pm-field span {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 650;
+}
+
+.pm-field input,
+.pm-field textarea,
+.pm-field select {
+  width: 100%;
+  border: 1px solid var(--color-base-300);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  background: var(--color-base-50);
+  color: inherit;
+  font: inherit;
+}
+
+.pm-tecnico,
+.pm-help code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.pm-help,
+.pm-contador,
+.pm-nota {
+  color: var(--color-base-500);
+  font-size: 0.85rem;
+}
+
+.pm-var-chip {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--color-primary-100);
+  color: var(--color-primary-800);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.pm-reglas {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0;
+}
+
+.pm-reglas li {
+  padding: 0.2rem 0;
+}
+
+.pm-ok {
+  color: #1b7f4a;
+}
+
+.pm-falla {
+  color: #9a6700;
+}
+
+.pm-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0 1rem;
+}
+
+.pm-tabla th,
+.pm-tabla td {
+  text-align: left;
+  padding: 0.35rem 0.3rem;
+  border-bottom: 1px solid var(--color-base-200);
+  font-size: 0.9rem;
+}
+
+.pm-tarjeta {
+  border: 1px solid var(--color-base-200);
+  border-radius: 10px;
+  padding: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.pm-wa__eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-base-500);
+}
+
+.pm-wa__bubble {
+  border-radius: 10px;
+  border-top-left-radius: 2px;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-base-50);
+  white-space: pre-wrap;
+}
+
+.pm-wa__footer {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-base-500);
+}
+
+.pm-wa__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.pm-wa__chip {
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  background: transparent;
+}
+
+.pm-wa__foto {
+  height: 92px;
+  border-radius: 8px;
+  margin-bottom: 0.45rem;
+  background: var(--color-base-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-base-600);
+  font-size: 0.8rem;
+}
+
+.pm-carrusel {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.3rem;
+}
+
+.pm-carrusel article {
+  min-width: 160px;
+  border: 1px solid var(--color-base-200);
+  border-radius: 8px;
+  padding: 0.45rem;
+}
+
+.pm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pm-actions button,
+.pm-actions a {
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--color-base-300);
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pm-actions .pm-primary {
+  background: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+  color: #fff;
+}
+
+.pm-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-errores {
+  border: 1px solid var(--color-base-300);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+html.dark .pm-panel,
+html.dark .pm-wa,
+html.dark .pm-field input,
+html.dark .pm-field textarea,
+html.dark .pm-field select {
+  background: var(--color-base-900);
+  color: var(--color-base-100);
+}
+
+html.dark .pm-wa__bubble,
+html.dark .pm-wa__foto {
+  background: var(--color-base-800);
+}
+
+html.dark .pm-falla {
+  color: #e6b450;
+}
+
+html.dark .pm-ok {
+  color: #7dcea0;
+}
+
+@media (max-width: 900px) {
+  .pm-layout {
+    grid-template-columns: 1fr;
+  }
+}
