@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="eki-import">
+    <h1>Importar varios desde Excel</h1>
+    <p>Tope de {{ tope }} filas. Si la persona ya existe (mismo documento), se actualiza y no se duplica.</p>
+    <ol>
+        <li>Descargue la <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}">plantilla</a>.</li>
+        <li>Suba un .xlsx o un .csv.</li>
+        <li>Revise la vista previa. Solo se guardan las filas válidas.</li>
+    </ol>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="paso" value="previsualizar">
+        <label>Archivo <input type="file" name="archivo_excel" accept=".xlsx,.csv" required></label>
+        <button type="submit">Ver vista previa</button>
+    </form>
+    {% if preview %}
+    <h2>Vista previa</h2>
+    <p>{{ validas|length }} válida(s), {{ malas|length }} con error.</p>
+    {% if malas %}
+    <p><a href="?errores=1">Descargar filas con error</a></p>
+    <table>
+        <thead><tr><th>Fila</th><th>Documento</th><th>Motivo</th></tr></thead>
+        <tbody>
+        {% for fila in malas %}
+        <tr>
+            <td>{{ fila.fila }}</td>
+            <td>{{ fila.cedula|default:"—" }}</td>
+            <td>{{ fila.errores|join:" " }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% if validas %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="paso" value="confirmar">
+        {% if hay_bienvenida %}
+        <label>
+            <input type="checkbox" name="enviar_bienvenida" value="1">
+            Enviar bienvenida por WhatsApp
+        </label>
+        <p class="eki-import-aviso">
+            Saldrían {{ n_mensajes }} mensaje(s), uno por fila válida con curso.
+            Quien no haya aceptado datos o haya pedido no recibir más, no recibe el mensaje.
+            El interruptor está apagado: no se envía nada salvo que lo marque.
+        </p>
+        {% endif %}
+        <button type="submit">Importar filas válidas</button>
+    </form>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
