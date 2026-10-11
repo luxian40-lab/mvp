@@ -1,0 +1,30 @@
+{% extends "admin/change_form.html" %}
+
+{% block bodyclass %}{{ block.super }} eki-cliente-v2{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.eki-cliente-v2 .fieldset-marca {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: 1rem;
+    align-items: start;
+}
+.eki-cliente-v2 .fieldset-marca > fieldset { display: contents; }
+.eki-cliente-v2 .fieldset-marca .leading-relaxed {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    max-width: none;
+}
+.eki-cliente-v2 .fieldset-marca > fieldset > div:not(.leading-relaxed) {
+    grid-column: 1;
+    grid-row: 1;
+}
+@media (max-width: 768px) {
+    .eki-cliente-v2 .fieldset-marca { grid-template-columns: 1fr; }
+    .eki-cliente-v2 .fieldset-marca .leading-relaxed { grid-column: 1; grid-row: 2; }
+}
+</style>
+{% endblock %}

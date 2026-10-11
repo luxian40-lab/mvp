@@ -1,0 +1,53 @@
+{% if original %}
+<div id="eki-cli-encabezado" class="mb-6 flex flex-col gap-4 border-b border-base-200 pb-4 dark:border-base-800">
+    <div class="flex flex-wrap items-start gap-4">
+        {% if eki_org_logo %}
+        <img class="h-14 w-14 rounded-md border border-base-200 object-contain dark:border-base-800" src="{{ eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        {% else %}
+        <span class="flex h-14 w-14 items-center justify-center rounded-md border border-base-200 text-lg font-semibold dark:border-base-800">{{ eki_org_inicial }}</span>
+        {% endif %}
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-lg font-semibold text-important">{{ original.nombre }}</h2>
+                {% if original.activo %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800">Activo</span>
+                {% else %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800">Inactivo</span>
+                {% endif %}
+                {% for producto in eki_cli_productos %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800">{{ producto }}</span>
+                {% empty %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800">Sin dato</span>
+                {% endfor %}
+                {% if eki_cli_sin_plan %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800" title="{{ eki_cli_texto_sin_plan }}">Sin plan Meta</span>
+                {% elif eki_cli_plan %}
+                <span class="rounded-md bg-base-100 px-2 py-0.5 text-xs font-medium dark:bg-base-800">{{ eki_cli_plan }}</span>
+                {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-subtle">
+                {% if original.contacto_principal %}{{ original.contacto_principal }}{% endif %}
+                {% if original.email %}{% if original.contacto_principal %} · {% endif %}{{ original.email }}{% endif %}
+                {% if original.nit %}{% if original.contacto_principal or original.email %} · {% endif %}NIT {{ original.nit }}{% endif %}
+            </p>
+        </div>
+    </div>
+    <ul class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <li><strong>{{ eki_cli_stats.estudiantes }}</strong> estudiantes activos</li>
+        <li><strong>{{ eki_cli_stats.cursos }}</strong> cursos activos</li>
+        <li><strong>{{ eki_cli_stats.campanas }}</strong> campañas</li>
+        <li>
+            <strong>Último WhatsApp</strong>
+            {% if eki_cli_ultima_wa %}
+            {{ eki_cli_ultima_wa.fecha|date:"d/m/Y H:i" }}
+            {% else %}
+            Sin dato
+            {% endif %}
+        </li>
+    </ul>
+</div>
+{% else %}
+<div id="eki-cli-encabezado" class="mb-6 border-b border-base-200 pb-4 dark:border-base-800">
+    <h2 class="text-lg font-semibold text-important">Nueva organización</h2>
+</div>
+{% endif %}

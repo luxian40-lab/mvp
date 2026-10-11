@@ -229,6 +229,23 @@ class SuscripcionClienteFilter(admin.SimpleListFilter):
 class ClienteAdminFormV2(ClientePortalAdminForm):
     """Mismo guardado que el formulario actual. No reescribe portal_productos si las casillas no cambian."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        ayudas = {
+            'activo': 'Si lo desactiva, sus estudiantes dejan de recibir mensajes.',
+            'es_demo': 'Marca organizaciones de prueba. No cambia envíos ni permisos.',
+            'logo_archivo': 'Suba PNG, JPG, WebP o GIF. Máximo 5 MB. Se guarda al pulsar Guardar.',
+            'logo_url': 'O pegue una URL. Si sube un archivo, esta URL se reemplaza.',
+            'quitar_logo': 'Quita el logo y vuelve a la inicial del nombre.',
+            'wallpaper_archivo': 'Fondo de Aprende. JPG, PNG o WebP. Máximo 2 MB.',
+            'wallpaper_aula_url': 'O pegue la URL del fondo. Si sube un archivo, se completa al guardar.',
+            'quitar_wallpaper': 'Quita el fondo y vuelve al de eki.',
+            'portal_subtitulo': 'Texto corto bajo el nombre en el portal.',
+        }
+        for nombre, texto in ayudas.items():
+            if nombre in self.fields:
+                self.fields[nombre].help_text = texto
+
     def clean_numero_whatsapp_nat(self):
         raw = (self.cleaned_data.get('numero_whatsapp_nat') or '').strip()
         anterior = ''
@@ -297,6 +314,8 @@ class ClienteAdminV2(ClienteAdmin):
     """Misma lógica de guardado, permisos y acciones. Cambia la disposición."""
 
     form = ClienteAdminFormV2
+    change_form_template = 'admin/core/cliente/change_form_v2.html'
+    change_form_before_template = 'admin/core/cliente/encabezado.html'
     search_help_text = 'Buscar por nombre, NIT, contacto o correo'
     list_display = (
         'columna_organizacion',
@@ -335,14 +354,13 @@ class ClienteAdminV2(ClienteAdmin):
     fieldsets = (
         ('Datos', {
             'classes': ['tab'],
+            'description': 'Si desactiva el cliente, sus estudiantes dejan de recibir mensajes.',
             'fields': (
                 ('nombre', 'nit'),
                 ('contacto_principal', 'telefono'),
-                'email',
+                ('email', 'es_demo'),
                 'notas_internas',
-                'activo',
-                'es_demo',
-                'fecha_registro',
+                ('activo', 'fecha_registro'),
             ),
         }),
         ('Marca', {
@@ -432,6 +450,69 @@ class ClienteAdminV2(ClienteAdmin):
             'fields': ('mapa_cobertura_rapido',),
         }),
     )
+
+    def get_fieldsets(self, request, obj=None):
+        salida = []
+        for nombre, opciones in super().get_fieldsets(request, obj):
+            opciones = dict(opciones)
+            if nombre == 'Marca':
+                opciones['description'] = self._panel_asi_se_ve(obj)
+            salida.append((nombre, opciones))
+        return salida
+
+    def _panel_asi_se_ve(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde la organización para ver el logo y el fondo.'
+        from portal.branding import contexto_identidad_org
+
+        ctx = contexto_identidad_org(obj)
+        logo = ctx.get('eki_org_logo') or ''
+        fondo = ctx.get('eki_org_wallpaper') or ''
+        if logo:
+            logo_html = format_html(
+                '<img src="{}" alt="" style="max-width:100%;max-height:6rem;object-fit:contain">',
+                logo,
+            )
+        else:
+            logo_html = 'Sin logo'
+        if fondo:
+            fondo_html = format_html(
+                '<a href="{}" target="_blank" rel="noopener">Ver fondo actual</a>',
+                fondo,
+            )
+        else:
+            fondo_html = 'Sin fondo'
+        subtitulo = (obj.portal_subtitulo or '').strip() or 'Sin subtítulo'
+        return format_html(
+            '<aside class="eki-marca-preview"><h3>Así se ve</h3>'
+            '<p>{}</p><p><strong>Logo</strong><br>{}</p>'
+            '<p><strong>Fondo Aprende</strong><br>{}</p></aside>',
+            subtitulo,
+            logo_html,
+            fondo_html,
+        )
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            etiquetas = dict(PORTAL_PRODUCTO_CHOICES)
+            raw = (obj.portal_productos or '').strip()
+            if raw:
+                productos = [
+                    etiquetas.get(p.strip(), p.strip())
+                    for p in raw.split(',')
+                    if p.strip()
+                ]
+            elif obj.tipo_proyecto:
+                productos = [obj.get_tipo_proyecto_display()]
+            else:
+                productos = []
+            extra_context['eki_cli_productos'] = productos
+            extra_context['eki_cli_sin_plan'] = not (obj.plan_linea_meta or '').strip()
+            extra_context['eki_cli_plan'] = dict(PLAN_CHOICES).get(obj.plan_linea_meta, '')
+            extra_context['eki_cli_texto_sin_plan'] = _texto_sin_plan()
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
