@@ -22,6 +22,7 @@ ESTADOS_PLANTILLA = [
     ('DISABLED', 'Deshabilitada'),
     ('IN_APPEAL', 'En apelación'),
     ('ERROR', 'Error'),
+    ('NO_EXISTE', 'No existe en Meta'),
 ]
 
 CATEGORIAS_META = [
@@ -47,8 +48,21 @@ TIPOS_PLANTILLA = [
     ('LLAMADA', 'Permiso de llamada'),
     ('AUTENTICACION', 'Autenticación (código)'),
     ('PEDIDO', 'Pedido (estado o detalle)'),
+    ('OTRO', 'Otro'),
 ]
 TIPOS_ALTA_GRAPH = frozenset({'TEXTO', 'CARRUSEL'})
+
+ORIGEN_PLANTILLA = [
+    ('LOCAL', 'Local'),
+    ('IMPORTADA', 'Importada'),
+]
+
+CAMPOS_ORIGEN_VARIABLE = [
+    ('estudiante.nombre', 'Estudiante · nombre'),
+    ('organizacion.nombre', 'Organización · nombre'),
+    ('curso.nombre', 'Curso · nombre'),
+    ('texto_fijo', 'Texto fijo'),
+]
 
 
 def sanitizar_nombre_meta(nombre: str) -> str:
@@ -102,6 +116,7 @@ class PlantillaMeta(models.Model):
         max_length=20,
         choices=CATEGORIAS_META,
         default='UTILITY',
+        blank=True,
         verbose_name='Categoría Meta',
     )
     header_texto = models.CharField(
@@ -181,8 +196,41 @@ class PlantillaMeta(models.Model):
     ultimo_error_code = models.CharField(max_length=32, blank=True, default='', verbose_name='Código error')
     ultimo_error_mensaje = models.TextField(blank=True, default='', verbose_name='Error Meta')
     activa = models.BooleanField(default=True, verbose_name='Activa')
+    calidad = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        verbose_name='Calidad',
+        help_text='Puntaje que devuelve Meta (GREEN, YELLOW, RED). Vacío si Meta no lo envió.',
+    )
+    origen = models.CharField(
+        max_length=16,
+        choices=ORIGEN_PLANTILLA,
+        default='LOCAL',
+        db_index=True,
+        verbose_name='Origen',
+    )
+    components_raw = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Componentes de Meta',
+        help_text='JSON tal como lo devolvió Meta. No se reescribe a mano.',
+    )
+    notas = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Notas',
+        help_text='Solo de este admin. Traer de Meta no las pisa.',
+    )
+    origen_variables = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Origen de las variables',
+        help_text='Por número: estudiante.nombre, organizacion.nombre, curso.nombre o texto_fijo.',
+    )
     enviada_en = models.DateTimeField(null=True, blank=True, verbose_name='Enviada a Meta')
     sincronizada_en = models.DateTimeField(null=True, blank=True, verbose_name='Última sync')
+    actualizada_en = models.DateTimeField(auto_now=True, verbose_name='Actualizada')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
