@@ -466,6 +466,9 @@ class ModuleBuilderUiV2Tests(TestCase):
         self.assertIn('Lectura', body)
         self.assertNotIn('Subir mensaje', body)
         self.assertNotIn('module_builder_v2.css', body)
+        self.assertNotIn('data-eki-mb-pestana', body)
+        self.assertNotIn('eki-mb-save-calendario', body)
+        self.assertNotIn('Texto + archivo', body)
         self.assertNotIn('drip_organizaciones', r.context)
 
 
@@ -488,6 +491,36 @@ class ModuleBuilderUiV2EncendidoTests(ModuleBuilderUiV2Tests):
         self.assertIn('module_builder_v2.css', body)
         self.assertIn('eki-mb-shell--v2', body)
         self.assertIn('/admin/core/modulo/%s/publicar/' % self.mod.pk, body)
+        self.assertIn('Publicar en WhatsApp', body)
+        self.assertIn('data-eki-mb-pestana="contenido"', body)
+        self.assertIn('data-eki-mb-pestana="general"', body)
+        self.assertIn('data-eki-mb-pestana="calendario"', body)
+        self.assertIn('eki-mb-save-calendario', body)
+        self.assertIn('Texto + archivo', body)
+        self.assertIn('+ Texto antes', body)
+        self.assertIn('+ Texto después', body)
+        self.assertIn('>Renombrar<', body)
+        self.assertIn('+ Agregar mensaje', body)
+        js = open(
+            'static/admin/js/module_builder.js', encoding='utf-8'
+        ).read()
+        self.assertIn('incluirCalendario', js)
+        self.assertIn("classList.contains('eki-mb-shell--v2')", js)
+
+    def test_botones_subir_y_bajar_mueven_el_mensaje(self):
+        segundo = agregar_micro(self.mod, self.paso.seccion, titulo='Dos', contenido='texto dos')
+        r = self.client.post(self.url, {
+            'action': 'move_micro',
+            'paso_id': str(segundo.id),
+            'direction': 'up',
+        }, secure=True)
+        self.assertEqual(r.status_code, 302)
+        ids = list(
+            PasoModulo.objects.filter(modulo=self.mod)
+            .order_by('orden', 'id')
+            .values_list('id', flat=True)
+        )
+        self.assertEqual(ids[0], segundo.id)
 
     def test_lectura_de_organizaciones_no_escribe(self):
         from core.models import Cliente, HabilitacionModuloDripCliente, HabilitacionModuloEstudiante

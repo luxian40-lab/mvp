@@ -178,7 +178,10 @@
         body.set(el.name, el.value);
       }
     });
-    body.set('modulo_habilitado_desde', calendario);
+    var v2 = shell.classList.contains('eki-mb-shell--v2');
+    if (!v2 || options.incluirCalendario) {
+      body.set('modulo_habilitado_desde', calendario);
+    }
     collectPasoFields(shell, body, options.pasoId || null);
   }
 
@@ -293,7 +296,7 @@
         el.textContent = label;
       });
       saveBtns.forEach(function (btn) {
-        btn.disabled = !dirty && label === 'Guardado';
+        btn.disabled = !dirty && label.indexOf('Guardado') === 0;
       });
       if (pubLink) {
         if (dirty) pubLink.classList.add('eki-mb-sticky__pub--disabled');
@@ -340,6 +343,7 @@
         btn.disabled = false;
       });
       if (err) setState(err.message || 'No se pudo guardar', true);
+      else if (shell.classList.contains('eki-mb-shell--v2')) setState(textoGuardado(true), false);
       else setState('Guardado', false);
     }
 
@@ -359,7 +363,10 @@
 
     saveBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
-        runSave({ action: 'save_modulo' });
+        runSave({
+          action: 'save_modulo',
+          incluirCalendario: btn.classList.contains('eki-mb-save-calendario'),
+        });
       });
     });
 
@@ -560,12 +567,18 @@
       editEl.querySelector('.eki-mb__media-url:not([hidden])')
       || (row && row.querySelector('.eki-mb__row-preview--muted'))
     );
+    var v2 = !!editEl.closest('.eki-mb-shell--v2');
+    var archivo = preview.querySelector('.eki-mb-wa-preview__archivo');
     if (bEl) {
-      bEl.textContent = cVal || (hasMedia
-        ? 'Sin texto. En WhatsApp solo llega el archivo.'
-        : 'Sin texto para WhatsApp.');
+      if (v2 && cVal && hasMedia) bEl.textContent = cVal;
+      else {
+        bEl.textContent = cVal || (hasMedia
+          ? 'Sin texto. En WhatsApp solo llega el archivo.'
+          : 'Sin texto para WhatsApp.');
+      }
     }
-    if (note) note.hidden = !hasMedia;
+    if (archivo) archivo.hidden = !(v2 && cVal && hasMedia);
+    if (note) note.hidden = !hasMedia || (v2 && cVal && hasMedia);
     preview.hidden = false;
   }
 
@@ -765,6 +778,57 @@
     });
   }
 
+  var guardadoEn = 0;
+
+  function textoGuardado(recien) {
+    if (recien) guardadoEn = Date.now();
+    if (!guardadoEn) return 'Sin cambios';
+    var min = Math.floor((Date.now() - guardadoEn) / 60000);
+    if (min < 1) return 'Guardado hace un momento';
+    if (min === 1) return 'Guardado hace 1 minuto';
+    return 'Guardado hace ' + min + ' minutos';
+  }
+
+  function initPestanas(shell) {
+    if (!shell.classList.contains('eki-mb-shell--v2')) return;
+    var botones = shell.querySelectorAll('[data-eki-mb-pestana]');
+    if (!botones.length) return;
+    function aplicar(nombre) {
+      shell.setAttribute('data-pestana', nombre);
+      botones.forEach(function (b) {
+        var on = b.getAttribute('data-eki-mb-pestana') === nombre;
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      var mostrarContenido = nombre === 'contenido' || nombre === 'vista';
+      shell.querySelectorAll('[data-eki-mb-panel]').forEach(function (panel) {
+        var id = panel.getAttribute('data-eki-mb-panel');
+        panel.hidden = id === 'contenido' ? !mostrarContenido : id !== nombre;
+      });
+    }
+    botones.forEach(function (b) {
+      b.addEventListener('click', function () {
+        aplicar(b.getAttribute('data-eki-mb-pestana'));
+      });
+    });
+    shell.querySelectorAll('.eki-mb-renombrar').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var campo = document.getElementById(b.getAttribute('data-eki-mb-focus'));
+        if (!campo) return;
+        campo.focus();
+        campo.select();
+      });
+    });
+    aplicar('contenido');
+    window.setInterval(function () {
+      if (!guardadoEn || shell.dataset.ekiMbDirty === '1') return;
+      var el = document.getElementById('eki-mb-save-state-top');
+      var bajo = document.getElementById('eki-mb-save-state');
+      var texto = textoGuardado(false);
+      if (el) el.textContent = texto;
+      if (bajo) bajo.textContent = texto;
+    }, 30000);
+  }
+
   function boot() {
     var shell = document.getElementById('eki-mb-shell') || document.querySelector('.eki-mb-shell');
     if (!shell) return;
@@ -776,6 +840,7 @@
     initStepPanel(shell);
     initUploadDraftPreserve(shell);
     initDeleteMedia(shell);
+    initPestanas(shell);
   }
 
   if (document.readyState === 'loading') {

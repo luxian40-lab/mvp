@@ -26,3 +26,123 @@ html[data-eki-tone="noche"] .eki-mb-shell.eki-mb-shell--v2,
   --eki-mb-hero-grad-b: var(--color-base-800);
   --eki-mb-line: color-mix(in srgb, var(--color-base-50) 14%, transparent);
 }
+
+.eki-mb-shell--v2 .eki-mb-crumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+}
+
+.eki-mb-shell--v2 .eki-mb-status {
+  display: inline-block;
+  margin: 0 0 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-primary-100, var(--eki-mb-sec-head));
+  color: var(--eki-mb-ink);
+  font-size: 0.75rem;
+}
+
+.eki-mb-shell--v2 .eki-mb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+}
+
+.eki-mb-shell--v2 .eki-mb-tab {
+  border: 1px solid var(--eki-mb-line);
+  background: var(--eki-mb-card);
+  color: var(--eki-mb-ink);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.eki-mb-shell--v2 .eki-mb-tab[aria-selected="true"] {
+  background: var(--color-primary-600, var(--eki-mb-accent));
+  color: #fff;
+  border-color: transparent;
+}
+
+.eki-mb-shell--v2 .eki-mb-tab--vista {
+  display: none;
+}
+
+.eki-mb-shell--v2 .eki-mb__general-summary {
+  display: none;
+}
+
+.eki-mb-shell--v2 #eki-mb-general {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.eki-mb-shell--v2 .eki-mb-layout {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.eki-mb-shell--v2 #eki-mb-panel-edits .eki-mb__row-edit.is-panel-active {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+  column-gap: 1rem;
+  align-items: start;
+}
+
+.eki-mb-shell--v2 .eki-mb__row-edit.is-panel-active > :not(.eki-mb-wa-preview) {
+  grid-column: 1;
+}
+
+.eki-mb-shell--v2 .eki-mb__row-edit.is-panel-active .eki-mb-wa-preview {
+  grid-column: 2;
+  grid-row: 1 / span 40;
+}
+
+.eki-mb-shell--v2 .eki-mb-nota-envio,
+.eki-mb-shell--v2 .eki-mb-vecino-nota {
+  margin: 0 0 0.75rem;
+  color: var(--eki-mb-muted);
+  font-size: 0.82rem;
+}
+
+.eki-mb-shell--v2 .eki-mb-mixto {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #f3d48a;
+  color: #3d3550;
+  font-size: 0.72rem;
+}
+
+.eki-mb-shell--v2 .eki-mb__sec {
+  border: 1px solid var(--eki-mb-line);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: var(--eki-mb-card);
+}
+
+@media (max-width: 960px) {
+  .eki-mb-shell--v2 .eki-mb-tab--vista {
+    display: inline-flex;
+  }
+  .eki-mb-shell--v2 .eki-mb-layout,
+  .eki-mb-shell--v2 #eki-mb-panel-edits .eki-mb__row-edit.is-panel-active {
+    grid-template-columns: 1fr;
+  }
+  .eki-mb-shell--v2 .eki-mb__row-edit.is-panel-active .eki-mb-wa-preview,
+  .eki-mb-shell--v2 .eki-mb__row-edit.is-panel-active > :not(.eki-mb-wa-preview) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .eki-mb-shell--v2[data-pestana="vista"] .eki-mb-workspace {
+    display: none;
+  }
+  .eki-mb-shell--v2[data-pestana="vista"] .eki-mb__row-edit.is-panel-active > :not(.eki-mb-wa-preview) {
+    display: none;
+  }
+}

@@ -12,14 +12,14 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=32">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=33">
 {% if mb_ui_v2 %}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=2">
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-<script src="{% static 'admin/js/module_builder.js' %}?v=32" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=33" defer></script>
 
 {% endblock %}
 
@@ -65,6 +65,17 @@
 
       <p class="eki-mb__eyebrow">eki · Module Builder</p>
 
+      {% if mb_ui_v2 %}
+      <nav class="eki-mb-crumb" aria-label="Ruta">
+        <a href="/admin/core/curso/">Cursos</a>
+        <span aria-hidden="true">›</span>
+        {% if curso and curso_admin_url %}<a href="{{ curso_admin_url }}">{{ curso.nombre }}</a>
+        <span aria-hidden="true">›</span>{% endif %}
+        <span>Módulo {{ modulo.numero }}</span>
+      </nav>
+      <p class="eki-mb-status">{% if modulo_publicado_wa %}Publicado en WhatsApp{% else %}Borrador{% endif %}</p>
+      {% endif %}
+
       <h1 class="eki-mb__title">Módulo {{ modulo.numero }}</h1>
 
       <label class="eki-mb__field-label eki-mb__field-label--inline" for="eki-mb-modulo-titulo">Nombre del módulo</label>
@@ -93,7 +104,7 @@
 
       <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-top">
 
-        Guardar módulo
+        {% if mb_ui_v2 %}Guardar{% else %}Guardar módulo{% endif %}
 
       </button>
 
@@ -101,7 +112,14 @@
 
   </header>
 
-
+  {% if mb_ui_v2 %}
+  <div class="eki-mb-tabs" role="tablist" aria-label="Partes del módulo">
+    <button type="button" class="eki-mb-tab" role="tab" data-eki-mb-pestana="contenido" aria-selected="true">Contenido</button>
+    <button type="button" class="eki-mb-tab" role="tab" data-eki-mb-pestana="general" aria-selected="false">General</button>
+    <button type="button" class="eki-mb-tab" role="tab" data-eki-mb-pestana="calendario" aria-selected="false">Calendario y drip</button>
+    <button type="button" class="eki-mb-tab eki-mb-tab--vista" role="tab" data-eki-mb-pestana="vista" aria-selected="false">Vista previa</button>
+  </div>
+  {% endif %}
 
   {% if media_problemas %}
 
@@ -175,7 +193,7 @@
 
     <div class="eki-mb__general-body">
 
-      <section class="eki-mb__drip-block" aria-labelledby="eki-mb-drip-heading">
+      <section class="eki-mb__drip-block" aria-labelledby="eki-mb-drip-heading"{% if mb_ui_v2 %} data-eki-mb-panel="calendario"{% endif %}>
         <h3 class="eki-mb__drip-heading" id="eki-mb-drip-heading">Calendario y drip</h3>
 
         <label class="eki-mb__field-label" for="eki-mb-habilitado-fecha">Disponible desde (calendario global)</label>
@@ -217,6 +235,11 @@
           {% endif %}
         </dl>
 
+        {% if mb_ui_v2 %}
+        <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger eki-mb-save-calendario">Guardar calendario</button>
+        <p class="eki-mb__field-hint">Solo este botón envía la fecha. Guardar, en Contenido o en General, no la cambia.</p>
+        {% endif %}
+
         <p class="eki-mb__drip-links">
           {% if cliente_admin_url %}
           <a href="{{ cliente_admin_url }}">Habilitación por cliente</a>
@@ -228,7 +251,7 @@
         </p>
       </section>
 
-      <div class="eki-mb__general-grid">
+      <div class="eki-mb__general-grid"{% if mb_ui_v2 %} data-eki-mb-panel="general"{% endif %}>
 
         <label class="eki-mb__field-label" for="eki-mb-descripcion">Descripción breve</label>
 
@@ -296,7 +319,7 @@
 
       </div>
 
-      <p class="eki-mb__general-links">
+      <p class="eki-mb__general-links"{% if mb_ui_v2 %} data-eki-mb-panel="general"{% endif %}>
 
         <a href="{{ avanzado_url }}#course-engine">Voz / tier CE</a> ·
 
@@ -314,9 +337,13 @@
 
 
 
-  <div class="eki-mb-layout">
+  <div class="eki-mb-layout"{% if mb_ui_v2 %} data-eki-mb-panel="contenido"{% endif %}>
 
   <div class="eki-mb-workspace">
+
+  {% if mb_ui_v2 %}
+  <p class="eki-mb-nota-envio">Cada sección se envía completa cuando la persona responde listo. Cada mensaje viaja solo: el texto y el archivo nunca van juntos.</p>
+  {% endif %}
 
   <div id="eki-mb-sections" class="eki-mb__sections">
 
@@ -335,6 +362,9 @@
           <label class="eki-mb__field-label eki-mb__field-label--inline" for="seccion-{{ bloque.seccion.id }}-titulo">Sección</label>
 
           <input type="text" id="seccion-{{ bloque.seccion.id }}-titulo" name="seccion_{{ bloque.seccion.id }}_titulo" value="{{ bloque.seccion.titulo }}" placeholder="Nombre de la sección" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty" maxlength="200">
+          {% if mb_ui_v2 %}
+          <button type="button" class="eki-mb__btn eki-mb__btn--ghost eki-mb__btn--sm eki-mb-renombrar" data-eki-mb-focus="seccion-{{ bloque.seccion.id }}-titulo">Renombrar</button>
+          {% endif %}
 
           <p class="eki-mb__sec-meta">{{ bloque.n_micros }} paso{{ bloque.n_micros|pluralize:"s" }} · orden sec. {{ bloque.seccion.orden }}</p>
 
@@ -371,6 +401,7 @@
           <span class="eki-mb__row-chips">
 
             <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{% if mb_ui_v2 %}{% etiqueta_mensaje m %}{% else %}{{ m.builder_ui.type_label }}{% endif %}</span>
+            {% if mb_ui_v2 and m.contenido and m.media_url %}<span class="eki-mb-mixto">Texto + archivo</span>{% endif %}
 
             <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
 
@@ -437,7 +468,7 @@
 
           </form>
 
-          <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}" title="{% if m.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+          <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}{% if mb_ui_v2 and m.media_upload_ui.code == 'processing' %} eki-mb-estado--procesando{% endif %}" title="{% if mb_ui_v2 %}{% if m.media_upload_ui.code == 'processing' %}Procesando{% elif m.activo %}Activo{% else %}Sin activar{% endif %}{% else %}{% if m.activo %}Activo{% else %}Inactivo{% endif %}{% endif %}"></span>
 
         </div>
 
@@ -471,7 +502,7 @@
           <input type="hidden" name="action" value="add_micro">
           <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
           <input type="hidden" name="plantilla" value="mensaje">
-          <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Mensaje</button>
+          <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ {% if mb_ui_v2 %}Agregar mensaje{% else %}Mensaje{% endif %}</button>
         </form>
         <form method="post" class="eki-mb__inline-form">
           {% csrf_token %}
@@ -490,6 +521,7 @@
           <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Quiz</button>
         </form>
       </div>
+      {% if not mb_ui_v2 %}
       <p class="eki-mb__form-label">O escriba el texto y suba el archivo (video, PDF, imagen)</p>
 
       <input type="text" name="titulo" placeholder="Título interno (opcional)" class="eki-mb__input">
@@ -515,6 +547,7 @@
       </fieldset>
 
       <button type="submit" class="eki-mb__btn eki-mb__btn--primary">+ Añadir contenido</button>
+      {% endif %}
 
     </form>
 
@@ -623,9 +656,11 @@
 
 
 
+          <div class="eki-mb-texto"{% if mb_ui_v2 and m.media_url and not m.contenido %} hidden{% endif %}>
           <label class="eki-mb__field-label">Contenido al estudiante</label>
 
           <textarea name="paso_{{ m.id }}_contenido" rows="4" placeholder="Texto que verá en WhatsApp o en el aula" class="eki-mb__input eki-mb-track-dirty eki-mb-preview-src" data-preview="contenido">{{ m.contenido }}</textarea>
+          </div>
 
 
 
@@ -650,13 +685,14 @@
             </label>
             <label class="eki-mb__seg-opt">
               <input type="radio" name="paso_{{ m.id }}_entrega" value="manual" class="eki-mb-track-dirty" {% if m.builder_ui.entrega != "automatico" %}checked{% endif %}>
-              Espera respuesta
+              {% if mb_ui_v2 %}Pide listo para avanzar{% else %}Espera respuesta{% endif %}
             </label>
           </div>
 
           <div class="eki-mb__meta-readonly">
 
             <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{% if mb_ui_v2 %}{% etiqueta_mensaje m %}{% else %}{{ m.builder_ui.type_label }}{% endif %}</span>
+            {% if mb_ui_v2 and m.contenido and m.media_url %}<span class="eki-mb-mixto">Texto + archivo</span>{% endif %}
 
             <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
 
@@ -732,7 +768,7 @@
             {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
             <input type="hidden" name="action" value="set_video_entrega">
             <input type="hidden" name="paso_id" value="{{ m.id }}">
-            <p class="eki-mb__form-label">Cómo llega este video</p>
+            <p class="eki-mb__form-label">{% if mb_ui_v2 %}Cómo se entrega{% else %}Cómo llega este video{% endif %}</p>
             <label class="eki-mb__check">
               <input type="radio" name="video_entrega" value="whatsapp" {% if m.video_entrega != 'enlace' %}checked{% endif %}>
               WhatsApp directo
@@ -774,15 +810,41 @@
 
 
 
+          {% if mb_ui_v2 and m.media_url %}
+          <p class="eki-mb-vecino-nota">El mensaje de texto nuevo queda al final de la sección. Súbalo o bájelo para dejarlo al lado de este archivo.</p>
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="add_micro">
+            <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+            <input type="hidden" name="plantilla" value="mensaje">
+            <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Texto antes</button>
+          </form>
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="add_micro">
+            <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+            <input type="hidden" name="plantilla" value="mensaje">
+            <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Texto después</button>
+          </form>
+          {% endif %}
+
           <div class="eki-mb-wa-preview" data-wa-preview="{{ m.id }}">
 
-            <p class="eki-mb-wa-preview__eyebrow">Así llega por WhatsApp</p>
+            <p class="eki-mb-wa-preview__eyebrow">{% if mb_ui_v2 %}Vista previa{% else %}Así llega por WhatsApp{% endif %}</p>
 
             <div class="eki-mb-wa-preview__bubble">
 
               <p class="eki-mb-wa-preview__body"></p>
 
             </div>
+
+            {% if mb_ui_v2 %}
+            <div class="eki-mb-wa-preview__bubble eki-mb-wa-preview__archivo" {% if not m.contenido or not m.media_url %}hidden{% endif %}>
+              <p>Archivo, en otro mensaje.</p>
+            </div>
+            {% endif %}
 
             <p class="eki-mb-wa-preview__media" hidden>También se envía el archivo adjunto.</p>
 
@@ -814,11 +876,11 @@
 
   {% endif %}
 
-  <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-all">Guardar módulo</button>
+  <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-all">{% if mb_ui_v2 %}Guardar{% else %}Guardar módulo{% endif %}</button>
 
   {% if not modulo_publicado_wa %}
 
-  <a href="{{ publicar_url }}" class="eki-mb__btn eki-mb__btn--outline eki-mb-sticky__pub" id="eki-mb-publicar">Publicar ▶</a>
+  <a href="{{ publicar_url }}" class="eki-mb__btn eki-mb__btn--outline eki-mb-sticky__pub" id="eki-mb-publicar">{% if mb_ui_v2 %}Publicar en WhatsApp{% else %}Publicar ▶{% endif %}</a>
 
   {% else %}
 

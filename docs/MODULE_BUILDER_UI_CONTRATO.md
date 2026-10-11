@@ -191,3 +191,11 @@ Medido con el cliente de pruebas, módulo de 10 secciones y 2 mensajes cada una 
 `EKI_MODULE_BUILDER_UI_V2` sale apagado. Apagado: el HTML de siempre, `module_builder.css` y `module_builder.js`, sin botones de mover y con la etiqueta de `paso_builder_ui`. Encendido: el mismo shell Unfold, la hoja `module_builder_v2.css` (variables `--color-primary-*` y `--color-base-*`, que Cielo, Marca y Oscuro ya reescriben), la etiqueta de pantalla Texto / Imagen / Video / Audio / Documento (el `data-step-type` sigue saliendo de `paso_builder_ui`) y botones Subir / Bajar que hacen POST `action=move_micro` con `direction=up|down`.
 
 Con el interruptor encendido el GET añade, en solo lectura, `drip_organizaciones`, `drip_personas_conteo` y `drip_orgs_lista_blanca`. Apagado, esas claves no están y el GET de 10 secciones sigue en 8 consultas.
+
+## Fase 2 (tres paneles)
+
+Con el interruptor encendido la página muestra la ruta Cursos › curso › módulo, las pestañas Contenido, General y Calendario y drip, la estructura a la izquierda, el editor y la vista previa a la derecha. En pantallas estrechas aparece la pestaña Vista previa.
+
+Guardar (Contenido o General) no envía `modulo_habilitado_desde`. Solo el botón Guardar calendario lo envía. El JS mira la clase `eki-mb-shell--v2`: apagado, el guardado sigue mandando la fecha como hoy.
+
+`+ Texto antes` y `+ Texto después` hacen POST `add_micro` con plantilla mensaje. `agregar_micro` siempre inserta al final de la sección; no hay posición en esa action. La persona lo deja al lado con Subir o Bajar. Un mensaje que ya tiene texto y archivo no se parte: se muestra la etiqueta «Texto + archivo» y, en la vista previa, dos burbujas.
