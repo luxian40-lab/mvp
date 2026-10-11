@@ -140,7 +140,7 @@ class EstudiantesCrmTests(TestCase):
     def test_kpis_cuadran_con_el_calculo(self):
         respuesta = self.http.get(self.url, {'q': 'CRM'})
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, 'data-kpi="avance">13%<')
+        self.assertContains(respuesta, 'data-kpi="avance">10%<')
         self.assertContains(respuesta, 'data-kpi="completaron">0<')
         self.assertContains(respuesta, 'data-kpi="habeas">1<')
         self.assertContains(respuesta, 'data-kpi="sin-actividad">1<')
@@ -231,6 +231,15 @@ class EstudiantesCrmTests(TestCase):
         self.assertEqual(lote.status_code, 200)
         self.assertEqual(n1, n80)
         self.assertLessEqual(n80 - n0, 8)
+
+    def test_buscar_no_cambia_los_kpi_ni_esconde_al_resto_de_la_org(self):
+        respuesta = self.http.get(self.url, {'q': 'Marta'})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'Marta Crm')
+        self.assertNotContains(respuesta, 'Luis Crm')
+        self.assertContains(respuesta, 'data-kpi="avance">10%<')
+        self.assertContains(respuesta, 'data-kpi="habeas">1<')
+        self.assertNotContains(respuesta, 'Estado del chat')
 
     def test_la_nota_queda_en_la_fila(self):
         self.user.first_name = 'Julian'

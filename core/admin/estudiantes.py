@@ -287,15 +287,10 @@ class EstudianteAdmin(admin.ModelAdmin):
     list_before_template = 'admin/estudiante_crm_barra.html'
     list_fullwidth = True
     actions_row = ('crm_abrir_chat', 'crm_diagnosticar', 'crm_anadir_nota')
+    # El combo y las pestañas ya filtran. La columna derecha escondía gente al buscar.
     list_filter = (
-        TipoOrganizacionEstudianteFilter,
-        EstadoChatEstudianteFilter,
-        EstudianteSinProgresoFilter,
-        'activo',
         CursosEstudianteFilter,
         'cliente',
-        GruposEstudianteFilter,
-        'departamento',
         SinAvanzarEstudianteFilter,
     )
     list_filter_submit = True

@@ -532,9 +532,7 @@ def _queryset_crm(modeladmin, request, cl, *, sin_cliente=False, sin_curso=False
             for clave, valores in restantes.items()
         }
         qs = qs.filter(build_q_object_from_lookup_parameters(limpio))
-    qs, duplica = modeladmin.get_search_results(request, qs, cl.query)
-    if duplica:
-        qs = qs.distinct()
+    # La búsqueda solo recorta la tabla. Los KPI siguen siendo de toda la organización.
     return qs
 
 
@@ -551,7 +549,10 @@ def armar_crm(modeladmin, request, cl, ahora=None):
         del_org = filas
     curso_param = (request.GET.get('curso') or '').strip()
     if curso_param:
-        visibles = _filas(cl.queryset, curso_param)
+        visibles = _filas(
+            _queryset_crm(modeladmin, request, cl),
+            curso_param,
+        )
     else:
         visibles = del_org
     opciones = _opciones(filas, request, elegida)

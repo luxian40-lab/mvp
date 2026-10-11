@@ -6,15 +6,10 @@ from django.test import SimpleTestCase
 from core.admin.clientes import ClienteAdmin
 from core.admin.cursos import CursoAdmin, ModuloAdmin
 from core.admin.estudiantes import (
-    EstadoChatEstudianteFilter,
     EstudianteAdmin,
-    TipoOrganizacionEstudianteFilter,
+    SinAvanzarEstudianteFilter,
 )
-from core.admin._common import (
-    CursosEstudianteFilter,
-    EstudianteSinProgresoFilter,
-    GruposEstudianteFilter,
-)
+from core.admin._common import CursosEstudianteFilter
 from core.models import Cliente, Curso, Estudiante, Modulo
 
 
@@ -86,24 +81,16 @@ class AdminListadosOrdenTests(SimpleTestCase):
         self.assertIn('cedula', adm.search_fields)
         self.assertTrue(adm.list_filter_submit)
         self.assertEqual(
-            adm.list_filter[:3],
+            adm.list_filter,
             (
-                TipoOrganizacionEstudianteFilter,
-                EstadoChatEstudianteFilter,
-                EstudianteSinProgresoFilter,
+                CursosEstudianteFilter,
+                'cliente',
+                SinAvanzarEstudianteFilter,
             ),
-        )
-        self.assertLess(
-            adm.list_filter.index(TipoOrganizacionEstudianteFilter),
-            adm.list_filter.index('cliente'),
         )
         self.assertEqual(adm.list_select_related, ('cliente',))
         self.assertEqual(adm.actions[0], 'asignar_a_grupo_accion')
         self.assertIn('Buscar por nombre', adm.search_help_text)
-        self.assertIn('activo', adm.list_filter)
-        self.assertIn(CursosEstudianteFilter, adm.list_filter)
-        self.assertIn(GruposEstudianteFilter, adm.list_filter)
-        self.assertIn('departamento', adm.list_filter)
 
     def test_curso_listado_compacto(self):
         adm = CursoAdmin(Curso, site)

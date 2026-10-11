@@ -203,21 +203,14 @@ class EstudianteListadoAdminTests(TestCase):
         self.assertContains(r, self.cli.nombre)
         self.assertContains(r, 'Sin organización')
         self.assertContains(r, 'LiderazgoListadoQa')
-        self.assertContains(r, 'Habeas pendiente')
+        self.assertContains(r, 'Juan')
+        self.assertContains(r, 'Alexander')
         self.assertContains(r, self.est_dos.telefono)
         self.assertNotContains(r, self.est_dos.cedula)
 
         por_doc = self.http.get(url, {'q': self.est_dos.cedula})
         self.assertContains(por_doc, 'Andreina')
         self.assertNotContains(por_doc, 'Alexander')
-
-        filtrado = self.http.get(url, {
-            'q': self.tag,
-            'eki_tipo': 'b2c',
-        })
-        self.assertContains(filtrado, 'Juan')
-        self.assertNotContains(filtrado, 'Andreina')
-        self.assertContains(filtrado, 'Sin curso')
 
         org = self.http.get(url, {
             'q': self.tag,
@@ -226,11 +219,3 @@ class EstudianteListadoAdminTests(TestCase):
         self.assertContains(org, 'Andreina')
         self.assertContains(org, 'Alexander')
         self.assertNotContains(org, 'Juan')
-
-        chat = self.http.get(url, {
-            'q': self.tag,
-            'eki_estado_chat': 'habeas',
-        })
-        self.assertContains(chat, '<strong>1</strong>')
-        self.assertContains(chat, 'Alexander')
-        self.assertNotContains(chat, 'Andreina')
