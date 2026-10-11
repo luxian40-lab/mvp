@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <p>
+        Esto cambia el plan de <strong>{{ n_org }}</strong> organizaciones
+        y afecta a <strong>{{ n_est }}</strong> estudiantes.
+        Un grupo puede seguir con otro plan.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="id_plan_linea_meta">Plan de la línea Meta</label>
+            <select name="plan_linea_meta" id="id_plan_linea_meta">
+                <option value="">Sin plan</option>
+                {% for valor, etiqueta in planes %}
+                <option value="{{ valor }}">{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        {% for obj in queryset %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="asignar_plan_linea_meta">
+        <input type="hidden" name="aplicar" value="1">
+        <button type="submit" class="button">Confirmar</button>
+        <a href="{% url 'admin:core_cliente_changelist' %}">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

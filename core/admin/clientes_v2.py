@@ -1,7 +1,20 @@
 """Ficha y listado nuevo de Cliente. Solo se registra si ADMIN_CLIENTES_V2 está activo."""
-from django import forms
-from django.contrib import admin
+import csv
+from datetime import timedelta
 
+from django import forms
+from django.contrib import admin, messages
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import format_html
+from unfold.decorators import action
+
+from core.admin.cliente_v2_flag import admin_clientes_v2_activo
 from core.admin.clientes import (
     ClienteAdmin,
     ConfiguracionDripClienteInline,
@@ -10,8 +23,207 @@ from core.admin.clientes import (
     PortalUsuarioInline,
     ProductoCatalogoInline,
 )
-from core.models import ProductoComercial
-from portal.forms import ClientePortalAdminForm
+from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProductoComercial, ProgresoEstudiante, WhatsappLog
+from core.planes_linea import PLAN_CHOICES
+from portal.forms import PORTAL_PRODUCTO_CHOICES, ClientePortalAdminForm
+
+
+def _conteo(qs):
+    return Coalesce(
+        Subquery(
+            qs.order_by().values('cliente_id').annotate(total=Count('pk')).values('total')[:1],
+            output_field=IntegerField(),
+        ),
+        Value(0),
+    )
+
+
+def mapa_avance_por_cliente():
+    """Promedio de avance por organización, en tres consultas fijas.
+
+    Misma regla que ProgresoEstudiante.porcentaje_avance: módulos publicados,
+    o todos si el curso es de clases. Sin progresos, el listado muestra «Sin dato».
+    """
+    totales = {}
+    for row in (
+        Modulo.objects.values('curso_id', 'curso__modo_aula')
+        .annotate(
+            total=Count('id'),
+            publicados=Count('id', filter=Q(publicado_wa=True)),
+        )
+    ):
+        if row['curso__modo_aula'] == 'clases':
+            totales[row['curso_id']] = row['total']
+        else:
+            totales[row['curso_id']] = row['publicados']
+
+    hechos = {
+        row['progreso_id']: row
+        for row in (
+            ModuloCompletado.objects.filter(
+                progreso__estudiante__activo=True,
+                progreso__estudiante__cliente_id__isnull=False,
+            )
+            .values('progreso_id')
+            .annotate(
+                n_pub=Count('id', filter=Q(modulo__publicado_wa=True)),
+                n_all=Count('id'),
+            )
+        )
+    }
+    sumas = {}
+    cantidades = {}
+    progresos = ProgresoEstudiante.objects.filter(
+        estudiante__activo=True,
+        estudiante__cliente_id__isnull=False,
+    ).values_list('id', 'estudiante__cliente_id', 'curso_id', 'curso__modo_aula')
+    for prog_id, cliente_id, curso_id, modo in progresos:
+        total = totales.get(curso_id) or 0
+        info = hechos.get(prog_id) or {}
+        if modo == 'clases':
+            hechos_n = info.get('n_all') or 0
+        else:
+            hechos_n = info.get('n_pub') or 0
+        pct = 0 if total <= 0 else min(100, int(round(hechos_n * 100 / total)))
+        sumas[cliente_id] = sumas.get(cliente_id, 0) + pct
+        cantidades[cliente_id] = cantidades.get(cliente_id, 0) + 1
+    return {
+        cliente_id: int(round(sumas[cliente_id] / cantidades[cliente_id]))
+        for cliente_id in cantidades
+    }
+
+
+def _texto_sin_plan():
+    from django.conf import settings
+
+    default = (getattr(settings, 'LINEA_META_PLAN_DEFAULT', '') or '').strip()
+    etiquetas = dict(PLAN_CHOICES)
+    if default in etiquetas:
+        return (
+            f'Sin plan en la organización: el servidor usa {etiquetas[default]}. '
+            'Un grupo puede tener otro plan.'
+        )
+    return (
+        'Sin plan: no abre cursos nuevos ni el asesor. '
+        'Un grupo puede tener otro plan.'
+    )
+
+
+def tabs_cliente(request):
+    """Pestañas del listado. Sin conteos en el resto del admin."""
+    if not admin_clientes_v2_activo():
+        return []
+    try:
+        ruta = reverse('admin:core_cliente_changelist')
+    except Exception:
+        return []
+    if not (request.path or '').startswith(str(ruta)):
+        return []
+    base = Cliente.objects.all()
+    conteos = {
+        '': base.count(),
+        'reales': base.filter(es_demo=False).count(),
+        'demo': base.filter(es_demo=True).count(),
+        'sin_plan': base.filter(plan_linea_meta='').count(),
+        'inactivos': base.filter(activo=False).count(),
+    }
+    vista = request.GET.get('eki_org') or ''
+    if vista not in conteos:
+        vista = ''
+
+    def item(clave, titulo):
+        enlace = str(ruta) if not clave else f'{ruta}?eki_org={clave}'
+        return {
+            'title': f'{titulo} · {conteos[clave]}',
+            'link': enlace,
+            'active': vista == clave,
+            'has_permission': True,
+        }
+
+    return [{
+        'models': ['core.cliente'],
+        'items': [
+            item('', 'Todos'),
+            item('reales', 'Reales'),
+            item('demo', 'Demo y pruebas'),
+            item('sin_plan', 'Sin plan Meta'),
+            item('inactivos', 'Inactivos'),
+        ],
+    }]
+
+
+class OrganizacionVistaFilter(admin.SimpleListFilter):
+    title = 'Vista'
+    parameter_name = 'eki_org'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('reales', 'Reales'),
+            ('demo', 'Demo y pruebas'),
+            ('sin_plan', 'Sin plan Meta'),
+            ('inactivos', 'Inactivos'),
+        )
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if valor == 'reales':
+            return queryset.filter(es_demo=False)
+        if valor == 'demo':
+            return queryset.filter(es_demo=True)
+        if valor == 'sin_plan':
+            return queryset.filter(plan_linea_meta='')
+        if valor == 'inactivos':
+            return queryset.filter(activo=False)
+        return queryset
+
+
+class ProductoContratadoFilter(admin.SimpleListFilter):
+    title = 'Producto contratado'
+    parameter_name = 'producto'
+
+    def lookups(self, request, model_admin):
+        return PORTAL_PRODUCTO_CHOICES
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if not valor:
+            return queryset
+        return queryset.filter(
+            Q(portal_productos__contains=valor)
+            | (Q(portal_productos='') & Q(tipo_proyecto=valor))
+        )
+
+
+class SuscripcionClienteFilter(admin.SimpleListFilter):
+    title = 'Suscripción'
+    parameter_name = 'suscripcion'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('vigente', 'Vigente'),
+            ('por_vencer', 'Por vencer'),
+            ('vencida', 'Vencida'),
+        )
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if not valor:
+            return queryset
+        hoy = timezone.localdate()
+        limite = hoy + timedelta(days=30)
+        if valor == 'vencida':
+            return queryset.filter(fecha_fin_suscripcion__lt=hoy)
+        if valor == 'por_vencer':
+            return queryset.filter(
+                fecha_fin_suscripcion__gte=hoy,
+                fecha_fin_suscripcion__lt=limite,
+            )
+        if valor == 'vigente':
+            return queryset.filter(
+                Q(fecha_fin_suscripcion__isnull=True)
+                | Q(fecha_fin_suscripcion__gte=limite)
+            )
+        return queryset
 
 
 class ClienteAdminFormV2(ClientePortalAdminForm):
@@ -85,6 +297,27 @@ class ClienteAdminV2(ClienteAdmin):
     """Misma lógica de guardado, permisos y acciones. Cambia la disposición."""
 
     form = ClienteAdminFormV2
+    search_help_text = 'Buscar por nombre, NIT, contacto o correo'
+    list_display = (
+        'columna_organizacion',
+        'columna_plan',
+        'columna_productos',
+        'columna_estudiantes',
+        'columna_cursos',
+        'columna_suscripcion',
+    )
+    list_display_links = ('columna_organizacion',)
+    list_filter = (
+        OrganizacionVistaFilter,
+        'activo',
+        'plan_linea_meta',
+        ProductoContratadoFilter,
+        SuscripcionClienteFilter,
+        'es_demo',
+    )
+    actions_list = ('nuevo_cliente', 'exportar_clientes')
+    actions_row = ('abrir_cliente', 'ver_estudiantes', 'ver_campanas')
+    actions = ClienteAdmin.actions + ['asignar_plan_linea_meta']
     inlines = [
         PortalUsuarioInline,
         FaqOrganizacionInline,
@@ -199,6 +432,217 @@ class ClienteAdminV2(ClienteAdmin):
             'fields': ('mapa_cobertura_rapido',),
         }),
     )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            n_estudiantes=_conteo(
+                Estudiante.objects.filter(cliente_id=OuterRef('pk'), activo=True)
+            ),
+            n_cursos=_conteo(Curso.objects.filter(cliente_id=OuterRef('pk'))),
+            ultima_wa=Subquery(
+                WhatsappLog.objects.filter(estudiante__cliente_id=OuterRef('pk'))
+                .order_by('-fecha')
+                .values('fecha')[:1]
+            ),
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        request.eki_avance_cliente = mapa_avance_por_cliente()
+        return super().changelist_view(request, extra_context)
+
+    @admin.display(description='Organización', ordering='nombre')
+    def columna_organizacion(self, obj):
+        from django.templatetags.static import static
+
+        from core.client_logos import logo_estatico_para_nombre
+
+        url = (obj.logo_url or '').strip()
+        if not url:
+            rel = logo_estatico_para_nombre(obj.nombre)
+            if rel:
+                url = static(rel)
+        inicial = (obj.nombre or '?').strip()[:1].upper()
+        if url:
+            marca = format_html(
+                '<img class="eki-cli-logo" src="{}" alt="" loading="lazy" '
+                'referrerpolicy="no-referrer">',
+                url,
+            )
+        else:
+            marca = format_html('<span class="eki-cli-logo eki-cli-logo--ph">{}</span>', inicial)
+        ultima = getattr(obj, 'ultima_wa', None)
+        if ultima is None:
+            cuando = 'Sin dato'
+        else:
+            dias = (timezone.localdate() - timezone.localtime(ultima).date()).days
+            if dias <= 0:
+                cuando = 'hoy'
+            elif dias == 1:
+                cuando = 'hace 1 día'
+            else:
+                cuando = f'hace {dias} días'
+        estado = 'Activo' if obj.activo else 'Inactivo'
+        demo = ''
+        if obj.es_demo:
+            demo = format_html(' <span class="eki-cli-chip">Demo</span>')
+        return format_html(
+            '<div class="eki-cli-org">{}<div><strong>{}</strong>{}'
+            '<div class="eki-cli-meta">{} · {}</div></div></div>',
+            marca,
+            obj.nombre,
+            demo,
+            estado,
+            cuando,
+        )
+
+    @admin.display(description='Plan Meta', ordering='plan_linea_meta')
+    def columna_plan(self, obj):
+        chips = {
+            'curso_asesor': 'OP1',
+            'dos_cursos': 'OP2',
+            'asesor_60': 'OP3',
+        }
+        clave = (obj.plan_linea_meta or '').strip()
+        if clave in chips:
+            return format_html('<span class="eki-cli-chip">{}</span>', chips[clave])
+        return format_html(
+            '<span class="eki-cli-chip eki-cli-chip--ambar" title="{}">Sin plan</span>',
+            _texto_sin_plan(),
+        )
+
+    @admin.display(description='Productos contratados')
+    def columna_productos(self, obj):
+        etiquetas = dict(PORTAL_PRODUCTO_CHOICES)
+        raw = (obj.portal_productos or '').strip()
+        if raw:
+            claves = [p.strip() for p in raw.split(',') if p.strip()]
+        elif obj.tipo_proyecto:
+            claves = [obj.tipo_proyecto]
+        else:
+            claves = []
+        if not claves:
+            return 'Sin dato'
+        return format_html(
+            '{}' * len(claves),
+            *[
+                format_html(
+                    '<span class="eki-cli-chip">{}</span> ',
+                    etiquetas.get(clave, clave),
+                )
+                for clave in claves
+            ],
+        )
+
+    @admin.display(description='Estudiantes', ordering='n_estudiantes')
+    def columna_estudiantes(self, obj):
+        n = getattr(obj, 'n_estudiantes', 0) or 0
+        mapa = getattr(getattr(self, 'request', None), 'eki_avance_cliente', None) or {}
+        pct = mapa.get(obj.pk)
+        if pct is None:
+            barra = 'Sin dato'
+        else:
+            barra = format_html(
+                '<span class="eki-cli-bar" title="Avance promedio">'
+                '<span style="width:{}%"></span></span> {}%',
+                pct,
+                pct,
+            )
+        return format_html('<div>{}</div><div>{}</div>', n, barra)
+
+    @admin.display(description='Cursos', ordering='n_cursos')
+    def columna_cursos(self, obj):
+        return getattr(obj, 'n_cursos', 0) or 0
+
+    @admin.display(description='Suscripción', ordering='fecha_fin_suscripcion')
+    def columna_suscripcion(self, obj):
+        fin = obj.fecha_fin_suscripcion
+        if not fin:
+            return 'Sin dato'
+        dias = (fin - timezone.localdate()).days
+        if dias < 0:
+            return format_html(
+                '<span class="eki-cli-chip eki-cli-chip--rojo">Venció hace {} días</span>',
+                abs(dias),
+            )
+        if dias < 30:
+            return format_html(
+                '<span class="eki-cli-chip eki-cli-chip--ambar">Vence en {} días</span>',
+                dias,
+            )
+        return format_html('<span class="eki-cli-chip">Vence en {} días</span>', dias)
+
+    @action(description='Nuevo cliente', url_path='nuevo-cliente', icon='add', permissions=['add'])
+    def nuevo_cliente(self, request):
+        return redirect('admin:core_cliente_add')
+
+    @action(description='Exportar', url_path='exportar-clientes', icon='download', permissions=['view'])
+    def exportar_clientes(self, request):
+        qs = self.get_queryset(request).order_by('nombre')
+        respuesta = HttpResponse(content_type='text/csv; charset=utf-8')
+        respuesta['Content-Disposition'] = 'attachment; filename="organizaciones.csv"'
+        respuesta.write('\ufeff')
+        writer = csv.writer(respuesta)
+        writer.writerow([
+            'Nombre', 'NIT', 'Activo', 'Demo', 'Plan Meta', 'Productos',
+            'Estudiantes activos', 'Cursos', 'Fin de suscripción', 'Último WhatsApp',
+        ])
+        for obj in qs:
+            writer.writerow([
+                obj.nombre,
+                obj.nit,
+                'sí' if obj.activo else 'no',
+                'sí' if obj.es_demo else 'no',
+                obj.plan_linea_meta,
+                obj.portal_productos or obj.tipo_proyecto,
+                getattr(obj, 'n_estudiantes', 0) or 0,
+                getattr(obj, 'n_cursos', 0) or 0,
+                obj.fecha_fin_suscripcion.isoformat() if obj.fecha_fin_suscripcion else '',
+                timezone.localtime(obj.ultima_wa).strftime('%Y-%m-%d %H:%M') if getattr(obj, 'ultima_wa', None) else '',
+            ])
+        return respuesta
+
+    @action(description='Abrir', url_path='abrir', icon='open_in_new', permissions=['view'])
+    def abrir_cliente(self, request, object_id):
+        return redirect('admin:core_cliente_change', object_id)
+
+    @action(description='Ver estudiantes', url_path='ver-estudiantes', icon='group', permissions=['view'])
+    def ver_estudiantes(self, request, object_id):
+        url = reverse('admin:core_estudiante_changelist') + f'?cliente__id__exact={object_id}'
+        return redirect(url)
+
+    @action(description='Ver campañas', url_path='ver-campanas', icon='campaign', permissions=['view'])
+    def ver_campanas(self, request, object_id):
+        url = reverse('admin:core_campana_changelist') + f'?cliente__id__exact={object_id}'
+        return redirect(url)
+
+    @admin.action(description='Asignar plan de línea Meta')
+    def asignar_plan_linea_meta(self, request, queryset):
+        if request.POST.get('aplicar') == '1':
+            plan = request.POST.get('plan_linea_meta', '')
+            validos = {clave for clave, _etiqueta in PLAN_CHOICES} | {''}
+            if plan not in validos:
+                self.message_user(request, 'Ese plan no existe.', level=messages.ERROR)
+                return None
+            n_org = queryset.count()
+            n_est = Estudiante.objects.filter(cliente__in=queryset).count()
+            queryset.update(plan_linea_meta=plan)
+            self.message_user(
+                request,
+                f'Plan actualizado en {n_org} organizaciones. Afecta a {n_est} estudiantes.',
+            )
+            return None
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Asignar plan de línea Meta',
+            'queryset': queryset,
+            'n_org': queryset.count(),
+            'n_est': Estudiante.objects.filter(cliente__in=queryset).count(),
+            'planes': PLAN_CHOICES,
+            'action_checkbox_name': ACTION_CHECKBOX_NAME,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/core/cliente/asignar_plan.html', context)
 
     def get_form(self, request, obj=None, **kwargs):
         kwargs['form'] = self.form

@@ -1,12 +1,29 @@
-"""Admin de Cliente v2: cobertura de campos. El interruptor sigue apagado por defecto."""
+"""Admin de Cliente v2. El interruptor sigue apagado por defecto."""
+import sys
+from datetime import timedelta
+
+from django.conf import settings
+from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
+from django.db import connection
 from django.test import RequestFactory, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
+from django.urls import clear_url_caches, reverse
+from django.utils import timezone
 
 from core.admin.cliente_v2_flag import admin_clientes_v2_activo
 from core.admin.clientes import ClienteAdmin
 from core.admin.clientes_v2 import ClienteAdminV2
-from core.models import Cliente
+from core.models import (
+    Cliente,
+    Curso,
+    Estudiante,
+    Modulo,
+    ModuloCompletado,
+    ProgresoEstudiante,
+    WhatsappLog,
+)
 
 
 # Campos que el formulario no trata como input. El motivo va escrito aquí.
@@ -90,3 +107,170 @@ class CoberturaCamposClienteTests(TestCase):
 class InterruptorClienteAdminTests(TestCase):
     def test_sin_setting_ni_entorno_queda_apagado(self):
         self.assertFalse(admin_clientes_v2_activo())
+
+
+def _recargar_admin():
+    """Las URLs del admin quedan armadas al importar. Hay que rehacerlas al cambiar el registro."""
+    clear_url_caches()
+    urlconf = settings.ROOT_URLCONF
+    if urlconf in sys.modules:
+        del sys.modules[urlconf]
+    __import__(urlconf)
+
+
+@override_settings(
+    ADMIN_CLIENTES_V2=True,
+    SECURE_SSL_REDIRECT=False,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
+class ListadoClienteV2Tests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser('list_cli', 'l@t.com', 'pass12345')
+        self.client.force_login(self.user)
+        admin.site.unregister(Cliente)
+        admin.site.register(Cliente, ClienteAdminV2)
+        _recargar_admin()
+        hoy = timezone.localdate()
+        self.real = Cliente.objects.create(
+            nombre='Cooperativa Real',
+            contacto_principal='Ana',
+            email='real@test.com',
+            telefono='573009990101',
+            nit='9001',
+            activo=True,
+            es_demo=False,
+            plan_linea_meta='curso_asesor',
+            portal_productos='cursos,nat',
+            fecha_fin_suscripcion=hoy + timedelta(days=10),
+        )
+        self.demo = Cliente.objects.create(
+            nombre='Demo Cliente',
+            contacto_principal='Bo',
+            email='demo@test.com',
+            telefono='573009990102',
+            activo=True,
+            es_demo=True,
+            plan_linea_meta='',
+            fecha_fin_suscripcion=hoy - timedelta(days=3),
+        )
+        self.inactivo = Cliente.objects.create(
+            nombre='Org Quieta',
+            contacto_principal='Ci',
+            email='quieta@test.com',
+            telefono='573009990103',
+            activo=False,
+            es_demo=False,
+            plan_linea_meta='dos_cursos',
+        )
+        self.curso = Curso.objects.create(
+            nombre='Café',
+            descripcion='d',
+            cliente=self.real,
+            activo=True,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='listcli1',
+            nombre='Luz',
+            telefono='573009990201',
+            cliente=self.real,
+            activo=True,
+        )
+        Estudiante.objects.create(
+            cedula='listcli2',
+            nombre='Inactivo',
+            telefono='573009990202',
+            cliente=self.real,
+            activo=False,
+        )
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Siembra',
+            descripcion='d',
+            publicado_wa=True,
+        )
+        prog = ProgresoEstudiante.objects.create(estudiante=self.est, curso=self.curso)
+        ModuloCompletado.objects.create(progreso=prog, modulo=mod)
+        WhatsappLog.objects.create(
+            telefono=self.est.telefono,
+            mensaje='hola',
+            estudiante=self.est,
+        )
+
+    def tearDown(self):
+        admin.site.unregister(Cliente)
+        admin.site.register(Cliente, ClienteAdmin)
+        _recargar_admin()
+
+    def test_pestanas_y_columnas(self):
+        url = reverse('admin:core_cliente_changelist')
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn(f'Todos · {Cliente.objects.count()}', body)
+        self.assertIn(f'Reales · {Cliente.objects.filter(es_demo=False).count()}', body)
+        self.assertIn(f'Demo y pruebas · {Cliente.objects.filter(es_demo=True).count()}', body)
+        self.assertIn(f'Sin plan Meta · {Cliente.objects.filter(plan_linea_meta="").count()}', body)
+        self.assertIn(f'Inactivos · {Cliente.objects.filter(activo=False).count()}', body)
+        self.assertIn('Cooperativa Real', body)
+        self.assertIn('eki-cli-chip">OP1', body)
+        self.assertIn('Cursos eki', body)
+        self.assertIn('Agente Nat', body)
+        self.assertIn('Demo', body)
+        self.assertIn('Vence en 10 días', body)
+        self.assertIn('100%', body)
+
+        solo_demo = self.client.get(url + '?eki_org=demo')
+        demo_body = solo_demo.content.decode('utf-8')
+        self.assertIn('Demo Cliente', demo_body)
+        self.assertNotIn('Cooperativa Real', demo_body)
+        self.assertIn('Sin plan', demo_body)
+        self.assertIn('Venció hace 3 días', demo_body)
+
+    def test_consultas_no_crecen_con_el_numero_de_clientes(self):
+        url = reverse('admin:core_cliente_changelist')
+        self.client.get(url)
+
+        def medir():
+            with CaptureQueriesContext(connection) as ctx:
+                respuesta = self.client.get(url)
+            self.assertEqual(respuesta.status_code, 200)
+            return len(ctx)
+
+        con_pocos = medir()
+        Cliente.objects.bulk_create([
+            Cliente(
+                nombre=f'Org extra {i}',
+                contacto_principal='A',
+                email=f'extra{i}@test.com',
+                telefono=f'57{i:010d}',
+            )
+            for i in range(500)
+        ])
+        con_muchos = medir()
+        self.assertEqual(con_pocos, con_muchos)
+
+    def test_asignar_plan_pide_confirmacion_y_cuenta_estudiantes(self):
+        url = reverse('admin:core_cliente_changelist')
+        data = {
+            'action': 'asignar_plan_linea_meta',
+            '_selected_action': [str(self.real.pk), str(self.demo.pk)],
+        }
+        r = self.client.post(url, data)
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('<strong>2</strong> organizaciones', body)
+        self.assertIn('<strong>2</strong> estudiantes', body)
+        r2 = self.client.post(url, {
+            **data,
+            'aplicar': '1',
+            'plan_linea_meta': 'asesor_60',
+        })
+        self.assertEqual(r2.status_code, 302)
+        self.real.refresh_from_db()
+        self.demo.refresh_from_db()
+        self.assertEqual(self.real.plan_linea_meta, 'asesor_60')
+        self.assertEqual(self.demo.plan_linea_meta, 'asesor_60')
