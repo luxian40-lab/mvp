@@ -103,6 +103,12 @@ class CoberturaCamposClienteTests(TestCase):
         self.assertIn('core.ProductoComercial', nuevos)
         self.assertIn('precio', nuevos['core.ProductoComercial'])
         self.assertTrue(self.nuevo.inlines[4].show_change_link)
+        from portal.models import PortalUsuario
+        self.assertEqual(
+            [clave for clave, _etiqueta in PortalUsuario.ROL_CHOICES],
+            ['admin', 'profesor', 'viewer', 'eki_ops'],
+        )
+        self.assertIn('rol', self.nuevo.inlines[0].fields)
 
 
 class InterruptorClienteAdminTests(TestCase):
@@ -304,6 +310,18 @@ class ListadoClienteV2Tests(TestCase):
         self.assertIn('1 curso al mes y asesor (30 preguntas)', demo_body)
         self.assertIn('2 cursos al mes, sin asesor', demo_body)
         self.assertIn('60 preguntas al mes', demo_body)
+        self.assertIn('Ritmo drip por curso', body)
+        self.assertIn('Calendario de módulos', body)
+        self.assertIn('Usuarios del portal', body)
+        self.assertIn(
+            f'/admin/core/estudiante/?cliente__id__exact={self.real.pk}',
+            body,
+        )
+        self.assertIn('2 estudiantes', body)
+        self.assertIn(
+            f'/admin/core/grupoestudiantes/?cliente__id__exact={self.real.pk}',
+            body,
+        )
 
 
 def _datos_formulario(cliente, **cambios):

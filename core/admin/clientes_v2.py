@@ -353,6 +353,7 @@ class ClienteAdminV2(ClienteAdmin):
         'peso_gamificacion_reto',
         'peso_gamificacion_abierta',
         'resumen_suscripcion',
+        'personas_enlaces',
     )
 
     fieldsets = (
@@ -432,7 +433,8 @@ class ClienteAdminV2(ClienteAdmin):
         }),
         ('Personas', {
             'classes': ['tab'],
-            'fields': ('portal_usuarios_acciones',),
+            'description': 'Usuarios del portal, grupos y estudiantes de esta organización.',
+            'fields': ('portal_usuarios_acciones', 'personas_enlaces'),
         }),
         ('Catálogo Nat', {
             'classes': ['tab'],
@@ -456,6 +458,33 @@ class ClienteAdminV2(ClienteAdmin):
             'fields': ('mapa_cobertura_rapido',),
         }),
     )
+
+    @admin.display(description='Grupos y estudiantes')
+    def personas_enlaces(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde para ver grupos y estudiantes.'
+        from core.models_extras import GrupoEstudiantes
+
+        n_est = Estudiante.objects.filter(cliente=obj).count()
+        n_act = Estudiante.objects.filter(cliente=obj, activo=True).count()
+        n_gru = GrupoEstudiantes.objects.filter(cliente=obj).count()
+        est_url = (
+            reverse('admin:core_estudiante_changelist')
+            + f'?cliente__id__exact={obj.pk}'
+        )
+        gru_url = (
+            reverse('admin:core_grupoestudiantes_changelist')
+            + f'?cliente__id__exact={obj.pk}'
+        )
+        return format_html(
+            '<p><a href="{}">{} estudiantes</a> ({} activos)</p>'
+            '<p><a href="{}">{} grupos</a></p>',
+            est_url,
+            n_est,
+            n_act,
+            gru_url,
+            n_gru,
+        )
 
     @admin.display(description='Estado de la suscripción')
     def resumen_suscripcion(self, obj):
