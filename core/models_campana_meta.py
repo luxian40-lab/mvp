@@ -417,11 +417,28 @@ class CampanaMeta(models.Model):
         related_name='campanas_meta',
         verbose_name='Grupo',
     )
+    grupos = models.ManyToManyField(
+        'GrupoEstudiantes',
+        blank=True,
+        related_name='campanas_meta_grupos',
+        verbose_name='Grupos',
+    )
     destinatarios = models.ManyToManyField(
         'Estudiante',
         blank=True,
         related_name='campanas_meta',
         verbose_name='Destinatarios',
+    )
+    dias_repeticion = models.PositiveSmallIntegerField(
+        default=14,
+        verbose_name='Días entre envíos de la misma plantilla',
+        help_text='No se vuelve a escribir a quien recibió esta plantilla hace menos de estos días. 14 es el valor inicial.',
+    )
+    reglas_variables = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Reglas de variables',
+        help_text='Por cada {{n}}: origen, qué hacer si falta el dato y el texto de respaldo.',
     )
     ejecutada = models.BooleanField(default=False, verbose_name='Ejecutada')
     total_enviados = models.IntegerField(default=0, verbose_name='Enviados')
