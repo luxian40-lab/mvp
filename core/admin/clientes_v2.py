@@ -319,6 +319,7 @@ class ClienteAdminV2(ClienteAdmin):
     form = ClienteAdminFormV2
     change_form_template = 'admin/core/cliente/change_form_v2.html'
     change_form_before_template = 'admin/core/cliente/encabezado.html'
+    change_list_template = 'admin/core/cliente/change_list_v2.html'
     search_help_text = 'Buscar por nombre, NIT, contacto o correo'
     list_display = (
         'columna_organizacion',
@@ -994,6 +995,14 @@ class ClienteAdminV2(ClienteAdmin):
     def get_form(self, request, obj=None, **kwargs):
         kwargs['form'] = self.form
         return super(ClienteAdmin, self).get_form(request, obj, **kwargs)
+
+    class Media:
+        css = {'all': ('admin/css/eki_cliente_v2.css',)}
+
+    def get_action_choices(self, request, default_choices=None):
+        from django.contrib.admin.options import ModelAdmin
+
+        return ModelAdmin.get_action_choices(self, request, [('', 'Elegir acción')])
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         if db_field.blank and 'choices' not in kwargs:

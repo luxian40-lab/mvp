@@ -231,6 +231,9 @@ class ListadoClienteV2Tests(TestCase):
         self.assertIn('Demo', body)
         self.assertIn('Vence en 10 días', body)
         self.assertIn('100%', body)
+        self.assertIn('Elegir acción', body)
+        self.assertIn('Filtros', body)
+        self.assertIn('eki_cliente_v2.css', body)
 
         solo_demo = self.client.get(url + '?eki_org=demo')
         demo_body = solo_demo.content.decode('utf-8')
