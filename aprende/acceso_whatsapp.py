@@ -262,8 +262,10 @@ def verificar_codigo_web(
 ) -> tuple[Optional[int], str]:
     """Canjea el código de aula.
 
-    Un código vigente en BD entra aunque la IP del proxy ya haya fallado.
-    El cupo solo cuenta intentos inválidos. Redis caído no bloquea un OTP válido.
+    Un código vigente en BD entra aunque la IP del proxy ya haya fallado
+    y aunque AULA_LOGIN_REQUIERE_DOCUMENTO esté on: el form OTP no manda
+    cédula. El cupo solo cuenta intentos inválidos. Redis caído no bloquea
+    un OTP válido. Si sí mandan documento y no es el del código, no entra.
     """
     from core.locks import telefono_hash
     from core.models import Estudiante
@@ -277,11 +279,6 @@ def verificar_codigo_web(
         doc = re.sub(r'\D', '', (documento or '').strip())
         if doc:
             estudiante = Estudiante.objects.filter(cedula=doc, activo=True).first()
-        if estudiante is None:
-            if _cupo_agotado(ip, None):
-                return None, MENSAJE_DEMASIADOS_INTENTOS
-            logger.warning('aula_login_fallido ip_hash=%s est_hash=', ip_hash)
-            return None, mensaje
 
     row = _fila_codigo(raw)
     if row and estudiante is not None and row.estudiante_id != estudiante.pk:

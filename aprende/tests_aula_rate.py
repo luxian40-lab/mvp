@@ -159,6 +159,22 @@ class AulaRateTests(_Base):
         self.assertIn('/aprende/estudiante/clave/', ok['Location'])
         self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='111222').exists())
 
+    def test_codigo_vigente_entra_sin_documento_aunque_el_flag_lo_pida(self):
+        """Prod: flag 2FA on y el form OTP no manda cédula. El código sigue siendo el factor."""
+        self._codigo('424242')
+        with override_settings(
+            AULA_LOGIN_REQUIERE_DOCUMENTO=True,
+            AULA_LOGIN_PREFIJO=self.prefijo,
+            AULA_LOGIN_MAX_POR_IP=20,
+        ):
+            r = self.http.post('/aprende/estudiante/login/', {
+                'codigo': '424242',
+                'accion': 'codigo',
+            })
+        self.assertEqual(r.status_code, 302, r.content.decode()[:400])
+        self.assertIn('/aprende/estudiante/clave/', r['Location'])
+        self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='424242').exists())
+
     def test_exito_resetea_estudiante_y_no_la_ip(self):
         from core.locks import _cliente_redis, telefono_hash
 
