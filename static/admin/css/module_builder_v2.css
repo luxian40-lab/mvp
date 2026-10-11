@@ -12,6 +12,12 @@
   --eki-mb-input-bg: var(--color-base-50);
   --eki-mb-hero-grad-a: var(--color-primary-50);
   --eki-mb-hero-grad-b: var(--color-base-100);
+  --eki-mu-ink: var(--eki-mb-ink);
+  --eki-mu-line: var(--eki-mb-line);
+  --eki-mu-bg: var(--eki-mb-sec-head);
+  --eki-mu-fill: var(--color-primary-600, var(--eki-mb-accent));
+  --eki-mu-track: color-mix(in srgb, var(--eki-mb-ink) 10%, transparent);
+  --eki-mu-btn: transparent;
 }
 
 html[data-eki-tone="noche"] .eki-mb-shell.eki-mb-shell--v2,
@@ -181,4 +187,27 @@ html[data-eki-tone="noche"] .eki-mb-shell.eki-mb-shell--v2,
   .eki-mb-shell--v2[data-pestana="vista"] .eki-mb__row-edit.is-panel-active > :not(.eki-mb-wa-preview) {
     display: none;
   }
+}
+
+.eki-mb-shell--v2 .eki-mu__pantalla {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 3;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--eki-mb-line);
+  border-radius: 12px;
+  background: var(--eki-mb-card);
+  color: var(--eki-mb-ink);
+}
+
+.eki-mb-shell--v2 .eki-mu__pct,
+.eki-mb-shell--v2 .eki-mu__espera {
+  color: var(--color-primary-700, var(--eki-mb-accent-deep));
+}
+
+.eki-mb-shell--v2 .eki-mu__texto {
+  margin: 0.65rem 0 0;
+  color: var(--eki-mb-muted);
+  font-size: 0.9rem;
 }

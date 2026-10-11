@@ -506,6 +506,8 @@ class ModuleBuilderUiV2EncendidoTests(ModuleBuilderUiV2Tests):
         ).read()
         self.assertIn('incluirCalendario', js)
         self.assertIn("classList.contains('eki-mb-shell--v2')", js)
+        self.assertIn('media-uploader/uploader.js', body)
+        self.assertIn("querySelector('[data-paso-edit=\"' + id + '\"]')", js)
 
     def test_botones_subir_y_bajar_mueven_el_mensaje(self):
         segundo = agregar_micro(self.mod, self.paso.seccion, titulo='Dos', contenido='texto dos')

@@ -966,6 +966,11 @@
     }
     var up = window.EkiMediaUploader.crear({
       objetivo: lista,
+      ancla: function (trabajo) {
+        var id = trabajo.campos && trabajo.campos.paso_id;
+        if (!id) return lista;
+        return shell.querySelector('[data-paso-edit="' + id + '"]') || lista;
+      },
       url: window.location.pathname + window.location.search,
       colaMax: 2,
       validar: function (archivo) {
@@ -1012,9 +1017,21 @@
         });
         var btn = form.querySelector('[type="submit"]');
         if (btn) btn.disabled = true;
-        up.encolar(input.files[0], campos);
+        var id = up.encolar(input.files[0], campos);
         input.value = '';
-        window.setTimeout(function () { if (btn) btn.disabled = false; }, 400);
+        var editor = form.closest('[data-paso-edit]');
+        var pantalla = editor && editor.querySelector('[data-mu-id="' + id + '"]');
+        if (pantalla && pantalla.scrollIntoView) pantalla.scrollIntoView({ block: 'nearest' });
+        function soltar(ev) {
+          if (!ev.detail || ev.detail.id !== id) return;
+          if (btn) btn.disabled = false;
+          lista.removeEventListener('upload:done', soltar);
+          lista.removeEventListener('upload:error', soltar);
+          lista.removeEventListener('upload:cancel', soltar);
+        }
+        lista.addEventListener('upload:done', soltar);
+        lista.addEventListener('upload:error', soltar);
+        lista.addEventListener('upload:cancel', soltar);
       });
     });
   }

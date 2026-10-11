@@ -18,7 +18,7 @@ El anfitrión pasa `url`, `campos` (el mismo POST de hoy: `action=replace_media`
 
 Eventos sobre el elemento objetivo: `upload:progress`, `upload:done`, `upload:error`, `upload:cancel`.
 
-Etapas: Subiendo (porcentaje del tramo navegador a servidor, «X de Y MB», tiempo restante), Guardando, Preparando (si `despues` lo dice; `encode_status` no trae porcentaje, así que el texto es actividad y tiempo), Listo (apto o no, con motivo).
+Tarjeta al inicio del mensaje, sin tapar el editor: Subiendo (porcentaje del tramo navegador a servidor, «X de Y MB», tiempo restante), Guardando, Preparando (si `despues` lo dice; `encode_status` no trae porcentaje, así que el texto es actividad y tiempo), Listo (apto o no, con motivo). El archivo sigue el POST `replace_media` y Django lo guarda en el storage (S3 en producción).
 
 El permiso lo decide la vista que recibe el POST. El componente no elige el bucket.
 

@@ -12,18 +12,18 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=34">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=37">
 {% if mb_ui_v2 %}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=3">
-<link rel="stylesheet" href="{% static 'js/media-uploader/uploader.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=6">
+<link rel="stylesheet" href="{% static 'js/media-uploader/uploader.css' %}?v=3">
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
 {% if mb_ui_v2 %}
-<script src="{% static 'js/media-uploader/uploader.js' %}?v=1" defer></script>
+<script src="{% static 'js/media-uploader/uploader.js' %}?v=4" defer></script>
 {% endif %}
-<script src="{% static 'admin/js/module_builder.js' %}?v=34" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=37" defer></script>
 
 {% endblock %}
 

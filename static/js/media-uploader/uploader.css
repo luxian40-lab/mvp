@@ -11,13 +11,117 @@
   background: var(--eki-mu-bg, transparent);
 }
 
+.eki-mu__cabeza {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.eki-mu__tipo {
+  width: 3.25rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--eki-mu-fill, currentColor);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.eki-mu__cabeza .eki-mu__nombre,
+.eki-mu__peso {
+  margin: 0;
+}
+
+.eki-mu__peso,
+.eki-mu__pasos span,
+.eki-mu__mb {
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.eki-mu__cabeza .eki-mu__acciones {
+  margin-left: auto;
+  margin-top: 0;
+}
+
+.eki-mu__pasos {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0.85rem 0 0.5rem;
+  padding: 0;
+}
+
+.eki-mu__pasos li {
+  border-top: 3px solid var(--eki-mu-line, currentColor);
+  padding-top: 0.35rem;
+}
+
+.eki-mu__pasos b {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.eki-mu__pasos li.is-on {
+  border-top-color: var(--eki-mu-fill, currentColor);
+}
+
+.eki-mu__pasos li.is-ok {
+  border-top-color: var(--eki-mu-fill, currentColor);
+}
+
+.eki-mu__pasos li.is-er {
+  border-top-color: #b93535;
+}
+
+.eki-mu__pct {
+  margin: 0.35rem 0 0;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 650;
+}
+
+.eki-mu__cifras {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.eki-mu__espera {
+  font-weight: 650;
+}
+
+@media (max-width: 720px) {
+  .eki-mu__pasos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .eki-mu__barra {
+  position: relative;
   height: 0.4rem;
   margin: 0.35rem 0;
   background: var(--eki-mu-track, transparent);
   border: 1px solid var(--eki-mu-line, currentColor);
   border-radius: var(--eki-mu-radius, 8px);
   overflow: hidden;
+}
+
+.eki-mu__barra--indeterminada > span {
+  width: 35%;
+  animation: eki-mu-indeterminada 1.1s ease-in-out infinite;
+}
+
+@keyframes eki-mu-indeterminada {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
 }
 
 .eki-mu__barra > span {
