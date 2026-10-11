@@ -1,0 +1,23 @@
+# Traducciones propias de cadenas de Unfold que Django no trae.
+msgid ""
+msgstr ""
+"Language: es_CO\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Type to search"
+msgstr "Buscar"
+
+msgid "Filters"
+msgstr "Filtros"
+
+msgid "Apply Filters"
+msgstr "Aplicar filtros"
+
+msgid "Clear all filters"
+msgstr "Quitar filtros"
+
+msgid "Hide counts"
+msgstr "Ocultar conteos"
+
+msgid "Show counts"
+msgstr "Mostrar conteos"

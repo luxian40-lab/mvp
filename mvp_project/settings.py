@@ -263,6 +263,10 @@ LANGUAGE_CODE = 'es-co'
 TIME_ZONE = 'America/Bogota'
 USE_I18N = True
 USE_TZ = True
+# es-co ya es el idioma del proceso. No se usa LocaleMiddleware: el navegador
+# no puede cambiar el admin a inglés. Las cadenas de Unfold que Django no trae
+# viven en locale/es_CO.
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 # 7. ARCHIVOS ESTÁTICOS
 STATIC_URL = '/static/'
@@ -1115,6 +1119,14 @@ META_CODIGOS_REINTENTABLES = ['130429', '131056', '4', '80008', '613']
 META_CODIGOS_ERROR = ['131026', '131048', '131049', '131052', '131053']
 META_CODIGO_VENTANA = '131047'
 META_CODIGO_TOKEN = '190'
+# Días mínimos entre dos envíos de la misma plantilla a la misma persona. 2026-10-11.
+EKI_CAMPANA_META_DIAS_REPETICION = int(os.environ.get('EKI_CAMPANA_META_DIAS_REPETICION', '14') or '14')
+# La prueba de campaña solo sale a estos números. Separados por coma. 2026-10-11.
+EKI_CAMPANA_META_PRUEBA_NUMEROS = [
+    parte.strip()
+    for parte in os.environ.get('EKI_CAMPANA_META_PRUEBA_NUMEROS', '573026480629').split(',')
+    if parte.strip()
+]
 # Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
 META_OPAQUE_MAX = 512
 WHATSAPP_GRAPH_BASE_URL = os.environ.get('WHATSAPP_GRAPH_BASE_URL', 'https://graph.facebook.com').rstrip('/')
