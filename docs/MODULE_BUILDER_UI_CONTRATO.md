@@ -199,3 +199,15 @@ Con el interruptor encendido la página muestra la ruta Cursos › curso › mó
 Guardar (Contenido o General) no envía `modulo_habilitado_desde`. Solo el botón Guardar calendario lo envía. El JS mira la clase `eki-mb-shell--v2`: apagado, el guardado sigue mandando la fecha como hoy.
 
 `+ Texto antes` y `+ Texto después` hacen POST `add_micro` con plantilla mensaje. `agregar_micro` siempre inserta al final de la sección; no hay posición en esa action. La persona lo deja al lado con Subir o Bajar. Un mensaje que ya tiene texto y archivo no se parte: se muestra la etiqueta «Texto + archivo» y, en la vista previa, dos burbujas.
+
+## Puerta ?ui=v2
+
+Con `EKI_MODULE_BUILDER_UI_V2` en False, la interfaz nueva solo entra si el usuario es superusuario y la URL trae `ui=v2`. Staff sin ser superusuario no puede activarla.
+
+## Publicar con confirmación
+
+La interfaz nueva apunta a `admin:core_modulo_publicar_confirmar` (`/admin/core/modulo/<id>/publicar/confirmar/`). GET no escribe. POST con CSRF publica. `core_modulo_publicar` queda igual para la interfaz de hoy y se retira después.
+
+## Subida
+
+La interfaz nueva manda el mismo multipart `replace_media`, con progreso en el navegador. Componente: `static/js/media-uploader/`. Validación de tipo y tamaño: `core/media_upload_servicio.py` (no está en `core/services/` porque ese archivo ya es el de campañas). Contrato: `docs/MEDIA_UPLOADER.md`.

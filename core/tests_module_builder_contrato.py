@@ -573,3 +573,157 @@ class ModuleBuilderContratoPuertaTests(TestCase):
             403,
         )
         self.assertFalse(SeccionModulo.objects.filter(modulo=mod, titulo='X').exists())
+
+
+@override_settings(**FLAG_ON, EKI_MODULE_BUILDER_UI_V2=False)
+class ModuleBuilderUiV2PuertaTests(TestCase):
+    def setUp(self):
+        self.curso = Curso.objects.create(nombre='Puerta UI')
+        self.mod = Modulo.objects.create(
+            curso=self.curso, numero=1, titulo='M', descripcion='d', contenido='c',
+        )
+        self.url = f'/admin/module-builder/{self.mod.id}/'
+
+    def _client(self, *, superuser):
+        user = User.objects.create_user(
+            username='puerta_%s' % ('su' if superuser else 'st'),
+            password='x',
+            is_staff=True,
+            is_superuser=superuser,
+        )
+        client = Client()
+        client.force_login(user)
+        return client
+
+    def test_query_ui_v2_solo_la_ve_el_superusuario(self):
+        staff = self._client(superuser=False)
+        body = staff.get(self.url + '?ui=v2', secure=True).content.decode('utf-8')
+        self.assertNotIn('module_builder_v2.css', body)
+        self.assertNotIn('eki-mb-shell--v2', body)
+        su = self._client(superuser=True)
+        visto = su.get(self.url + '?ui=v2', secure=True).content.decode('utf-8')
+        self.assertIn('module_builder_v2.css', visto)
+        self.assertIn('eki-mb-shell--v2', visto)
+        sin_query = su.get(self.url, secure=True).content.decode('utf-8')
+        self.assertNotIn('module_builder_v2.css', sin_query)
+
+
+@override_settings(**FLAG_ON, EKI_MODULE_BUILDER_UI_V2=True)
+class ModuleBuilderUiV2LecturaTests(TestCase):
+    def setUp(self):
+        self.curso = Curso.objects.create(nombre='Lectura UI', descripcion='d')
+        self.mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='M',
+            descripcion='d',
+            contenido='c',
+            habilitado_desde=_drip(),
+            publicado_wa=False,
+        )
+        self.anterior = Modulo.objects.create(
+            curso=self.curso, numero=1, titulo='Antes', descripcion='d', contenido='c',
+        )
+        sec = agregar_seccion(self.mod, 'Sección')
+        self.paso = agregar_micro(self.mod, sec, titulo='Hola', contenido='texto')
+        self.staff = User.objects.create_superuser('mb_lec', 'mb_lec@example.com', 'x')
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = f'/admin/module-builder/{self.mod.id}/'
+
+    def test_texto_antes_crea_un_mensaje_de_texto(self):
+        antes = PasoModulo.objects.filter(modulo=self.mod).count()
+        r = self.client.post(self.url, {
+            'action': 'add_micro',
+            'seccion_id': str(self.paso.seccion_id),
+            'plantilla': 'mensaje',
+        }, secure=True)
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(PasoModulo.objects.filter(modulo=self.mod).count(), antes + 1)
+        nuevo = PasoModulo.objects.filter(modulo=self.mod).order_by('-id').first()
+        self.assertFalse(nuevo.activo)
+        self.assertFalse((nuevo.media_url or '').strip())
+
+    def test_probar_persona_no_escribe_y_coincide_con_el_calendario(self):
+        from core.drip_schedule import modulo_disponible_por_calendario
+        from core.models import Cliente, Estudiante, ProgresoEstudiante
+
+        cliente = Cliente.objects.create(
+            nombre='Org prueba', contacto_principal='A', email='org-prueba@example.com',
+            telefono='573009990001',
+        )
+        self.curso.cliente = cliente
+        self.curso.save(update_fields=['cliente'])
+        persona = Estudiante.objects.create(
+            cedula='ZZ-NO-BUSCAR', nombre='Marta Lectura', telefono='573009990002',
+            cliente=cliente,
+        )
+        otra = Estudiante.objects.create(
+            cedula='Marta Lectura', nombre='Otra', telefono='573009990003', cliente=cliente,
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=persona, curso=self.curso, modulo_actual=self.anterior,
+        )
+        url = f'/admin/module-builder/{self.mod.id}/probar-persona/'
+        antes_mod = self.mod.habilitado_desde
+        antes_n = ProgresoEstudiante.objects.count()
+        busqueda = self.client.get(url + '?q=Marta%20Lectura', secure=True)
+        self.assertEqual(busqueda.status_code, 200)
+        ids = [fila['id'] for fila in busqueda.json()['resultados']]
+        self.assertIn(persona.id, ids)
+        self.assertNotIn(otra.id, ids)
+        por_cedula = self.client.get(url + '?q=ZZ-NO-BUSCAR', secure=True)
+        self.assertEqual(por_cedula.json()['resultados'], [])
+        ver = self.client.get(url + f'?estudiante={persona.id}', secure=True)
+        self.assertEqual(ver.status_code, 200)
+        esperado = modulo_disponible_por_calendario(persona, self.mod)
+        self.assertEqual(ver.json()['veredicto']['disponible'], esperado)
+        self.assertTrue(ver.json()['veredicto']['inscrito'])
+        self.mod.refresh_from_db()
+        self.assertEqual(self.mod.habilitado_desde, antes_mod)
+        self.assertEqual(ProgresoEstudiante.objects.count(), antes_n)
+        sin = Estudiante.objects.create(
+            cedula='sin-curso', nombre='Nadie', telefono='573009990004', cliente=cliente,
+        )
+        fuera = self.client.get(url + f'?estudiante={sin.id}', secure=True)
+        self.assertEqual(fuera.json()['veredicto']['texto'], 'No está inscrito en este curso')
+
+    def test_vista_previa_y_avisos_no_escriben(self):
+        self.paso.media_url = 'https://cdn.ejemplo/clip.mp4'
+        self.paso.media_wa_apto = False
+        self.paso.save(update_fields=['media_url', 'media_wa_apto'])
+        antes = self.paso.contenido
+        r = self.client.get(self.url, secure=True)
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('Así lo recibe la persona', body)
+        self.assertIn('Antes de publicar', body)
+        self.assertIn('Se envía solo el texto', body)
+        self.paso.refresh_from_db()
+        self.assertEqual(self.paso.contenido, antes)
+        self.assertFalse(self.mod.publicado_wa)
+
+    def test_confirmar_publicar_get_no_escribe_y_post_publica(self):
+        url = f'/admin/core/modulo/{self.mod.id}/publicar/confirmar/'
+        got = self.client.get(url, secure=True)
+        self.assertEqual(got.status_code, 200)
+        self.mod.refresh_from_db()
+        self.assertFalse(self.mod.publicado_wa)
+        posted = self.client.post(url, secure=True)
+        self.assertEqual(posted.status_code, 302)
+        self.mod.refresh_from_db()
+        self.assertTrue(self.mod.publicado_wa)
+        estricto = Client(enforce_csrf_checks=True)
+        estricto.force_login(self.staff)
+        otro = Modulo.objects.create(
+            curso=self.curso, numero=3, titulo='Otro', descripcion='d', contenido='texto largo',
+            publicado_wa=False,
+        )
+        sec = agregar_seccion(otro, 'S')
+        agregar_micro(otro, sec, contenido='con texto')
+        negado = estricto.post(
+            f'/admin/core/modulo/{otro.id}/publicar/confirmar/', secure=True,
+        )
+        self.assertEqual(negado.status_code, 403)
+        otro.refresh_from_db()
+        self.assertFalse(otro.publicado_wa)

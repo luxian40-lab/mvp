@@ -49,5 +49,17 @@ Tonos UI: Cielo / Marca / Oscuro. Persistidos en `localStorage`.
 2. URL directa: `/admin/module-builder/<modulo_id>/`
 
 Edita `SeccionModulo` + `PasoModulo` (materiales WA).  
-No mueve drip / `habilitado_desde` / agentes. No reescribe solo el texto legacy `Modulo.contenido`.
+El calendario global (`Modulo.habilitado_desde`) solo se escribe en un guardado explícito que traiga la clave. No reescribe el texto legacy `Modulo.contenido` por su cuenta.
+
+## Interfaz nueva (apagada)
+
+`EKI_MODULE_BUILDER_UI_V2` sale en False. Con False, la página es la de hoy.
+
+Un superusuario puede ver la interfaz nueva en una petición con `?ui=v2` (junto con `?builder=1` si el curso no está en la puerta beta). Un usuario staff que no es superusuario sigue viendo la página de hoy aunque ponga `?ui=v2`.
+
+Pestañas: Contenido, General, Calendario y drip. En pantallas estrechas, Vista previa. Guardar desde Contenido o General no envía `modulo_habilitado_desde`. Solo «Guardar calendario» lo envía.
+
+El botón «Publicar en WhatsApp» de la interfaz nueva abre `/admin/core/modulo/<id>/publicar/confirmar/`. El GET muestra el checklist y no publica. El POST, con CSRF, publica. La ruta `core_modulo_publicar` no cambia y la interfaz de hoy la sigue usando. Esa ruta antigua se retira después, cuando la de hoy también pase por la confirmación.
+
+La subida con progreso de la interfaz nueva usa `static/js/media-uploader/` y `core/media_upload_servicio.py`. El POST sigue siendo `replace_media`. Ver `docs/MEDIA_UPLOADER.md`. No hay subida directa a S3: el diseño está en `docs/MEDIA_UPLOADER_5B_PROPUESTA.md`.
 

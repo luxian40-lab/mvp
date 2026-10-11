@@ -55,7 +55,7 @@ from core.views_territorio_alertas import territorio_alertas_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 from core.views_admin_panel import admin_panel_view
 from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
-from core.views_module_builder import module_builder_view
+from core.views_module_builder import module_builder_probar_persona, module_builder_view
 from core.views_curso_nuevo import curso_nuevo_wizard
 from core.views_course_engine_studio import course_engine_studio_view
 
@@ -127,6 +127,11 @@ urlpatterns = [
         'admin/territorio-alertas/',
         territorio_alertas_view,
         name='admin_territorio_alertas',
+    ),
+    path(
+        'admin/module-builder/<int:modulo_id>/probar-persona/',
+        module_builder_probar_persona,
+        name='admin_module_builder_probar_persona',
     ),
     path(
         'admin/module-builder/<int:modulo_id>/',

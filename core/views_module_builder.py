@@ -102,11 +102,28 @@ def _require_builder(request, curso=None):
         )
 
 
+def ui_v2_activa(request) -> bool:
+    """Interruptor global, o superusuario con ?ui=v2 en esta petición."""
+    if getattr(settings, 'EKI_MODULE_BUILDER_UI_V2', False):
+        return True
+    user = getattr(request, 'user', None)
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    if not getattr(user, 'is_superuser', False):
+        return False
+    return request.GET.get('ui') == 'v2' or request.POST.get('ui') == 'v2'
+
+
 def _redirect_builder(request, modulo_id: int):
-    """302 al Builder preservando ?builder=1 (bypass superusuario)."""
+    """302 al Builder preservando ?builder=1 y ?ui=v2."""
     url = reverse('admin_module_builder', kwargs={'modulo_id': modulo_id})
+    qs = []
     if request.GET.get('builder') == '1' or request.POST.get('builder') == '1':
-        return redirect(f'{url}?builder=1')
+        qs.append('builder=1')
+    if request.GET.get('ui') == 'v2' or request.POST.get('ui') == 'v2':
+        qs.append('ui=v2')
+    if qs:
+        return redirect(f'{url}?{"&".join(qs)}')
     return redirect(url)
 
 
@@ -585,8 +602,54 @@ def module_builder_view(request, modulo_id: int):
         ) else '',
         'change_url': f'/admin/core/modulo/{modulo.id}/change/',
         'ce_studio_url': ce_studio_url,
-        'mb_ui_v2': bool(getattr(settings, 'EKI_MODULE_BUILDER_UI_V2', False)),
+        'mb_ui_v2': ui_v2_activa(request),
+        'probar_persona_url': reverse(
+            'admin_module_builder_probar_persona', kwargs={'modulo_id': modulo.pk}
+        ),
+        'publicar_confirmar_url': reverse(
+            'admin:core_modulo_publicar_confirmar', args=[modulo.pk]
+        ),
     }
     if ctx['mb_ui_v2']:
+        from core.module_builder_lectura import avisos_antes_de_publicar, recepcion_secciones
+
         ctx.update(_contexto_drip_solo_lectura(modulo))
+        from core.media_upload_servicio import topes_bytes
+
+        ctx['avisos_publicar'] = avisos_antes_de_publicar(modulo, arbol)
+        ctx['recepcion'] = recepcion_secciones(arbol)
+        ctx['topes_subida'] = topes_bytes()
     return render(request, 'admin/module_builder.html', ctx)
+
+
+@staff_member_required
+@require_http_methods(['GET'])
+def module_builder_probar_persona(request, modulo_id: int):
+    """Busca una persona y dice si el calendario la deja entrar. No escribe."""
+    from core.models import Estudiante
+    from core.module_builder_lectura import buscar_personas, veredicto_persona
+
+    modulo = get_object_or_404(
+        Modulo.objects.select_related('curso'),
+        pk=modulo_id,
+    )
+    _require_builder(request, modulo.curso)
+    est_id = (request.GET.get('estudiante') or '').strip()
+    if est_id.isdigit():
+        estudiante = Estudiante.objects.select_related('cliente').filter(pk=int(est_id)).first()
+        if estudiante is None:
+            return JsonResponse({'ok': False, 'error': 'No encontramos a esa persona.'}, status=404)
+        return JsonResponse({
+            'ok': True,
+            'persona': {
+                'id': estudiante.pk,
+                'nombre': estudiante.nombre,
+                'telefono': estudiante.telefono,
+                'organizacion': estudiante.cliente.nombre if estudiante.cliente_id else '',
+            },
+            'veredicto': veredicto_persona(modulo, estudiante),
+        })
+    return JsonResponse({
+        'ok': True,
+        'resultados': buscar_personas(request.GET.get('q') or ''),
+    })

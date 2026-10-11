@@ -829,6 +829,196 @@
     }, 30000);
   }
 
+  function datosJson(id) {
+    var nodo = document.getElementById(id);
+    if (!nodo) return null;
+    try {
+      return JSON.parse(nodo.textContent);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function pintarRecepcion(shell) {
+    var cuerpo = document.getElementById('eki-mb-recepcion-cuerpo');
+    var data = datosJson('eki-mb-recepcion-data');
+    if (!cuerpo || !data) return;
+    var seleccionado = shell.querySelector('.eki-mb__row--selected');
+    var secId = null;
+    if (seleccionado) {
+      var sec = seleccionado.closest('[data-seccion]');
+      if (sec) secId = Number(sec.getAttribute('data-seccion'));
+    }
+    if (!secId && data[0]) secId = data[0].seccion_id;
+    var bloque = null;
+    data.forEach(function (b) {
+      if (b.seccion_id === secId) bloque = b;
+    });
+    cuerpo.textContent = '';
+    if (!bloque) return;
+    (bloque.mensajes || []).forEach(function (m) {
+      var edit = shell.querySelector('.eki-mb__row-edit[data-paso-edit="' + m.id + '"]');
+      var texto = m.texto || '';
+      if (edit) {
+        var area = edit.querySelector('[name$="_contenido"]');
+        if (area) texto = area.value.trim();
+      }
+      if (texto) {
+        var burbuja = document.createElement('p');
+        burbuja.className = 'eki-mb-burbuja';
+        burbuja.textContent = texto;
+        cuerpo.appendChild(burbuja);
+      }
+      if (m.tiene_archivo) {
+        var arch = document.createElement('p');
+        arch.className = 'eki-mb-burbuja';
+        arch.textContent = 'Archivo';
+        cuerpo.appendChild(arch);
+      }
+      if (m.omite_archivo) {
+        var aviso = document.createElement('p');
+        aviso.className = 'eki-mb-burbuja eki-mb-burbuja--aviso';
+        aviso.textContent = m.motivo || 'Se envía solo el texto.';
+        cuerpo.appendChild(aviso);
+      }
+    });
+    var listo = document.createElement('p');
+    listo.className = 'eki-mb-burbuja';
+    listo.textContent = 'Responda listo para continuar';
+    cuerpo.appendChild(listo);
+  }
+
+  function initRecepcion(shell) {
+    if (!shell.classList.contains('eki-mb-shell--v2')) return;
+    pintarRecepcion(shell);
+    shell.addEventListener('input', function () { pintarRecepcion(shell); });
+    shell.addEventListener('click', function () {
+      window.setTimeout(function () { pintarRecepcion(shell); }, 0);
+    });
+  }
+
+  function initProbar(shell) {
+    if (!shell.classList.contains('eki-mb-shell--v2')) return;
+    var form = document.getElementById('eki-mb-probar');
+    var btn = document.getElementById('eki-mb-probar-btn');
+    var caja = document.getElementById('eki-mb-probar-q');
+    var out = document.getElementById('eki-mb-probar-out');
+    if (!form || !btn || !out) return;
+    function pintar(data) {
+      out.textContent = '';
+      if (!data || !data.ok) {
+        out.textContent = (data && data.error) || 'No se pudo consultar.';
+        return;
+      }
+      if (data.veredicto) {
+        var v = data.veredicto;
+        var p = document.createElement('p');
+        p.textContent = v.texto || v.veredicto || '';
+        out.appendChild(p);
+        if (v.mensaje_listo) {
+          var m = document.createElement('p');
+          m.textContent = v.mensaje_listo;
+          out.appendChild(m);
+        }
+        return;
+      }
+      (data.resultados || []).forEach(function (persona) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'eki-mb__btn eki-mb__btn--ghost';
+        b.textContent = persona.nombre + (persona.organizacion ? ' · ' + persona.organizacion : '');
+        b.addEventListener('click', function () {
+          consultar('estudiante=' + encodeURIComponent(persona.id));
+        });
+        out.appendChild(b);
+      });
+      if (!(data.resultados || []).length) out.textContent = 'No hay coincidencias.';
+    }
+    function consultar(qs) {
+      fetch(form.getAttribute('data-url') + '?' + qs, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      })
+        .then(function (r) { return r.json(); })
+        .then(pintar)
+        .catch(function () { out.textContent = 'No se pudo consultar.'; });
+    }
+    btn.addEventListener('click', function () {
+      consultar('q=' + encodeURIComponent(caja ? caja.value : ''));
+    });
+  }
+
+  function initSubida(shell) {
+    if (!shell.classList.contains('eki-mb-shell--v2')) return;
+    if (!window.EkiMediaUploader) return;
+    var lista = document.createElement('div');
+    lista.className = 'eki-mu';
+    lista.setAttribute('aria-live', 'polite');
+    shell.appendChild(lista);
+    var topes = datosJson('eki-mb-topes') || {};
+    function tipoDe(nombre) {
+      var n = (nombre || '').toLowerCase();
+      if (/\.(mp4|m4v|mov|webm|3gp)$/.test(n)) return 'video';
+      if (/\.(jpg|jpeg|png|webp|gif)$/.test(n)) return 'imagen';
+      if (/\.(mp3|ogg|m4a|aac|amr|opus|wav)$/.test(n)) return 'audio';
+      if (/\.pdf$/.test(n)) return 'pdf';
+      return '';
+    }
+    var up = window.EkiMediaUploader.crear({
+      objetivo: lista,
+      url: window.location.pathname + window.location.search,
+      colaMax: 2,
+      validar: function (archivo) {
+        var tipo = tipoDe(archivo.name);
+        if (!tipo) return 'Ese tipo de archivo no está permitido. Use video, imagen, audio o PDF.';
+        var tope = topes[tipo];
+        if (tope && archivo.size > tope) {
+          return 'El archivo es demasiado grande. El tope para ' + tipo + ' es ' + Math.round(tope / (1024 * 1024)) + ' MB.';
+        }
+        return '';
+      },
+      campos: function (trabajo) { return trabajo.campos || {}; },
+      despues: function (trabajo) {
+        var body = new URLSearchParams();
+        body.set('action', 'encode_status');
+        body.set('ajax', '1');
+        body.set('csrfmiddlewaretoken', csrfToken());
+        return fetch(window.location.pathname + window.location.search, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+          credentials: 'same-origin',
+          body: body.toString(),
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          var pasoId = trabajo.campos && trabajo.campos.paso_id;
+          var fila = ((data && data.pasos) || []).filter(function (p) { return String(p.id) === String(pasoId); })[0];
+          if (!fila) return { apto: null, motivo: '' };
+          if (fila.status === 'pending' || fila.status === 'running') {
+            return { apto: null, motivo: 'Se está preparando. No hay porcentaje disponible.' };
+          }
+          if (fila.media_wa_apto === false) return { apto: false, motivo: fila.error || 'No es apto para WhatsApp.' };
+          if (fila.media_wa_apto === true) return { apto: true, motivo: 'Apto para WhatsApp.' };
+          return { apto: null, motivo: fila.error || '' };
+        });
+      },
+    });
+    shell.querySelectorAll('.eki-mb__upload-replace').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var input = form.querySelector('[name="media_file"]');
+        if (!input || !input.files || !input.files[0]) return;
+        e.preventDefault();
+        var campos = {};
+        new FormData(form).forEach(function (valor, clave) {
+          if (clave !== 'media_file') campos[clave] = valor;
+        });
+        var btn = form.querySelector('[type="submit"]');
+        if (btn) btn.disabled = true;
+        up.encolar(input.files[0], campos);
+        input.value = '';
+        window.setTimeout(function () { if (btn) btn.disabled = false; }, 400);
+      });
+    });
+  }
+
   function boot() {
     var shell = document.getElementById('eki-mb-shell') || document.querySelector('.eki-mb-shell');
     if (!shell) return;
@@ -841,6 +1031,9 @@
     initUploadDraftPreserve(shell);
     initDeleteMedia(shell);
     initPestanas(shell);
+    initRecepcion(shell);
+    initProbar(shell);
+    initSubida(shell);
   }
 
   if (document.readyState === 'loading') {
