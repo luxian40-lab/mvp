@@ -17,9 +17,11 @@ from core.admin.cliente_v2_flag import admin_clientes_v2_activo
 from core.admin.clientes import ClienteAdmin
 from core.admin.clientes_v2 import ClienteAdminFormV2, ClienteAdminV2
 from core.models import (
+    Campana,
     Cliente,
     Curso,
     Estudiante,
+    FaqOrganizacion,
     Modulo,
     ModuloCompletado,
     ProgresoEstudiante,
@@ -322,6 +324,36 @@ class ListadoClienteV2Tests(TestCase):
             f'/admin/core/grupoestudiantes/?cliente__id__exact={self.real.pk}',
             body,
         )
+
+    def test_cobertura_pqrs_y_actividad(self):
+        self.est.departamento = 'Antioquia'
+        self.est.save(update_fields=['departamento'])
+        FaqOrganizacion.objects.create(
+            cliente=self.real,
+            pregunta='¿Cuándo pagan?',
+            respuesta='El viernes.',
+        )
+        Campana.objects.create(nombre='Cosecha', cliente=self.real)
+        from django.contrib.admin.models import CHANGE, LogEntry
+        from django.contrib.contenttypes.models import ContentType
+
+        LogEntry.objects.log_action(
+            user_id=self.user.pk,
+            content_type_id=ContentType.objects.get_for_model(Cliente).pk,
+            object_id=self.real.pk,
+            object_repr=self.real.nombre,
+            action_flag=CHANGE,
+            change_message='nota de prueba',
+        )
+        r = self.client.get(reverse('admin:core_cliente_change', args=[self.real.pk]))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('FAQ organización', body)
+        self.assertIn('1 preguntas', body)
+        self.assertIn('Antioquia: 1', body)
+        self.assertIn('Cosecha', body)
+        self.assertIn('nota de prueba', body)
+        self.assertIn('activeFieldsetTab', body)
 
 
 def _datos_formulario(cliente, **cambios):

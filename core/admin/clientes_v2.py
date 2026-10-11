@@ -354,6 +354,9 @@ class ClienteAdminV2(ClienteAdmin):
         'peso_gamificacion_abierta',
         'resumen_suscripcion',
         'personas_enlaces',
+        'pqrs_resumen',
+        'cobertura_departamentos',
+        'actividad_reciente',
     )
 
     fieldsets = (
@@ -453,9 +456,19 @@ class ClienteAdminV2(ClienteAdmin):
                 'desactivar_llm_comercial',
             ),
         }),
+        ('Atención PQRS', {
+            'classes': ['tab'],
+            'description': 'Las preguntas se editan en la pestaña FAQ organización.',
+            'fields': ('pqrs_resumen',),
+        }),
         ('Cobertura', {
             'classes': ['tab'],
-            'fields': ('mapa_cobertura_rapido',),
+            'description': 'El mapa es el mismo de Cobertura. Aquí solo el conteo por departamento.',
+            'fields': ('mapa_cobertura_rapido', 'cobertura_departamentos'),
+        }),
+        ('Actividad', {
+            'classes': ['tab'],
+            'fields': ('actividad_reciente',),
         }),
     )
 
@@ -484,6 +497,103 @@ class ClienteAdminV2(ClienteAdmin):
             n_act,
             gru_url,
             n_gru,
+        )
+
+    @admin.display(description='Preguntas de la organización')
+    def pqrs_resumen(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde para cargar las preguntas.'
+        from core.models import FaqOrganizacion
+
+        n = FaqOrganizacion.objects.filter(cliente=obj).count()
+        if n == 0:
+            return 'Sin dato. Agregue preguntas en la pestaña FAQ organización.'
+        return f'{n} preguntas en la pestaña FAQ organización.'
+
+    @admin.display(description='Estudiantes por departamento')
+    def cobertura_departamentos(self, obj):
+        if not obj or not obj.pk:
+            return 'Sin dato'
+        filas = (
+            Estudiante.objects.filter(cliente=obj, activo=True)
+            .values('departamento')
+            .annotate(n=Count('pk'))
+            .order_by('-n', 'departamento')
+        )
+        if not filas:
+            return 'Sin dato'
+        partes = []
+        for fila in filas:
+            nombre = (fila['departamento'] or '').strip() or 'Sin departamento'
+            partes.append(f'{nombre}: {fila["n"]}')
+        return format_html('<ul>{}</ul>', format_html(
+            ''.join('<li>{}</li>' for _ in partes),
+            *partes,
+        ))
+
+    @admin.display(description='Campañas, mensajes e historial')
+    def actividad_reciente(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde para ver la actividad.'
+        from django.contrib.admin.models import LogEntry
+        from django.contrib.contenttypes.models import ContentType
+
+        from core.models import Campana
+
+        n_camp = Campana.objects.filter(cliente=obj).count()
+        camp_url = reverse('admin:core_campana_changelist') + f'?cliente__id__exact={obj.pk}'
+        campanas = list(
+            Campana.objects.filter(cliente=obj).order_by('-id').values_list('nombre', flat=True)[:5]
+        )
+        mensajes = list(
+            WhatsappLog.objects.filter(estudiante__cliente=obj)
+            .order_by('-fecha')
+            .values_list('fecha', 'mensaje')[:5]
+        )
+        ct = ContentType.objects.get_for_model(Cliente)
+        historial = list(
+            LogEntry.objects.filter(content_type=ct, object_id=str(obj.pk))
+            .select_related('user')
+            .order_by('-action_time')[:8]
+        )
+        if campanas:
+            lista_camp = format_html(
+                '<ul>{}</ul>',
+                format_html(''.join('<li>{}</li>' for _ in campanas), *campanas),
+            )
+        else:
+            lista_camp = 'Sin dato'
+        if mensajes:
+            lineas = [
+                f'{fecha:%d/%m/%Y %H:%M} · {(mensaje or "")[:60]}'
+                for fecha, mensaje in mensajes
+            ]
+            lista_wa = format_html(
+                '<ul>{}</ul>',
+                format_html(''.join('<li>{}</li>' for _ in lineas), *lineas),
+            )
+        else:
+            lista_wa = 'Sin dato'
+        if historial:
+            lineas_h = [
+                f'{item.action_time:%d/%m/%Y %H:%M} · {item.user or "Sin dato"} · {item.change_message or item.get_action_flag_display()}'
+                for item in historial
+            ]
+            lista_h = format_html(
+                '<ul>{}</ul>',
+                format_html(''.join('<li>{}</li>' for _ in lineas_h), *lineas_h),
+            )
+        else:
+            lista_h = 'Sin dato'
+        return format_html(
+            '<p><a href="{}">{} campañas</a></p>{}'
+            '<p><strong>Últimos WhatsApp</strong></p>{}'
+            '<p><strong>Historial de cambios</strong></p>{}',
+            camp_url,
+            n_camp,
+            lista_camp,
+            lista_wa,
+            lista_h,
         )
 
     @admin.display(description='Estado de la suscripción')

@@ -27,4 +27,19 @@
     .eki-cliente-v2 .fieldset-marca .leading-relaxed { grid-column: 1; grid-row: 2; }
 }
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var malo = document.querySelector('.errorlist');
+    if (!malo) return;
+    var panel = malo.closest('[class*="fieldset-"]');
+    if (!panel || !window.Alpine) return;
+    var clase = Array.prototype.find.call(panel.classList, function (c) {
+        return c.indexOf('fieldset-') === 0;
+    });
+    var raiz = document.querySelector('[x-data*="activeFieldsetTab"]');
+    if (!clase || !raiz) return;
+    var dato = window.Alpine.$data(raiz);
+    if (dato) dato.activeFieldsetTab = clase.slice('fieldset-'.length);
+});
+</script>
 {% endblock %}
