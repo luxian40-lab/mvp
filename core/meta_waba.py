@@ -421,80 +421,231 @@ def sincronizar_pendientes() -> int:
     return n
 
 
-def _cuerpo_desde_componentes(componentes) -> str:
-    for comp in componentes or []:
-        if str(comp.get('type') or '').upper() == 'BODY':
-            return str(comp.get('text') or '').strip()
-    return ''
-
-
-def _aplicar_item_catalogo(item: dict, waba: str) -> dict:
-    nombre = sanitizar_nombre_meta(str(item.get('name') or ''))
+def _idioma_item(item: dict) -> str:
     idioma = item.get('language') or 'es'
     if isinstance(idioma, dict):
         idioma = idioma.get('code') or 'es'
-    idioma = str(idioma or 'es')[:10]
+    return str(idioma or 'es')[:10]
+
+
+def _get_con_reintento(url: str, params: dict | None = None, intentos: int = 3) -> tuple[int, dict]:
+    """Reintenta si Meta responde límite de tasa. El resto de _get no cambia."""
+    espera = 1.0
+    status, data = 0, {}
+    for intento in range(intentos):
+        status, data = _get(url, params)
+        codigo = _error_meta(data).get('code') if status != 200 else ''
+        if status != 429 and not _es_rate_limit(codigo):
+            return status, data
+        if intento + 1 >= intentos:
+            return status, data
+        time.sleep(espera)
+        espera *= 2
+    return status, data
+
+
+def _resumen_vacio() -> dict:
+    return {'nuevas': 0, 'actualizadas': 0, 'sin_cambios': 0, 'con_error': 0, 'ausentes': 0}
+
+
+def _aplicar_item_catalogo(item: dict, waba: str) -> dict:
+    from core.plantilla_meta_reglas import (
+        categoria_meta,
+        cuerpo_desde_componentes,
+        puntaje_calidad,
+        tipo_desde_componentes,
+    )
+
+    nombre = sanitizar_nombre_meta(str(item.get('name') or ''))
+    idioma = _idioma_item(item)
+    if not nombre:
+        return {
+            'nombre': '',
+            'idioma': idioma,
+            'estado': '',
+            'creada': False,
+            'resultado': 'con_error',
+            'motivo': 'Meta envió una plantilla sin nombre usable.',
+        }
     estado = normalizar_estado(str(item.get('status') or ''))
     if estado == 'ERROR':
         estado = 'PENDING'
     motivo = str(item.get('rejected_reason') or '').strip()
-    plantilla = PlantillaMeta.objects.filter(meta_name=nombre, idioma=idioma).first()
+    if motivo.upper() == 'NONE':
+        motivo = ''
+    componentes = item.get('components')
+    if componentes is None:
+        componentes = []
+    if not isinstance(componentes, (list, dict)):
+        componentes = []
+    categoria = categoria_meta(item)
+    tipo = tipo_desde_componentes(componentes if isinstance(componentes, list) else [], categoria)
+    calidad = puntaje_calidad(item)
+    tid = str(item.get('id') or '').strip()
+    plantilla = None
+    if tid:
+        plantilla = PlantillaMeta.objects.filter(meta_template_id=tid).first()
+    if plantilla is None:
+        plantilla = PlantillaMeta.objects.filter(meta_name=nombre, idioma=idioma).first()
     creada = False
     if plantilla is None:
-        cuerpo = _cuerpo_desde_componentes(item.get('components')) or 'Texto importado desde Meta.'
+        cuerpo = (cuerpo_desde_componentes(componentes) or 'Sin dato')[:1024]
         plantilla = PlantillaMeta(
             nombre_interno=(nombre or 'plantilla')[:120],
             meta_name=nombre,
             idioma=idioma,
-            cuerpo=cuerpo[:1024],
-            categoria='UTILITY',
+            cuerpo=cuerpo,
+            categoria=categoria,
+            tipo=tipo,
+            origen='IMPORTADA',
         )
         creada = True
-    plantilla.meta_template_id = str(item.get('id') or plantilla.meta_template_id or '')
+    antes = (
+        plantilla.estado,
+        plantilla.calidad,
+        plantilla.categoria,
+        plantilla.rejected_reason,
+        plantilla.meta_template_id,
+        plantilla.tipo if not creada else '',
+        plantilla.components_raw if not creada else None,
+    )
+    plantilla.meta_template_id = tid or plantilla.meta_template_id
     plantilla.waba_id = waba
     plantilla.estado = estado
+    plantilla.calidad = calidad
+    if categoria:
+        plantilla.categoria = categoria
+    plantilla.rejected_reason = motivo[:500]
+    plantilla.components_raw = componentes
+    plantilla.tipo = tipo
     plantilla.sincronizada_en = timezone.now()
-    if motivo and motivo.upper() != 'NONE':
-        plantilla.rejected_reason = motivo[:500]
     plantilla.save()
+    despues = (
+        plantilla.estado,
+        plantilla.calidad,
+        plantilla.categoria,
+        plantilla.rejected_reason,
+        plantilla.meta_template_id,
+        plantilla.tipo,
+        plantilla.components_raw,
+    )
+    if creada:
+        resultado = 'nuevas'
+    elif antes == despues:
+        resultado = 'sin_cambios'
+    else:
+        resultado = 'actualizadas'
     return {
         'nombre': plantilla.meta_name,
         'idioma': plantilla.idioma,
         'estado': plantilla.estado,
         'creada': creada,
+        'resultado': resultado,
         'motivo': plantilla.rejected_reason,
+        'id': plantilla.meta_template_id,
     }
 
 
+def _marcar_ausentes(ids_vistos: set[str]) -> int:
+    """Plantillas que ya tenían id en Meta y no volvieron en el catálogo. No borra."""
+    n = 0
+    qs = PlantillaMeta.objects.exclude(meta_template_id='').exclude(estado='NO_EXISTE')
+    for plantilla in qs.iterator():
+        if plantilla.meta_template_id in ids_vistos:
+            continue
+        plantilla.estado = 'NO_EXISTE'
+        plantilla.sincronizada_en = timezone.now()
+        plantilla.save(update_fields=['estado', 'sincronizada_en', 'actualizada_en'])
+        n += 1
+    return n
+
+
 def sincronizar_catalogo_meta() -> dict:
-    """Lee el WABA y deja en cada ficha si Meta aprobó, rechazó o sigue pendiente."""
+    """Lee el WABA completo. Un formato desconocido queda como Otro y el lote sigue."""
     waba = _waba()
+    resumen = _resumen_vacio()
     if not waba or not _token():
         return {
             'ok': False,
             'message': 'Faltan WHATSAPP_TOKEN o WHATSAPP_BUSINESS_ACCOUNT_ID.',
             'filas': [],
+            'resumen': resumen,
         }
     url = f'https://graph.facebook.com/{_version()}/{waba}/message_templates'
     params = {
-        'fields': 'id,name,language,status,rejected_reason,components',
+        'fields': 'id,name,language,status,category,quality_score,rejected_reason,components',
         'limit': '100',
     }
     filas = []
-    for _ in range(20):
-        status, data = _get(url, params)
+    ids_vistos: set[str] = set()
+    for _ in range(50):
+        status, data = _get_con_reintento(url, params)
         params = None
         if status != 200:
             err = _error_meta(data)
-            return {'ok': False, 'message': err['message'], 'filas': filas}
+            return {'ok': False, 'message': err['message'], 'filas': filas, 'resumen': resumen}
         for item in data.get('data') or []:
             if not isinstance(item, dict) or not item.get('name'):
+                resumen['con_error'] += 1
+                filas.append({
+                    'nombre': '',
+                    'idioma': '',
+                    'estado': '',
+                    'creada': False,
+                    'resultado': 'con_error',
+                    'motivo': 'Meta envió un registro sin nombre.',
+                })
                 continue
-            filas.append(_aplicar_item_catalogo(item, waba))
+            try:
+                fila = _aplicar_item_catalogo(item, waba)
+            except Exception as exc:
+                logger.exception('plantilla_meta_import_item')
+                resumen['con_error'] += 1
+                filas.append({
+                    'nombre': str(item.get('name') or ''),
+                    'idioma': _idioma_item(item),
+                    'estado': '',
+                    'creada': False,
+                    'resultado': 'con_error',
+                    'motivo': str(exc)[:300],
+                })
+                continue
+            clave = fila.get('resultado') or 'con_error'
+            if clave not in resumen:
+                clave = 'con_error'
+            resumen[clave] += 1
+            if fila.get('id'):
+                ids_vistos.add(str(fila['id']))
+            filas.append(fila)
         url = str(((data.get('paging') or {}).get('next') or '')).strip()
         if not url:
             break
-    return {'ok': True, 'message': '', 'filas': filas}
+    else:
+        return {
+            'ok': False,
+            'message': 'Meta no terminó de paginar el catálogo. No se marcaron ausencias.',
+            'filas': filas,
+            'resumen': resumen,
+        }
+    resumen['ausentes'] = _marcar_ausentes(ids_vistos)
+    return {'ok': True, 'message': '', 'filas': filas, 'resumen': resumen}
+
+
+def enviar_prueba_de_plantilla(plantilla: PlantillaMeta, telefono: str, phone_number_id: str = '') -> dict:
+    """Arma una campaña en memoria y usa enviar_prueba_meta. No la guarda ni la cierra."""
+    nums = sorted(set(variables_en(plantilla.cuerpo)))
+    ejemplos = ejemplos_lista(plantilla.ejemplos_cuerpo)
+    cuerpo = '|'.join(ejemplos[n - 1] if 0 < n <= len(ejemplos) else '' for n in nums)
+    header_nums = sorted(set(variables_en(plantilla.header_texto)))
+    header = (plantilla.header_ejemplo or '').strip() if header_nums else ''
+    campana = CampanaMeta(
+        nombre=f'Prueba {plantilla.nombre_interno}'[:120],
+        plantilla=plantilla,
+        phone_number_id=(phone_number_id or _phone_default()).strip(),
+        mapeo_body=cuerpo,
+        mapeo_header=header,
+    )
+    return enviar_prueba_meta(campana, telefono)
 
 
 def enviar_prueba_meta(campana: CampanaMeta, telefono: str) -> dict:
@@ -555,48 +706,76 @@ def enviar_prueba_meta(campana: CampanaMeta, telefono: str) -> dict:
 
 
 def aplicar_eventos_plantilla(payload: dict, raw_body: bytes, signature_header: str) -> int:
-    """Aplica message_template_status_update solo si la firma Meta es válida."""
-    cambios = _cambios_status(payload)
-    if not cambios:
+    """Estado, calidad y categoría. Solo si la firma Meta es válida. No borra filas."""
+    estados = _cambios_campo(payload, 'message_template_status_update')
+    calidades = _cambios_campo(payload, 'message_template_quality_update')
+    categorias = _cambios_campo(payload, 'template_category_update')
+    if not estados and not calidades and not categorias:
         return 0
     secret = (getattr(settings, 'WHATSAPP_APP_SECRET', None) or '').strip()
     if not firma_meta_ok(raw_body or b'', signature_header, secret):
         logger.warning('meta_template_status_firma_invalida')
         return 0
     actualizadas = 0
-    for value in cambios:
+    for value in estados:
         evento = normalizar_estado(str(value.get('event') or ''))
-        tid = str(value.get('message_template_id') or '').strip()
-        nombre = (value.get('message_template_name') or '').strip()
-        idioma = str(value.get('message_template_language') or 'es').strip()
         motivo = str(value.get('reason') or '').strip()
-        qs = PlantillaMeta.objects.none()
-        if tid:
-            qs = PlantillaMeta.objects.filter(meta_template_id=tid)
-        if not qs.exists() and nombre:
-            qs = PlantillaMeta.objects.filter(meta_name=nombre, idioma=idioma)
-        for plantilla in qs:
+        for plantilla in _plantillas_del_evento(value):
             plantilla.estado = evento
             if motivo and motivo.upper() != 'NONE':
                 plantilla.rejected_reason = motivo[:500]
             plantilla.sincronizada_en = timezone.now()
             plantilla.save()
             actualizadas += 1
+    for value in calidades:
+        puntaje = str(value.get('new_quality_score') or '').strip().upper()[:32]
+        if not puntaje:
+            continue
+        for plantilla in _plantillas_del_evento(value):
+            plantilla.calidad = puntaje
+            plantilla.sincronizada_en = timezone.now()
+            plantilla.save()
+            actualizadas += 1
+    for value in categorias:
+        categoria = str(value.get('new_category') or '').strip().upper()
+        if categoria not in ('MARKETING', 'UTILITY', 'AUTHENTICATION'):
+            continue
+        for plantilla in _plantillas_del_evento(value):
+            plantilla.categoria = categoria
+            plantilla.sincronizada_en = timezone.now()
+            plantilla.save()
+            actualizadas += 1
     return actualizadas
 
 
-def _cambios_status(payload: dict) -> list[dict]:
+def _plantillas_del_evento(value: dict):
+    tid = str(value.get('message_template_id') or '').strip()
+    nombre = (value.get('message_template_name') or '').strip()
+    idioma = str(value.get('message_template_language') or 'es').strip()
+    qs = PlantillaMeta.objects.none()
+    if tid:
+        qs = PlantillaMeta.objects.filter(meta_template_id=tid)
+    if not qs.exists() and nombre:
+        qs = PlantillaMeta.objects.filter(meta_name=nombre, idioma=idioma)
+    return list(qs)
+
+
+def _cambios_campo(payload: dict, campo: str) -> list[dict]:
     salida = []
     if not isinstance(payload, dict):
         return salida
     for entry in payload.get('entry') or []:
         for change in (entry or {}).get('changes') or []:
-            if (change or {}).get('field') != 'message_template_status_update':
+            if (change or {}).get('field') != campo:
                 continue
             value = (change or {}).get('value') or {}
             if isinstance(value, dict):
                 salida.append(value)
     return salida
+
+
+def _cambios_status(payload: dict) -> list[dict]:
+    return _cambios_campo(payload, 'message_template_status_update')
 
 
 def _resolver_valor(token: str, estudiante) -> str:
