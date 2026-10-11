@@ -144,6 +144,41 @@ class EnviarPruebaPlantillaForm(BaseDialogForm):
         return limpio
 
 
+class CampanasDePlantillaInline(admin.TabularInline):
+    model = CampanaMeta
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    fields = ('nombre', 'estado_en_linea', 'embudo_en_linea')
+    readonly_fields = ('nombre', 'estado_en_linea', 'embudo_en_linea')
+    tab = True
+    verbose_name = 'Campaña'
+    verbose_name_plural = 'Campañas'
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def estado_en_linea(self, obj):
+        from core.campana_audiencia import estado_campana
+
+        if not obj or not obj.pk:
+            return '—'
+        return estado_campana(obj)[1]
+    estado_en_linea.short_description = 'Estado'
+
+    def embudo_en_linea(self, obj):
+        from core.campana_audiencia import embudo, texto_embudo
+
+        if not obj or not obj.pk:
+            return '—'
+        datos = embudo(obj)
+        return f'{texto_embudo(datos)} · Fallidos {datos["fallidos"]}'
+    embudo_en_linea.short_description = 'Resultado'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('plantilla')
+
+
 class TarjetaPlantillaMetaInline(admin.TabularInline):
     model = TarjetaPlantillaMeta
     extra = 0
@@ -272,9 +307,12 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         )
 
     def get_inlines(self, request, obj=None):
+        inlines = []
         if obj is not None and obj.tipo == 'CARRUSEL':
-            return [TarjetaPlantillaMetaInline]
-        return []
+            inlines.append(TarjetaPlantillaMetaInline)
+        if obj is not None and obj.pk:
+            inlines.append(CampanasDePlantillaInline)
+        return inlines
 
     def get_urls(self):
         custom = [
@@ -386,6 +424,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
             foto_muestra=static('certificados/eki-wordmark.png'),
         )
         titulo = 'Nueva plantilla' if plantilla is None or not plantilla.pk else (plantilla.nombre_interno or 'Plantilla')
+        campanas_ui = self._campanas_de(plantilla)
         contexto = {
             **self.admin_site.each_context(request),
             'opts': self.model._meta,
@@ -402,10 +441,29 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
             'tarjetas': self._tarjetas(plantilla),
             'tipo_inicial': tipo_inicial,
             'vista_otro': self._vista_otro(plantilla),
+            'campanas_ui': campanas_ui,
+            'usos_campana': len(campanas_ui),
             'posted': request.POST if request.method == 'POST' else {},
             'media': self.media,
         }
         return render(request, 'admin/plantilla_meta/editor.html', contexto)
+
+    def _campanas_de(self, plantilla):
+        if plantilla is None or not plantilla.pk:
+            return []
+        from core.campana_audiencia import embudo, estado_campana, texto_embudo
+
+        filas = []
+        for campana in plantilla.campanas.select_related('plantilla').order_by('-id'):
+            _clave, etiqueta = estado_campana(campana)
+            datos = embudo(campana)
+            filas.append({
+                'nombre': campana.nombre,
+                'estado': etiqueta,
+                'embudo': f'{texto_embudo(datos)} · Fallidos {datos["fallidos"]}',
+                'url': reverse('admin:core_campanameta_change', args=[campana.pk]),
+            })
+        return filas
 
     def _tipo_inicial(self, request, plantilla):
         codigos = {codigo for codigo, _nombre in TIPOS_PLANTILLA}

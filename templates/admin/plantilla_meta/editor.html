@@ -232,5 +232,18 @@
       </div>
     </div>
   </aside>
+{% if plantilla and plantilla.pk %}
+<section class="pm-campanas" id="campanas">
+  <h2>Campañas</h2>
+  <p>{{ usos_campana }} usos de esta plantilla.</p>
+  <ul>
+    {% for fila in campanas_ui %}
+    <li><a href="{{ fila.url }}">{{ fila.nombre }}</a> · {{ fila.estado }} · {{ fila.embudo }}</li>
+    {% empty %}
+    <li>Esta plantilla todavía no se usó en una campaña.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 </div>
 {% endblock %}
