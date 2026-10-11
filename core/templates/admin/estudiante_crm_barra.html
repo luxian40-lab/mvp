@@ -106,10 +106,10 @@
             </div>
         </div>
         <p class="eki-crm-kpis">
-            <span><strong data-kpi="avance">{{ eki_crm.avance }}%</strong> avance</span>
-            <span><strong data-kpi="completaron">{{ eki_crm.completaron }}</strong> completaron</span>
-            <span><strong data-kpi="sin-actividad">{{ eki_crm.sin_actividad }}</strong> sin actividad</span>
-            <span><strong data-kpi="habeas">{{ eki_crm.habeas }}</strong> habeas</span>
+            <span class="eki-crm-kpi"><strong data-kpi="avance">{{ eki_crm.avance }}%</strong><span>avance</span></span>
+            <span class="eki-crm-kpi"><strong data-kpi="completaron">{{ eki_crm.completaron }}</strong><span>completaron</span></span>
+            <span class="eki-crm-kpi"><strong data-kpi="sin-actividad">{{ eki_crm.sin_actividad }}</strong><span>sin actividad</span></span>
+            <span class="eki-crm-kpi"><strong data-kpi="habeas">{{ eki_crm.habeas }}</strong><span>habeas</span></span>
         </p>
         <button type="button" class="eki-crm-resumen" @click="guardarResumen()" :aria-expanded="resumen ? 'true' : 'false'">
             Ver resumen
