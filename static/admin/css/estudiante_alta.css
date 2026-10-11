@@ -1,0 +1,84 @@
+.eki-alta-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 1.25rem;
+    align-items: start;
+}
+.eki-alta-aside {
+    position: sticky;
+    top: 1rem;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+}
+.eki-alta-aside h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+}
+.eki-alta-iniciales {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #9a6cac;
+    color: #fff;
+    font-weight: 700;
+}
+.eki-alta-dl { margin: 0.75rem 0; }
+.eki-alta-dl div { margin-bottom: 0.45rem; }
+.eki-alta-dl dt { font-size: 0.75rem; color: #6b7280; }
+.eki-alta-dl dd { margin: 0; }
+.eki-alta-cupo, .eki-alta-quito, .eki-fuera {
+    background: #fff7ed;
+    color: #9a3412;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+}
+.eki-cursos-grupo { font-weight: 650; margin: 0.8rem 0 0.35rem; }
+.eki-curso-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.45rem;
+    cursor: pointer;
+}
+.eki-curso-card:has(input:checked) {
+    border-color: #9a6cac;
+    background: #f8f4fb;
+}
+.eki-curso-chip {
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    background: #f3e8ff;
+    font-size: 0.75rem;
+}
+.eki-curso-ninguno, .eki-cursos-buscar {
+    margin: 0.4rem 0;
+}
+html.dark .eki-alta-aside,
+.dark .eki-alta-aside {
+    background: #111827;
+    border-color: #374151;
+    color: #f9fafb;
+}
+html.dark .eki-curso-card,
+.dark .eki-curso-card {
+    border-color: #374151;
+    background: #1f2937;
+}
+html.dark .eki-alta-dl dt,
+.dark .eki-alta-dl dt { color: #d1d5db; }
+@media (max-width: 1100px) {
+    .eki-alta-layout { grid-template-columns: 1fr; }
+    .eki-alta-aside { position: static; }
+}
+body:not([data-eki-drip="1"]) a[href="#habilitacionmoduloestudiante_set"] {
+    display: none;
+}

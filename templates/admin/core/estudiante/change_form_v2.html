@@ -1,0 +1,78 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block form_top %}{% endblock %}
+
+{% block field_sets %}
+<script>
+document.body.dataset.ekiDrip = "{{ eki_drip|default:'0' }}";
+</script>
+{% if original and eki_est_conv_url %}
+<p class="eki-alta-puente">
+    <a href="{{ eki_est_conv_url }}">Ver conversación</a>
+    {% if eki_est_ordenes %} · Compras Studio{% else %} · Sin compra Studio{% endif %}
+</p>
+{% endif %}
+<div class="eki-alta-layout">
+    <div class="eki-alta-main">
+        {% for fieldset in adminform %}
+            {% if "eki-alta-panel" not in fieldset.classes %}
+                {% include "admin/includes/fieldset.html" %}
+            {% endif %}
+        {% endfor %}
+        {% if adminform.form.fuera_de_regla %}
+        <div class="eki-fuera" role="status">
+            {% for progreso in adminform.form.fuera_de_regla %}
+            <p>Fuera de regla: {{ progreso.curso.nombre }}. Se deja como está. Las inscripciones nuevas sí se validan.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <aside class="eki-alta-aside" id="eki-alta-panel" aria-label="Así quedará">
+        <h2>Así quedará</h2>
+        <p class="eki-alta-iniciales" id="eki-alta-iniciales">{{ eki_panel.iniciales|default:"?" }}</p>
+        <dl class="eki-alta-dl">
+            <div><dt>Nombre</dt><dd id="eki-alta-nombre">{{ eki_panel.nombre|default:"Sin dato" }}</dd></div>
+            <div><dt>Teléfono</dt><dd id="eki-alta-telefono">{{ eki_panel.telefono|default:"Sin dato" }}</dd></div>
+            <div><dt>Organización</dt><dd id="eki-alta-org">{{ eki_panel.organizacion|default:"Sin organización" }}</dd></div>
+            <div><dt>Estado</dt><dd id="eki-alta-estado">{{ eki_panel.estado|default:"Habeas pendiente" }}</dd></div>
+            <div><dt>Curso</dt><dd id="eki-alta-cursos">{{ eki_panel.cursos|default:"Sin curso por ahora" }}</dd></div>
+            <div><dt>Plan</dt><dd id="eki-alta-plan">{{ eki_panel.plan|default:"Sin plan" }}</dd></div>
+        </dl>
+        <p id="eki-alta-cupo" class="eki-alta-cupo" {% if not eki_panel.aviso_cupo %}hidden{% endif %}>
+            Inscribirlo ahora cuenta como su curso del mes en la línea Meta.
+        </p>
+        <p id="eki-alta-quito" class="eki-alta-quito" hidden>
+            El curso elegido ya no corresponde a la organización. Quedó sin seleccionar.
+        </p>
+        {% if eki_hay_bienvenida %}
+            {% for fieldset in adminform %}
+                {% if "eki-alta-panel" in fieldset.classes %}
+                    {% include "admin/includes/fieldset.html" %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </aside>
+</div>
+{% endblock %}
+
+{% block inline_field_sets %}
+<p class="eki-inlines-intro">
+    La pestaña «Módulos habilitados (drip por lista)» aparece solo si la organización usa drip por lista.
+</p>
+{{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+<p class="eki-alta-acciones">
+    <a class="eki-alta-cancelar" href="{% url 'admin:core_estudiante_changelist' %}">Cancelar</a>
+</p>
+{{ block.super }}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script id="eki-alta-urls" type="application/json">
+{"contexto": "{% url 'admin:core_estudiante_alta_contexto' %}", "documento": "{% url 'admin:core_estudiante_alta_documento' %}", "telefono": "{% url 'admin:core_estudiante_alta_telefono' %}", "excluir": "{{ original.pk|default:'' }}"}
+</script>
+{% endblock %}
