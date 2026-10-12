@@ -268,6 +268,8 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
         return MODO_ASESORIA
     if t in ('agentes', 'agente ia', 'agentes ia'):
         return MODO_AGENTES
+    if t in ('seguir', 'seguir_curso'):
+        return 'seguir'
     if t in ('curso', 'cursos', 'edu', 'riendas'):
         return MODO_CURSOS
     # Compat: atajos directos
@@ -494,6 +496,10 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.saludo_entrada = True
         return decision
 
+    if eleccion == 'seguir':
+        decision.action = 'seguir_curso'
+        return decision
+
     if eleccion == MODO_FORMACION:
         _set_modo(sesion, MODO_FORMACION)
         decision.action = 'show_formacion'
@@ -631,6 +637,8 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
         botones.append(('formacion', 'Formación'))
     if plan.incluye_asesor:
         botones.append(('asesoria', 'Asesoría'))
+    if not plan.incluye_cursos and _tiene_curso_abierto(telefono_usuario):
+        botones.append(('seguir', 'Seguir mi curso'))
     texto = texto_menu_plan(plan)
     if sandbox_via_meta():
         return enviar_meta_botones(
@@ -800,6 +808,12 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
         texto_respaldo=TEXTO_AGENTES,
         agente_evento='sandbox_agentes',
     )
+
+
+def _tiene_curso_abierto(telefono: str) -> bool:
+    """Curso ya empezado y sin completar. No abre el catálogo."""
+    _est, progresos = _progresos_del_telefono(telefono)
+    return any(not p.completado for p in progresos)
 
 
 def _progresos_del_telefono(telefono: str):
@@ -1166,6 +1180,13 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             enviar_menu_sandbox(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_continuar_curso_fail')
+        return 'handled'
+
+    if decision.action == 'seguir_curso':
+        try:
+            entrar_cursos_inscrito(decision.telefono_usuario, from_n)
+        except Exception:
+            logger.exception('sandbox_seguir_curso_fail tel=%s', decision.telefono_usuario)
         return 'handled'
 
     if decision.action == 'show_formacion':

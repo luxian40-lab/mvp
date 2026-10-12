@@ -243,10 +243,12 @@ class MenuPorPlanTests(TestCase):
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['formacion'])
         self.assertIn('dos cursos', _textos(send)[0])
+        self.assertIn('este mes', _textos(send)[0])
         with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'asesoria'))
+            dispatch_sandbox_menu(_payload(tel, 'asesor'))
             dispatch_sandbox_menu(_payload(tel, 'nat'))
-        self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_ASESOR] * 2)
+        self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_ASESOR] * 3)
 
     def test_op3_solo_asesoria_y_sin_cursos(self):
         tel = '573005550012'
@@ -261,6 +263,48 @@ class MenuPorPlanTests(TestCase):
             dispatch_sandbox_menu(_payload(tel, 'ver_tiempo'))
         self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_CURSOS] * 2)
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante__telefono=tel).exists())
+
+    def test_op1_dice_el_cupo_y_formacion_sigue_el_curso_del_mes(self):
+        tel = '573005550015'
+        self._sesion(tel, PLAN_CURSO_ASESOR)
+        org = _org('OP1')
+        est = Estudiante.objects.create(nombre='A', cedula='P15', telefono=tel, cliente=org)
+        Curso.objects.create(nombre='Café del mes', descripcion='d', cliente=org, activo=True)
+        curso = Curso.objects.get(nombre='Café del mes')
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'hola'))
+        texto = _textos(send)[0]
+        self.assertIn('un curso', texto)
+        self.assertIn('este mes', texto)
+        self.assertIn('30', texto)
+        botones = send.call_args.args[0]['interactive']['action']['buttons']
+        self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'formacion'))
+        cuerpo = _textos(send)[0]
+        self.assertIn('Seguimos *Café del mes*', cuerpo)
+        self.assertNotIn('Deslice', cuerpo)
+
+    def test_op3_con_curso_empezado_ofrece_seguirlo(self):
+        tel = '573005550016'
+        self._sesion(tel, PLAN_ASESOR_60)
+        org = _org('OP3')
+        est = Estudiante.objects.create(nombre='A', cedula='P16', telefono=tel, cliente=org)
+        curso = Curso.objects.create(nombre='Curso que ya iba', descripcion='d', cliente=org, activo=True)
+        progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        ProgresoEstudiante.objects.filter(pk=progreso.pk).update(
+            fecha_inicio=timezone.now() - timedelta(days=40)
+        )
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'hola'))
+        botones = send.call_args.args[0]['interactive']['action']['buttons']
+        self.assertEqual([b['reply']['id'] for b in botones], ['asesoria', 'seguir'])
+        self.assertIn('60', _textos(send)[0])
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, 'seguir'))
+        self.assertIn('Seguimos *Curso que ya iba*', _textos(send)[0])
+        self.assertEqual(ProgresoEstudiante.objects.filter(estudiante__telefono=tel).count(), 1)
 
     def test_op3_muestra_60_preguntas_en_asesoria(self):
         tel = '573005550013'

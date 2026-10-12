@@ -201,17 +201,16 @@ def cursos_iniciados_en_el_mes(telefono: str, *, excluir_curso_id: int | None = 
 
 def texto_menu_plan(plan: PlanLinea) -> str:
     if plan.clave == PLAN_DOS_CURSOS:
-        oferta = "podrá acceder a dos cursos de formación durante el mes de su escogencia."
+        oferta = "puede escoger dos cursos de formación este mes."
     elif plan.clave == PLAN_ASESOR_60:
         oferta = (
-            f"podrá consultar al asesor, con un máximo de {plan.preguntas_mes} "
-            "preguntas durante el mes."
+            f"puede consultar al asesor, hasta {plan.preguntas_mes} "
+            "preguntas este mes."
         )
     else:
         oferta = (
-            "podrá acceder a un curso de formación durante el próximo mes de su "
-            f"escogencia y al asesor, con un máximo de {plan.preguntas_mes} "
-            "preguntas durante el mes."
+            "puede tomar un curso de formación este mes y consultar al asesor, "
+            f"hasta {plan.preguntas_mes} preguntas."
         )
     return (
         f"A través de este menú {oferta}\n\n"
