@@ -87,6 +87,7 @@ class CampanaMetaForm(forms.ModelForm):
         model = CampanaMeta
         fields = (
             'nombre',
+            'es_inicio_flujo',
             'cliente',
             'plantilla',
             'phone_number_id',
@@ -117,6 +118,7 @@ class CampanaMetaForm(forms.ModelForm):
         self.fields['fecha_programada'].help_text = 'Vacío envía ahora. La hora es la de Bogotá.'
         self.fields['dias_repeticion'].label = 'No repetir esta plantilla antes de (días)'
         self.fields['nombre'].label = 'Nombre de la campaña'
+        self.fields['es_inicio_flujo'].label = 'Inicio de flujo'
         self.fields['cliente'].label = 'Cliente'
         self.fields['cliente'].required = False
         self.fields['cliente'].help_text = 'Opcional. Solo acota los grupos y las personas que se ofrecen.'
@@ -280,7 +282,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
     actions = ['ejecutar_campanas', 'pausar_campanas', 'reanudar_campanas', 'reenviar_reintentables']
 
     fieldsets = (
-        ('Campaña', {'fields': ('nombre',)}),
+        ('Campaña', {'fields': ('nombre', 'es_inicio_flujo')}),
         ('Plantilla de Meta', {'fields': ('cliente', 'plantilla')}),
         ('Envío', {'fields': ('phone_number_id', 'fecha_programada', 'dias_repeticion')}),
     )
@@ -516,6 +518,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
             phone_number_id=origen.phone_number_id,
             dias_repeticion=origen.dias_repeticion,
             reglas_variables=origen.reglas_variables or {},
+            es_inicio_flujo=origen.es_inicio_flujo,
         )
         copia.destinatarios.set(origen.destinatarios.all())
         copia.grupos.set(origen.grupos.all())

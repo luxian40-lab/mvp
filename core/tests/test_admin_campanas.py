@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from core.campana_audiencia import marcar_programadas_sin_aprobacion, resumir_audiencia
 from core.meta_waba import ejecutar_campana_meta
-from core.models import Estudiante
+from core.models import Estudiante, SandboxCanalSesion
 from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 from core.models_extras import GrupoEstudiantes
 
@@ -170,6 +170,64 @@ class CampanasAdminTests(TestCase):
             EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').count(),
             2,
         )
+
+    def _enviar_a(self, campana, persona):
+        from core.campana_audiencia import aplicar_mapeo
+
+        campana.destinatarios.add(persona)
+        campana.reglas_variables = {
+            '1': {'origen': 'nombre', 'si_falta': 'respaldo', 'respaldo': '', 'texto': ''},
+            '2': {'origen': 'fijo', 'si_falta': 'respaldo', 'respaldo': '', 'texto': 'eki'},
+        }
+        aplicar_mapeo(campana)
+        campana.save()
+        with patch('core.meta_waba.time.sleep'), \
+                patch('core.meta_waba.requests.get') as get, \
+                patch('core.meta_waba.requests.post') as post:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = {'data': [{'id': PHONE}]}
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {'messages': [{'id': 'wamid.flujo'}]}
+            ejecutar_campana_meta(campana)
+
+    def test_inicio_de_flujo_abre_el_habeas(self):
+        persona = _persona(
+            'Julián', '573026480629', 'c-flujo',
+            acepto_terminos=True, estado_chat='ACTIVO', estado_onboarding='completado',
+        )
+        sesion = SandboxCanalSesion.objects.create(
+            telefono='573026480629', modo='cafe', habeas_aceptado=True,
+        )
+        campana = self._campana(nombre='Inicio', es_inicio_flujo=True)
+        self._enviar_a(campana, persona)
+        persona.refresh_from_db()
+        sesion.refresh_from_db()
+        self.assertEqual(persona.estado_chat, 'ESPERANDO_HABEAS_DATA')
+        self.assertFalse(persona.acepto_terminos)
+        self.assertEqual(persona.estado_onboarding, 'nuevo')
+        self.assertFalse(sesion.habeas_aceptado)
+        self.assertEqual(sesion.modo, 'menu')
+        ficha = self.client.get(reverse('admin:core_campanameta_change', args=[campana.pk]))
+        self.assertContains(ficha, 'Inicio de flujo')
+
+    def test_el_recordatorio_deja_el_flujo_donde_estaba(self):
+        persona = _persona(
+            'Ana', '573001110077', 'c-push',
+            acepto_terminos=True, estado_chat='ACTIVO', estado_onboarding='completado',
+        )
+        sesion = SandboxCanalSesion.objects.create(
+            telefono='573001110077', modo='cafe', habeas_aceptado=True,
+        )
+        campana = self._campana(nombre='Recordatorio')
+        self.assertFalse(campana.es_inicio_flujo)
+        self._enviar_a(campana, persona)
+        persona.refresh_from_db()
+        sesion.refresh_from_db()
+        self.assertEqual(persona.estado_chat, 'ACTIVO')
+        self.assertTrue(persona.acepto_terminos)
+        self.assertEqual(persona.estado_onboarding, 'completado')
+        self.assertTrue(sesion.habeas_aceptado)
+        self.assertEqual(sesion.modo, 'cafe')
 
     def test_exclusiones_de_optout_reciente_y_telefono(self):
         buena = _persona('Buena', '573001110021', 'c-buena')

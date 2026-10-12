@@ -646,6 +646,32 @@ def numeros_de_prueba() -> list[str]:
     return [digitos(p) for p in bruto if digitos(p)]
 
 
+def poner_en_inicio_de_flujo(estudiante) -> None:
+    """Deja a la persona al inicio del habeas de la línea Meta.
+
+    El recordatorio no llama esto: su respuesta sigue en el modo que ya tenía.
+    """
+    from core.models import SandboxCanalSesion
+    from core.sandbox_menu import MODO_MENU
+    from core.utils_telefono import normalizar_e164_co
+
+    telefono = normalizar_e164_co(getattr(estudiante, 'telefono', '') or '')
+    if telefono:
+        sesion, _ = SandboxCanalSesion.objects.get_or_create(
+            telefono=telefono,
+            defaults={'modo': MODO_MENU, 'habeas_aceptado': False},
+        )
+        sesion.modo = MODO_MENU
+        sesion.habeas_aceptado = False
+        sesion.save(update_fields=['modo', 'habeas_aceptado', 'actualizado_en'])
+    if not getattr(estudiante, 'pk', None):
+        return
+    estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
+    estudiante.acepto_terminos = False
+    estudiante.estado_onboarding = 'nuevo'
+    estudiante.save(update_fields=['estado_chat', 'acepto_terminos', 'estado_onboarding'])
+
+
 def numero_de_prueba_permitido(telefono: str) -> bool:
     return digitos(telefono) in set(numeros_de_prueba())
 

@@ -441,6 +441,14 @@ class CampanaMeta(models.Model):
         verbose_name='Días entre envíos de la misma plantilla',
         help_text='No se vuelve a escribir a quien recibió esta plantilla hace menos de estos días. 14 es el valor inicial.',
     )
+    es_inicio_flujo = models.BooleanField(
+        default=False,
+        verbose_name='Inicio de flujo',
+        help_text=(
+            'Sí: al enviarla, la próxima respuesta entra por el habeas data y sigue el menú. '
+            'No: es un recordatorio. La respuesta continúa en lo que la persona ya llevaba.'
+        ),
+    )
     reglas_variables = models.JSONField(
         default=dict,
         blank=True,

@@ -511,7 +511,7 @@ class PantallaCampanaMetaTests(SimpleTestCase):
 
         adm = CampanaMetaAdmin(CampanaMeta, site)
         por_titulo = {nombre: opts for nombre, opts in adm.fieldsets}
-        self.assertEqual(por_titulo['Campaña']['fields'], ('nombre',))
+        self.assertEqual(por_titulo['Campaña']['fields'], ('nombre', 'es_inicio_flujo'))
         self.assertEqual(por_titulo['Plantilla de Meta']['fields'], ('cliente', 'plantilla'))
         self.assertEqual(
             por_titulo['Envío']['fields'],
