@@ -44,11 +44,17 @@ CAMPOS_EXCLUIDOS = {
 FIELDSETS_V2 = (
     ('1. Organización', {
         'fields': ('cliente', 'grupo'),
-        'description': 'Primero la organización. El plan OP1, OP2 u OP3 sale del grupo.',
+        'description': (
+            'Primero la organización y el grupo. '
+            'Si elige un plan en los datos de la persona, ese manda.'
+        ),
     }),
     ('2. Datos de la persona', {
-        'fields': (('tipo_documento', 'cedula'), 'nombre', 'telefono', 'activo'),
-        'description': 'Documento único y teléfono de WhatsApp.',
+        'fields': (('tipo_documento', 'cedula'), 'nombre', 'telefono', 'plan_persona', 'activo'),
+        'description': (
+            'Documento único y teléfono de WhatsApp. '
+            'El plan vacío usa el del grupo y, si el grupo no tiene, el de la organización.'
+        ),
     }),
     ('3. Curso', {
         'fields': ('cursos_a_inscribir',),

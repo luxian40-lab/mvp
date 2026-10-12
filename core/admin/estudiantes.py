@@ -22,6 +22,7 @@ from io import StringIO
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
 from core.admin.estudiante_alta_flag import alta_v2_activa
+from core.planes_linea import PLAN_CHOICES
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
@@ -43,6 +44,15 @@ class EstudianteAdminForm(forms.ModelForm):
             'Si eligió Cliente, se listan sobre todo los cursos de esa org.'
         ),
         widget=forms.CheckboxSelectMultiple,
+    )
+    plan_persona = forms.ChoiceField(
+        required=False,
+        label='Plan de esta persona',
+        choices=[('', 'El del grupo o la organización')] + list(PLAN_CHOICES),
+        help_text=(
+            'OP1, OP2 u OP3 solo para esta persona. '
+            'Vacío sigue el plan del grupo y, si el grupo no tiene, el de la organización.'
+        ),
     )
 
     class Meta:
@@ -78,6 +88,107 @@ class EstudianteAdminForm(forms.ModelForm):
                 'Marque cursos nuevos. Los ya inscritos aparecen en la lista de abajo.'
             )
         self.fields['cursos_a_inscribir'].queryset = qs
+        if not self.is_bound and self.instance and self.instance.pk:
+            self.fields['plan_persona'].initial = plan_persona_actual(self.instance.telefono)
+
+    def clean(self):
+        cleaned = super().clean()
+        plan = (cleaned.get('plan_persona') or '').strip()
+        if plan and not _telefono_plan(cleaned.get('telefono') or ''):
+            self.add_error(
+                'plan_persona',
+                'Para elegir un plan hace falta el teléfono de WhatsApp.',
+            )
+        return cleaned
+
+
+def _telefono_plan(telefono: str) -> str:
+    from core.nati import normalizar_telefono_whatsapp
+
+    return normalizar_telefono_whatsapp(telefono or '')
+
+
+def plan_persona_actual(telefono: str) -> str:
+    from core.models import SandboxCanalSesion
+
+    tel = _telefono_plan(telefono)
+    if not tel:
+        return ''
+    return (
+        SandboxCanalSesion.objects.filter(telefono=tel).values_list('plan', flat=True).first()
+        or ''
+    )
+
+
+def guardar_plan_persona(estudiante, clave: str, telefono_anterior: str = '') -> None:
+    """Escribe el plan de esta persona. Vacío vuelve al grupo o a la organización."""
+    from core.models import SandboxCanalSesion
+
+    nuevo = _telefono_plan(getattr(estudiante, 'telefono', '') or '')
+    viejo = _telefono_plan(telefono_anterior or '')
+    clave = (clave or '').strip()
+    if viejo and viejo != nuevo:
+        SandboxCanalSesion.objects.filter(telefono=viejo).update(plan='')
+    if not nuevo:
+        return
+    if not clave:
+        SandboxCanalSesion.objects.filter(telefono=nuevo).update(plan='')
+        return
+    SandboxCanalSesion.objects.update_or_create(telefono=nuevo, defaults={'plan': clave})
+
+
+def etiquetas_plan_pagina(estudiantes) -> dict:
+    """OP visible en el listado: persona, si no grupo, si no organización."""
+    from datetime import date
+
+    from django.db.models import Q
+
+    from core.models import SandboxCanalSesion
+    from core.models_extras import GrupoEstudiantes
+
+    cortas = {
+        'curso_asesor': 'OP1',
+        'dos_cursos': 'OP2',
+        'asesor_60': 'OP3',
+    }
+    filas = list(estudiantes)
+    tels = {est.pk: _telefono_plan(est.telefono or '') for est in filas}
+    sesiones = {}
+    numeros = {tel for tel in tels.values() if tel}
+    if numeros:
+        sesiones = dict(
+            SandboxCanalSesion.objects.filter(telefono__in=numeros).values_list('telefono', 'plan')
+        )
+    sin_propio = [
+        est.pk for est in filas
+        if not (sesiones.get(tels.get(est.pk, ''), '') or '').strip()
+    ]
+    grupos = {}
+    if sin_propio:
+        vigentes = GrupoEstudiantes.objects.filter(
+            activo=True,
+            plan_linea_meta__gt='',
+            estudiantes__pk__in=sin_propio,
+            cliente__activo=True,
+        ).filter(
+            Q(cliente__fecha_fin_suscripcion__isnull=True)
+            | Q(cliente__fecha_fin_suscripcion__gte=date.today())
+        ).order_by('fecha_creacion', 'id')
+        for pk, plan in vigentes.values_list('estudiantes__pk', 'plan_linea_meta'):
+            grupos[pk] = plan
+    hoy = date.today()
+    salida = {}
+    for est in filas:
+        propio = (sesiones.get(tels.get(est.pk, ''), '') or '').strip()
+        org = ''
+        cliente = est.cliente if est.cliente_id else None
+        if cliente is not None and cliente.activo:
+            fin = cliente.fecha_fin_suscripcion
+            if fin is None or fin >= hoy:
+                org = (cliente.plan_linea_meta or '').strip()
+        clave = propio or grupos.get(est.pk) or org
+        salida[est.pk] = cortas.get(clave, 'Sin plan')
+    return salida
 
 
 # Estado del chat (máquina WhatsApp). No incluye avance de curso.
@@ -297,6 +408,7 @@ class EstudianteAdmin(admin.ModelAdmin):
     list_display = (
         'crm_estudiante',
         'crm_organizacion',
+        'crm_plan',
         'crm_curso',
         'crm_estado',
         'crm_actividad',
@@ -340,8 +452,10 @@ class EstudianteAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Identificación y contacto', {
-            'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
-            'description': 'Documento único; teléfono WhatsApp y organización.',
+            'fields': (
+                'tipo_documento', 'cedula', 'nombre', 'telefono', 'plan_persona', 'cliente', 'activo',
+            ),
+            'description': 'Documento único; teléfono WhatsApp, plan de esta persona y organización.',
         }),
         ('Inscripción a curso', {
             'fields': ('cursos_a_inscribir', 'mostrar_cursos_inscritos'),
@@ -368,8 +482,11 @@ class EstudianteAdmin(admin.ModelAdmin):
         if obj is None:
             return (
                 ('Identificación y contacto', {
-                    'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
-                    'description': 'Documento único; teléfono WhatsApp y organización.',
+                    'fields': (
+                        'tipo_documento', 'cedula', 'nombre', 'telefono',
+                        'plan_persona', 'cliente', 'activo',
+                    ),
+                    'description': 'Documento único; teléfono WhatsApp, plan de esta persona y organización.',
                 }),
                 ('Inscripción a curso', {
                     'fields': ('cursos_a_inscribir',),
@@ -392,7 +509,15 @@ class EstudianteAdmin(admin.ModelAdmin):
         return self.fieldsets
 
     def save_model(self, request, obj, form, change):
+        telefono_anterior = ''
+        if change and obj.pk:
+            telefono_anterior = (
+                Estudiante.objects.filter(pk=obj.pk).values_list('telefono', flat=True).first() or ''
+            )
         super().save_model(request, obj, form, change)
+        guardar_plan_persona(
+            obj, form.cleaned_data.get('plan_persona', ''), telefono_anterior,
+        )
         if alta_v2_activa():
             grupo = form.cleaned_data.get('grupo')
             if grupo is not None:
@@ -609,6 +734,15 @@ class EstudianteAdmin(admin.ModelAdmin):
             return format_html('<span class="eki-crm-orgchip">{}</span>', obj.cliente.nombre)
         return format_html('<span class="eki-crm-orgchip eki-crm-op--sin">Sin organización</span>')
 
+    @display(description='Plan')
+    def crm_plan(self, obj):
+        texto = getattr(obj, '_op_visible', None)
+        if texto is None:
+            texto = etiquetas_plan_pagina([obj]).get(obj.pk, 'Sin plan')
+        if texto == 'Sin plan':
+            return format_html('<span class="eki-crm-vacio">Sin plan</span>')
+        return texto
+
     @display(description='Curso y avance')
     def crm_curso(self, obj):
         elegido, extra = elegir_progreso_lista(
@@ -759,6 +893,9 @@ class EstudianteAdmin(admin.ModelAdmin):
         cl = contexto.get('cl')
         if cl is not None:
             contexto['eki_crm'] = datos_crm(self, request, cl)
+            etiquetas = etiquetas_plan_pagina(cl.result_list)
+            for est in cl.result_list:
+                est._op_visible = etiquetas.get(est.pk, 'Sin plan')
         return response
 
     def grupos_display(self, obj):

@@ -20,9 +20,10 @@ from core.admin.estudiante_alta import (
 from core.admin.estudiantes import EstudianteAdmin, EstudianteAdminForm
 from core.admin.clientes import HabilitacionModuloEstudianteInline
 from core.cursos_permitidos import cursos_permitidos, parece_nombre_de_prueba
-from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
+from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante, SandboxCanalSesion
 from core.models_extras import GrupoEstudiantes
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.nati import normalizar_telefono_whatsapp
+from core.planes_linea import PLAN_ASESOR_60, PLAN_CURSO_ASESOR, PLAN_DOS_CURSOS, resolver_plan
 from core.utils_telefono import normalizar_telefono
 
 CAMPOS_VIEJOS = {
@@ -313,6 +314,43 @@ class AltaEstudianteTests(TestCase):
         pagina = self.client.get(reverse('admin:core_estudiante_change', args=[est.pk]))
         self.assertContains(pagina, 'Fuera de regla')
         self.assertNotContains(pagina, 'Ver todos')
+
+    @override_settings(SANDBOX_PROVEEDOR='meta')
+    def test_plan_de_la_persona_pisa_el_del_grupo(self):
+        grupo = GrupoEstudiantes.objects.create(
+            nombre='Norte', cliente=self.org, plan_linea_meta=PLAN_DOS_CURSOS, activo=True,
+        )
+        form = self._form(
+            cedula='555', telefono='3001112291', grupo=str(grupo.pk),
+            plan_persona=PLAN_ASESOR_60,
+        )
+        est = self._guardar(form)
+        tel = normalizar_telefono_whatsapp(est.telefono)
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).plan, PLAN_ASESOR_60)
+        self.assertEqual(resolver_plan(est.telefono).clave, PLAN_ASESOR_60)
+        pagina = self.client.get(reverse('admin:core_estudiante_change', args=[est.pk]))
+        self.assertContains(pagina, 'Plan de esta persona')
+        self.assertContains(pagina, 'value="asesor_60" selected')
+        lista = self.client.get(reverse('admin:core_estudiante_changelist'))
+        self.assertContains(lista, 'OP3')
+
+    @override_settings(SANDBOX_PROVEEDOR='meta')
+    def test_plan_vacio_deja_el_del_grupo(self):
+        grupo = GrupoEstudiantes.objects.create(
+            nombre='Sur', cliente=self.org, plan_linea_meta=PLAN_DOS_CURSOS, activo=True,
+        )
+        form = self._form(
+            cedula='556', telefono='3001112292', grupo=str(grupo.pk), plan_persona='',
+        )
+        est = self._guardar(form)
+        self.assertFalse(
+            SandboxCanalSesion.objects.filter(
+                telefono=normalizar_telefono_whatsapp(est.telefono), plan__gt='',
+            ).exists()
+        )
+        self.assertEqual(resolver_plan(est.telefono).clave, PLAN_DOS_CURSOS)
+        lista = self.client.get(reverse('admin:core_estudiante_changelist'))
+        self.assertContains(lista, 'OP2')
 
     def test_grupo_asigna_el_plan(self):
         grupo = GrupoEstudiantes.objects.create(
