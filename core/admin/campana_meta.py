@@ -277,7 +277,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
     actions_list = ('nueva_campana',)
     actions_list_hide_default = True
     actions_row = ('enviar_ahora', 'programar', 'duplicar_campana', 'ver_resultado')
-    actions = ['pausar_campanas', 'reanudar_campanas', 'reenviar_reintentables']
+    actions = ['ejecutar_campanas', 'pausar_campanas', 'reanudar_campanas', 'reenviar_reintentables']
 
     fieldsets = (
         ('Campaña', {'fields': ('nombre',)}),
@@ -731,6 +731,11 @@ class CampanaMetaAdmin(admin.ModelAdmin):
             f'{campana.nombre} encolada ({modo}) para {n} destinatario(s).',
             level=messages.SUCCESS,
         )
+
+    @admin.action(description='Ejecutar campañas Meta (envío Cloud API)')
+    def ejecutar_campanas(self, request, queryset):
+        for campana in queryset.select_related('plantilla'):
+            self._lanzar_una(request, campana)
 
     @admin.action(description='Pausar campañas Meta')
     def pausar_campanas(self, request, queryset):

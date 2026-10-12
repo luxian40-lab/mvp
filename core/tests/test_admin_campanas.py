@@ -101,6 +101,7 @@ class CampanasAdminTests(TestCase):
         self.assertContains(pagina, 'Leídos 1')
         self.assertContains(pagina, 'Respondieron Sin dato')
         self.assertContains(pagina, 'Nueva campaña')
+        self.assertContains(pagina, 'Ejecutar campañas Meta (envío Cloud API)')
         self.assertContains(pagina, 'Buscar')
         self.assertContains(pagina, 'Filtros')
         self.assertNotContains(pagina, 'Type to search')
@@ -110,6 +111,29 @@ class CampanasAdminTests(TestCase):
         borradores = self.client.get(reverse('admin:core_campanameta_changelist'), {'eki_cm': 'borradores'})
         self.assertContains(borradores, borrador.nombre)
         self.assertNotContains(borradores, 'Ya salio')
+
+    def test_la_accion_masiva_encola_la_campana_aprobada(self):
+        persona = _persona('Masiva', '573001110099', 'c-masiva')
+        campana = self._campana(nombre='Masiva')
+        campana.destinatarios.add(persona)
+        with patch('core.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
+            self.client.post(reverse('admin:core_campanameta_changelist'), {
+                'action': 'ejecutar_campanas',
+                '_selected_action': [str(campana.pk)],
+            })
+        encolar.assert_called_once_with(campana.id)
+
+    def test_la_accion_masiva_no_encola_si_falta_aprobacion(self):
+        borrador = _plantilla(nombre_interno='Sin aprobar', meta_name='sin_aprobar_masiva', estado='BORRADOR')
+        persona = _persona('Otra', '573001110098', 'c-otra-masiva')
+        campana = self._campana(nombre='Bloqueada masiva', plantilla=borrador)
+        campana.destinatarios.add(persona)
+        with patch('core.meta_waba.encolar_campana_meta') as encolar:
+            self.client.post(reverse('admin:core_campanameta_changelist'), {
+                'action': 'ejecutar_campanas',
+                '_selected_action': [str(campana.pk)],
+            })
+        encolar.assert_not_called()
 
     def test_audiencia_une_grupos_y_personas_sin_repetir(self):
         ana = _persona('Ana', '573001110011', 'c-ana2')
