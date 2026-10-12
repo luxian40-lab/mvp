@@ -31,6 +31,29 @@ class ConocimientoAgenteTests(TestCase):
         self.assertNotIn('Sugerida', bloque)
         self.assertNotIn('solo coach', bloque)
 
+    def test_alcance_de_un_cliente_no_entra_en_los_demas(self):
+        org = Cliente.objects.create(
+            nombre='Solo esta org',
+            contacto_principal='a',
+            email='alcance@example.com',
+            telefono='573009991111',
+        )
+        otra = Cliente.objects.create(
+            nombre='Otra org',
+            contacto_principal='b',
+            email='alcance2@example.com',
+            telefono='573009992222',
+        )
+        self._crear(
+            titulo='Dosis local',
+            contenido='Solo para esta cooperativa.',
+            alcance=ConocimientoAgente.ALCANCE_CLIENTE,
+            cliente=org,
+        )
+        self.assertNotIn('Dosis local', bloque_conocimiento('ventas'))
+        self.assertIn('Dosis local', bloque_conocimiento('ventas', org.pk))
+        self.assertNotIn('Dosis local', bloque_conocimiento('ventas', otra.pk))
+
     def test_aprobar_se_ve_sin_esperar_cache(self):
         self.assertEqual(bloque_conocimiento('coach'), '')
         fila = self._crear(agente='coach', estado=ConocimientoAgente.ESTADO_SUGERIDO)

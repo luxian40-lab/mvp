@@ -50,6 +50,26 @@ class ConocimientoAgente(models.Model):
     pregunta_origen = models.TextField(blank=True, default='', verbose_name='Pregunta del usuario')
     respuesta_origen = models.TextField(blank=True, default='', verbose_name='Respuesta que dio el agente')
     orden = models.PositiveSmallIntegerField(default=0)
+    ALCANCE_TODOS = 'todos'
+    ALCANCE_CLIENTE = 'cliente'
+    ALCANCE_CHOICES = [
+        (ALCANCE_TODOS, 'Todos'),
+        (ALCANCE_CLIENTE, 'Un cliente'),
+    ]
+    alcance = models.CharField(
+        max_length=16,
+        choices=ALCANCE_CHOICES,
+        default=ALCANCE_TODOS,
+        verbose_name='Alcance',
+    )
+    cliente = models.ForeignKey(
+        'core.Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conocimientos_agente',
+        verbose_name='Cliente',
+    )
     revisado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -74,11 +94,52 @@ class ConocimientoAgente(models.Model):
         super().save(*args, **kwargs)
         from core.conocimiento_agentes import limpiar_cache_conocimiento
 
-        limpiar_cache_conocimiento()
+        limpiar_cache_conocimiento(self.cliente_id)
 
     def delete(self, *args, **kwargs):
         resultado = super().delete(*args, **kwargs)
         from core.conocimiento_agentes import limpiar_cache_conocimiento
 
-        limpiar_cache_conocimiento()
+        limpiar_cache_conocimiento(self.cliente_id)
         return resultado
+
+
+class PruebaAgente(models.Model):
+    """Pregunta fija del laboratorio. No se envía por WhatsApp ni gasta cupo."""
+
+    AGENTE_CHOICES = [
+        ('coach', 'Coach eki'),
+        ('ia_campo', 'Profesor IA'),
+        ('ventas', 'Ventas eki'),
+        ('finanzas', 'Experto en finanzas'),
+        ('cafe', 'Experto en café'),
+    ]
+    RESULTADO_PASA = 'pasa'
+    RESULTADO_REVISAR = 'revisar'
+
+    agente = models.CharField(max_length=16, choices=AGENTE_CHOICES)
+    pregunta = models.TextField()
+    cliente = models.ForeignKey(
+        'core.Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pruebas_agente',
+    )
+    plan = models.CharField(max_length=20, blank=True, default='')
+    debe_mencionar = models.TextField(blank=True, default='')
+    no_debe_mencionar = models.TextField(blank=True, default='')
+    debe_usar_fuente = models.CharField(max_length=160, blank=True, default='')
+    ultima_corrida = models.DateTimeField(null=True, blank=True)
+    ultimo_resultado = models.CharField(max_length=16, blank=True, default='')
+    corridas = models.PositiveIntegerField(default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'core'
+        verbose_name = 'Prueba de agente'
+        verbose_name_plural = 'Pruebas de agente'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f'{self.get_agente_display()} · {self.pregunta[:60]}'

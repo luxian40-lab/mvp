@@ -48,6 +48,18 @@ def _puede_modelo(codename):
     return _check
 
 
+def _laboratorio_visible(request):
+    return _es_staff(request)
+
+
+def _bandeja_visible(request):
+    from core.admin.agentes_v2_flag import admin_agentes_v2_activo
+
+    return admin_agentes_v2_activo(request) and _puede_modelo(
+        'agents_commercial.view_conversacionragcandidata',
+    )(request)
+
+
 def _es_staff(request):
     user = getattr(request, 'user', None)
     return bool(user and getattr(user, 'is_authenticated', False) and user.is_staff)
@@ -316,6 +328,20 @@ UNFOLD = {
                         "icon": "model_training",
                         "link": reverse_lazy("admin:core_conocimientoagente_changelist"),
                         "permission": _puede_modelo("core.view_conocimientoagente"),
+                    },
+                    {
+                        "title": _("Bandeja de revisión"),
+                        "icon": "inbox",
+                        "link": reverse_lazy(
+                            "admin:agents_commercial_conversacionragcandidata_changelist",
+                        ),
+                        "permission": _bandeja_visible,
+                    },
+                    {
+                        "title": _("Laboratorio"),
+                        "icon": "science",
+                        "link": "/admin/laboratorio/",
+                        "permission": _laboratorio_visible,
                     },
                 ],
             },

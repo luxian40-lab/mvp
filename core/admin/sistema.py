@@ -1,4 +1,11 @@
+from django import forms
+from django.utils import timezone
+from django.utils.html import format_html
+from unfold.decorators import action
+
 from core.admin._common import *  # noqa: F401,F403
+from core.admin.agentes_v2_flag import admin_agentes_v2_activo
+from core.admin import agentes_v2_textos as textos
 from core.models import ConfiguracionGlobal as _ConfiguracionGlobal
 from core.webhook_evento import WebhookFallido
 
@@ -76,6 +83,100 @@ class ContextoAgroSessionAdmin(admin.ModelAdmin):
     readonly_fields = ('updated_at',)
 
 
+def tabs_bandeja(request):
+    """Pestañas de la bandeja. En el resto del admin no consulta nada."""
+    if not admin_agentes_v2_activo(request):
+        return []
+    try:
+        ruta_candidata = reverse('admin:agents_commercial_conversacionragcandidata_changelist')
+        ruta_conocimiento = reverse('admin:core_conocimientoagente_changelist')
+    except Exception:
+        return []
+    path = request.path or ''
+    if not (path.startswith(str(ruta_candidata)) or path.startswith(str(ruta_conocimiento))):
+        return []
+    from core.models_agentes import ConocimientoAgente
+
+    vista = getattr(request, 'eki_rev', None)
+    if vista is None:
+        vista = (request.GET.get('eki_rev') or '').strip()
+    if path.startswith(str(ruta_candidata)) and not vista:
+        vista = 'pendientes'
+    conteos = {
+        'pendientes': ConversacionRAGCandidata.objects.filter(
+            estado=ConversacionRAGCandidata.ESTADO_PENDIENTE,
+        ).count(),
+        'aprobadas': ConversacionRAGCandidata.objects.filter(
+            estado__in=(
+                ConversacionRAGCandidata.ESTADO_APROBADA,
+                ConversacionRAGCandidata.ESTADO_PUBLICADA,
+            ),
+        ).count(),
+        'rechazadas': ConversacionRAGCandidata.objects.filter(
+            estado=ConversacionRAGCandidata.ESTADO_RECHAZADA,
+        ).count(),
+        'sugeridos': ConocimientoAgente.objects.filter(
+            estado=ConocimientoAgente.ESTADO_SUGERIDO,
+        ).count(),
+    }
+
+    def item(clave, titulo, enlace, activa):
+        return {
+            'title': f'{titulo} · {conteos[clave]}',
+            'link': enlace,
+            'active': activa,
+            'has_permission': True,
+        }
+
+    base = str(ruta_candidata)
+    sugeridos = f'{ruta_conocimiento}?estado__exact=sugerido'
+    return [{
+        'models': [
+            'agents_commercial.conversacionragcandidata',
+            'core.conocimientoagente',
+        ],
+        'items': [
+            item('pendientes', 'Pendientes', f'{base}?eki_rev=pendientes', vista == 'pendientes'),
+            item('aprobadas', 'Aprobadas', f'{base}?eki_rev=aprobadas', vista == 'aprobadas'),
+            item('rechazadas', 'Rechazadas', f'{base}?eki_rev=rechazadas', vista == 'rechazadas'),
+            item(
+                'sugeridos',
+                'Sugeridos',
+                sugeridos,
+                path.startswith(str(ruta_conocimiento)),
+            ),
+        ],
+    }]
+
+
+class BandejaRevisionForm(forms.ModelForm):
+    agentes = forms.MultipleChoiceField(
+        choices=(
+            ('coach', 'Coach eki'),
+            ('ia_campo', 'Profesor IA'),
+            ('ventas', 'Ventas eki'),
+            ('finanzas', 'Experto en finanzas'),
+            ('cafe', 'Experto en café'),
+        ),
+        required=False,
+        label=textos.APLICA_A,
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Puede marcar varios. Si no marca ninguno, la candidata queda revisada y no entra al prompt.',
+    )
+
+    class Meta:
+        model = ConversacionRAGCandidata
+        fields = ('respuesta_revisada', 'agentes', 'alcance', 'cliente')
+        labels = {'alcance': textos.ALCANCE}
+        help_texts = {'alcance': textos.ALCANCE_AYUDA}
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get('alcance') == 'cliente' and not datos.get('cliente'):
+            self.add_error('cliente', 'Elija el cliente.')
+        return datos
+
+
 class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
     list_display = (
         'fecha_creacion', 'estado', 'telefono', 'cliente', 'pregunta_corta', 'revisado_por',
@@ -84,10 +185,159 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
     search_fields = ('telefono', 'pregunta', 'respuesta_nati')
     readonly_fields = ('fecha_creacion', 'fecha_revision', 'trace_id')
     actions = ['marcar_aprobada']
+    actions_row = ('revisar_bandeja',)
+    actions_submit_line = (
+        'bandeja_a_documento',
+        'bandeja_rechazar',
+        'bandeja_aprobar_siguiente',
+        'bandeja_aprobar',
+    )
+
+    def _consumir_ui(self, request):
+        """?ui=v2 enciende la sesión. Django no debe tratar «ui» ni «eki_rev» como filtros."""
+        admin_agentes_v2_activo(request)
+        request.eki_rev = (request.GET.get('eki_rev') or '').strip()
+        if 'ui' in request.GET or 'eki_rev' in request.GET:
+            limpio = request.GET.copy()
+            limpio.pop('ui', None)
+            limpio.pop('eki_rev', None)
+            request.GET = limpio
+
+    def changelist_view(self, request, extra_context=None):
+        self._consumir_ui(request)
+        return super().changelist_view(request, extra_context)
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        self._consumir_ui(request)
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_list_display(self, request):
+        if not admin_agentes_v2_activo(request):
+            return self.list_display
+        return ('pregunta_resumida', 'cliente', 'hace', 'estado_chip')
+
+    def get_search_fields(self, request):
+        if admin_agentes_v2_activo(request):
+            return ('pregunta', 'respuesta_nati', 'respuesta_revisada')
+        return self.search_fields
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not admin_agentes_v2_activo(request):
+            return qs
+        vista = getattr(request, 'eki_rev', '') or 'pendientes'
+        if vista == 'aprobadas':
+            return qs.filter(estado__in=(
+                ConversacionRAGCandidata.ESTADO_APROBADA,
+                ConversacionRAGCandidata.ESTADO_PUBLICADA,
+            ))
+        if vista == 'rechazadas':
+            return qs.filter(estado=ConversacionRAGCandidata.ESTADO_RECHAZADA)
+        if vista == 'pendientes':
+            return qs.filter(estado=ConversacionRAGCandidata.ESTADO_PENDIENTE)
+        return qs
+
+    def get_fieldsets(self, request, obj=None):
+        if not admin_agentes_v2_activo(request) or obj is None:
+            return super().get_fieldsets(request, obj)
+        return (
+            (textos.PREGUNTA, {'fields': ('pregunta_limpia',)}),
+            (textos.RESPUESTA, {'fields': ('respuesta_revisada',)}),
+            (textos.APLICA_A, {'fields': ('agentes', 'alcance', 'cliente')}),
+            (None, {'fields': ('tarjeta_origen', 'tarjeta_antes')}),
+        )
+
+    def get_form(self, request, obj=None, **kwargs):
+        if admin_agentes_v2_activo(request) and obj is not None:
+            kwargs['form'] = BandejaRevisionForm
+        return super().get_form(request, obj, **kwargs)
+
+    def get_readonly_fields(self, request, obj=None):
+        base = list(super().get_readonly_fields(request, obj))
+        if admin_agentes_v2_activo(request) and obj is not None:
+            return base + ['pregunta_limpia', 'tarjeta_origen', 'tarjeta_antes']
+        return base
+
+    def get_actions_row(self, request):
+        if not admin_agentes_v2_activo(request):
+            return []
+        return super().get_actions_row(request)
+
+    def get_actions_submit_line(self, request, object_id):
+        if not admin_agentes_v2_activo(request):
+            return []
+        return super().get_actions_submit_line(request, object_id)
+
+    def _texto_limpio(self, texto):
+        from core.conocimiento_agentes import _sin_datos_personales
+
+        return _sin_datos_personales(texto or '')
 
     @admin.display(description='Pregunta')
     def pregunta_corta(self, obj):
         return (obj.pregunta or '')[:80]
+
+    @admin.display(description='Pregunta')
+    def pregunta_resumida(self, obj):
+        texto = self._texto_limpio(obj.pregunta)
+        if len(texto) > 90:
+            texto = texto[:87].rstrip() + '…'
+        return texto
+
+    @admin.display(description='Hace')
+    def hace(self, obj):
+        if not obj.fecha_creacion:
+            return '—'
+        horas = int((timezone.now() - obj.fecha_creacion).total_seconds() // 3600)
+        if horas < 1:
+            return 'hace menos de 1 hora'
+        if horas < 48:
+            return f'hace {horas} horas'
+        return f'hace {horas // 24} días'
+
+    @admin.display(description='Estado')
+    def estado_chip(self, obj):
+        etiquetas = {
+            ConversacionRAGCandidata.ESTADO_PENDIENTE: textos.CHIP_PENDIENTE,
+            ConversacionRAGCandidata.ESTADO_APROBADA: textos.CHIP_APROBADO,
+            ConversacionRAGCandidata.ESTADO_RECHAZADA: textos.CHIP_RECHAZADO,
+            ConversacionRAGCandidata.ESTADO_PUBLICADA: textos.CHIP_LISTO,
+        }
+        return etiquetas.get(obj.estado, obj.estado)
+
+    @admin.display(description=textos.PREGUNTA)
+    def pregunta_limpia(self, obj):
+        return self._texto_limpio(obj.pregunta) if obj else '—'
+
+    @admin.display(description=textos.ORIGEN)
+    def tarjeta_origen(self, obj):
+        return format_html('<p>{}</p>', textos.ORIGEN_CUERPO)
+
+    @admin.display(description=textos.ANTES)
+    def tarjeta_antes(self, obj):
+        return format_html('<p>{}</p>', textos.ANTES_CUERPO)
+
+    def response_change(self, request, obj):
+        if admin_agentes_v2_activo(request):
+            nombre = (
+                f'{self.model._meta.app_label}_{self.model._meta.model_name}'
+                '_bandeja_aprobar_siguiente'
+            )
+            if nombre in request.POST:
+                siguiente = (
+                    ConversacionRAGCandidata.objects.filter(
+                        estado=ConversacionRAGCandidata.ESTADO_PENDIENTE,
+                    )
+                    .exclude(pk=obj.pk)
+                    .order_by('fecha_creacion')
+                    .first()
+                )
+                if siguiente is not None:
+                    return redirect(
+                        f'admin:{self.model._meta.app_label}_{self.model._meta.model_name}_change',
+                        siguiente.pk,
+                    )
+        return super().response_change(request, obj)
 
     @admin.action(description='Marcar aprobada (sin publicar)')
     def marcar_aprobada(self, request, queryset):
@@ -95,6 +345,45 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
 
         for c in queryset.filter(estado=ConversacionRAGCandidata.ESTADO_PENDIENTE):
             revisar_candidata(c, usuario=request.user, accion='aprobar')
+
+    @action(description=textos.REVISAR, url_path='revisar-bandeja', icon='rate_review', permissions=['change'])
+    def revisar_bandeja(self, request, object_id):
+        return redirect(
+            f'admin:{self.model._meta.app_label}_{self.model._meta.model_name}_change',
+            object_id,
+        )
+
+    def _revisar(self, request, obj, accion):
+        from core.knowledge_studio import revisar_candidata
+
+        revisar_candidata(
+            obj,
+            usuario=request.user,
+            accion=accion,
+            respuesta_revisada=obj.respuesta_revisada or '',
+        )
+        if accion == 'aprobar':
+            from core.conocimiento_agentes import copiar_candidata_a_agentes
+
+            copiar_candidata_a_agentes(obj, request.user)
+
+    @action(description=textos.APROBAR, url_path='bandeja-aprobar', permissions=['change'])
+    def bandeja_aprobar(self, request, obj):
+        self._revisar(request, obj, 'aprobar')
+
+    @action(description=textos.APROBAR_SIGUIENTE, url_path='bandeja-aprobar-siguiente', permissions=['change'])
+    def bandeja_aprobar_siguiente(self, request, obj):
+        self._revisar(request, obj, 'aprobar')
+
+    @action(description=textos.RECHAZAR, url_path='bandeja-rechazar', permissions=['change'])
+    def bandeja_rechazar(self, request, obj):
+        self._revisar(request, obj, 'rechazar')
+
+    @action(description=textos.A_DOCUMENTO, url_path='bandeja-documento', permissions=['change'])
+    def bandeja_a_documento(self, request, obj):
+        from core.knowledge_studio import publicar_candidata_en_rag
+
+        publicar_candidata_en_rag(obj, usuario=request.user)
 
 
 @admin.register(AlertaTerritorial)

@@ -513,6 +513,7 @@ def responder_agente_sandbox(
     pregunta: str,
     *,
     telefono: str = '',
+    cliente_id=None,
 ) -> str:
     """Respuesta LLM con memoria; fallback sólido si falla la API."""
     q = (pregunta or '').strip()
@@ -530,9 +531,10 @@ def responder_agente_sandbox(
 
     sistema = prompt_para(agente)
     try:
-        from core.conocimiento_agentes import bloque_conocimiento
+        from core.conocimiento_agentes import bloque_conocimiento, cliente_id_para_conocimiento
 
-        extra = bloque_conocimiento(agente)
+        cid = cliente_id if cliente_id is not None else cliente_id_para_conocimiento(telefono)
+        extra = bloque_conocimiento(agente, cid)
     except Exception:
         logger.exception('sandbox_conocimiento_fail agente=%s', agente)
         extra = ''

@@ -1,0 +1,111 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load unfold %}
+
+{% block eki_ops_crumb %}Laboratorio{% endblock %}
+{% block title %}Laboratorio de agentes · eki{% endblock %}
+
+{% block eki_ops_content %}
+{% component "unfold/components/card.html" with title="Laboratorio" %}
+  <p>Prueba un agente por el mismo camino de la línea, sin WhatsApp, sin cupo y sin memoria de una persona real. El costo en pesos es {{ sin_dato }}. Fragmentos de documento y productos: {{ sin_dato }}.</p>
+  <p>Puede correr hasta {{ tope_pruebas }} pruebas guardadas, y hasta {{ tope_hora }} ejecuciones por hora. El botón de correr no se dispara solo.</p>
+  <form method="post">
+    {% csrf_token %}
+    <p>
+      <label for="lab-agente">Agente</label><br>
+      <select id="lab-agente" name="agente">
+        {% for clave, nombre in agentes %}
+        <option value="{{ clave }}">{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p>
+      <label for="lab-cliente">Cliente</label><br>
+      <select id="lab-cliente" name="cliente">
+        <option value="">Todos</option>
+        {% for cliente in clientes %}
+        <option value="{{ cliente.pk }}">{{ cliente.nombre }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p>
+      <label for="lab-plan">Plan</label><br>
+      <select id="lab-plan" name="plan">
+        <option value="">Sin plan</option>
+        {% for clave, nombre in planes %}
+        <option value="{{ clave }}">{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p>
+      <label for="lab-pregunta">Pregunta</label><br>
+      <textarea id="lab-pregunta" name="pregunta" rows="4" required></textarea>
+    </p>
+    <p>
+      <label for="lab-mencionar">Debe mencionar (una frase por línea)</label><br>
+      <textarea id="lab-mencionar" name="debe_mencionar" rows="2"></textarea>
+    </p>
+    <p>
+      <label for="lab-no">No debe mencionar (una frase por línea)</label><br>
+      <textarea id="lab-no" name="no_debe_mencionar" rows="2"></textarea>
+    </p>
+    <p>
+      <label for="lab-fuente">Debe usar la fuente</label><br>
+      <input id="lab-fuente" name="debe_usar_fuente" type="text" maxlength="160">
+    </p>
+    <p>
+      <button type="submit" name="accion" value="preguntar">Probar</button>
+      <button type="submit" name="accion" value="guardar">Guardar como prueba fija</button>
+    </p>
+  </form>
+{% endcomponent %}
+
+{% if ultimo %}
+{% component "unfold/components/card.html" with title="Respuesta" %}
+  <p>{{ ultimo.texto }}</p>
+  <p>Modelo: {{ ultimo.modelo }}. Tiempo: {{ ultimo.ms }} ms. Costo: {{ ultimo.costo }}.</p>
+  <p>Conocimiento usado:
+    {% if ultimo.conocimientos %}
+      {{ ultimo.conocimientos|join:", " }}
+    {% else %}
+      {{ sin_dato }}
+    {% endif %}
+  </p>
+  <p>Fragmentos: {{ ultimo.fragmentos }}. Productos: {{ ultimo.productos }}.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" name="accion" value="mal">Esto estuvo mal: crear conocimiento</button>
+  </form>
+{% endcomponent %}
+{% endif %}
+
+{% if corrida %}
+{% component "unfold/components/card.html" with title="Última corrida" %}
+  <ul>
+    {% for fila in corrida %}
+    <li>{{ fila.resultado }} — {{ fila.pregunta }}{% if fila.nota %} ({{ fila.nota }}){% endif %}</li>
+    {% endfor %}
+  </ul>
+{% endcomponent %}
+{% endif %}
+
+{% component "unfold/components/card.html" with title="Pruebas fijas" %}
+  {% if pruebas %}
+  <ul>
+    {% for prueba in pruebas %}
+    <li>
+      {{ prueba.get_agente_display }} — {{ prueba.pregunta|truncatechars:80 }}
+      — corridas {{ prueba.corridas }}
+      {% if prueba.ultimo_resultado %}— última {{ prueba.ultimo_resultado }}{% else %}— sin correr{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <form method="post">
+    {% csrf_token %}
+    <p>Se correrán como máximo {{ tope_pruebas }}. El costo estimado es {{ sin_dato }}.</p>
+    <button type="submit" name="accion" value="correr">Correr las pruebas</button>
+  </form>
+  {% else %}
+  <p>Todavía no hay pruebas guardadas.</p>
+  {% endif %}
+{% endcomponent %}
+{% endblock %}

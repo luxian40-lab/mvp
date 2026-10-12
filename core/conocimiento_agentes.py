@@ -11,7 +11,7 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 AGENTES = ('coach', 'ia_campo', 'ventas', 'finanzas', 'cafe')
-_CACHE_KEY = 'conocimiento_agente:v1:{agente}'
+_CACHE_KEY = 'conocimiento_agente:v2:{agente}:{cliente}'
 _CACHE_SEGUNDOS = 300
 _MAX_CHARS_PROMPT = 2500
 _MIN_CHARS_PREGUNTA = 30
@@ -20,30 +20,58 @@ _RE_CORREO = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _RE_NUMERO = re.compile(r'\+?\d[\d\s-]{6,}\d')
 
 
-def limpiar_cache_conocimiento() -> None:
+def limpiar_cache_conocimiento(cliente_id=None) -> None:
+    claves = [_CACHE_KEY.format(agente=a, cliente='0') for a in AGENTES]
+    if cliente_id:
+        claves.extend(_CACHE_KEY.format(agente=a, cliente=cliente_id) for a in AGENTES)
     try:
-        cache.delete_many([_CACHE_KEY.format(agente=a) for a in AGENTES])
+        cache.delete_many(claves)
     except Exception:
         logger.exception('conocimiento_cache_clear_fail')
 
 
-def bloque_conocimiento(agente: str) -> str:
-    """Texto que se suma al system prompt. Cacheado 5 min: no consulta la DB por mensaje."""
+def cliente_id_para_conocimiento(telefono: str):
+    """Organización de esa persona. Vacío si no tiene."""
+    tel = (telefono or '').strip()
+    if not tel:
+        return None
+    from core.models import Estudiante, SesionComercial
+
+    cid = Estudiante.objects.filter(telefono=tel).values_list('cliente_id', flat=True).first()
+    if cid:
+        return cid
+    return SesionComercial.objects.filter(telefono=tel).values_list('cliente_id', flat=True).first()
+
+
+def bloque_conocimiento(agente: str, cliente_id=None) -> str:
+    """Texto que se suma al system prompt. Cacheado 5 min: no consulta la DB por mensaje.
+
+    Sin cliente solo entra lo de alcance Todos. Con cliente, también lo de esa organización.
+    """
     if agente not in AGENTES:
         return ''
-    key = _CACHE_KEY.format(agente=agente)
+    key = _CACHE_KEY.format(agente=agente, cliente=cliente_id or '0')
     try:
         guardado = cache.get(key)
     except Exception:
         guardado = None
     if guardado is not None:
         return guardado
+    from django.db.models import Q
+
     from core.models_agentes import ConocimientoAgente
 
     filas = ConocimientoAgente.objects.filter(
         estado=ConocimientoAgente.ESTADO_APROBADO,
         agente__in=(agente, ConocimientoAgente.AGENTE_TODOS),
-    ).order_by('orden', '-actualizado_en').values_list('tipo', 'titulo', 'contenido')
+    )
+    if cliente_id:
+        filas = filas.filter(
+            Q(alcance=ConocimientoAgente.ALCANCE_TODOS) | Q(cliente_id=cliente_id)
+        )
+    else:
+        filas = filas.exclude(alcance=ConocimientoAgente.ALCANCE_CLIENTE)
+    filas = filas.order_by('orden', '-actualizado_en').values_list('tipo', 'titulo', 'contenido')
     reglas, datos = [], []
     for tipo, titulo, contenido in filas:
         linea = f"- {titulo.strip()}: {' '.join(contenido.split())}"
@@ -103,3 +131,58 @@ def capturar_sugerencia(agente: str, pregunta: str, respuesta: str) -> None:
         pregunta_origen=pregunta,
         respuesta_origen=respuesta,
     )
+
+
+_CODIGOS_CONOCIMIENTO = {
+    'coach': 'coach',
+    'ia_campo': 'ia_campo',
+    'profe': 'ia_campo',
+    'ventas': 'ventas',
+    'finanzas': 'finanzas',
+    'cafe': 'cafe',
+}
+
+
+def copiar_candidata_a_agentes(candidata, usuario) -> int:
+    """Copia la respuesta ya revisada al conocimiento aprobado de cada agente elegido."""
+    from core.models_agentes import ConocimientoAgente
+
+    codigos = candidata.agentes or []
+    if isinstance(codigos, str):
+        codigos = [codigos]
+    texto = _sin_datos_personales(
+        (candidata.respuesta_revisada or candidata.respuesta_nati or '').strip()
+    )[:2000]
+    if not texto:
+        return 0
+    pregunta = _sin_datos_personales((candidata.pregunta or '').strip())[:1500]
+    if len(pregunta) > 157:
+        titulo = pregunta[:157] + '...'
+    else:
+        titulo = pregunta or 'Conocimiento revisado'
+    alcance = candidata.alcance or ConocimientoAgente.ALCANCE_TODOS
+    cliente = candidata.cliente if alcance == ConocimientoAgente.ALCANCE_CLIENTE else None
+    if alcance == ConocimientoAgente.ALCANCE_CLIENTE and cliente is None:
+        return 0
+    creados = 0
+    for crudo in codigos:
+        agente = _CODIGOS_CONOCIMIENTO.get(crudo)
+        if not agente:
+            continue
+        ConocimientoAgente.objects.update_or_create(
+            agente=agente,
+            origen=ConocimientoAgente.ORIGEN_CONVERSACION,
+            pregunta_origen=pregunta,
+            cliente=cliente,
+            defaults={
+                'tipo': ConocimientoAgente.TIPO_CONOCIMIENTO,
+                'titulo': titulo[:160],
+                'contenido': texto,
+                'estado': ConocimientoAgente.ESTADO_APROBADO,
+                'respuesta_origen': texto,
+                'revisado_por': usuario,
+                'alcance': alcance,
+            },
+        )
+        creados += 1
+    return creados

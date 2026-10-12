@@ -37,6 +37,20 @@ EKI_MODULE_BUILDER_CURSOS = os.environ.get(
 _EKI_MB_UI = os.environ.get('EKI_MODULE_BUILDER_UI_V2', '').strip().lower()
 EKI_MODULE_BUILDER_UI_V2 = _EKI_MB_UI in ('1', 'true', 'yes', 'on')
 
+# Admin de agentes (bandeja y pantallas nuevas). Apagado = el admin actual.
+# Un superusuario lo ve con ?ui=v2. No cambia prompts ni RAG.
+_AGENTES_V2 = os.environ.get('ADMIN_AGENTES_V2', '').strip().lower()
+ADMIN_AGENTES_V2 = _AGENTES_V2 in ('1', 'true', 'yes', 'on')
+
+def _entero_env(nombre, default):
+    try:
+        return max(1, int(os.environ.get(nombre, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+LABORATORIO_TOPE_HORA = _entero_env('LABORATORIO_TOPE_HORA', 20)
+LABORATORIO_TOPE_PRUEBAS = _entero_env('LABORATORIO_TOPE_PRUEBAS', 10)
+
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
 # testserver: httpx de pytest-django / django.test Client
 allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')
