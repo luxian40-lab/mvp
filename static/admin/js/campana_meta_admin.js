@@ -1,4 +1,5 @@
 (function () {
+  function iniciar() {
   var raiz = document.getElementById('eki-cm');
   if (!raiz) return;
 
@@ -124,16 +125,31 @@
           item.appendChild(boton);
           lista.appendChild(item);
         });
-        lista.hidden = !(cuerpo.resultados || []).length;
+        var filas = cuerpo.resultados || [];
+        if (!filas.length) {
+          var vacio = document.createElement('li');
+          vacio.textContent = tipo === 'grupo' ? 'Ningún grupo coincide.' : 'Nadie coincide.';
+          lista.appendChild(vacio);
+        }
+        lista.hidden = false;
       })
-      .catch(function () {});
+      .catch(function () {
+        lista.innerHTML = '';
+        var fallo = document.createElement('li');
+        fallo.textContent = 'No se pudo buscar.';
+        lista.appendChild(fallo);
+        lista.hidden = false;
+      });
   }
 
   function engancharBusqueda(inputId, listaId, url, tipo, contenedor) {
     var input = document.getElementById(inputId);
     var lista = document.getElementById(listaId);
-    if (!input || !lista) return;
+    if (!input || !lista || !url) return;
     var espera = null;
+    input.addEventListener('keydown', function (evento) {
+      if (evento.key === 'Enter') evento.preventDefault();
+    });
     input.addEventListener('input', function () {
       window.clearTimeout(espera);
       var q = input.value.trim();
@@ -227,4 +243,11 @@
   var cerrar = document.getElementById('eki-cm-cerrar');
   if (abrir && dialog) abrir.addEventListener('click', function () { dialog.showModal(); });
   if (cerrar && dialog) cerrar.addEventListener('click', function () { dialog.close(); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
 })();

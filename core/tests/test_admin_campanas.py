@@ -178,6 +178,12 @@ class CampanasAdminTests(TestCase):
         busqueda = self.client.get(reverse('admin:core_campanameta_buscar_personas'), {'q': 'Nubia'})
         self.assertNotContains(busqueda, persona.cedula)
         self.assertContains(busqueda, 'Nubia')
+        from pathlib import Path
+
+        js = Path('static/admin/js/campana_meta_admin.js').read_text(encoding='utf-8')
+        cabeza = js.split('function iniciar')[0]
+        self.assertNotIn("getElementById('eki-cm')", cabeza)
+        self.assertIn('DOMContentLoaded', js)
 
     def test_plantilla_no_aprobada_no_se_elige_ni_envia(self):
         borrador = _plantilla(nombre_interno='No lista', meta_name='no_lista', estado='BORRADOR')

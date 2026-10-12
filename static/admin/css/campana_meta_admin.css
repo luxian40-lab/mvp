@@ -35,6 +35,7 @@
 .dark .eki-cm-var,
 .dark .eki-cm-conteo,
 .dark .eki-cm-chips,
+.dark .eki-cm-opciones,
 .dark .eki-mb-wa-preview {
   border-color: var(--color-base-700, #374151);
   background: var(--color-base-900, #111827);
@@ -177,6 +178,13 @@
   margin: 0.25rem 0;
   padding: 0;
   border: 1px solid var(--color-base-200, #e5e7eb);
+  background: var(--color-white, #fff);
+  position: relative;
+  z-index: 5;
+}
+
+.eki-cm-opciones li {
+  padding: 0.4rem 0.6rem;
 }
 
 .eki-cm-opciones button {
@@ -184,7 +192,7 @@
   text-align: left;
   background: transparent;
   border: 0;
-  padding: 0.4rem 0.6rem;
+  padding: 0;
   cursor: pointer;
 }
 
