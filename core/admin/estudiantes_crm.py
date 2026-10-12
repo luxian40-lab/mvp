@@ -202,6 +202,27 @@ def filtrar_sin_avanzar(qs, curso_param=None, ahora=None):
     )
 
 
+def filtrar_estado_crm(qs, slug, curso_param=None, ahora=None):
+    """La misma clasificación que el chip, para localizar a esas personas en la tabla."""
+    if slug not in _ESTADO_TEXTO:
+        return qs
+    ahora = ahora or timezone.now()
+    ids = []
+    for fila in _filas(qs, curso_param):
+        estado, _texto = clasificar_estado(
+            estado_chat=fila['estado_chat'],
+            completo=fila['completo'],
+            fecha_avance=fila['cuando'],
+            n_completados=fila['n_completados'],
+            ahora=ahora,
+        )
+        if estado == slug:
+            ids.append(fila['pk'])
+    if not ids:
+        return qs.none()
+    return qs.filter(pk__in=ids)
+
+
 def org_en_request(get):
     if (get.get('cliente__isnull') or '') in ('True', 'true', '1'):
         return 'sin'
@@ -513,7 +534,7 @@ def _queryset_crm(modeladmin, request, cl, *, sin_cliente=False, sin_curso=False
     qs = cl.root_queryset
     for spec in cl.filter_specs:
         esperados = set(spec.expected_parameters())
-        if esperados and esperados <= saltar:
+        if esperados and (esperados <= saltar or 'eki_crm_estado' in esperados):
             continue
         nuevo = spec.queryset(request, qs)
         if nuevo is not None:
@@ -557,6 +578,7 @@ def armar_crm(modeladmin, request, cl, ahora=None):
         visibles = del_org
     opciones = _opciones(filas, request, elegida)
     nombre, conteo = _etiqueta_elegida(opciones, elegida)
+    estado_actual = (request.GET.get('eki_crm_estado') or '').strip()
     estados = {slug: 0 for slug in _ESTADO_TEXTO}
     for fila in visibles:
         slug, _texto = clasificar_estado(
@@ -580,7 +602,16 @@ def armar_crm(modeladmin, request, cl, ahora=None):
         'sin_actividad': sin_n,
         'habeas': sum(1 for fila in visibles if (fila['estado_chat'] or '') == 'ESPERANDO_HABEAS_DATA'),
         'estados': [
-            {'slug': slug, 'label': texto, 'n': estados[slug]}
+            {
+                'slug': slug,
+                'label': texto,
+                'n': estados[slug],
+                'activa': estado_actual == slug,
+                'url': _url(
+                    request,
+                    {'eki_crm_estado': None if estado_actual == slug else slug},
+                ),
+            }
             for slug, texto in _ESTADO_TEXTO.items()
         ],
         'cursos': panel,

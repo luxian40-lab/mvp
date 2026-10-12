@@ -1,5 +1,27 @@
+from django import forms
+
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.estudiantes import EnvioProgramadoForm
+
+# Opciones de cohorte y cultivo. El valor guardado sigue siendo el emoji.
+EMOJI_GRUPO = (
+    ('👥', '👥 Personas'),
+    ('🌱', '🌱 Semillero'),
+    ('☕', '☕ Café'),
+    ('🥑', '🥑 Aguacate'),
+    ('🌽', '🌽 Maíz'),
+    ('🍌', '🍌 Plátano'),
+    ('🍫', '🍫 Cacao'),
+    ('🌾', '🌾 Cereales'),
+    ('🐄', '🐄 Ganadería'),
+    ('🐝', '🐝 Apicultura'),
+    ('🌿', '🌿 Huerta'),
+    ('🌻', '🌻 Flores'),
+    ('🚜', '🚜 Campo'),
+    ('📗', '📗 Cohorte'),
+    ('⭐', '⭐ Destacados'),
+    ('🏆', '🏆 Cierre'),
+)
 
 # ========================================
 # 👥 ADMIN UNIFICADO DE GRUPOS (TODO EN UNO)
@@ -50,6 +72,39 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name != 'emoji':
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
+        opciones = list(EMOJI_GRUPO)
+        conocidos = {valor for valor, _etiqueta in opciones}
+        object_id = (request.resolver_match.kwargs or {}).get('object_id') if request.resolver_match else None
+        extras = []
+        if object_id:
+            actual = (
+                GrupoEstudiantes.objects.filter(pk=object_id)
+                .values_list('emoji', flat=True)
+                .first()
+            )
+            if actual:
+                extras.append(actual)
+        enviado = (request.POST.get('emoji') or '').strip()
+        if enviado:
+            extras.append(enviado)
+        for extra in extras:
+            if extra not in conocidos:
+                opciones.insert(0, (extra, f'{extra} Actual'))
+                conocidos.add(extra)
+        kwargs['widget'] = forms.RadioSelect
+        campo = forms.ChoiceField(
+            choices=opciones,
+            required=not db_field.blank,
+            label=db_field.verbose_name,
+            help_text='Elija el emoji del grupo. Se usa en la lista y en los envíos.',
+            initial=db_field.default if not callable(db_field.default) else '👥',
+            widget=forms.RadioSelect,
+        )
+        return campo
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)

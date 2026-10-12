@@ -1,10 +1,12 @@
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.clientes import HabilitacionModuloEstudianteInline
 from core.admin.estudiantes_crm import (
+    _ESTADO_TEXTO,
     anotar_progresos_lista,
     anotar_ultima_entrada,
     anotar_ultima_nota,
     clasificar_estado,
+    filtrar_estado_crm,
     datos_crm,
     filtrar_sin_avanzar,
     firma_nota,
@@ -257,6 +259,21 @@ def _html_nota(obj):
     return format_html('<span class="eki-crm-nota">{}</span>', texto)
 
 
+class EstadoCrmEstudianteFilter(admin.SimpleListFilter):
+    """Localiza en la tabla el mismo estado que muestra el chip del panel."""
+    title = 'Estado'
+    parameter_name = 'eki_crm_estado'
+
+    def lookups(self, request, model_admin):
+        return list(_ESTADO_TEXTO.items())
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if valor not in _ESTADO_TEXTO:
+            return queryset
+        return filtrar_estado_crm(queryset, valor, request.GET.get('curso'))
+
+
 class SinAvanzarEstudianteFilter(admin.SimpleListFilter):
     """Más de 14 días sin avance de módulo, y sin haber completado."""
     title = 'Sin avanzar'
@@ -293,6 +310,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         CursosEstudianteFilter,
         'cliente',
         SinAvanzarEstudianteFilter,
+        EstadoCrmEstudianteFilter,
     )
     list_filter_submit = True
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')

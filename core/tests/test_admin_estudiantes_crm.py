@@ -176,6 +176,35 @@ class EstudiantesCrmTests(TestCase):
         self.assertContains(respuesta, 'Marta Crm')
         self.assertNotContains(respuesta, 'Luis Crm')
 
+    def test_chip_de_estado_localiza_en_la_tabla(self):
+        base = self.http.get(self.url, {'q': 'CRM'})
+        self.assertContains(base, 'eki_crm_estado=habeas')
+        self.assertContains(base, 'eki_crm_estado=activo')
+
+        habeas = self.http.get(self.url, {'q': 'CRM', 'eki_crm_estado': 'habeas'})
+        self.assertContains(habeas, 'Luis Crm')
+        self.assertNotContains(habeas, 'Marta Crm')
+        self.assertNotContains(habeas, 'Ana Crm')
+        self.assertNotContains(habeas, 'Otto Crm')
+        self.assertContains(habeas, 'data-kpi="sin-actividad">1<')
+        self.assertContains(habeas, 'eki-crm-chip--habeas is-on')
+
+        activo = self.http.get(self.url, {'q': 'CRM', 'eki_crm_estado': 'activo'})
+        self.assertContains(activo, 'Marta Crm')
+        self.assertNotContains(activo, 'Luis Crm')
+        self.assertNotContains(activo, 'Ana Crm')
+        self.assertNotContains(activo, 'Otto Crm')
+
+        quietos = self.http.get(self.url, {'q': 'CRM', 'eki_crm_estado': 'sin_actividad'})
+        self.assertContains(quietos, 'Ana Crm')
+        self.assertNotContains(quietos, 'Marta Crm')
+        self.assertNotContains(quietos, 'Otto Crm')
+
+        sin_iniciar = self.http.get(self.url, {'q': 'CRM', 'eki_crm_estado': 'sin_iniciar'})
+        self.assertContains(sin_iniciar, 'Otto Crm')
+        self.assertNotContains(sin_iniciar, 'Marta Crm')
+        self.assertNotContains(sin_iniciar, 'Luis Crm')
+
     def test_ver_sin_avanzar_filtra(self):
         respuesta = self.http.get(self.url, {'q': 'CRM', 'eki_sin_avanzar': '1'})
         self.assertContains(respuesta, 'Ana Crm')

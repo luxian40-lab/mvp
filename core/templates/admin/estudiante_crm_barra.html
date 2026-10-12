@@ -136,7 +136,9 @@
         {% endif %}
         <ul class="eki-crm-estados">
             {% for estado in eki_crm.estados %}
-            <li class="eki-crm-chip eki-crm-chip--{{ estado.slug }}">{{ estado.label }} <strong>{{ estado.n }}</strong></li>
+            <li>
+                <a class="eki-crm-chip eki-crm-chip--{{ estado.slug }}{% if estado.activa %} is-on{% endif %}" href="{{ estado.url }}">{{ estado.label }} <strong>{{ estado.n }}</strong></a>
+            </li>
             {% endfor %}
         </ul>
         {% if eki_crm.sin_avanzar_n %}
