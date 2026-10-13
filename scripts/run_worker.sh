@@ -1,5 +1,6 @@
 #!/bin/bash
 # Worker. Sin --pool (prefork implícito). -Q default: conversacion,masivo,celery,media_encode.
+# EKI_ROLE=web también arranca este worker: la caja de IA no lee masivo ni conversacion.
 # CELERY_POOL=threads añade --pool=threads. CELERY_QUEUES cambia -Q.
 set -euo pipefail
 ROLE="${EKI_ROLE:-all}"
@@ -7,7 +8,7 @@ case "$ROLE" in
   web|worker|all) ;;
   *) echo "EKI_ROLE invalido: $ROLE" >&2; exit 1 ;;
 esac
-if [ "$ROLE" != "worker" ] && [ "$ROLE" != "all" ]; then
+if [ "$ROLE" != "worker" ] && [ "$ROLE" != "all" ] && [ "$ROLE" != "web" ]; then
   exec sleep infinity
 fi
 POOL="${CELERY_POOL:-prefork}"
