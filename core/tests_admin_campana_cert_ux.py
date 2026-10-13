@@ -135,6 +135,10 @@ class AdminCampanaCertTabsTests(TestCase):
         body = r.content.decode('utf-8')
         self.assertIn('Plantilla', body)
         self.assertIn('Vista previa', body)
+        form = r.context['adminform'].form
+        self.assertEqual(form.fields['cliente'].empty_label, 'General')
+        widget = str(form['cliente'])
+        self.assertIn('General', widget)
         self.assertIn('eki-id-band', body)
         self.assertIn('eki-id-preview', body)
         self.assertIn('Generar certificado de prueba', body)

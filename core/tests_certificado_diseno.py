@@ -7,7 +7,10 @@ from django.test import Client
 from django.urls import reverse
 from PIL import Image
 
+from django.test import TestCase
+
 from core.certificado_diseno_eki import render_certificado_diseno_eki
+from core.certificado_service import resolver_plantilla_certificado
 from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
 from core.models_certificados import Certificado, PlantillaCertificado
@@ -22,6 +25,53 @@ def test_modo_efectivo_diseno_sin_imagen():
         color_secundario='#445566',
     )
     assert p.modo_efectivo() == 'diseno_eki'
+
+
+class PlantillaGeneralTests(TestCase):
+    def test_plantilla_sin_cliente_es_el_certificado_general(self):
+        cliente = Cliente.objects.create(
+            nombre='Org General',
+            contacto_principal='Director',
+            email='general@test.com',
+            telefono='573001100030',
+            activo=True,
+        )
+        curso = Curso.objects.create(
+            nombre='Curso sin plantilla propia',
+            descripcion='d',
+            cliente=cliente,
+            activo=True,
+        )
+        est = Estudiante.objects.create(
+            cedula='333333333',
+            nombre='Estudiante General',
+            telefono='573001100031',
+            cliente=cliente,
+            estado_chat='ACTIVO',
+            activo=True,
+        )
+        general = PlantillaCertificado.objects.create(
+            nombre='Certificado general',
+            cliente=None,
+            curso=None,
+            modo_plantilla='diseno_eki',
+            activa=True,
+            por_defecto=False,
+        )
+        elegida, origen = resolver_plantilla_certificado(est, curso)
+        self.assertEqual(elegida.pk, general.pk)
+        self.assertEqual(origen, 'general')
+
+        propia = PlantillaCertificado.objects.create(
+            nombre='De la organización',
+            cliente=cliente,
+            curso=None,
+            modo_plantilla='diseno_eki',
+            activa=True,
+        )
+        elegida, origen = resolver_plantilla_certificado(est, curso)
+        self.assertEqual(elegida.pk, propia.pk)
+        self.assertEqual(origen, 'cliente')
 
 
 @pytest.mark.django_db

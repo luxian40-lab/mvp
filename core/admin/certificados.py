@@ -5,6 +5,29 @@ from unfold.decorators import action
 # 📜 CERTIFICADOS DIGITALES
 # ========================================
 
+class ClientePlantillaFilter(admin.SimpleListFilter):
+    title = 'Cliente'
+    parameter_name = 'cliente_alcance'
+
+    def lookups(self, request, model_admin):
+        from core.models import Cliente
+
+        opciones = [('general', 'General')]
+        opciones.extend(
+            (str(pk), nombre)
+            for pk, nombre in Cliente.objects.order_by('nombre').values_list('pk', 'nombre')
+        )
+        return opciones
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if valor == 'general':
+            return queryset.filter(cliente__isnull=True)
+        if valor and str(valor).isdigit():
+            return queryset.filter(cliente_id=int(valor))
+        return queryset
+
+
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
     """Plantillas de Certificados — imagen S3 o diseño eki con vista previa"""
     change_form_template = 'admin/learning/plantillacertificado/change_form.html'
@@ -16,7 +39,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         'por_defecto',
         'activa',
     )
-    list_filter = ('activa', 'por_defecto', 'modo_plantilla', 'cliente', 'curso')
+    list_filter = ('activa', 'por_defecto', 'modo_plantilla', ClientePlantillaFilter, 'curso')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre', 'curso__nombre')
     list_per_page = 50
     actions = ['duplicar_plantillas_certificado']
@@ -28,8 +51,8 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'descripcion', 'curso', 'cliente', 'modo_plantilla', 'activa', 'por_defecto'),
             'description': (
                 'Elige el modo (Imagen / Diseño eki / PDF). '
-                'Asocia un curso para emisión automática al completar; '
-                'sin curso solo aplica si está «Por defecto».'
+                'Cliente «General» es el certificado de quien no tiene uno propio. '
+                'Un curso concreto gana sobre ese general.'
             ),
         }),
         ('Plantilla', {
@@ -76,6 +99,12 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == 'cliente' and field is not None:
+            field.empty_label = 'General'
+        return field
 
     def get_urls(self):
         urls = super().get_urls()
@@ -357,7 +386,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 '<span style="background:#e3f2fd;padding:4px 10px;border-radius:12px;font-size:11px;">🏢 {}</span>',
                 obj.cliente.nombre
             )
-        return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
+        return format_html('<span style="color:#999;font-style:italic;">General</span>')
     cliente_info.short_description = "Cliente"
     
     def tipo_plantilla(self, obj):

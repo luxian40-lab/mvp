@@ -423,6 +423,16 @@ def resolver_plantilla_certificado(estudiante, curso, plantilla_id=None):
     if p:
         return p, 'por_defecto'
 
+    p = (
+        PlantillaCertificado.objects.filter(
+            cliente__isnull=True, curso__isnull=True, activa=True,
+        )
+        .order_by('nombre')
+        .first()
+    )
+    if p:
+        return p, 'general'
+
     return None, 'diseno_eki_default'
 
 
