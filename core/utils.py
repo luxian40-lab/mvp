@@ -230,6 +230,25 @@ def enviar_whatsapp_twilio(
     except Exception:
         logger.exception('sandbox_meta_intercept_twilio_send')
 
+    from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
+
+    if MARCADOR_BOTON_CONTINUEMOS in str(texto or ''):
+        resto = str(texto).replace(MARCADOR_BOTON_CONTINUEMOS, '').strip()
+        if resto or media_url:
+            enviar_whatsapp_twilio(
+                telefono,
+                resto,
+                mensaje_id_referencia=mensaje_id_referencia,
+                media_url=media_url,
+                texto_log=texto_log,
+                from_number=from_number,
+                canal_evento=canal_evento,
+                agente_evento=agente_evento,
+            )
+        from core.whatsapp_service import enviar_template_twilio
+
+        return enviar_template_twilio(telefono, sid_plantilla_continuemos())
+
     try:
         from twilio.rest import Client
         from .response_templates import dividir_contenido_seguro
@@ -412,6 +431,24 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
     from core.meta_waba import _version
 
     api_version = _version()
+
+    from core.avance_whatsapp import (
+        BOTON_CONTINUEMOS_ID,
+        BOTON_CONTINUEMOS_TITULO,
+        MARCADOR_BOTON_CONTINUEMOS,
+        separar_boton_continuemos,
+    )
+
+    if MARCADOR_BOTON_CONTINUEMOS in str(texto or ''):
+        from core.sandbox_canal import enviar_meta_botones
+
+        cuerpo, _ = separar_boton_continuemos(texto)
+        return enviar_meta_botones(
+            telefono,
+            cuerpo,
+            [(BOTON_CONTINUEMOS_ID, BOTON_CONTINUEMOS_TITULO)],
+            agente_evento='curso_continuar',
+        )
 
     if not token or not phone_id:
         # No configurado

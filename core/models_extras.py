@@ -844,8 +844,8 @@ class MensajePush(models.Model):
         else:
             txt = (self.cuerpo_fallback or 'Hola {nombre}, le recordamos continuar con {curso}.')
         txt = txt.replace('{nombre}', estudiante.nombre or 'estudiante').replace('{curso}', curso_nom)
-        if self.incluir_boton_continuar and 'listo' not in txt.lower():
-            txt += '\n\nResponda *listo* para continuar con el curso (sin reiniciar).'
+        if self.incluir_boton_continuar and '[SEND_BUTTON:continuemos]' not in txt:
+            txt += '\n\n[SEND_BUTTON:continuemos]'
         return txt.strip()
 
 

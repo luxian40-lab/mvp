@@ -58,7 +58,7 @@ class FlujoWhatsappB2BTests(TestCase):
         msg = get_response_for_intent(
             'saludo', self.est_b2b.nombre, estudiante_id=self.est_b2b.id
         )
-        self.assertIn('listo', msg.lower())
+        self.assertIn('[send_button:continuemos]', msg.lower())
         self.assertNotIn('1️⃣', msg)
         self.assertNotIn('Escribe el número (1, 2 o 3)', msg)
 
@@ -74,7 +74,7 @@ class FlujoWhatsappB2BTests(TestCase):
             'opcion_2', self.est_b2b.nombre, estudiante_id=self.est_b2b.id
         )
         self.assertIn('campaña', msg.lower())
-        self.assertIn('listo', msg.lower())
+        self.assertIn('[send_button:continuemos]', msg.lower())
         self.assertNotIn('Escribe el *número*', msg)
         self.est_b2b.refresh_from_db()
         self.assertNotEqual(self.est_b2b.estado_onboarding, 'esperando_seleccion_curso')
@@ -87,7 +87,7 @@ class FlujoWhatsappB2BTests(TestCase):
             mensaje_original='2',
         )
         self.assertIn('Cultivo Básico', msg)
-        self.assertIn('listo', msg.lower())
+        self.assertIn('[send_button:continuemos]', msg.lower())
 
     def test_b2b_dos_cursos_opcion_2_muestra_menu(self):
         curso2 = Curso.objects.create(
@@ -113,7 +113,7 @@ class FlujoWhatsappB2BTests(TestCase):
 
     def test_construir_menu_b2b_usa_comandos(self):
         msg = construir_menu_principal_texto(self.est_b2b)
-        self.assertIn('*listo*', msg)
+        self.assertIn('*Continuemos*', msg)
         self.assertNotIn('1️⃣', msg)
 
     def test_salir_seleccion_curso_legacy(self):
@@ -128,4 +128,4 @@ class FlujoWhatsappB2BTests(TestCase):
     def test_mensaje_curso_por_campana(self):
         msg = mensaje_curso_por_campana(self.est_b2b)
         self.assertIn('Cultivo Básico', msg)
-        self.assertIn('listo', msg.lower())
+        self.assertIn('[send_button:continuemos]', msg.lower())

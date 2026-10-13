@@ -87,6 +87,60 @@ class ModuleBuilderContratoFase0Tests(TestCase):
         self.assertEqual(self.paso.titulo, 'Paso editado')
         self.assertEqual(self.paso.contenido, 'texto editado')
 
+    def test_save_modulo_con_paso_id_suelto_guarda_todos(self):
+        otro = agregar_micro(self.mod, self.sec, titulo='Dos', contenido='texto dos')
+        r = self._post({
+            'action': 'save_modulo',
+            'ajax': '1',
+            'modulo_titulo': 'Módulo intacto',
+            'paso_id': str(otro.id),
+            f'paso_{self.paso.id}_titulo': 'Uno nuevo',
+            f'paso_{self.paso.id}_contenido': 'texto uno nuevo',
+            f'paso_{self.paso.id}_activo': '1',
+            f'paso_{otro.id}_titulo': 'Dos nuevo',
+            f'paso_{otro.id}_contenido': 'texto dos nuevo',
+            f'paso_{otro.id}_activo': '1',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.paso.refresh_from_db()
+        otro.refresh_from_db()
+        self.assertEqual(self.paso.titulo, 'Uno nuevo')
+        self.assertEqual(otro.titulo, 'Dos nuevo')
+
+    def test_guardar_solo_limita_a_un_paso(self):
+        otro = agregar_micro(self.mod, self.sec, titulo='Dos', contenido='texto dos')
+        r = self._post({
+            'action': 'save_modulo',
+            'ajax': '1',
+            'guardar_solo': '1',
+            'paso_id': str(self.paso.id),
+            'modulo_titulo': 'Módulo intacto',
+            f'paso_{self.paso.id}_titulo': 'Solo uno',
+            f'paso_{self.paso.id}_contenido': 'texto uno',
+            f'paso_{self.paso.id}_activo': '1',
+            f'paso_{otro.id}_titulo': 'No debe',
+            f'paso_{otro.id}_contenido': 'texto dos',
+            f'paso_{otro.id}_activo': '1',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.paso.refresh_from_db()
+        otro.refresh_from_db()
+        self.assertEqual(self.paso.titulo, 'Solo uno')
+        self.assertEqual(otro.titulo, 'Dos')
+
+    def test_add_micro_en_seccion_nueva_queda_ahi(self):
+        sec_b = agregar_seccion(self.mod, 'Sección B')
+        r = self._post({
+            'action': 'add_micro',
+            'seccion_id': str(sec_b.id),
+            'plantilla': 'mensaje',
+        })
+        self.assertEqual(r.status_code, 302)
+        nuevo = PasoModulo.objects.filter(modulo=self.mod).order_by('-id').first()
+        self.assertEqual(nuevo.seccion_id, sec_b.id)
+        self.assertEqual(nuevo.tipo, PasoModulo.TIPO_CONTENIDO)
+        self.assertIn(f'paso={nuevo.id}', r['Location'])
+
     def test_save_modulo_meta_cambia_el_nombre(self):
         r = self._post({
             'action': 'save_modulo_meta',
@@ -645,6 +699,71 @@ class ModuleBuilderUiV2LecturaTests(TestCase):
         nuevo = PasoModulo.objects.filter(modulo=self.mod).order_by('-id').first()
         self.assertFalse(nuevo.activo)
         self.assertFalse((nuevo.media_url or '').strip())
+        self.assertEqual(nuevo.tipo, PasoModulo.TIPO_CONTENIDO)
+        self.assertIn(f'paso={nuevo.id}', r['Location'])
+
+    def test_agregar_mensaje_es_un_formulario_propio(self):
+        from html.parser import HTMLParser
+
+        sec_b = agregar_seccion(self.mod, 'Sección B')
+        body = self.client.get(self.url, secure=True).content.decode('utf-8')
+
+        class _Forms(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.stack = []
+                self.max_depth = 0
+                self.mensaje_forms = []
+                self._btn = None
+
+            def handle_starttag(self, tag, attrs):
+                d = dict(attrs)
+                if tag == 'form':
+                    self.stack.append([])
+                    self.max_depth = max(self.max_depth, len(self.stack))
+                elif tag == 'input' and self.stack:
+                    self.stack[-1].append((d.get('name'), d.get('value')))
+                elif tag == 'button':
+                    self._btn = ''
+
+            def handle_endtag(self, tag):
+                if tag == 'button' and self._btn is not None and self.stack:
+                    if 'Agregar mensaje' in self._btn:
+                        self.mensaje_forms.append(list(self.stack[-1]))
+                    self._btn = None
+                elif tag == 'form' and self.stack:
+                    self.stack.pop()
+
+            def handle_data(self, data):
+                if self._btn is not None:
+                    self._btn += data
+
+        parser = _Forms()
+        parser.feed(body)
+        self.assertEqual(parser.max_depth, 1)
+        self.assertNotIn('eki-mb__add-micro', body)
+        self.assertGreaterEqual(len(parser.mensaje_forms), 2)
+        vistos = set()
+        for inputs in parser.mensaje_forms:
+            plantillas = [v for n, v in inputs if n == 'plantilla']
+            secs = [v for n, v in inputs if n == 'seccion_id']
+            self.assertEqual(plantillas, ['mensaje'])
+            self.assertEqual(len(secs), 1)
+            vistos.add(secs[0])
+        self.assertIn(str(self.paso.seccion_id), vistos)
+        self.assertIn(str(sec_b.id), vistos)
+
+    def test_el_js_no_mezcla_el_id_de_la_accion_con_el_guardado(self):
+        from pathlib import Path
+
+        from django.conf import settings
+
+        js = Path(settings.BASE_DIR, 'static', 'admin', 'js', 'module_builder.js').read_text(
+            encoding='utf-8',
+        )
+        self.assertEqual(js.count("el.name === 'paso_id' || el.name === 'seccion_id'"), 3)
+        self.assertIn("body.set('guardar_solo', '1')", js)
+        self.assertIn("get('paso')", js)
 
     def test_probar_persona_no_escribe_y_coincide_con_el_calendario(self):
         from core.drip_schedule import modulo_disponible_por_calendario

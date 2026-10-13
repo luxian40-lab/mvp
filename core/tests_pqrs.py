@@ -66,7 +66,7 @@ class TestAgentePQRS(TestCase):
             resultado = procesar_pqrs_automatico(self.solicitud)
         self.assertEqual(resultado["categoria"], "acceso")
         self.assertFalse(resultado["escalar"])
-        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
+        self.assertIn("[send_button:continuemos]", resultado["respuesta_whatsapp"].lower())
 
         aplicar_resultado_pqrs(self.solicitud, resultado)
         self.solicitud.refresh_from_db()
@@ -97,7 +97,7 @@ class TestAgentePQRS(TestCase):
             resultado = procesar_pqrs_automatico(self.solicitud)
         self.assertEqual(resultado["categoria"], "otro")
         self.assertTrue(resultado["escalar"])
-        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
+        self.assertIn("[send_button:continuemos]", resultado["respuesta_whatsapp"].lower())
 
     def test_fallback_si_mensaje_vacio(self):
         self.solicitud.mensaje_original = ""
@@ -117,7 +117,7 @@ class TestAgentePQRS(TestCase):
             '"escalar":false,"nota_interna":"Contenido"}'
         )
         resultado = _parsear_respuesta_pqrs(raw)
-        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
+        self.assertIn("[send_button:continuemos]", resultado["respuesta_whatsapp"].lower())
 
     def test_fallback_helper_estructura(self):
         f = _fallback_escalar("motivo X")

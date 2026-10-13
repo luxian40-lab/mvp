@@ -21,7 +21,7 @@ ACCIONES_VALIDAS = frozenset({
 CAMPOS_CORRECCION = frozenset({'nombre', 'municipio', 'cedula'})
 
 CIERRE_RETORNO_CURSO = (
-    "Para seguir con el curso escriba *listo*."
+    "Para seguir con el curso, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
 )
 
 
@@ -173,7 +173,7 @@ def texto_reenviar_modulo(estudiante) -> str:
         partes.append(cuerpo)
     if video:
         partes.append(f"[MEDIA:{video}]")
-    partes.append(f"\nCuando termine, escriba *listo*.\n\n{CIERRE_RETORNO_CURSO}")
+    partes.append(f"\nCuando termine, toque Continuemos.\n\n{CIERRE_RETORNO_CURSO}")
     return '\n'.join(partes).strip()
 
 
@@ -199,7 +199,7 @@ def ejecutar_correccion_datos(
     guia = iniciar_flujo_correccion(estudiante)
     return (
         f"{guia}\n\n"
-        "Cuando termine la corrección, escriba *listo* para volver al curso."
+        "Cuando termine la corrección, toque Continuemos para volver al curso.\n\n[SEND_BUTTON:continuemos]"
     ), True
 
 

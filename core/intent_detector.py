@@ -21,7 +21,7 @@ def _alguna(texto: str, palabras) -> bool:
 _CONTINUAR_CORTAS = frozenset({'si', 'sí', 'ok', 'ya', 'va'})
 _NEGACIONES_TOKEN = frozenset({'no', 'nunca', 'tampoco', 'ni', 'jamas', 'jamás'})
 _OBJETIVOS_AVANCE = frozenset({
-    'seguir', 'continuar', 'sigo', 'listo', 'sigue', 'sigamos', 'seguimos',
+    'seguir', 'continuar', 'continuemos', 'sigo', 'listo', 'sigue', 'sigamos', 'seguimos',
 })
 _DUDA = frozenset({'se', 'sé'})
 _SI_DUDA = frozenset({'si', 'sí'})
@@ -190,7 +190,7 @@ def detect_intent(mensaje: str) -> str:
     # Continuar con lección actual
     # También incluye "listo", "si", "confirmar" y variantes para simplificar
     palabras_continuar = [
-        'continuar', 'siguiente', 'proximo', 'próximo', 'seguir', 'listo', 'ok', 'dale', 'sigue', 'avanzar',
+        'continuar', 'continuemos', 'siguiente', 'proximo', 'próximo', 'seguir', 'listo', 'ok', 'dale', 'sigue', 'avanzar',
         'continuar curso', 'seguir curso', 'sigamos', 'seguimos', 'continuar con', 'seguir con',
         'volver al curso', 'retomar curso', 'retomar', 'donde quede', 'donde quedé', 'donde iba',
         'mi curso', 'al curso', 'con el curso', 'mi lección', 'mi leccion',
@@ -253,7 +253,7 @@ def detect_intent(mensaje: str) -> str:
     return 'desconocido'
 
 
-_AVANCE_CURSO_TRIGGERS = frozenset({'listo', 'continuar'})
+_AVANCE_CURSO_TRIGGERS = frozenset({'listo', 'continuar', 'continuemos'})
 # Typos cortos vistos en campo (Yuli: «Listi»). Solo token único.
 _AVANCE_CURSO_TYPOS = frozenset({'listi', 'listoo', 'lsito'})
 

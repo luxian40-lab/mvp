@@ -139,6 +139,19 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(body.get('to'), '573001234567')
         self.assertEqual(body.get('type'), 'text')
 
+    @patch('core.sandbox_canal.requests.post')
+    def test_marcador_continuemos_sale_como_boton(self, mock_post):
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.btn'}]}
+        result = enviar_sandbox('573001234567', 'Cuando termines.\n\n[SEND_BUTTON:continuemos]')
+        self.assertTrue(result.get('success'))
+        body = mock_post.call_args.kwargs.get('json') or {}
+        self.assertEqual(body.get('type'), 'interactive')
+        botones = body['interactive']['action']['buttons']
+        self.assertEqual(botones[0]['reply']['id'], 'continuemos')
+        self.assertEqual(botones[0]['reply']['title'], 'Continuemos')
+        self.assertNotIn('listo', (body['interactive']['body']['text'] or '').lower())
+
     def test_dispatch_menu_no_llama_twilio(self):
         from core.models import SandboxCanalSesion
 

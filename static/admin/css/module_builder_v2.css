@@ -113,6 +113,16 @@ html[data-eki-tone="noche"] .eki-mb-shell.eki-mb-shell--v2,
   background: var(--eki-mb-hero-grad-a);
 }
 
+.eki-mb-shell--v2 .eki-mb-burbuja--boton {
+  display: inline-block;
+  margin-top: 0.15rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: #9A6CAC;
+  color: #fff;
+  font-weight: 600;
+}
+
 .eki-mb-shell--v2 #eki-mb-panel-edits .eki-mb__row-edit.is-panel-active {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);

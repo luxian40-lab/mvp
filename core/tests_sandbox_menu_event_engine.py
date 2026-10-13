@@ -200,7 +200,7 @@ class SandboxMenuTests(TestCase):
         self.assertEqual((est.contexto_temporal or {}).get('curso_activo_id'), curso.id)
         texto = send.call_args[0][2]
         self.assertIn('Impulso rural', texto)
-        self.assertIn('listo', texto.lower())
+        self.assertIn('[send_button:continuemos]', texto.lower())
         self.assertNotIn('riendas', texto.lower())
         self.assertEqual(
             resolver_ruta_sandbox({

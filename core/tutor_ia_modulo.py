@@ -879,7 +879,7 @@ def _fallback_respuesta_asistente():
     """Respuesta del compañero sin IA."""
     return (
         "En este momento no pude consultar las fuentes. "
-        "Escriba *listo* para pasar al reto de la facilitadora, "
+        "Toque Continuemos para pasar al reto de la facilitadora, \n\n[SEND_BUTTON:continuemos] "
         "o formule de nuevo su pregunta sobre el tema del curso."
     )
 
@@ -971,7 +971,10 @@ def evaluar_respuesta_progreso(modulos_completados_info, respuesta_estudiante,
     """
     client = _get_client()
     if not client:
-        return True, "✅ ¡Gracias por compartir! Sigue adelante con confianza 💪\n\nEscribe *\"listo\"* para continuar."
+        return True, (
+            "✅ ¡Gracias por compartir! Sigue adelante con confianza 💪\n\n"
+            "[SEND_BUTTON:continuemos]"
+        )
 
     prompt_usuario = f"""CONTEXTO:
 Módulos completados: {modulos_completados_info}
@@ -1014,7 +1017,10 @@ REGLAS:
         return resuelta, feedback
     except Exception as e:
         logger.error(f"❌ Error María eval progreso: {e}")
-        return True, "✅ ¡Gracias! Sigue adelante con confianza 💪\n\nEscribe *\"listo\"* para continuar."
+        return True, (
+            "✅ ¡Gracias! Sigue adelante con confianza 💪\n\n"
+            "[SEND_BUTTON:continuemos]"
+        )
 
 
 def _fallback_revision_progreso(modulos_info, estudiante_nombre):

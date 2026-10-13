@@ -12,9 +12,9 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=38">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=39">
 {% if mb_ui_v2 %}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=6">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder_v2.css' %}?v=7">
 <link rel="stylesheet" href="{% static 'js/media-uploader/uploader.css' %}?v=3">
 {% endif %}
 
@@ -23,7 +23,7 @@
 {% if mb_ui_v2 %}
 <script src="{% static 'js/media-uploader/uploader.js' %}?v=4" defer></script>
 {% endif %}
-<script src="{% static 'admin/js/module_builder.js' %}?v=37" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=39" defer></script>
 
 {% endblock %}
 
@@ -225,9 +225,9 @@
             <dt>Ritmo entre módulos (curso)</dt>
             <dd>
               {% if curso_dias_espera %}
-                {{ curso_dias_espera }} día(s) después de *listo*
+                {{ curso_dias_espera }} día(s) después de Continuemos
               {% else %}
-                Inmediato con *listo*
+                Inmediato con Continuemos
               {% endif %}
               {% if curso_admin_url %}
                 · <a href="{{ curso_admin_url }}">Editar en curso</a>
@@ -284,9 +284,9 @@
               {% if not curso %}
               Sin dato. Sin curso no hay días de espera que leer.
               {% elif curso_dias_espera %}
-              {{ curso_dias_espera }} día(s) después de listo.
+              {{ curso_dias_espera }} día(s) después de Continuemos.
               {% else %}
-              Inmediato con listo.
+              Inmediato con Continuemos.
               {% endif %}
               {% if curso_admin_url %}<a href="{{ curso_admin_url }}">Abrir el curso</a>{% endif %}
             </dd>
@@ -405,7 +405,7 @@
   <div class="eki-mb-workspace">
 
   {% if mb_ui_v2 %}
-  <p class="eki-mb-nota-envio">Cada sección se envía completa cuando la persona responde listo. Cada mensaje viaja solo: el texto y el archivo nunca van juntos.</p>
+  <p class="eki-mb-nota-envio">Cada sección se envía completa cuando la persona toca Continuemos. Cada mensaje viaja solo: el texto y el archivo nunca van juntos.</p>
   {% endif %}
 
   <div id="eki-mb-sections" class="eki-mb__sections">
@@ -547,17 +547,7 @@
 
 
 
-    <form method="post" enctype="multipart/form-data" class="eki-mb__add-micro">
-
-      {% csrf_token %}
-
-      {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
-
-      <input type="hidden" name="action" value="add_micro">
-
-      <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
-
-      <p class="eki-mb__form-label">Añadir paso</p>
+    <p class="eki-mb__form-label">Añadir paso</p>
       <div class="eki-mb__quick-add">
         <form method="post" class="eki-mb__inline-form">
           {% csrf_token %}
@@ -585,6 +575,11 @@
         </form>
       </div>
       {% if not mb_ui_v2 %}
+    <form method="post" enctype="multipart/form-data" class="eki-mb__add-micro">
+      {% csrf_token %}
+      {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+      <input type="hidden" name="action" value="add_micro">
+      <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
       <p class="eki-mb__form-label">O escriba el texto y suba el archivo (video, PDF, imagen)</p>
 
       <input type="text" name="titulo" placeholder="Título interno (opcional)" class="eki-mb__input">
@@ -610,9 +605,8 @@
       </fieldset>
 
       <button type="submit" class="eki-mb__btn eki-mb__btn--primary">+ Añadir contenido</button>
-      {% endif %}
-
     </form>
+      {% endif %}
 
   </section>
 
@@ -748,7 +742,7 @@
             </label>
             <label class="eki-mb__seg-opt">
               <input type="radio" name="paso_{{ m.id }}_entrega" value="manual" class="eki-mb-track-dirty" {% if m.builder_ui.entrega != "automatico" %}checked{% endif %}>
-              {% if mb_ui_v2 %}Pide listo para avanzar{% else %}Espera respuesta{% endif %}
+              {% if mb_ui_v2 %}Botón Continuemos{% else %}Espera respuesta{% endif %}
             </label>
           </div>
 
@@ -933,7 +927,7 @@
           {% if m.tiene_archivo %}<p class="eki-mb-burbuja">Archivo</p>{% endif %}
           {% if m.omite_archivo %}<p class="eki-mb-burbuja eki-mb-burbuja--aviso">{{ m.motivo }}</p>{% endif %}
         {% endfor %}
-        <p class="eki-mb-burbuja">Responda listo para continuar</p>
+        <p class="eki-mb-burbuja eki-mb-burbuja--boton">Continuemos</p>
       {% endfor %}
     </div>
     {{ recepcion|json_script:"eki-mb-recepcion-data" }}

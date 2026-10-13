@@ -114,7 +114,7 @@ def ui_v2_activa(request) -> bool:
     return request.GET.get('ui') == 'v2' or request.POST.get('ui') == 'v2'
 
 
-def _redirect_builder(request, modulo_id: int):
+def _redirect_builder(request, modulo_id: int, paso_id: int | None = None):
     """302 al Builder preservando ?builder=1 y ?ui=v2."""
     url = reverse('admin_module_builder', kwargs={'modulo_id': modulo_id})
     qs = []
@@ -122,6 +122,8 @@ def _redirect_builder(request, modulo_id: int):
         qs.append('builder=1')
     if request.GET.get('ui') == 'v2' or request.POST.get('ui') == 'v2':
         qs.append('ui=v2')
+    if paso_id:
+        qs.append(f'paso={int(paso_id)}')
     if qs:
         return redirect(f'{url}?{"&".join(qs)}')
     return redirect(url)
@@ -197,6 +199,7 @@ def module_builder_view(request, modulo_id: int):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        paso_focus = None
         try:
             if action == 'replace_media':
                 paso_id = int(request.POST.get('paso_id') or 0)
@@ -294,6 +297,7 @@ def module_builder_view(request, modulo_id: int):
                         tipo=tipo_paso,
                         requiere_listo_para_avanzar=requiere_listo,
                     )
+                    paso_focus = paso.pk
                     if uploaded and resultado and resultado.get('async_encode'):
                         aplicar_resultado_upload_async(
                             resultado,
@@ -311,7 +315,9 @@ def module_builder_view(request, modulo_id: int):
                         messages.success(request, 'Microcontenido añadido.')
             elif action in ('save_modulo', 'save_modulo_meta', 'rename_seccion'):
                 solo_paso = request.POST.get('paso_id')
-                solo_paso_id = int(solo_paso) if solo_paso and str(solo_paso).isdigit() else None
+                solo_paso_id = None
+                if request.POST.get('guardar_solo') == '1' and solo_paso and str(solo_paso).isdigit():
+                    solo_paso_id = int(solo_paso)
 
                 if action == 'rename_seccion':
                     sec_id = int(request.POST.get('seccion_id') or 0)
@@ -531,7 +537,7 @@ def module_builder_view(request, modulo_id: int):
             if request.POST.get('ajax') == '1':
                 return JsonResponse({'ok': False, 'error': err_msg}, status=500)
             messages.error(request, err_msg)
-        return _redirect_builder(request, modulo.id)
+        return _redirect_builder(request, modulo.id, paso_id=paso_focus)
 
     arbol, huerfanos = arbol_modulo(modulo, incluir_inactivos=True)
     diag = diagnostico_estructura(modulo)

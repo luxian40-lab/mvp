@@ -232,7 +232,8 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         return (
             f"✅ Ya completaste *{curso_seleccionado.nombre}*\n\n"
             f"🎓 Tu certificado está disponible.\n\n"
-            f"Escribe *listo* para seguir con otro curso o *ayuda* si necesitas soporte."
+            "Toca Continuemos para seguir con otro curso o escribe *ayuda* si necesitas soporte.\n\n"
+            "[SEND_BUTTON:continuemos]"
         )
 
     # Obtener módulo actual
@@ -299,7 +300,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
                 _persist_curso_foco()
                 return (
                     "✅ Ya recibiste todo el material de esta unidad.\n\n"
-                    "Escribe *listo* para registrar tu avance y seguir 👇"
+                    "Toca Continuemos para registrar tu avance y seguir.\n\n[SEND_BUTTON:continuemos]"
                 )
 
             _hdr_sel = (
@@ -493,7 +494,12 @@ Has completado el curso: {curso_seleccionado.nombre}
 
 🏆 Tu certificado se está generando.
 
-Escribe *listo* para seguir o *ayuda* si necesitas soporte."""
+Toca Continuemos para seguir o escribe *ayuda* si necesitas soporte.
+
+[SEND_BUTTON:continuemos]"""
 
     _persist_curso_foco()
-    return f"Escribe *listo* cuando termines el módulo o *ayuda* si necesitas soporte."
+    return (
+        "Toca Continuemos cuando termines el módulo o escribe *ayuda* si necesitas soporte.\n\n"
+        "[SEND_BUTTON:continuemos]"
+    )

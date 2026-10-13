@@ -51,7 +51,7 @@ def construir_menu_principal_texto(estudiante) -> str:
     nombre = (getattr(estudiante, "nombre", "") or "estudiante").split()[0]
     return (
         f"Hola {nombre}. Este es su menu principal:\n\n"
-        "📚 Continuar mi curso -> escriba *listo*\n"
+        "📚 Continuar mi curso -> toque Continuemos\n\n[SEND_BUTTON:continuemos]\n"
         "✏️ Corregir mis datos -> escriba *corregir datos*\n"
         "🆘 Hablar con soporte -> escriba *ayuda*"
     )
@@ -131,7 +131,10 @@ def procesar_flujo_correccion(estudiante, mensaje: str) -> str:
 
     if msg_norm in {"cancelar", "salir"}:
         _limpiar_flujo_correccion(estudiante)
-        return "Listo. Se cancelo la correccion. Escriba *listo* para retomar su curso."
+        return (
+            "Se canceló la corrección. Toque Continuemos para retomar su curso.\n\n"
+            "[SEND_BUTTON:continuemos]"
+        )
 
     if estado == "esperando_opcion":
         opcion = msg
@@ -178,9 +181,10 @@ def procesar_flujo_correccion(estudiante, mensaje: str) -> str:
 
         nombre_uso = (estudiante.nombre or "estudiante").split()[0]
         return (
-            f"✅ Listo, {nombre_uso}.\n"
+            f"✅ Quedó guardado, {nombre_uso}.\n"
             "Guardamos el cambio y notificamos al equipo de eki para confirmarlo.\n"
-            "Tu curso sigue disponible. Escribe *listo* para retomarlo cuando quieras. 🌱"
+            "Tu curso sigue disponible. Toca Continuemos para retomarlo cuando quieras. 🌱\n\n"
+            "[SEND_BUTTON:continuemos]"
         )
 
     _limpiar_flujo_correccion(estudiante)

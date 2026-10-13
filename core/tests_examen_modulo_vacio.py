@@ -125,7 +125,7 @@ class ExamenModuloVacioTests(TestCase):
             ).values_list('mensaje', flat=True)
         )
         self.assertNotIn('No entendí', cuerpos)
-        self.assertIn('listo', cuerpos.lower())
+        self.assertIn('continuemos', cuerpos.lower())
 
     def test_examen_real_listo_no_avanza_como_leccion(self):
         pregunta = PreguntaModulo.objects.create(

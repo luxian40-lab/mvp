@@ -132,7 +132,7 @@ class TestAyudaWhatsAppFlujo(TestCase):
                 self.est, 'No funciona el curso',
             )
         self.assertIsNotNone(resp)
-        self.assertIn('listo', resp.lower())
+        self.assertIn('[send_button:continuemos]', resp.lower())
         solicitud.refresh_from_db()
         self.assertTrue(solicitud.resuelto_por_agente)
         self.assertEqual(solicitud.estado, 'resuelta')
@@ -285,7 +285,7 @@ class TestContextoYAccionesPQRS(TestCase):
         self.assertEqual(resultado['accion'], 'explicar_progreso')
         self.assertFalse(resultado['escalar'])
         self.assertIn('Curso PQRS Ctx', resultado['respuesta_whatsapp'])
-        self.assertIn('listo', resultado['respuesta_whatsapp'].lower())
+        self.assertIn('[send_button:continuemos]', resultado['respuesta_whatsapp'].lower())
         aplicar_resultado_pqrs(solicitud, resultado)
         solicitud.refresh_from_db()
         self.assertTrue(solicitud.resuelto_por_agente)
@@ -300,7 +300,7 @@ class TestContextoYAccionesPQRS(TestCase):
         paso_antes = self.prog.paso_actual_modulo
         resultado = procesar_pqrs_automatico(solicitud)
         self.assertEqual(resultado['accion'], 'reenviar_modulo')
-        self.assertIn('listo', resultado['respuesta_whatsapp'].lower())
+        self.assertIn('[send_button:continuemos]', resultado['respuesta_whatsapp'].lower())
         self.prog.refresh_from_db()
         # CRÍTICO: reenviar no debe avanzar el puntero de pasos
         self.assertEqual(self.prog.paso_actual_modulo, paso_antes)
@@ -351,7 +351,7 @@ class TestContextoYAccionesPQRS(TestCase):
         )
         self.est.refresh_from_db()
         self.assertEqual(self.est.municipio, 'Espinal')
-        self.assertIn('listo', resultado['respuesta_whatsapp'].lower())
+        self.assertIn('[send_button:continuemos]', resultado['respuesta_whatsapp'].lower())
         self.assertFalse(resultado['escalar'])
 
     def test_escalacion_deja_pendiente(self):

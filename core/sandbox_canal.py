@@ -526,8 +526,23 @@ def enviar_meta(
     from core.response_templates import TEXTO_MODULO_CARGANDO
 
     if texto == TEXTO_MODULO_CARGANDO and not clean_url and hay_reaccion_espera(to):
-        # El ⏳ sobre su *listo* ya dice que el módulo viene; no gastar un mensaje.
+        # El ⏳ sobre su Continuemos ya dice que el módulo viene; no gastar un mensaje.
         return {'success': True, 'mensaje_id': None, 'response': 'reaccion_espera'}
+    if '[SEND_BUTTON:continuemos]' in texto and not clean_url:
+        from core.avance_whatsapp import (
+            BOTON_CONTINUEMOS_ID,
+            BOTON_CONTINUEMOS_TITULO,
+            separar_boton_continuemos,
+        )
+
+        cuerpo, _ = separar_boton_continuemos(texto)
+        return enviar_meta_botones(
+            to,
+            cuerpo,
+            [(BOTON_CONTINUEMOS_ID, BOTON_CONTINUEMOS_TITULO)],
+            canal_evento=canal_evento,
+            agente_evento=agente_evento or 'curso_continuar',
+        )
     if texto:
         texto = _con_aviso_del_dia(to, texto)
 
@@ -848,12 +863,25 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
         habeas_sid = ''
     if sid and habeas_sid and sid == habeas_sid:
         return enviar_sandbox_habeas(telefono)
+    from core.avance_whatsapp import (
+        BOTON_CONTINUEMOS_ID,
+        BOTON_CONTINUEMOS_TITULO,
+        CUERPO_BOTON_CONTINUEMOS,
+        SID_BOTON_LISTO_DEFAULT,
+    )
+
+    if sid and sid == SID_BOTON_LISTO_DEFAULT:
+        return enviar_meta_botones(
+            telefono,
+            CUERPO_BOTON_CONTINUEMOS,
+            [(BOTON_CONTINUEMOS_ID, BOTON_CONTINUEMOS_TITULO)],
+        )
     partes = []
     if sid:
         partes.append('Mensaje del curso')
     if variables:
         partes.extend(str(v) for v in variables.values() if v)
-    texto = '\n'.join(partes) if partes else 'Continúa escribiendo *listo*.'
+    texto = '\n'.join(partes) if partes else CUERPO_BOTON_CONTINUEMOS
     return enviar_meta(telefono, texto)
 
 

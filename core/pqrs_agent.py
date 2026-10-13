@@ -21,11 +21,11 @@ MENSAJE_FUERA_ALCANCE = (
 )
 
 MENSAJE_CONTENIDO_CURSO = (
-    "Esa consulta es sobre el contenido del curso. Continúe su lección escribiendo *listo* "
-    "o consúltela con su facilitador."
+    "Esa consulta es sobre el contenido del curso. Continúe su lección con Continuemos "
+    "o consúltela con su facilitador.\n\n[SEND_BUTTON:continuemos]"
 )
 
-CIERRE_PQRS = "Para seguir con el curso escriba *listo*."
+CIERRE_PQRS = "Para seguir con el curso, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
 
 PQRS_SYSTEM_PROMPT = f"""\
 Usted es el asistente de soporte de eki para personas en formación por WhatsApp.
@@ -202,7 +202,7 @@ def _asegurar_cierre(respuesta: str) -> str:
     respuesta = (respuesta or '').strip()
     if not respuesta:
         return CIERRE_PQRS
-    if CIERRE_PQRS.lower() in respuesta.lower() or 'listo' in respuesta.lower():
+    if '[SEND_BUTTON:continuemos]' in respuesta or CIERRE_PQRS.lower() in respuesta.lower():
         return respuesta
     return respuesta.rstrip() + f"\n\n{CIERRE_PQRS}"
 

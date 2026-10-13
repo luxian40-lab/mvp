@@ -48,7 +48,7 @@ def formatear_paso_whatsapp(
 
     if tipo in ('cierre', 'resumen_final'):
         cab = f'✅ *{titulo or "Para cerrar"}*\n\n'
-        pie = '\n\n_Escribe *listo* cuando termines._'
+        pie = ''
         return _recortar(f'{pref}{cab}{guion}{pie}')
 
     if tipo == 'micro_video':

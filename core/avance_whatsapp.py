@@ -1,4 +1,4 @@
-"""CTA de avance por módulo: texto *listo* o plantilla Twilio con botón (por cliente)."""
+"""CTA de avance: botón de respuesta «Continuemos» (Meta en sesión, plantilla en Twilio)."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -16,6 +16,13 @@ MODO_AVANCE_CHOICES = (
     (MODO_AVANCE_AMBOS, 'Texto y botón'),
 )
 
+# Id y título del botón. El id entra al curso como si la persona hubiera seguido.
+BOTON_CONTINUEMOS_ID = 'continuemos'
+BOTON_CONTINUEMOS_TITULO = 'Continuemos'
+MARCADOR_BOTON_CONTINUEMOS = '[SEND_BUTTON:continuemos]'
+# WhatsApp exige cuerpo en un mensaje con botones. No pide escribir listo.
+CUERPO_BOTON_CONTINUEMOS = 'Cuando termines de revisar, sigue.'
+
 # Fin de entrega de módulo (material listo para marcar avance).
 CTX_FIN_ENTREGA_MODULO = 'fin_entrega_modulo'
 # Paso intermedio dentro del mismo módulo — por ahora solo texto.
@@ -23,20 +30,14 @@ CTX_PASO_INTERMEDIO = 'paso_intermedio'
 # Mensaje de drip «estamos preparando…» — nunca botón.
 CTX_DRIP_BLOQUEO = 'drip_bloqueo'
 
-TEXTO_CTA_LISTO_DEFAULT = (
-    'Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos '
-    'organizando los recursos del siguiente nivel. En cuanto termine, solo responda '
-    '*listo* para continuar.'
-)
+TEXTO_CTA_LISTO_DEFAULT = CUERPO_BOTON_CONTINUEMOS
 
 TEXTO_DRIP_BLOQUEO_BOTON = (
     'Cuando llegue esa fecha, te enviaremos el siguiente módulo. '
     'No hace falta responder antes.'
 )
 
-TEXTO_DRIP_BLOQUEO_TEXTO = (
-    'Cuando llegue esa fecha, responde *listo* y seguimos automáticamente.'
-)
+TEXTO_DRIP_BLOQUEO_TEXTO = TEXTO_DRIP_BLOQUEO_BOTON
 
 # Misma plantilla que core.whatsapp_service (evita import circular en tests).
 SID_BOTON_LISTO_DEFAULT = 'HX33af3a0f2bb63715e03965c2bd642285'
@@ -71,6 +72,25 @@ def _marcador_plantilla(sid: str) -> str:
     return f'[SEND_TEMPLATE:{sid}]'
 
 
+def con_boton_continuemos(texto: str = '') -> str:
+    """Pega el marcador del botón al final. El envío lo convierte en botón."""
+    base = (texto or '').strip()
+    if MARCADOR_BOTON_CONTINUEMOS in base:
+        return base
+    if not base:
+        return MARCADOR_BOTON_CONTINUEMOS
+    return f'{base}\n\n{MARCADOR_BOTON_CONTINUEMOS}'
+
+
+def separar_boton_continuemos(texto: str) -> tuple[str, bool]:
+    """(cuerpo sin marcador, True si había botón). Cuerpo vacío → frase corta."""
+    bruto = str(texto or '')
+    if MARCADOR_BOTON_CONTINUEMOS not in bruto:
+        return bruto, False
+    cuerpo = bruto.replace(MARCADOR_BOTON_CONTINUEMOS, '').strip()
+    return (cuerpo or CUERPO_BOTON_CONTINUEMOS), True
+
+
 def resolver_cta_listo(
     estudiante: Estudiante | None,
     curso: Curso | None,
@@ -78,28 +98,13 @@ def resolver_cta_listo(
 ) -> str:
     """
     Fragmento para MULTI_MSG ([SEP]…) o cuerpo final.
-    drip_bloqueo → siempre vacío (el texto va en format_mensaje_bloqueo_*).
+    Entre secciones y al cerrar el módulo: solo el botón Continuemos.
+    drip_bloqueo → vacío (ahí no se pide avanzar).
     """
+    del estudiante, curso
     if contexto == CTX_DRIP_BLOQUEO:
         return ''
-
-    cliente = getattr(estudiante, 'cliente', None) if estudiante else None
-    if curso and getattr(curso, 'cliente_id', None):
-        cliente = curso.cliente or cliente
-
-    modo = get_modo_avance_cliente(cliente)
-    sid = _content_sid_boton(cliente)
-
-    if contexto == CTX_PASO_INTERMEDIO or modo == MODO_AVANCE_TEXTO or not sid:
-        if contexto == CTX_PASO_INTERMEDIO:
-            from .module_steps import MSG_LISTO_CONTINUAR_EN_MODULO
-            return MSG_LISTO_CONTINUAR_EN_MODULO
-        return TEXTO_CTA_LISTO_DEFAULT
-
-    marcador = _marcador_plantilla(sid)
-    if modo == MODO_AVANCE_BOTON:
-        return marcador
-    return f'{TEXTO_CTA_LISTO_DEFAULT}[SEP]{marcador}'
+    return MARCADOR_BOTON_CONTINUEMOS
 
 
 def es_mensaje_drip_bloqueo(texto: str) -> bool:
@@ -109,12 +114,24 @@ def es_mensaje_drip_bloqueo(texto: str) -> bool:
     return 'estamos preparando tu siguiente sesión' in t or 'próxima lección se desbloquea' in t
 
 
+def sid_plantilla_continuemos(cliente: Cliente | None = None) -> str:
+    """Plantilla Twilio del botón. Setting o SID del cliente; si no, la global."""
+    from django.conf import settings
+
+    explicito = (getattr(settings, 'EKI_TWILIO_SID_BOTON_CONTINUEMOS', '') or '').strip()
+    if explicito:
+        return explicito
+    if cliente:
+        propio = (getattr(cliente, 'content_sid_boton_listo', None) or '').strip()
+        if propio:
+            return propio
+    return SID_BOTON_LISTO_DEFAULT
+
+
 def adaptar_mensaje_drip_bloqueo(texto: str, estudiante: Estudiante | None) -> str:
-    """En modo botón: quita «responde listo» del bloqueo drip (no reenviar botón ahí)."""
-    if not texto or not estudiante:
-        return texto
-    cliente = getattr(estudiante, 'cliente', None)
-    if not cliente_usa_boton_listo(cliente):
+    """El drip no pide avanzar: quita «responde listo» si algún texto viejo lo trae."""
+    del estudiante
+    if not texto:
         return texto
     if 'responde *listo*' in texto.lower() or 'responde listo' in texto.lower():
         return texto.replace(
@@ -125,6 +142,5 @@ def adaptar_mensaje_drip_bloqueo(texto: str, estudiante: Estudiante | None) -> s
 
 
 def texto_bloqueo_drip_cierre(cliente: Cliente | None) -> str:
-    if cliente_usa_boton_listo(cliente):
-        return TEXTO_DRIP_BLOQUEO_BOTON
-    return TEXTO_DRIP_BLOQUEO_TEXTO
+    del cliente
+    return TEXTO_DRIP_BLOQUEO_BOTON

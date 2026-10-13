@@ -584,8 +584,8 @@ def _entrar_en_progreso(telefono: str, from_number: str, progreso) -> None:
         telefono,
         from_number,
         f"Seguimos *{progreso.curso.nombre}*.\n\n"
-        "Escriba *listo* para continuar donde iba. No se reinicia su avance.\n"
-        f"{extra}\n_*menu* para volver._",
+        "Toque Continuemos para continuar donde iba. No se reinicia su avance.\n"
+        f"{extra}\n_*menu* para volver._\n\n[SEND_BUTTON:continuemos]",
         agente='sandbox_cursos',
     )
 
@@ -747,7 +747,7 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
             f"Este mes ya eligió *{resultado.get('nombre_activo') or 'un curso'}*.\n\n"
             f"Su plan incluye cursos {cuantos} (de eki o de su organización). "
             "El próximo mes puede escoger otro.\n\n"
-            "Escriba *listo* para seguir el que ya tiene.\n\n"
+            "Toque Continuemos para seguir el que ya tiene.\n\n[SEND_BUTTON:continuemos]\n\n"
             "_*menu* para volver._",
             agente='sandbox_formacion',
         )
@@ -767,7 +767,7 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         telefono_usuario,
         from_number,
         f"Quedó en *{resultado['nombre']}*.\n\n"
-        "Escriba *listo* para empezar. No se borra el avance de sus otros cursos.\n\n"
+        "Toque Continuemos para empezar. No se borra el avance de sus otros cursos.\n\n[SEND_BUTTON:continuemos]\n\n"
         "_*menu* para volver._",
         agente='sandbox_formacion',
     )
@@ -871,7 +871,7 @@ def entrar_cursos_inscrito(telefono_usuario: str, from_number: str) -> bool:
         est.save(update_fields=['contexto_temporal'])
         texto = (
             f"Seguimos *{p.curso.nombre}*.\n\n"
-            "Escriba *listo* para continuar donde iba. "
+            "Toque Continuemos para continuar donde iba. "
             "No se reinicia su avance.\n\n"
             "_*menu* para volver._"
         )
@@ -882,14 +882,14 @@ def entrar_cursos_inscrito(telefono_usuario: str, from_number: str) -> bool:
         texto = (
             "Tiene más de un curso activo:\n"
             + "\n".join(lineas)
-            + "\n\nEscriba *listo* y elija cuál seguir. "
+            + "\n\nToque Continuemos y elija cuál seguir. "
             "No se reinicia su avance.\n\n_*menu* para volver._"
         )
     with canal_sandbox_si_meta():
         enviar_texto_sandbox(
             telefono_usuario,
             from_number,
-            texto,
+            texto + "\n\n[SEND_BUTTON:continuemos]",
             agente='sandbox_cursos',
         )
     return True

@@ -43,7 +43,7 @@ def test_flujo_correccion_nombre_actualiza_y_audita():
     msg_final = procesar_flujo_correccion(est, "Pedro Perez")
     est.refresh_from_db()
     assert est.nombre == "Pedro Perez"
-    assert "escribe *listo*" in msg_final.lower()
+    assert "[SEND_BUTTON:continuemos]" in msg_final
     assert est.contexto_temporal is None
     assert SolicitudSoporte.objects.filter(estudiante=est, keyword_usada="autocorreccion").exists()
 

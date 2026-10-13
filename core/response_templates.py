@@ -14,7 +14,7 @@ from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 logger = logging.getLogger(__name__)
 
-TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a escribir *listo*."
+TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a tocar Continuemos."
 # Un *listo* mientras el anterior todavía se está enviando. No se manda al chat.
 LECCION_EN_CURSO = '[LECCION_EN_CURSO]'
 _VENTANA_ENTREGA_SEG = 90
@@ -269,7 +269,8 @@ def _generar_completado_final(estudiante, curso_id):
                         (
                             f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
                             "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
-                            "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                            "Si no tienes dudas, toca Continuemos para pasar con la facilitadora.\n\n"
+                            "[SEND_BUTTON:continuemos]"
                         ),
                     )
                 )
@@ -522,7 +523,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
             f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
             f"Le puedo ayudar a resolver un par de preguntas antes. "
             f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "
-            f"escríbame; si no tiene preguntas, escriba *listo*."
+            "escríbame; si no tiene preguntas, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
         ),
     )
 
@@ -605,7 +606,7 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
                         return (
                             f"🌱 Hola {nombre_usuario}, bienvenido al programa de *{org}*.\n\n"
                             f"{emoji} Tu curso: *{cur.nombre}*\n\n"
-                            "Escribe *listo* para seguir tu lección.\n"
+                            "Toca Continuemos para seguir tu lección.\n\n[SEND_BUTTON:continuemos]\n"
                             "Si tienes dudas, escribe *ayuda*."
                         )
                     return (
@@ -718,7 +719,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             respuesta += "\n"
         
         if getattr(estudiante, 'cliente_id', None):
-            respuesta += "Escribe *listo* para seguir tu lección."
+            respuesta += "Toca Continuemos para seguir tu lección.\n\n[SEND_BUTTON:continuemos]"
         else:
             respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
             respuesta += "O escribe *MENÚ* para volver al inicio"
@@ -2037,7 +2038,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             (
                                 f"¡Felicitaciones! Terminaste todos los módulos. "
                                 f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
-                                f"¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
+                                "¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, toca Continuemos.\n\n"
+                                "[SEND_BUTTON:continuemos]"
                             ),
                         )
                         
@@ -2130,7 +2132,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 ):
                     return (
                         "✅ Ya recibiste todo el material de esta unidad.\n\n"
-                        "Escribe *listo* para registrar tu avance y seguir 👇"
+                        "Toca Continuemos para registrar tu avance y seguir.\n\n[SEND_BUTTON:continuemos]"
                     )
                 _rem_p = mensaje_recordatorio_paso_actual(progreso, modulo_actual)
                 if _rem_p:

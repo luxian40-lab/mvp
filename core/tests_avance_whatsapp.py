@@ -1,15 +1,18 @@
 from django.test import TestCase
 
 from core.avance_whatsapp import (
+    MARCADOR_BOTON_CONTINUEMOS,
     MODO_AVANCE_BOTON,
     MODO_AVANCE_TEXTO,
     CTX_FIN_ENTREGA_MODULO,
+    CTX_PASO_INTERMEDIO,
     adaptar_mensaje_drip_bloqueo,
     cliente_usa_boton_listo,
     es_mensaje_drip_bloqueo,
     resolver_cta_listo,
     texto_bloqueo_drip_cierre,
 )
+from core.intent_detector import mensaje_indica_listo
 from core.models import Cliente, Curso, Estudiante
 
 
@@ -59,13 +62,21 @@ class AvanceWhatsappTests(TestCase):
             activo=True,
         )
         cta = resolver_cta_listo(est_texto, curso_texto, CTX_FIN_ENTREGA_MODULO)
-        self.assertIn('listo', cta.lower())
-        self.assertNotIn('[SEND_TEMPLATE:', cta)
+        self.assertEqual(cta, MARCADOR_BOTON_CONTINUEMOS)
+        self.assertNotIn('listo', cta.lower())
+
+    def test_seccion_tambien_es_boton(self):
+        cta = resolver_cta_listo(self.est, self.curso, CTX_PASO_INTERMEDIO)
+        self.assertEqual(cta, MARCADOR_BOTON_CONTINUEMOS)
+
+    def test_continuemos_cuenta_como_avance(self):
+        self.assertTrue(mensaje_indica_listo('continuemos'))
+        self.assertTrue(mensaje_indica_listo('Continuemos'))
 
     def test_modo_boton_usa_plantilla(self):
         self.assertTrue(cliente_usa_boton_listo(self.cliente_boton))
         cta = resolver_cta_listo(self.est, self.curso, CTX_FIN_ENTREGA_MODULO)
-        self.assertTrue(cta.startswith('[SEND_TEMPLATE:HX'))
+        self.assertEqual(cta, MARCADOR_BOTON_CONTINUEMOS)
 
     def test_drip_bloqueo_sin_boton(self):
         msg = (
@@ -78,5 +89,5 @@ class AvanceWhatsappTests(TestCase):
         self.assertIn('no hace falta', adaptado.lower())
 
     def test_drip_cierre_texto_vs_boton(self):
-        self.assertIn('listo', texto_bloqueo_drip_cierre(self.cliente_texto).lower())
+        self.assertNotIn('listo', texto_bloqueo_drip_cierre(self.cliente_texto).lower())
         self.assertNotIn('listo', texto_bloqueo_drip_cierre(self.cliente_boton).lower())

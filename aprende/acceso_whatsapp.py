@@ -141,7 +141,7 @@ def emitir_acceso_desde_whatsapp(estudiante) -> str:
         "Si es tu primera vez en la web, crea tu contraseña ahí. "
         "Luego podrás entrar con tu documento y esa clave.\n"
         "Si olvidaste la clave, vuelve a escribir *aula* y créala de nuevo.\n\n"
-        "Cuando quieras seguir el curso por WhatsApp, escribe *listo*.\n\n"
+        "Cuando quieras seguir el curso, abre el WhatsApp del curso y toca Continuemos.\n\n"
         "No compartas el código."
     )
 

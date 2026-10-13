@@ -376,7 +376,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(est.cliente_id, org.id)
         self.assertEqual((est.contexto_temporal or {}).get('curso_activo_id'), general.id)
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, MODO_CURSOS)
-        self.assertIn('listo', texto.call_args.args[2].lower())
+        self.assertIn('[send_button:continuemos]', texto.call_args.args[2].lower())
         self.assertEqual(
             resolver_ruta_sandbox({**self.base, 'Body': 'listo'}).action,
             'cursos',
@@ -405,4 +405,4 @@ class CatalogoFormacionTests(TestCase):
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
             dispatch_sandbox_menu({**self.base, 'Body': 'ver_tiempo'})
         self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=tiempo).exists())
-        self.assertIn('listo', texto.call_args.args[2].lower())
+        self.assertIn('[send_button:continuemos]', texto.call_args.args[2].lower())

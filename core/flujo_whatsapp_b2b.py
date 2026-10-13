@@ -89,7 +89,7 @@ def armar_menu_seleccion_cursos(estudiante, prefijo: str = '') -> str:
         lineas.append('')
 
     lineas.append("Escribe el *número* del curso que quieres seguir (ej.: *1* o *2*).")
-    lineas.append("También puedes escribir *listo* y luego elegir, o *progreso* / *ayuda*.")
+    lineas.append("También puedes tocar Continuemos y luego elegir, o *progreso* / *ayuda*.")
 
     estudiante.estado_onboarding = 'esperando_seleccion_curso'
     ctx = dict(estudiante.contexto_temporal or {})
@@ -98,14 +98,14 @@ def armar_menu_seleccion_cursos(estudiante, prefijo: str = '') -> str:
     estudiante.contexto_temporal = ctx
     estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
 
-    return '\n'.join(lineas)
+    return '\n'.join(lineas) + '\n\n[SEND_BUTTON:continuemos]'
 
 
 def texto_ayuda_comandos(estudiante) -> str:
     nombre = (getattr(estudiante, 'nombre', '') or 'estudiante').split()[0]
     base = (
         f"Hola {nombre}.\n\n"
-        "📚 *listo* — continuar tu lección\n"
+        "📚 *Continuemos* — continuar tu lección\n"
         "📊 *progreso* — ver tu avance\n"
         "✏️ *corregir datos* — actualizar nombre, municipio o cédula\n"
         "🆘 *ayuda* — soporte\n"
@@ -113,7 +113,7 @@ def texto_ayuda_comandos(estudiante) -> str:
     )
     if tiene_varios_cursos_activos(estudiante):
         base += "\n📖 *cursos* — elegir entre tus cursos activos"
-    return base
+    return base + '\n\n[SEND_BUTTON:continuemos]'
 
 
 def resolver_progreso_b2b(estudiante):
@@ -140,7 +140,7 @@ def mensaje_curso_por_campana(estudiante) -> str:
         return (
             f"📚 Tu programa en *{org}* avanza por campaña.\n\n"
             f"Curso actual: *{prog.curso.nombre}*\n\n"
-            "Escribe *listo* para continuar tu lección.\n"
+            "Toca Continuemos para continuar tu lección.\n\n[SEND_BUTTON:continuemos]\n"
             "Escribe *progreso* para ver tu avance.\n"
             "Escribe *ayuda* si necesitas soporte."
         )
@@ -155,7 +155,10 @@ def mensaje_digitos_sin_menu(estudiante) -> str:
     if tiene_varios_cursos_activos(estudiante):
         return armar_menu_seleccion_cursos(estudiante)
     base = mensaje_curso_por_campana(estudiante)
-    return f"{base}\n\n_Tip: no hace falta elegir con números; escribe *listo* para seguir._"
+    return (
+        f"{base}\n\n_Tip: no hace falta elegir con números; toca Continuemos para seguir._"
+        "\n\n[SEND_BUTTON:continuemos]"
+    )
 
 
 def respuesta_b2b_sin_menu(estudiante, intent: str, nombre_usuario: str, kwargs: dict[str, Any]) -> str | None:
@@ -187,7 +190,8 @@ def respuesta_b2b_sin_menu(estudiante, intent: str, nombre_usuario: str, kwargs:
     if intent == 'numero_invalido':
         return (
             "Ese número no aplica en tu programa.\n\n"
-            "Escribe *listo* para continuar, *progreso* para tu avance o *ayuda* para soporte."
+            "Toca Continuemos para continuar, escribe *progreso* para tu avance o *ayuda* para soporte."
+            "\n\n[SEND_BUTTON:continuemos]"
         )
 
     if intent == 'saludo':
@@ -225,11 +229,13 @@ Estoy aquí para apoyarte con tu aprendizaje.
 Puedes preguntarme:
 💬 Dudas sobre el contenido del curso
 📊 Tu progreso escribiendo *progreso*
-📖 Cómo seguir: escribe *listo*
+📖 Cómo seguir: toca Continuemos
 
 También puedes:
 • Escribir *corregir datos* para actualizar tu información
-• Escribir *listo* para retomar tu lección
+• Tocar Continuemos para retomar tu lección
 • Escribir *cursos* si tienes más de un curso activo
 
-✍️ ¿En qué te puedo ayudar?"""
+✍️ ¿En qué te puedo ayudar?
+
+[SEND_BUTTON:continuemos]"""

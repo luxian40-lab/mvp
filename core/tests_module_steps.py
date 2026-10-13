@@ -205,7 +205,7 @@ class ModuleStepsModelTests(TestCase):
         reset_progreso_pasos_modulo(self.prog, save=True)
         rem = mensaje_recordatorio_paso_actual(self.prog, self.mod)
         self.assertIsNotNone(rem)
-        self.assertIn('listo', rem.lower())
+        self.assertIn('[SEND_BUTTON:continuemos]', rem)
         self.assertNotIn('Combinar redes', rem)
 
     def test_evaluacion_opciones_espera_respuesta(self):
@@ -269,8 +269,8 @@ class ModuleStepsModelTests(TestCase):
         self.assertEqual(len(partes), 1, partes)
         blob = partes[0].lower()
         self.assertIn('excelente', blob)
-        self.assertIn('listo', blob)
-        self.assertLess(blob.index('excelente'), blob.index('listo'))
+        self.assertIn('[send_button:continuemos]', blob)
+        self.assertLess(blob.index('excelente'), blob.index('[send_button:continuemos]'))
 
     @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Muy bien aplicado el concepto.'))
     def test_eval_abierta_califica_con_facilitadora(self, _mock_eval):
@@ -807,8 +807,7 @@ class SectionBatchTests(TestCase):
         self.assertEqual(self.prog.paso_actual_modulo, 3)
         self.assertIn('c1', msg)
         self.assertIn('c2', msg)
-        self.assertIn('siguiente', msg.lower())
-        self.assertIn('listo', msg.lower())
+        self.assertIn('[SEND_BUTTON:continuemos]', msg)
 
     def test_seccion_con_orden_intercalado_incluye_texto_tardio(self):
         """Agrosavia-like: video sec A, media sec B, texto sec A → el texto A va en el 1er *listo*."""
@@ -929,16 +928,16 @@ class SectionBatchTests(TestCase):
         self.assertNotIn('Bloque Alfa', msg1)
         self.assertIn('uno', msg1)
         self.assertNotIn('dos', msg1)
-        self.assertIn('revisar el contenido', msg1.lower())
-        self.assertNotIn('escribí', msg1.lower())
+        self.assertIn('[SEND_BUTTON:continuemos]', msg1)
+        self.assertNotIn('listo', msg1.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 2)
 
         msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
         self.assertNotIn('Bloque Beta', msg2)
         self.assertIn('dos', msg2)
-        self.assertIn('siguiente', msg2.lower())
-        self.assertIn('listo', msg2.lower())
+        self.assertIn('[SEND_BUTTON:continuemos]', msg2)
+        self.assertNotIn('listo', msg2.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 3)
 
@@ -972,8 +971,8 @@ class SectionBatchTests(TestCase):
         msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
         self.assertIn('dos', msg2)
         self.assertNotIn('📑 *Bloque 2*', msg2)
-        self.assertIn('siguiente', msg2.lower())
-        self.assertIn('listo', msg2.lower())
+        self.assertIn('[SEND_BUTTON:continuemos]', msg2)
+        self.assertNotIn('listo', msg2.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 3)
 

@@ -60,6 +60,7 @@
     ensureCalendarioSynced();
     shell.querySelectorAll('[name^="modulo_"], [name^="seccion_"], [name^="paso_"]').forEach(function (el) {
       if (el.type === 'file' || !el.name) return;
+      if (el.name === 'paso_id' || el.name === 'seccion_id') return;
       if (el.name === 'modulo_titulo' && !includeModuloTitulo) return;
       if (GENERAL_MODULO_FIELDS[el.name] && !includeConfigGeneral) return;
       if (el.name.indexOf('seccion_') === 0 && !includeSecciones) return;
@@ -155,6 +156,7 @@
   function collectPasoFields(shell, body, pasoId) {
     var prefix = pasoId ? 'paso_' + pasoId + '_' : 'paso_';
     shell.querySelectorAll('[name^="' + prefix + '"]').forEach(function (el) {
+      if (el.name === 'paso_id' || el.name === 'seccion_id') return;
       if (el.type === 'radio') {
         if (el.checked) body.set(el.name, el.value);
         return;
@@ -172,6 +174,7 @@
     var calendario = readCalendarioPostValue();
     shell.querySelectorAll('[name^="modulo_"], [name^="seccion_"]').forEach(function (el) {
       if (el.name === 'modulo_habilitado_desde') return;
+      if (el.name === 'paso_id' || el.name === 'seccion_id') return;
       if (el.type === 'checkbox') {
         body.set(el.name, el.checked ? el.value || '1' : '0');
       } else if (el.type !== 'file' && el.name) {
@@ -222,6 +225,7 @@
     }
     if (options.pasoId) {
       body.set('paso_id', String(options.pasoId));
+      body.set('guardar_solo', '1');
     }
     collectSaveFields(shell, body, options);
     return fetch(window.location.pathname + window.location.search, {
@@ -647,11 +651,15 @@
     });
 
     var first = shell.querySelector('[data-paso-select]');
+    var fromQuery = '';
     var saved = null;
     try {
+      fromQuery = new URLSearchParams(window.location.search).get('paso') || '';
       saved = window.sessionStorage.getItem('eki-mb-selected');
     } catch (e) {}
-    if (saved && shell.querySelector('[data-paso="' + saved + '"]')) {
+    if (/^\d+$/.test(fromQuery) && shell.querySelector('[data-paso="' + fromQuery + '"]')) {
+      selectPaso(shell, fromQuery);
+    } else if (saved && shell.querySelector('[data-paso="' + saved + '"]')) {
       selectPaso(shell, saved);
     } else if (first) {
       selectPaso(shell, first.getAttribute('data-paso-select'));
@@ -883,8 +891,8 @@
       }
     });
     var listo = document.createElement('p');
-    listo.className = 'eki-mb-burbuja';
-    listo.textContent = 'Responda listo para continuar';
+    listo.className = 'eki-mb-burbuja eki-mb-burbuja--boton';
+    listo.textContent = 'Continuemos';
     cuerpo.appendChild(listo);
   }
 

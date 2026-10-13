@@ -10,26 +10,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# CTAs tras entregar microcontenidos (WhatsApp); mismo verbo en todos los casos.
-MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = (
-    'Una vez termines de revisar el contenido, escribe *listo* '
-    'para abrir el siguiente 👇'
-)
-MSG_LISTO_CONTINUAR_EN_MODULO = (
-    'Una vez termines de revisar el contenido, escribe *listo* para continuar 👇'
-)
-MSG_LISTO_FIN_PASOS_MODULO = (
-    'Una vez termines de revisar el contenido, escribe *listo* para pasar al '
-    'siguiente módulo o paso del curso 👇'
-)
+# Entre secciones y al cerrar el módulo: el envío lo vuelve botón «Continuemos».
+from .avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+
+MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = MARCADOR_BOTON_CONTINUEMOS
+MSG_LISTO_CONTINUAR_EN_MODULO = MARCADOR_BOTON_CONTINUEMOS
+MSG_LISTO_FIN_PASOS_MODULO = MARCADOR_BOTON_CONTINUEMOS
 
 from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
 
 # Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
 # entregue antes el texto corto de *listo* que el feedback más largo.
-_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL = (
-    'Escribe *listo* para recibir el siguiente material 👇'
-)
+_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL = MARCADOR_BOTON_CONTINUEMOS
 
 
 def mensaje_exito_eval_opciones_con_cta_listo(feedback_correcto_crudo: Optional[str]) -> str:
@@ -114,7 +106,8 @@ def _respuesta_cola_tras_avanzar_eval_opc(
 # Mensaje al estudiante si modo "pasos" quedó mal configurado (sin filas PasoModulo activas).
 FALLBACK_MODULO_PASOS_SIN_PASOS = (
     '📚 Estamos organizando el contenido de esta unidad. '
-    'Intentá de nuevo en unos minutos o escribe *listo* para retomar tu curso.'
+    'Intentá de nuevo en unos minutos, o toca Continuemos para retomar tu curso.\n\n'
+    + MARCADOR_BOTON_CONTINUEMOS
 )
 
 
@@ -455,7 +448,10 @@ def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
         parts.append("\n\n✍️ Envía tu respuesta en un mensaje. La facilitadora la calificará.")
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
-        parts.append("\n\n📎 Envía tu respuesta o escribe *listo* cuando termines.")
+        parts.append(
+            "\n\n📎 Envía tu respuesta. Cuando termines, toca Continuemos.\n\n"
+            + MARCADOR_BOTON_CONTINUEMOS
+        )
     return ''.join(parts)
 
 
@@ -469,7 +465,10 @@ def _mensaje_es_solo_avance_listo(texto_crudo: str) -> bool:
     tokens = [t for t in re.sub(r'[^a-záéíóúüñ\s]', ' ', raw).split() if t]
     if not tokens:
         return False
-    gate = {'listo', 'lista', 'ok', 'dale', 'siguiente', 'continuar', 'sigue', 'si', 'sí', 'ya'}
+    gate = {
+        'listo', 'lista', 'ok', 'dale', 'siguiente', 'continuar', 'continuemos',
+        'sigue', 'si', 'sí', 'ya',
+    }
     return set(tokens) <= gate
 
 
@@ -1011,10 +1010,7 @@ def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modul
     if idx < 1:
         idx = 1
     # No reenviar contenido: el alumno ya lo tiene; solo recordar el CTA.
-    return (
-        "Sigues en este material. Cuando termines de revisarlo, escribe *listo* "
-        "para continuar 👇"
-    )
+    return MARCADOR_BOTON_CONTINUEMOS
 
 
 def _evaluar_abierta_microcontenido_facilitadora(

@@ -436,13 +436,13 @@ def estudiante_modulo(request, modulo_id: int):
                 messages.success(
                     request,
                     f'Práctica aprobada: {resultado.intento.correctas}/{resultado.intento.total}. '
-                    'Para avanzar el curso en campo, escribe *listo* en WhatsApp.',
+                    'Para avanzar el curso en campo, toca Continuemos en WhatsApp.',
                 )
             else:
                 messages.warning(
                     request,
                     f'Resultado: {resultado.intento.correctas}/{resultado.intento.total}. '
-                    'Puedes reintentar. El avance del programa sigue con *listo* en WhatsApp.',
+                    'Puedes reintentar. El avance del programa sigue con Continuemos en WhatsApp.',
                 )
 
     ctx = contexto_render_modulo_estudiante(
