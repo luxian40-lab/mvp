@@ -329,7 +329,6 @@ def resumir_audiencia(campana) -> dict:
             continue
         if pk in recientes:
             recientes_n += 1
-            continue
         if not est.cliente_id:
             sin_organizacion += 1
         if not (est.nombre or '').strip():
@@ -625,12 +624,29 @@ def puede_reintentar(envio) -> bool:
     return (envio.error_codigo or '') in codigos and envio.estado in _FALLIDOS
 
 
+def marcar_para_reenvio(campana) -> int:
+    """Deja en pendiente lo ya enviado, para que un lanzamiento manual salga otra vez.
+
+    El reintento de Celery no llama esto: quien ya quedó ENVIADO no se duplica
+    si la tarea se cae a la mitad.
+    """
+    from core.models_campana_meta import EnvioCampanaMeta
+
+    return EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').update(
+        estado='PENDIENTE',
+        wamid='',
+        respuesta='',
+        error_codigo='',
+        estado_entrega='',
+        claim_token=None,
+        claimed_at=None,
+    )
+
+
 def debe_omitir_reintento(previo) -> bool:
     if previo is None:
         return False
     if previo.estado in _NO_REINTENTAR:
-        return True
-    if previo.estado == 'ENVIADO':
         return True
     if previo.estado == 'FALLIDO' and not puede_reintentar(previo):
         return True
@@ -709,7 +725,7 @@ def texto_confirmacion(campana, resumen: dict | None = None) -> str:
         f'con la plantilla {plantilla}. '
         f'Repetidas: {resumen["repetidas"]}. '
         f'Pidieron no recibir más: {resumen["optout"]}. '
-        f'Recibieron esta plantilla hace menos de {resumen["dias"]} días: {resumen["recientes"]}. '
+        f'Ya la recibieron en los últimos {resumen["dias"]} días y se les vuelve a enviar: {resumen["recientes"]}. '
         f'Sin WhatsApp válido: {resumen["sin_whatsapp"]}. '
         f'Sin el dato de una variable: {resumen["sin_variable"]}.'
     )

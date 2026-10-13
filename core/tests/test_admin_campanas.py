@@ -244,7 +244,7 @@ class CampanasAdminTests(TestCase):
         self.assertEqual(resumen['optout'], 1)
         self.assertEqual(resumen['recientes'], 1)
         self.assertEqual(resumen['sin_whatsapp'], 1)
-        self.assertEqual(resumen['reciben_ids'], [buena.pk])
+        self.assertEqual(resumen['reciben_ids'], [buena.pk, reciente.pk])
 
     def test_ninguna_pantalla_muestra_la_cedula(self):
         persona = _persona('Nubia', '573001110031', CEDULA)
@@ -305,6 +305,33 @@ class CampanasAdminTests(TestCase):
             ejecutar_campana_meta(campana)
             ejecutar_campana_meta(campana)
         self.assertEqual(post.call_count, 1)
+        self.assertEqual(EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').count(), 1)
+
+    def test_el_lanzamiento_manual_reenvia_lo_ya_enviado(self):
+        from core.campana_audiencia import marcar_para_reenvio
+
+        persona = _persona('Dos', '573001110042', 'c-dos')
+        campana = self._campana()
+        campana.destinatarios.add(persona)
+        from core.campana_audiencia import aplicar_mapeo
+
+        campana.reglas_variables = {
+            '1': {'origen': 'nombre', 'si_falta': 'respaldo', 'respaldo': '', 'texto': ''},
+            '2': {'origen': 'fijo', 'si_falta': 'respaldo', 'respaldo': '', 'texto': 'eki'},
+        }
+        aplicar_mapeo(campana)
+        campana.save()
+        with patch('core.meta_waba.time.sleep'), \
+                patch('core.meta_waba.requests.get') as get, \
+                patch('core.meta_waba.requests.post') as post:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = {'data': [{'id': PHONE}]}
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {'messages': [{'id': 'wamid.1'}]}
+            ejecutar_campana_meta(campana)
+            marcar_para_reenvio(campana)
+            ejecutar_campana_meta(campana)
+        self.assertEqual(post.call_count, 2)
         self.assertEqual(EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').count(), 1)
 
     def test_programada_sin_aprobacion_queda_en_error_y_no_envia(self):

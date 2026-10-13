@@ -116,7 +116,10 @@ class CampanaMetaForm(forms.ModelForm):
             self.fields['phone_number_id'].initial = lineas[0][0]
         self.fields['fecha_programada'].label = 'Fecha y hora'
         self.fields['fecha_programada'].help_text = 'Vacío envía ahora. La hora es la de Bogotá.'
-        self.fields['dias_repeticion'].label = 'No repetir esta plantilla antes de (días)'
+        self.fields['dias_repeticion'].label = 'Avisar si ya la recibieron en los últimos (días)'
+        self.fields['dias_repeticion'].help_text = (
+            'El conteo marca a quién se le envió esta plantilla en ese plazo. El envío los incluye igual.'
+        )
         self.fields['nombre'].label = 'Nombre de la campaña'
         self.fields['es_inicio_flujo'].label = 'Inicio de flujo'
         self.fields['cliente'].label = 'Cliente'
@@ -372,6 +375,11 @@ class CampanaMetaAdmin(admin.ModelAdmin):
             extra['eki_meta_puede_enviar'] = extra['aprobada'] and n > 0
             if not extra['aprobada']:
                 extra['eki_meta_envio_bloqueo'] = 'Meta todavía no aprobó esta plantilla.'
+            elif n == 0 and extra['resumen'].get('suma'):
+                extra['eki_meta_envio_bloqueo'] = (
+                    'Hay personas en la campaña, pero ninguna puede recibir '
+                    '(pidieron no recibir más o no tienen WhatsApp válido).'
+                )
             elif n == 0:
                 extra['eki_meta_envio_bloqueo'] = 'Agregue un grupo o personas y guarde.'
         extra['eki_buscar_personas'] = reverse('admin:core_campanameta_buscar_personas')
@@ -724,6 +732,9 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         if n == 0:
             self.message_user(request, f'{campana.nombre}: no tiene destinatarios.', level=messages.WARNING)
             return
+        from core.campana_audiencia import marcar_para_reenvio
+
+        marcar_para_reenvio(campana)
         try:
             modo = encolar_campana_meta(campana.id)
         except Exception as exc:
