@@ -534,7 +534,7 @@ class ContadorAsesorTests(TestCase):
             self.assertEqual(lista['interactive']['type'], 'list')
             filas = [r['title'] for r in lista['interactive']['action']['sections'][0]['rows']]
             self.assertEqual(filas, [
-                'Agrónomo', 'Coach', 'Profesor IA', 'Ventas', 'Finanzas',
+                'Agrónomo', 'Coach', 'Innovación e IA', 'Ventas', 'Finanzas',
             ])
             descripciones = [
                 r['description'] for r in lista['interactive']['action']['sections'][0]['rows']
@@ -542,8 +542,8 @@ class ContadorAsesorTests(TestCase):
             self.assertEqual(descripciones, [
                 'Experto en café',
                 'Motivación y metas diarias',
-                'Tu tutor digital diario',
-                'Impulsa tus ventas',
+                'Mejor apropiación tecnológica',
+                'Aumenta tus ingresos',
                 'Educación financiera a tu alcance',
             ])
             self.assertIn('hasta 30 preguntas', lista['interactive']['body']['text'])

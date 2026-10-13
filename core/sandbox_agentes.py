@@ -34,7 +34,7 @@ IDENTIDAD DE ESTA LÍNEA (prevalece sobre el nombre del bot)
   Si no hay ninguna de esas fuentes, no invente dosis, producto ni manejo del café.
   No pegue la cartilla completa.
 - No responda hábitos, ventas ni cómo usar la inteligencia artificial.
-  Ofrezca *menu* para *Coach*, *Ventas* o *Profesor IA*.
+  Ofrezca *menu* para *Coach*, *Ventas* o *Innovación e IA*.
 """.strip()
 
 
@@ -111,7 +111,7 @@ SI LE PREGUNTAN QUÉ PUEDE RESPONDER
 Diga solo su especialidad, con ejemplos: un hábito, la constancia, el primer paso
 de 10 a 15 minutos, el desánimo en el trabajo del campo. No diga que puede ayudar
 "en lo que necesite". Cultivo, plagas y café: *Agrónomo*.
-Precios y clientes: *Ventas*. Inteligencia artificial en el celular: *Profesor IA*.
+Precios y clientes: *Ventas*. Inteligencia artificial en el celular: *Innovación e IA*.
 
 CÓMO RESPONDER
 1. Reconozca en una frase corta lo que la persona siente (sin dramatizar).
@@ -148,7 +148,7 @@ LÍMITES
 
 PROMPT_IA_CAMPO = """
 ROL
-Usted es el *Profesor IA* de eki. No tiene nombre propio.
+Usted es *Innovación e IA* de eki. No tiene nombre propio.
 Le enseña a productores rurales y trabajadores del campo a usar la inteligencia
 artificial en su día a día, de forma sencilla y sin tecnicismos. Habla como un buen
 profe de pueblo: paciente, claro y sin hacer sentir mal a nadie por no saber.
@@ -198,7 +198,7 @@ rurales y pymes — también a gente con poca o ninguna formación previa en ven
 SI LE PREGUNTAN QUÉ PUEDE RESPONDER
 Diga solo su especialidad: conseguir clientes, explicar el precio, una objeción,
 el cierre y el margen. No diga que puede ayudar "en lo que necesite".
-Cultivo, plagas y café: *Agrónomo*. Hábitos: *Coach*. Celular e inteligencia artificial: *Profesor IA*.
+Cultivo, plagas y café: *Agrónomo*. Hábitos: *Coach*. Celular e inteligencia artificial: *Innovación e IA*.
 
 IDENTIDAD
 - Mentor comercial cercano, claro y experimentado. No consultor corporativo.
@@ -293,7 +293,7 @@ REGLAS WHATSAPP
 - Pregunte para que piense (mejor cliente, por qué le compra, objeción más frecuente).
 - Micro-reto de <15 min cuando encaje.
 - Agronomía / plagas / dosis / café → «Eso lo atiende el *Agrónomo* en el menú».
-- Hábitos / motivación de estudio → *Coach*. Inteligencia artificial en el celular → *Profesor IA*.
+- Hábitos / motivación de estudio → *Coach*. Inteligencia artificial en el celular → *Innovación e IA*.
 - Cada turno debe dejar al menos un resultado: entender al cliente, un prospecto,
   mejor conversación, mejor oferta, defender precio, conversión, recompra, margen
   o una decisión comercial.
@@ -315,7 +315,7 @@ Diga solo su especialidad: anotar gastos y ventas, ver si queda ganancia, una de
 un ahorro o un presupuesto corto. No diga que puede ayudar "en lo que necesite".
 Cultivo, plagas y café: *Agrónomo*. Cómo vender y el precio
 frente al cliente: *Ventas*. Hábitos: *Coach*. Inteligencia artificial en el
-celular: *Profesor IA*.
+celular: *Innovación e IA*.
 
 CÓMO RESPONDER
 1. Reconozca la cuenta o el gasto que la persona nombró.
@@ -378,7 +378,7 @@ def prompt_para(agente: AgenteSandbox) -> str:
 def nombre_agente(agente: AgenteSandbox) -> str:
     return {
         'coach': 'Coach',
-        'ia_campo': 'Profesor IA',
+        'ia_campo': 'Innovación e IA',
         'ventas': 'Ventas',
         'finanzas': 'Finanzas',
         'cafe': 'Agrónomo',
@@ -433,7 +433,8 @@ def presentacion_agente(agente: str, *, reinicio: bool = False) -> str:
         )
     else:
         cuerpo = (
-            f"{corte}*Profesor IA*\n\n"
+            f"{corte}*Innovación e IA*\n\n"
+            "Mejor apropiación tecnológica.\n\n"
             "Le enseño a usar la inteligencia artificial con el celular y WhatsApp: "
             "una nota de voz, un mensaje a un comprador o una lista sencilla.\n\n"
             "No resuelvo plagas ni ventas.\n\n"

@@ -89,8 +89,8 @@ TEXTO_AGENTES = (
     "🤖 *Asesoría*\n\n"
     "1️⃣ *Agrónomo* — Experto en café\n"
     "2️⃣ *Coach* — Motivación y metas diarias\n"
-    "3️⃣ *Profesor IA* — Tu tutor digital diario\n"
-    "4️⃣ *Ventas* — Impulsa tus ventas\n"
+    "3️⃣ *Innovación e IA* — Mejor apropiación tecnológica\n"
+    "4️⃣ *Ventas* — Aumenta tus ingresos\n"
     "5️⃣ *Finanzas* — Educación financiera a tu alcance\n\n"
     "Escribe *1*, *2*, *3*, *4* o *5*.\n"
     "*reiniciar* = memoria nueva · *menu* = menú principal."
@@ -276,7 +276,7 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
         return MODO_NAT
     if t in ('coach', 'entrenador'):
         return MODO_COACH
-    if t in ('profe', 'profe ia', 'ia campo', 'ia_campo'):
+    if t in ('profe', 'profe ia', 'ia campo', 'ia_campo', 'innovacion', 'innovación', 'innovacion e ia', 'innovación e ia'):
         return MODO_IA_CAMPO
     if t in ('ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
         return MODO_VENTAS
@@ -295,7 +295,7 @@ def _normalizar_eleccion_agentes(body: str) -> str | None:
         return MODO_NAT
     if t in ('2', '2️⃣', 'dos', 'coach', 'entrenador'):
         return MODO_COACH
-    if t in ('3', '3️⃣', 'tres', 'profe', 'profe ia', 'ia', 'ia campo'):
+    if t in ('3', '3️⃣', 'tres', 'profe', 'profe ia', 'ia', 'ia campo', 'innovacion', 'innovación', 'innovacion e ia', 'innovación e ia'):
         return MODO_IA_CAMPO
     if t in ('4', '4️⃣', 'cuatro', 'ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
         return MODO_VENTAS
@@ -776,8 +776,8 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
 FILAS_AGENTES = [
     ('nat', 'Agrónomo', 'Experto en café'),
     ('coach', 'Coach', 'Motivación y metas diarias'),
-    ('profe', 'Profesor IA', 'Tu tutor digital diario'),
-    ('ventas', 'Ventas', 'Impulsa tus ventas'),
+    ('profe', 'Innovación e IA', 'Mejor apropiación tecnológica'),
+    ('ventas', 'Ventas', 'Aumenta tus ingresos'),
     ('finanzas', 'Finanzas', 'Educación financiera a tu alcance'),
 ]
 

@@ -876,6 +876,26 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
             CUERPO_BOTON_CONTINUEMOS,
             [(BOTON_CONTINUEMOS_ID, BOTON_CONTINUEMOS_TITULO)],
         )
+    try:
+        from core.whatsapp_service import TWILIO_CONTENT_SIDS as _SIDS
+        sid_datos = (_SIDS.get('confirmar_datos_v2') or '').strip()
+    except Exception:
+        sid_datos = ''
+    if sid and sid_datos and sid == sid_datos:
+        datos = variables or {}
+        cuerpo = (
+            '¿Sus datos están bien?\n\n'
+            f"Nombre: {datos.get('1') or 'No registrado'}\n"
+            f"Documento: {datos.get('2') or 'No registrada'}\n"
+            f"Organización: {datos.get('3') or 'eki'}\n"
+            f"Edad: {datos.get('4') or 'No registrada'}\n"
+            f"Municipio: {datos.get('5') or 'No registrado'}"
+        )
+        return enviar_meta_botones(
+            telefono,
+            cuerpo,
+            [('si', 'Están bien'), ('no', 'Hay un error')],
+        )
     partes = []
     if sid:
         partes.append('Mensaje del curso')

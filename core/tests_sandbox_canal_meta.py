@@ -152,6 +152,36 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(botones[0]['reply']['title'], 'Continuemos')
         self.assertNotIn('listo', (body['interactive']['body']['text'] or '').lower())
 
+    @patch('core.sandbox_canal.requests.post')
+    def test_confirmacion_de_cedula_sale_con_botones(self, mock_post):
+        from core.sandbox_canal import enviar_sandbox_template_fallback
+        from core.whatsapp_service import TWILIO_CONTENT_SIDS
+
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.datos'}]}
+        result = enviar_sandbox_template_fallback(
+            '573001234567',
+            TWILIO_CONTENT_SIDS['confirmar_datos_v2'],
+            {
+                '1': 'Julian Ramirez',
+                '2': 'CC 1014310196',
+                '3': 'REDDI-eki',
+                '4': 'No registrada',
+                '5': 'No registrado',
+            },
+        )
+        self.assertTrue(result.get('success'))
+        body = mock_post.call_args.kwargs.get('json') or {}
+        self.assertEqual(body.get('type'), 'interactive')
+        texto = body['interactive']['body']['text']
+        self.assertIn('Julian Ramirez', texto)
+        self.assertNotIn('Mensaje del curso', texto)
+        botones = body['interactive']['action']['buttons']
+        self.assertEqual(botones[0]['reply']['id'], 'si')
+        self.assertEqual(botones[0]['reply']['title'], 'Están bien')
+        self.assertEqual(botones[1]['reply']['id'], 'no')
+        self.assertEqual(botones[1]['reply']['title'], 'Hay un error')
+
     def test_dispatch_menu_no_llama_twilio(self):
         from core.models import SandboxCanalSesion
 
