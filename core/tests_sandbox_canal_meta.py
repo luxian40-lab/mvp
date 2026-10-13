@@ -401,3 +401,59 @@ class SandboxCanalMetaWebhookTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         disp.assert_not_called()
         edu.assert_not_called()
+
+
+class HabeasMetaAntesDelCursoTests(TestCase):
+    def _est(self):
+        from core.models import Cliente, Estudiante
+
+        org = Cliente.objects.create(
+            nombre='Org Corte',
+            contacto_principal='Ops',
+            email='corte@test.com',
+            telefono='573001100088',
+        )
+        return Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1014310196',
+            telefono='573026480629',
+            cliente=org,
+            acepto_terminos=False,
+            estado_chat='ACTIVO',
+            estado_onboarding='completado',
+        )
+
+    def _post(self, body, sid):
+        return {
+            '_eki_proveedor': 'meta',
+            'From': 'whatsapp:+573026480629',
+            'Body': body,
+            'MessageSid': sid,
+        }
+
+    def test_listo_sin_aceptar_manda_botones_y_no_entra_al_curso(self):
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        self._est()
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('Listo', 'wamid.listo1'))
+        botones.assert_called_once()
+        cuerpo.assert_not_called()
+
+    def test_si_acepta_y_pide_la_cedula(self):
+        from core.models import Estudiante
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        est = self._est()
+        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio, \
+                patch('core.sandbox_canal.enviar_sandbox_habeas') as botones, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('Si', 'wamid.si1'))
+        est.refresh_from_db()
+        self.assertTrue(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+        self.assertIn('cédula', envio.call_args[0][1])
+        botones.assert_not_called()
+        cuerpo.assert_not_called()
+        self.assertTrue(Estudiante.objects.filter(pk=est.pk, acepto_terminos=True).exists())

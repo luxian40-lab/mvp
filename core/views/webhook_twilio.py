@@ -56,6 +56,55 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     return True
 
 
+def _cortar_habeas_meta(post_data) -> bool:
+    """En Meta, sin autorización no se entra al curso. Botones Acepto / No acepto."""
+    from core.sandbox_canal import inbound_es_meta
+
+    if not inbound_es_meta(post_data):
+        return False
+    status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
+    if status:
+        return False
+    from core.habeas_respuestas import aplicar_respuesta_habeas, texto_desde_webhook_twilio
+    from core.nati import normalizar_telefono_whatsapp
+    from core.utils_telefono import estudiante_por_telefono
+
+    body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip()
+    if not body:
+        return False
+    est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
+    if est is None or est.acepto_terminos:
+        return False
+    if (est.contexto_temporal or {}).get('cert_envio_pendiente'):
+        return False
+    sid = str(post_data.get('MessageSid') or '').strip()
+    if sid and WhatsappLog.objects.filter(mensaje_id=sid, tipo='INCOMING').exists():
+        return True
+    if sid:
+        WhatsappLog.objects.create(
+            telefono=est.telefono,
+            mensaje=body[:500],
+            mensaje_id=sid,
+            tipo='INCOMING',
+        )
+    try:
+        resultado = aplicar_respuesta_habeas(est, body)
+    except Exception:
+        logger.exception('habeas_meta_corte')
+        resultado = {'accion': 'reenviar_plantilla', 'texto': None}
+    from core.sandbox_canal import enviar_sandbox_habeas
+    from core.utils import enviar_whatsapp_twilio
+
+    destino = post_data.get('From', '') or est.telefono
+    if resultado.get('accion') == 'reenviar_plantilla':
+        enviar_sandbox_habeas(destino)
+    else:
+        texto = resultado.get('texto') or ''
+        if texto:
+            enviar_whatsapp_twilio(destino, texto, agente_evento='habeas_meta')
+    return True
+
+
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
@@ -63,6 +112,8 @@ def _procesar_twilio_webhook(post_data):
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
     with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
+        if canal == CANAL_META and _cortar_habeas_meta(post_data):
+            return None
         if canal == CANAL_TWILIO and _intentar_aula_twilio_fuera_de_activo(post_data):
             return None
         if canal == CANAL_TWILIO:
