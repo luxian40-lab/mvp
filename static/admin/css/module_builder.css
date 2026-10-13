@@ -692,11 +692,44 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   padding: 0.75rem 1.25rem;
   padding-left: max(1.25rem, env(safe-area-inset-left));
   padding-right: max(1.25rem, env(safe-area-inset-right));
-  background: color-mix(in srgb, var(--eki-mb-card) 94%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid var(--eki-mb-line);
-  box-shadow: 0 -4px 20px rgba(30, 27, 36, 0.08);
+  background: #f6f3f8;
+  border-top: 2px solid #d9cfe3;
+  box-shadow: 0 -8px 24px rgba(30, 27, 36, 0.16);
+}
+
+.eki-mb-shell[data-tone="noche"] .eki-mb-sticky,
+html[data-eki-tone="noche"] .eki-mb-sticky {
+  background: #141218;
+  border-top-color: rgba(255, 255, 255, 0.22);
+}
+
+.eki-mb-sticky .eki-mb-save-trigger {
+  background: #5F3A6E !important;
+  color: #fff !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 0 2px #5F3A6E, 0 6px 16px rgba(61, 34, 72, 0.35);
+  padding: 0.7rem 1.35rem;
+  font-size: 0.95rem;
+}
+
+.eki-mb-sticky .eki-mb-save-trigger:hover:not(:disabled) {
+  background: #3d2248 !important;
+}
+
+.eki-mb-shell[data-tone="noche"] .eki-mb-sticky .eki-mb-save-trigger,
+html[data-eki-tone="noche"] .eki-mb-sticky .eki-mb-save-trigger {
+  background: #f4eef8 !important;
+  color: #2a1833 !important;
+  border-color: #f4eef8 !important;
+  box-shadow: 0 0 0 2px #9A6CAC, 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.eki-mb-sticky .eki-mb-save-trigger:disabled {
+  opacity: 1;
+  background: #fff !important;
+  color: #5c5668 !important;
+  border: 2px solid #9A6CAC !important;
+  box-shadow: none;
 }
 
 .eki-mb-sticky__state {
