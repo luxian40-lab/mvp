@@ -851,6 +851,23 @@ def enviar_sandbox_habeas(telefono: str) -> dict:
     return enviar_meta(telefono, _TEXTO_HABEAS_SANDBOX)
 
 
+def _sid_es_habeas(sid: str, sid_historico: str = '') -> bool:
+    """True si el HX es la plantilla de autorización, aunque no sea el SID histórico."""
+    if not sid:
+        return False
+    if sid_historico and sid == sid_historico:
+        return True
+    try:
+        from core.models import Cliente, ConfiguracionGlobal
+
+        global_sid = (ConfiguracionGlobal.get_solo().content_sid_habeas_data_global or '').strip()
+        if global_sid and sid == global_sid:
+            return True
+        return Cliente.objects.filter(content_sid_habeas_data_twilio=sid).exists()
+    except Exception:
+        return False
+
+
 def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables: dict | None = None) -> dict:
     """Plantillas Twilio no existen en Graph: habeas interactivo o texto plano."""
     sid = (content_sid or '').strip()
@@ -861,7 +878,7 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
         habeas_sid = (TWILIO_CONTENT_SIDS.get('habeas_data') or '').strip()
     except Exception:
         habeas_sid = ''
-    if sid and habeas_sid and sid == habeas_sid:
+    if sid and _sid_es_habeas(sid, habeas_sid):
         return enviar_sandbox_habeas(telefono)
     from core.avance_whatsapp import (
         BOTON_CONTINUEMOS_ID,

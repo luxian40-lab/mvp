@@ -182,6 +182,31 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(botones[1]['reply']['id'], 'no')
         self.assertEqual(botones[1]['reply']['title'], 'Hay un error')
 
+    def test_habeas_en_meta_sale_con_botones_aunque_el_sid_sea_otro(self):
+        from core.models import Cliente, ConfiguracionGlobal
+        from core.sandbox_canal import canal_sandbox_meta
+        from core.whatsapp_service import enviar_habeas_data
+
+        cliente = Cliente.objects.create(
+            nombre='Org Habeas',
+            contacto_principal='Ops',
+            email='habeas@test.com',
+            telefono='573001100099',
+            content_sid_habeas_data_twilio='HXOTROHABEAS0001',
+        )
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.content_sid_habeas_data_global = 'HXOTROHABEAS0001'
+        cfg.save(update_fields=['content_sid_habeas_data_global', 'fecha_actualizacion'])
+        with canal_sandbox_meta():
+            with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.h'}) as post:
+                result = enviar_habeas_data('573001234567', cliente=cliente)
+        self.assertTrue(result.get('success'))
+        payload = post.call_args[0][0]
+        self.assertEqual(payload.get('type'), 'interactive')
+        ids = [b['reply']['id'] for b in payload['interactive']['action']['buttons']]
+        self.assertEqual(ids, ['acepto', 'no_acepto'])
+        self.assertNotIn('Mensaje del curso', payload['interactive']['body']['text'])
+
     def test_dispatch_menu_no_llama_twilio(self):
         from core.models import SandboxCanalSesion
 

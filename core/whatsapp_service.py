@@ -139,6 +139,13 @@ def enviar_habeas_data(telefono, cliente=None):
         cliente: instancia opcional de `core.Cliente`. Si tiene
             `content_sid_habeas_data_twilio` se prioriza sobre la plantilla global.
     """
+    try:
+        from core.sandbox_canal import enviar_sandbox_habeas, sandbox_meta_activo
+
+        if sandbox_meta_activo():
+            return enviar_sandbox_habeas(telefono)
+    except Exception:
+        logger.exception('habeas_meta_botones')
     content_sid = _resolver_content_sid_habeas_data(cliente=cliente)
     return enviar_template_twilio(telefono, content_sid)
 
