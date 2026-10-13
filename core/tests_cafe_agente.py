@@ -64,17 +64,18 @@ class CafePromptTests(SimpleTestCase):
     def test_prompt_de_usted_y_sin_inventar(self):
         prompt = prompt_para('cafe')
         self.assertIn('Trate SIEMPRE de "usted"', prompt)
-        self.assertIn('Experto en café', prompt)
+        self.assertIn('Agrónomo', prompt)
+        self.assertIn('café', prompt)
         self.assertIn('No invente dosis', prompt)
         self.assertIn('AGROSAVIA', prompt)
         self.assertIn('Cenicafé', prompt)
         saludo = presentacion_agente('cafe')
-        self.assertIn('*Experto en café*', saludo)
+        self.assertIn('*Agrónomo*', saludo)
         self.assertIn('cafetal', saludo.lower())
         self.assertIn('cartilla', _respuesta_si_falla('cafe', 'broca'))
 
-    def test_clasifica_cafe_aparte_del_agronomo(self):
-        self.assertEqual(clasificar_asesoria('tengo broca en el cafetal'), 'cafe')
+    def test_el_cafe_entra_por_el_agronomo(self):
+        self.assertEqual(clasificar_asesoria('tengo broca en el cafetal'), 'nat')
         self.assertEqual(clasificar_asesoria('plaga en el platano'), 'nat')
         self.assertEqual(clasificar_asesoria('precio del café'), 'ventas')
 
@@ -114,14 +115,14 @@ class CafeWebAmbitoTests(SimpleTestCase):
     LINEA_META_SOLO_REGISTRADOS=False,
 )
 class CafeMenuTests(TestCase):
-    def test_seis_entra_al_experto(self):
+    def test_seis_entra_al_agronomo(self):
         base = {
             'From': 'whatsapp:+573009990061',
             'To': 'whatsapp:+14155238886',
         }
         resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         decision = resolver_ruta_sandbox({**base, 'Body': '6'})
-        self.assertEqual(decision.action, 'cafe')
+        self.assertEqual(decision.action, 'nat')
         self.assertTrue(decision.saludo_entrada)
         self.assertIn('Experto en café', TEXTO_AGENTES)
-        self.assertIn('*6*', TEXTO_AGENTES)
+        self.assertNotIn('*6*', TEXTO_AGENTES)

@@ -391,7 +391,7 @@ class SandboxMenuTests(TestCase):
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
         self.assertIn('Profesor IA', TEXTO_AGENTES)
-        self.assertIn('Experto en finanzas', TEXTO_AGENTES)
+        self.assertIn('Finanzas', TEXTO_AGENTES)
         self.assertIn('Experto en café', TEXTO_AGENTES)
         self.assertIn('Ventas', TEXTO_AGENTES)
         self.assertIn('reiniciar', TEXTO_AGENTES)

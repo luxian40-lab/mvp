@@ -87,13 +87,12 @@ TEXTO_CUPO_IA = texto_cupo_ia(30)
 
 TEXTO_AGENTES = (
     "🤖 *Asesoría*\n\n"
-    "1️⃣ *Agrónomo eki* — cultivo, plagas y suelo\n"
-    "2️⃣ *Coach eki* — hábitos y constancia\n"
-    "3️⃣ *Profesor IA* — inteligencia artificial en el celular\n"
-    "4️⃣ *Ventas eki* — clientes, precio y cierre\n"
-    "5️⃣ *Experto en finanzas* — gastos, deudas y cuentas\n"
-    "6️⃣ *Experto en café* — broca, roya y beneficio\n\n"
-    "Escribe *1*, *2*, *3*, *4*, *5* o *6*.\n"
+    "1️⃣ *Agrónomo* — Experto en café\n"
+    "2️⃣ *Coach* — Motivación y metas diarias\n"
+    "3️⃣ *Profesor IA* — Tu tutor digital diario\n"
+    "4️⃣ *Ventas* — Impulsa tus ventas\n"
+    "5️⃣ *Finanzas* — Educación financiera a tu alcance\n\n"
+    "Escribe *1*, *2*, *3*, *4* o *5*.\n"
     "*reiniciar* = memoria nueva · *menu* = menú principal."
 )
 
@@ -242,7 +241,7 @@ def clasificar_asesoria(texto: str) -> str | None:
     if any(w in t for w in ('venta', 'precio', 'cliente', 'cerrar', 'comercial', 'negocio')):
         return MODO_VENTAS
     if any(w in t for w in ('café', 'cafe', 'cafetal', 'cafeto', 'caficult', 'broca', 'cenicaf')):
-        return MODO_CAFE
+        return MODO_NAT
     if any(w in t for w in (
         'plaga', 'cultivo', 'suelo', 'cosecha', 'fertil', 'finca', 'agron',
     )):
@@ -284,7 +283,7 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
     if t in ('finanzas', 'finanza', 'experto en finanzas'):
         return MODO_FINANZAS
     if t in ('cafe', 'café', 'experto en cafe', 'experto en café'):
-        return MODO_CAFE
+        return MODO_NAT
     return None
 
 
@@ -303,7 +302,7 @@ def _normalizar_eleccion_agentes(body: str) -> str | None:
     if t in ('5', '5️⃣', 'cinco', 'finanzas', 'finanza', 'experto en finanzas'):
         return MODO_FINANZAS
     if t in ('6', '6️⃣', 'seis', 'cafe', 'café', 'experto en cafe', 'experto en café'):
-        return MODO_CAFE
+        return MODO_NAT
     return None
 
 
@@ -775,12 +774,11 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
 
 
 FILAS_AGENTES = [
-    ('nat', 'Agrónomo eki', 'Cultivo, plagas y suelo'),
-    ('coach', 'Coach eki', 'Hábitos y constancia'),
-    ('profe', 'Profesor IA', 'IA en el celular'),
-    ('ventas', 'Ventas eki', 'Clientes, precio y cierre'),
-    ('finanzas', 'Experto en finanzas', 'Gastos, deudas y cuentas'),
-    ('cafe', 'Experto en café', 'Broca, roya y beneficio'),
+    ('nat', 'Agrónomo', 'Experto en café'),
+    ('coach', 'Coach', 'Motivación y metas diarias'),
+    ('profe', 'Profesor IA', 'Tu tutor digital diario'),
+    ('ventas', 'Ventas', 'Impulsa tus ventas'),
+    ('finanzas', 'Finanzas', 'Educación financiera a tu alcance'),
 ]
 
 
