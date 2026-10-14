@@ -96,24 +96,57 @@ def _cortar_habeas_meta(post_data) -> bool:
     from core.utils import enviar_whatsapp_twilio
 
     destino = post_data.get('From', '') or est.telefono
-    if resultado.get('accion') == 'acepto':
-        if est.estado_chat == 'ESPERANDO_CEDULA':
-            est.estado_chat = 'ACTIVO'
-            est.save(update_fields=['estado_chat'])
-        from core.sandbox_menu import MODO_MENU, _get_or_create_sesion, _set_modo, enviar_menu_sandbox
-
-        sesion = _get_or_create_sesion(est.telefono)
-        sesion.habeas_aceptado = True
-        sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
-        _set_modo(sesion, MODO_MENU)
-        enviar_menu_sandbox(est.telefono, destino)
-        return True
     if resultado.get('accion') == 'reenviar_plantilla':
         enviar_sandbox_habeas(destino)
     else:
         texto = resultado.get('texto') or ''
         if texto:
             enviar_whatsapp_twilio(destino, texto, agente_evento='habeas_meta')
+    return True
+
+
+_SI_CONFIRMA_DATOS = {'si', 'sí', 'todo bien', 'correcto', 'ok', 'yes', 'confirmo', 'confirmar'}
+
+
+def _menu_tras_confirmar_datos_meta(post_data) -> bool:
+    """En Meta, el sí de la cédula abre el menú. El curso empieza al elegirlo."""
+    from core.sandbox_canal import inbound_es_meta
+
+    if not inbound_es_meta(post_data):
+        return False
+    status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
+    if status:
+        return False
+    from core.habeas_respuestas import texto_desde_webhook_twilio
+    from core.nati import normalizar_telefono_whatsapp
+    from core.utils_telefono import estudiante_por_telefono
+
+    body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip().lower()
+    if body not in _SI_CONFIRMA_DATOS:
+        return False
+    est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
+    if est is None or est.estado_chat != 'CONFIRMANDO_DATOS':
+        return False
+    sid = str(post_data.get('MessageSid') or '').strip()
+    if sid and WhatsappLog.objects.filter(mensaje_id=sid, tipo='INCOMING').exists():
+        return True
+    if sid:
+        WhatsappLog.objects.create(
+            telefono=est.telefono,
+            mensaje=body[:500],
+            mensaje_id=sid,
+            tipo='INCOMING',
+        )
+    est.estado_chat = 'ACTIVO'
+    est.estado_onboarding = 'completado'
+    est.save(update_fields=['estado_chat', 'estado_onboarding'])
+    from core.sandbox_menu import MODO_MENU, _get_or_create_sesion, _set_modo, enviar_menu_sandbox
+
+    sesion = _get_or_create_sesion(est.telefono)
+    sesion.habeas_aceptado = True
+    sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
+    _set_modo(sesion, MODO_MENU)
+    enviar_menu_sandbox(est.telefono, post_data.get('From', '') or est.telefono)
     return True
 
 
@@ -125,6 +158,8 @@ def _procesar_twilio_webhook(post_data):
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
     with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
         if canal == CANAL_META and _cortar_habeas_meta(post_data):
+            return None
+        if canal == CANAL_META and _menu_tras_confirmar_datos_meta(post_data):
             return None
         if canal == CANAL_TWILIO and _intentar_aula_twilio_fuera_de_activo(post_data):
             return None

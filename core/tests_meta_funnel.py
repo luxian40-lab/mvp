@@ -73,7 +73,7 @@ class MetaFunnelTests(TestCase):
                 titulos = [b['reply']['title'] for b in inter['action']['buttons']]
         self.assertEqual(titulos, ['Formación', 'Asesoría'])
 
-    def test_acepto_abre_el_menu_aunque_la_sesion_siga_en_el_curso(self):
+    def test_acepto_con_ficha_pide_la_cedula_y_no_el_curso(self):
         tel = '573009991003'
         Estudiante.objects.create(
             nombre='Julian',
@@ -84,18 +84,33 @@ class MetaFunnelTests(TestCase):
             estado_onboarding='completado',
         )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cursos')
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto, \
+                patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
             ruta = dispatch_sandbox_menu(_payload(tel, 'acepto'))
         self.assertEqual(ruta, 'handled')
-        titulos = []
-        for call in send.call_args_list:
-            inter = (call.args[0].get('interactive') or {})
-            if inter.get('type') == 'button':
-                titulos = [b['reply']['title'] for b in inter['action']['buttons']]
-        self.assertEqual(titulos, ['Formación', 'Asesoría'])
+        self.assertIn('cédula', texto.call_args.args[2].lower())
+        send.assert_not_called()
         est = Estudiante.objects.get(telefono=tel)
-        self.assertTrue(est.acepto_terminos)
-        self.assertNotEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).modo, 'cursos')
+
+    def test_continuemos_con_curso_abierto_entra_a_la_leccion(self):
+        from core.models import Curso, ProgresoEstudiante
+
+        tel = '573009991004'
+        curso = Curso.objects.create(nombre='Innovación', activo=True, catalogo_menu=True)
+        est = Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1015',
+            telefono=tel,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
+        ruta = dispatch_sandbox_menu(_payload(tel, 'continuemos'))
+        self.assertEqual(ruta, 'cursos')
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).modo, 'cursos')
 
     def test_inscrito_con_telefono_local_toma_plan_de_la_org(self):
         org = Cliente.objects.create(

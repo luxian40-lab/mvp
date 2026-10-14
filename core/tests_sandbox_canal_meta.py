@@ -441,15 +441,33 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         botones.assert_called_once()
         cuerpo.assert_not_called()
 
-    def test_si_acepta_y_abre_el_menu(self):
+    def test_si_acepta_y_pide_la_cedula(self):
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
         est = self._est()
-        with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu, \
+        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('Si', 'wamid.si1'))
         est.refresh_from_db()
         self.assertTrue(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+        self.assertIn('cédula', envio.call_args[0][1].lower())
+        cuerpo.assert_not_called()
+
+    def test_si_de_la_cedula_abre_el_menu_y_no_el_curso(self):
+        from core.models import ProgresoEstudiante
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        est = self._est()
+        est.acepto_terminos = True
+        est.estado_chat = 'CONFIRMANDO_DATOS'
+        est.save(update_fields=['acepto_terminos', 'estado_chat'])
+        with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('si', 'wamid.datos1'))
+        est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ACTIVO')
+        self.assertEqual(est.estado_onboarding, 'completado')
         menu.assert_called_once()
         cuerpo.assert_not_called()
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est).exists())

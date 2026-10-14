@@ -431,6 +431,20 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.texto_menu = (body or '').strip()
         return decision
 
+    if (body or '').strip().lower() in ('continuemos', 'continuar'):
+        from core.utils_telefono import estudiante_por_telefono
+
+        persona = estudiante_por_telefono(from_tel)
+        if persona is not None and persona.estado_chat in (
+            'ESPERANDO_CEDULA', 'CONFIRMANDO_DATOS',
+        ):
+            decision.action = 'cursos'
+            return decision
+        if _abiertos_del_mes(from_tel):
+            _set_modo(sesion, MODO_CURSOS)
+            decision.action = 'cursos'
+            return decision
+
     if sesion.modo == MODO_FORMACION and (body or '').strip():
         abiertos = _abiertos_del_mes(from_tel)
         numero = (body or '').strip()
@@ -449,7 +463,20 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     eleccion = _normalizar_eleccion_raiz(body)
 
-    if eleccion == 'menu' or (body or '').strip().lower() == 'iniciar':
+    if (body or '').strip().lower() == 'iniciar':
+        from core.utils_telefono import estudiante_por_telefono
+
+        persona = estudiante_por_telefono(from_tel)
+        if persona is not None and persona.estado_chat in (
+            'ESPERANDO_CEDULA', 'CONFIRMANDO_DATOS',
+        ):
+            decision.action = 'cursos'
+            return decision
+        _set_modo(sesion, MODO_MENU)
+        decision.action = 'show_menu'
+        return decision
+
+    if eleccion == 'menu':
         _set_modo(sesion, MODO_MENU)
         decision.action = 'show_menu'
         return decision
@@ -1014,25 +1041,30 @@ def _habeas_listo(telefono: str) -> bool:
 
 
 def _aceptar_habeas_y_abrir_menu(telefono: str, from_number: str, est) -> str:
-    from core.consentimiento_wa import registrar_optin
-
-    if est is not None:
-        registrar_optin(est, 'habeas')
-        campos = []
-        if not est.acepto_terminos:
-            est.acepto_terminos = True
-            est.fecha_aceptacion_terminos = timezone.now()
-            campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
-        if est.estado_chat in ('ESPERANDO_HABEAS_DATA', 'ESPERANDO_CEDULA'):
-            est.estado_chat = 'ACTIVO'
-            campos.append('estado_chat')
-        if campos:
-            est.save(update_fields=campos)
+    """Sin ficha no hay cédula que verificar: abre el menú."""
     sesion = _get_or_create_sesion(telefono)
     sesion.habeas_aceptado = True
     sesion.modo = MODO_MENU
     sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
     enviar_menu_sandbox(telefono, from_number)
+    return 'handled'
+
+
+def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
+    """Aceptó: pide la cédula. El menú sale cuando confirme los datos."""
+    from core.consentimiento_wa import registrar_optin
+    from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+
+    registrar_optin(est, 'habeas')
+    est.acepto_terminos = True
+    est.fecha_aceptacion_terminos = timezone.now()
+    est.estado_chat = 'ESPERANDO_CEDULA'
+    est.save(update_fields=['acepto_terminos', 'fecha_aceptacion_terminos', 'estado_chat'])
+    sesion = _get_or_create_sesion(telefono)
+    sesion.habeas_aceptado = True
+    sesion.modo = MODO_CURSOS
+    sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
+    enviar_texto_sandbox(telefono, from_number, MSG_ACEPTO_CEDULA, agente='habeas_meta')
     return 'handled'
 
 
@@ -1042,15 +1074,18 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
 
     t = (body or '').strip().lower()
     est = estudiante_por_telefono(telefono)
-    # Aceptar abre el menú aunque la sesión ya estuviera en un curso.
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo') and (
         est is None or not est.acepto_terminos
     ):
-        return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
+        if est is None:
+            return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
+        return _aceptar_habeas_y_pedir_cedula(telefono, from_number, est)
     if _habeas_listo(telefono):
         return None
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo'):
-        return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
+        if est is None:
+            return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
+        return _aceptar_habeas_y_pedir_cedula(telefono, from_number, est)
     if t in ('no_acepto', 'no acepto', 'no'):
         enviar_texto_sandbox(
             telefono,
