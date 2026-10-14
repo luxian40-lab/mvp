@@ -53,6 +53,8 @@ class ImpactoCapturaTests(TestCase):
             telefono=self.tel,
             cliente=self.org,
             activo=True,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
         )
         SandboxCanalSesion.objects.create(telefono=self.tel, habeas_aceptado=True)
 
@@ -93,6 +95,29 @@ class ImpactoCapturaTests(TestCase):
                 texto = anexar_cierre(agente, self.tel, 'Revise el lote.')
                 self.assertEqual(texto, 'Revise el lote.')
         self.assertIsNone(capturar_si_pendiente(self.tel, 'sí'))
+
+    def test_finanzas_no_anexa_impacto_en_el_agente(self):
+        with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
+            with patch('core.sandbox_canal._post_graph', return_value=OK):
+                dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
+            with patch(
+                'core.sandbox_agentes.responder_agente_sandbox',
+                return_value='Revise el flujo de caja.',
+            ):
+                with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+                    dispatch_sandbox_menu(_payload(self.tel, 'cómo ordeno gastos'))
+        textos = []
+        for call in send.call_args_list:
+            body = call.args[0]
+            if body.get('type') == 'text':
+                textos.append((body.get('text') or {}).get('body') or '')
+            inter = body.get('interactive') or {}
+            if inter.get('body'):
+                textos.append((inter.get('body') or {}).get('text') or '')
+        junto = ' '.join(textos).lower()
+        self.assertIn('flujo de caja', junto)
+        self.assertNotIn('reporte de impacto', junto)
+        self.assertNotIn('gastos del predio', junto)
 
     def test_nat_pregunta_impacto_si_se_reactiva(self):
         with override_settings(PREGUNTA_IMPACTO_AGENTES=True):

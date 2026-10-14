@@ -486,7 +486,7 @@ class SandboxMenuTests(TestCase):
         self.assertIn('¿cómo lo aplica mañana', PROMPT_VENTAS.lower())
         self.assertIn('propuesta de valor', PROMPT_VENTAS.lower())
         self.assertIn('WhatsApp', PROMPT_VENTAS)
-        self.assertIn('ventas eki', saludo_agente('ventas').lower())
+        self.assertIn('conseguir clientes', saludo_agente('ventas').lower())
         self.assertNotIn('lina', saludo_agente('coach').lower())
         self.assertIn('qué puede responder', prompt_para('coach').lower())
         self.assertIn('qué puede responder', prompt_para('ia_campo').lower())

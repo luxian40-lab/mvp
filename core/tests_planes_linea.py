@@ -203,7 +203,10 @@ class MenuPorPlanTests(TestCase):
         from core.models_extras import GrupoEstudiantes
 
         org = _org(f'Org{tel[-3:]}', plan_org)
-        est = Estudiante.objects.create(nombre='G', cedula=tel[-4:], telefono=tel, cliente=org)
+        est = Estudiante.objects.create(
+            nombre='G', cedula=tel[-4:], telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         grupo = GrupoEstudiantes.objects.create(
             nombre=f'Grupo {plan_grupo}', cliente=org, plan_linea_meta=plan_grupo, activo=True
         )
@@ -268,7 +271,10 @@ class MenuPorPlanTests(TestCase):
         tel = '573005550015'
         self._sesion(tel, PLAN_CURSO_ASESOR)
         org = _org('OP1')
-        est = Estudiante.objects.create(nombre='A', cedula='P15', telefono=tel, cliente=org)
+        est = Estudiante.objects.create(
+            nombre='A', cedula='P15', telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         Curso.objects.create(nombre='Café del mes', descripcion='d', cliente=org, activo=True)
         curso = Curso.objects.get(nombre='Café del mes')
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
@@ -290,7 +296,10 @@ class MenuPorPlanTests(TestCase):
         tel = '573005550016'
         self._sesion(tel, PLAN_ASESOR_60)
         org = _org('OP3')
-        est = Estudiante.objects.create(nombre='A', cedula='P16', telefono=tel, cliente=org)
+        est = Estudiante.objects.create(
+            nombre='A', cedula='P16', telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         curso = Curso.objects.create(nombre='Curso que ya iba', descripcion='d', cliente=org, activo=True)
         progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
         ProgresoEstudiante.objects.filter(pk=progreso.pk).update(
@@ -317,7 +326,10 @@ class MenuPorPlanTests(TestCase):
         tel = '573005550014'
         self._sesion(tel)
         org = _org('SinPlan')
-        est = Estudiante.objects.create(nombre='A', cedula='P4', telefono=tel, cliente=org)
+        est = Estudiante.objects.create(
+            nombre='A', cedula='P4', telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         curso = Curso.objects.create(nombre='Curso finca', descripcion='d', cliente=org, activo=True)
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
         with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
@@ -730,3 +742,44 @@ class AccesoAulaMetaTests(TestCase):
         with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'aula'))
         self.assertNotIn('/aprende/estudiante/login/', '\n'.join(_textos(send)))
+
+
+@override_settings(**META)
+class MenuTrasConfirmarCedulaTests(TestCase):
+    """El sí de la cédula abre el menú del plan. No inscribe un curso."""
+
+    def _botones(self, tel, plan):
+        org = _org(f'Ced{tel[-3:]}', plan)
+        est = Estudiante.objects.create(
+            nombre='Ana',
+            cedula=tel[-4:],
+            telefono=tel,
+            cliente=org,
+            acepto_terminos=True,
+            estado_chat='CONFIRMANDO_DATOS',
+        )
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cursos')
+        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+            self.assertEqual(dispatch_sandbox_menu(_payload(tel, 'si')), 'handled')
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ACTIVO')
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est).exists())
+        inter = [
+            call.args[0]['interactive']
+            for call in send.call_args_list
+            if call.args and call.args[0].get('type') == 'interactive'
+        ]
+        botones = inter[-1]['action']['buttons']
+        return [b['reply']['id'] for b in botones]
+
+    def test_op1_formacion_y_asesoria(self):
+        self.assertEqual(
+            self._botones('573005551001', PLAN_CURSO_ASESOR),
+            ['formacion', 'asesoria'],
+        )
+
+    def test_op2_solo_formacion(self):
+        self.assertEqual(self._botones('573005551002', PLAN_DOS_CURSOS), ['formacion'])
+
+    def test_op3_solo_asesoria(self):
+        self.assertEqual(self._botones('573005551003', PLAN_ASESOR_60), ['asesoria'])

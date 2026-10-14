@@ -28,6 +28,36 @@ MSG_ACEPTO_CEDULA = (
     "Ejemplo: 1234567890"
 )
 
+MSG_CEDULA_NO_COINCIDE = (
+    "Esa cédula no coincide con nuestros registros.\n\n"
+    "Escríbala de nuevo, solo números, sin puntos ni espacios.\n"
+    "Ejemplo: 1234567890\n\n"
+    "Si cree que hay un error, escriba *ayuda*."
+)
+
+MSG_DATOS_NO = (
+    "Si hay un dato mal, escriba *ayuda* para que lo revisemos.\n\n"
+    "Si los datos sí son suyos, toque *Sí*."
+)
+
+
+def texto_confirma_numero(estudiante, telefono: str = '') -> str:
+    """Tras la cédula: confirma que este WhatsApp es de esa persona."""
+    doc = f"{estudiante.tipo_documento} {estudiante.cedula}".strip()
+    whatsapp = (telefono or getattr(estudiante, 'telefono', '') or '').strip()
+    if whatsapp.startswith('57') and len(whatsapp) == 12:
+        local = whatsapp[2:]
+        whatsapp = f'+57 {local[:3]} {local[3:6]} {local[6:]}'
+    elif whatsapp:
+        whatsapp = f'+{whatsapp}' if not whatsapp.startswith('+') else whatsapp
+    return (
+        "*Verificación*\n\n"
+        f"Nombre: *{estudiante.nombre or '—'}*\n"
+        f"Documento: *{doc or '—'}*\n"
+        f"WhatsApp: *{whatsapp or '—'}*\n\n"
+        "¿Estos datos y este número son suyos?"
+    )
+
 
 def _fold(s: str) -> str:
     s = (s or '').strip().lower()

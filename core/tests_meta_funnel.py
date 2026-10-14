@@ -178,7 +178,7 @@ class MetaFunnelTests(TestCase):
         self.assertEqual(ruta, 'cursos')
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).modo, 'cursos')
 
-    def test_continuemos_tras_inscribir_con_sesion_aceptada_no_reabre_habeas(self):
+    def test_continuemos_sin_aceptar_en_la_ficha_pide_habeas(self):
         from core.models import Curso, ProgresoEstudiante
         from core.views.webhook_meta import _aplicar_sandbox_menu
 
@@ -198,11 +198,62 @@ class MetaFunnelTests(TestCase):
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             resp = _aplicar_sandbox_menu(_payload(tel, 'continuemos', MessageSid='wamid.cont3'))
         self.assertEqual(resp.status_code, 200)
-        habeas.assert_not_called()
-        cuerpo.assert_called_once()
+        habeas.assert_called_once()
+        cuerpo.assert_not_called()
         est.refresh_from_db()
-        self.assertTrue(est.acepto_terminos)
+        self.assertFalse(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+
+    def test_listo_de_campana_pide_habeas_cedula_numero_y_menu(self):
+        from core.campana_audiencia import poner_en_inicio_de_flujo
+
+        tel = '573009991020'
+        est = Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1020',
+            telefono=tel,
+            tipo_documento='CC',
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+            estado_onboarding='completado',
+        )
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cafe')
+        poner_en_inicio_de_flujo(est)
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'Listo'))
+        self.assertEqual(ruta, 'handled')
+        habeas.assert_called_once()
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+        self.assertFalse(est.acepto_terminos)
+
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
+            dispatch_sandbox_menu(_payload(tel, 'acepto'))
+        self.assertIn('cédula', texto.call_args.args[2].lower())
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+
+        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}) as botones:
+            dispatch_sandbox_menu(_payload(tel, '1020'))
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'CONFIRMANDO_DATOS')
+        cuerpo = botones.call_args.args[1]
+        self.assertIn('1020', cuerpo)
+        self.assertIn('573009991020', cuerpo.replace(' ', '').replace('+', ''))
+        self.assertEqual([b[0] for b in botones.call_args.args[2]], ['si', 'no'])
+
+        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+            dispatch_sandbox_menu(_payload(tel, 'si'))
+        est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ACTIVO')
+        self.assertEqual(est.estado_onboarding, 'completado')
+        titulos = []
+        for call in send.call_args_list:
+            body = call.args[0]
+            inter = body.get('interactive') or {}
+            if inter.get('type') == 'button':
+                titulos = [b['reply']['title'] for b in inter['action']['buttons']]
+        self.assertEqual(titulos, ['Formación', 'Asesoría'])
 
     def test_inscrito_con_telefono_local_toma_plan_de_la_org(self):
         org = Cliente.objects.create(

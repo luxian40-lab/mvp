@@ -73,6 +73,14 @@ class CafePromptTests(SimpleTestCase):
         self.assertIn('*Agrónomo*', saludo)
         self.assertIn('cafetal', saludo.lower())
         self.assertIn('cartilla', _respuesta_si_falla('cafe', 'broca'))
+        self.assertIn('No empiece reconociendo', prompt)
+
+    def test_presentacion_solo_dice_lo_que_hace(self):
+        for agente in ('nat', 'coach', 'ventas', 'finanzas', 'cafe', 'ia_campo'):
+            texto = presentacion_agente(agente).lower()
+            self.assertNotIn('no doy', texto, agente)
+            self.assertNotIn('no hablo', texto, agente)
+            self.assertNotIn('no resuelvo', texto, agente)
 
     def test_el_cafe_entra_por_el_agronomo(self):
         self.assertEqual(clasificar_asesoria('tengo broca en el cafetal'), 'nat')

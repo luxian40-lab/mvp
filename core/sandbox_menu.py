@@ -96,8 +96,14 @@ TEXTO_AGENTES = (
     "*reiniciar* = memoria nueva · *menu* = menú principal."
 )
 
-# Quick reply de las plantillas de bienvenida (eki_inicio_curso_btn, eki_bienvenida_*).
-_BOTONES_INICIO_PLANTILLA = frozenset({'iniciar', 'empezar'})
+# Quick reply de la campaña o de las plantillas de bienvenida.
+_BOTONES_INICIO_PLANTILLA = frozenset({'iniciar', 'empezar', 'listo'})
+_SI_CONFIRMA_DATOS = frozenset({
+    'si', 'sí', 'todo bien', 'correcto', 'ok', 'yes', 'confirmo', 'confirmar',
+})
+_NO_CONFIRMA_DATOS = frozenset({
+    'no', 'modificar', 'error', 'mal', 'incorrecto', 'cambiar',
+})
 
 # Comandos para cortar memoria (todos los agentes sandbox).
 _COMANDOS_REINICIAR = frozenset({
@@ -181,7 +187,7 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
 
 
 def _es_boton_inicio_flujo(body: str) -> bool:
-    """Iniciar / Empezar, o el mismo botón citado debajo del texto de la plantilla."""
+    """Listo / Iniciar / Empezar, o el mismo botón citado debajo del texto de la plantilla."""
     t = (body or '').strip().lower()
     if not t:
         return False
@@ -381,17 +387,27 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         from core.utils_telefono import estudiante_por_telefono
 
         persona = estudiante_por_telefono(from_tel)
-        if persona is not None and persona.estado_chat == 'ESPERANDO_CEDULA':
+        estado = getattr(persona, 'estado_chat', '') if persona is not None else ''
+        if estado == 'ESPERANDO_CEDULA':
             _set_modo(sesion, MODO_CURSOS)
             decision.action = 'pedir_cedula'
             return decision
-        if persona is not None and persona.estado_chat == 'CONFIRMANDO_DATOS':
+        if estado == 'CONFIRMANDO_DATOS':
             _set_modo(sesion, MODO_CURSOS)
-            decision.action = 'cursos'
+            decision.action = 'confirmar_datos'
             return decision
-        _set_modo(sesion, MODO_MENU)
-        decision.action = 'show_menu'
-        return decision
+        if estado == 'ESPERANDO_HABEAS_DATA' or (
+            persona is not None and not persona.acepto_terminos
+        ):
+            decision.action = 'pedir_habeas'
+            return decision
+        t_btn = (body or '').strip().lower().splitlines()[-1].strip()
+        if t_btn == 'listo' and sesion.modo == MODO_CURSOS:
+            pass
+        else:
+            _set_modo(sesion, MODO_MENU)
+            decision.action = 'show_menu'
+            return decision
 
     # Dentro del submenú agentes: priorizar 1/2/3 de agentes
     if sesion.modo == MODO_AGENTES:
@@ -1048,12 +1064,6 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
             if quedan == 2:
                 texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
-            try:
-                from core.impacto_captura import anexar_cierre
-
-                texto = anexar_cierre(agente, decision.telefono_usuario, texto)
-            except Exception:
-                logger.exception('sandbox_impacto_cierre_fail agente=%s', agente)
     try:
         enviar_texto_sandbox(
             decision.telefono_usuario,
@@ -1067,12 +1077,14 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
 
 
 def _habeas_listo(telefono: str) -> bool:
-    sesion = _get_or_create_sesion(telefono)
-    if getattr(sesion, 'habeas_aceptado', False):
-        return True
     from core.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
+    if est is not None and not est.acepto_terminos:
+        return False
+    sesion = _get_or_create_sesion(telefono)
+    if getattr(sesion, 'habeas_aceptado', False):
+        return True
     if est is not None and est.acepto_terminos:
         sesion.habeas_aceptado = True
         sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
@@ -1101,7 +1113,7 @@ def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
         campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
         registrar_optin(est, 'sesion_linea')
     if (est.estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
-        est.estado_chat = 'ACTIVO'
+        est.estado_chat = 'ESPERANDO_CEDULA'
         campos.append('estado_chat')
     if campos:
         est.save(update_fields=campos)
@@ -1132,6 +1144,77 @@ def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
     sesion.modo = MODO_CURSOS
     sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
     enviar_texto_sandbox(telefono, from_number, MSG_ACEPTO_CEDULA, agente='habeas_meta')
+    return 'handled'
+
+
+def _enviar_confirma_numero(telefono: str, from_number: str, est) -> None:
+    from core.habeas_respuestas import texto_confirma_numero
+    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+
+    texto = texto_confirma_numero(est, telefono)
+    if sandbox_via_meta():
+        enviar_meta_botones(
+            telefono,
+            texto,
+            [('si', 'Sí'), ('no', 'No')],
+            agente_evento='habeas_meta',
+        )
+        return
+    enviar_texto_sandbox(
+        telefono, from_number,
+        f"{texto}\n\nEscriba *sí* o *no*.",
+        agente='habeas_meta',
+    )
+
+
+def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
+    """None si no está en cédula. 'handled' si esta vuelta fue la cédula."""
+    import re
+
+    from core.habeas_respuestas import MSG_ACEPTO_CEDULA, MSG_CEDULA_NO_COINCIDE
+    from core.utils_telefono import estudiante_por_telefono
+
+    est = estudiante_por_telefono(telefono)
+    if est is None or (est.estado_chat or '') != 'ESPERANDO_CEDULA':
+        return None
+    t = (body or '').strip().lower()
+    if _es_boton_inicio_flujo(body) or t in ('continuemos', 'continuar'):
+        enviar_texto_sandbox(telefono, from_number, MSG_ACEPTO_CEDULA, agente='habeas_meta')
+        return 'handled'
+    cedula_input = re.sub(r'[\s.\-]', '', (body or '').strip())
+    if cedula_input and cedula_input == (est.cedula or ''):
+        est.estado_chat = 'CONFIRMANDO_DATOS'
+        est.save(update_fields=['estado_chat'])
+        _set_modo(_get_or_create_sesion(telefono), MODO_CURSOS)
+        _enviar_confirma_numero(telefono, from_number, est)
+        return 'handled'
+    enviar_texto_sandbox(telefono, from_number, MSG_CEDULA_NO_COINCIDE, agente='habeas_meta')
+    return 'handled'
+
+
+def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str | None:
+    """None si no está confirmando. 'handled' si esta vuelta fue la verificación."""
+    from core.habeas_respuestas import MSG_DATOS_NO
+    from core.utils_telefono import estudiante_por_telefono
+
+    est = estudiante_por_telefono(telefono)
+    if est is None or (est.estado_chat or '') != 'CONFIRMANDO_DATOS':
+        return None
+    t = (body or '').strip().lower()
+    if t in _SI_CONFIRMA_DATOS:
+        est.estado_chat = 'ACTIVO'
+        est.estado_onboarding = 'completado'
+        est.save(update_fields=['estado_chat', 'estado_onboarding'])
+        sesion = _get_or_create_sesion(telefono)
+        sesion.habeas_aceptado = True
+        sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
+        _set_modo(sesion, MODO_MENU)
+        enviar_menu_sandbox(telefono, from_number)
+        return 'handled'
+    if t in _NO_CONFIRMA_DATOS:
+        enviar_texto_sandbox(telefono, from_number, MSG_DATOS_NO, agente='habeas_meta')
+        return 'handled'
+    _enviar_confirma_numero(telefono, from_number, est)
     return 'handled'
 
 
@@ -1211,7 +1294,6 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     body_habeas = _body_o_audio_transcrito(payload, body_habeas)
     if from_tel:
         from core.consentimiento_wa import es_optout, registrar_optout
-        from core.impacto_captura import capturar_si_pendiente
         from core.utils_telefono import estudiante_por_telefono
 
         if es_optout(body_habeas):
@@ -1231,20 +1313,13 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
         if corte == 'handled':
             return 'handled'
-        if _avisar_aula_es_twilio(from_tel, sandbox_number(), body_habeas):
+        corte = _responder_cedula(from_tel, sandbox_number(), body_habeas)
+        if corte == 'handled':
             return 'handled'
-        try:
-            acuse = capturar_si_pendiente(from_tel, body_habeas)
-        except Exception:
-            logger.exception('sandbox_impacto_captura_fail')
-            acuse = None
-        if acuse:
-            try:
-                enviar_texto_sandbox(
-                    from_tel, sandbox_number(), acuse, agente='sandbox_impacto',
-                )
-            except Exception:
-                logger.exception('sandbox_impacto_acuse_fail')
+        corte = _responder_confirmacion(from_tel, sandbox_number(), body_habeas)
+        if corte == 'handled':
+            return 'handled'
+        if _avisar_aula_es_twilio(from_tel, sandbox_number(), body_habeas):
             return 'handled'
         try:
             from core.rachas_linea import registrar_actividad_linea
@@ -1274,6 +1349,15 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                 logger.exception('sandbox_plan_send_failed tel=%s', decision.telefono_usuario)
             return 'handled'
 
+    if decision.action == 'pedir_habeas':
+        try:
+            from core.sandbox_canal import enviar_sandbox_habeas
+
+            enviar_sandbox_habeas(decision.telefono_usuario)
+        except Exception:
+            logger.exception('sandbox_pedir_habeas_fail tel=%s', decision.telefono_usuario)
+        return 'handled'
+
     if decision.action == 'pedir_cedula':
         from core.habeas_respuestas import MSG_ACEPTO_CEDULA
 
@@ -1283,6 +1367,17 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             )
         except Exception:
             logger.exception('sandbox_pedir_cedula_fail tel=%s', decision.telefono_usuario)
+        return 'handled'
+
+    if decision.action == 'confirmar_datos':
+        from core.utils_telefono import estudiante_por_telefono
+
+        est = estudiante_por_telefono(decision.telefono_usuario)
+        if est is not None:
+            try:
+                _enviar_confirma_numero(decision.telefono_usuario, from_n, est)
+            except Exception:
+                logger.exception('sandbox_confirmar_datos_fail tel=%s', decision.telefono_usuario)
         return 'handled'
 
     if decision.action == 'show_menu':

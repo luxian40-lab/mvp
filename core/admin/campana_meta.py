@@ -122,6 +122,13 @@ class CampanaMetaForm(forms.ModelForm):
         )
         self.fields['nombre'].label = 'Nombre de la campaña'
         self.fields['es_inicio_flujo'].label = 'Inicio de flujo'
+        self.fields['es_inicio_flujo'].help_text = (
+            'Al enviarla, el botón Listo abre habeas, cédula, verificación del número '
+            'y el menú. Desmárquela solo si es un recordatorio y no debe reiniciar.'
+        )
+        if not instancia.pk and not self.data:
+            self.initial['es_inicio_flujo'] = True
+            self.fields['es_inicio_flujo'].initial = True
         self.fields['cliente'].label = 'Cliente'
         self.fields['cliente'].required = False
         self.fields['cliente'].help_text = 'Opcional. Solo acota los grupos y las personas que se ofrecen.'

@@ -472,7 +472,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         cuerpo.assert_not_called()
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est).exists())
 
-    def test_continuemos_con_sesion_aceptada_y_curso_inscrito_entra_al_curso(self):
+    def test_continuemos_sin_aceptar_en_la_ficha_pide_habeas(self):
         from core.models import Curso, ProgresoEstudiante, SandboxCanalSesion
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
@@ -488,11 +488,11 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('continuemos', 'wamid.cont1'))
-        botones.assert_not_called()
-        cuerpo.assert_called_once()
+        botones.assert_called_once()
+        cuerpo.assert_not_called()
         est.refresh_from_db()
-        self.assertTrue(est.acepto_terminos)
-        self.assertEqual(est.estado_chat, 'ACTIVO')
+        self.assertFalse(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
 
     def test_continuemos_sin_sesion_habeas_sigue_pidiendo_botones(self):
         from core.views.webhook_twilio import _procesar_twilio_webhook
