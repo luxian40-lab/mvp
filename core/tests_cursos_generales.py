@@ -360,10 +360,10 @@ class CatalogoFormacionTests(TestCase):
         cards = post.call_args.args[0]['interactive']['action']['cards']
         self.assertEqual(cards[0]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
         enlace = cards[0]['action']['buttons'][1]
-        self.assertEqual(enlace['type'], 'cta_url')
-        self.assertEqual(enlace['cta_url']['display_text'], 'Más información')
-        self.assertEqual(enlace['cta_url']['url'], URL_TIEMPO)
-        self.assertEqual(cards[1]['action']['buttons'][1]['cta_url']['url'], URL_INNOVACION)
+        self.assertEqual(enlace['type'], 'url')
+        self.assertEqual(enlace['url']['title'], 'Más información')
+        self.assertEqual(enlace['url']['url'], URL_TIEMPO)
+        self.assertEqual(cards[1]['action']['buttons'][1]['url']['url'], URL_INNOVACION)
         self.assertNotIn('info_tiempo', str(cards[0]['action']['buttons'][1]))
 
     def test_si_meta_rechaza_el_enlace_el_carrusel_sigue(self):
@@ -390,8 +390,11 @@ class CatalogoFormacionTests(TestCase):
             )
         self.assertTrue(out['success'])
         self.assertEqual(post.call_count, 2)
-        segunda = post.call_args_list[1].args[0]['interactive']['action']['cards']
-        self.assertEqual(segunda[0]['action']['buttons'][1]['type'], 'quick_reply')
+        accion = post.call_args_list[1].args[0]['interactive']['action']['cards'][0]['action']
+        self.assertEqual(accion['name'], 'cta_url')
+        self.assertEqual(accion['parameters']['display_text'], 'Más información')
+        self.assertEqual(accion['parameters']['url'], URL_TIEMPO)
+        self.assertNotIn('buttons', accion)
 
     def test_mas_informacion_abre_la_pagina_del_programa(self):
         self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')
@@ -415,9 +418,10 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(payload['interactive']['type'], 'cta_url')
         self.assertEqual(payload['interactive']['action']['parameters']['url'], URL_TIEMPO)
         self.assertEqual(
-            payload['interactive']['action']['parameters']['display_text'], 'Abrir página',
+            payload['interactive']['action']['parameters']['display_text'], 'Más información',
         )
-        self.assertIn(NOMBRE_TIEMPO, payload['interactive']['body']['text'])
+        self.assertEqual(payload['interactive']['body']['text'], NOMBRE_TIEMPO)
+        self.assertNotIn('menu para volver', payload['interactive']['body']['text'])
 
     def test_ver_curso_no_borra_otro_progreso(self):
         org = Cliente.objects.get(nit='900222')

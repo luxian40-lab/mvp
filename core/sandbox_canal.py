@@ -771,38 +771,60 @@ def enviar_meta_url(
     return enviar_meta(telefono, aviso, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
-def _botones_carrusel(tarjeta: dict, *, abrir_pagina: bool) -> list[dict]:
-    """Ver curso responde. Más información abre la página y no manda otro mensaje."""
-    botones = []
-    url = str(tarjeta.get('url') or '').strip()
+def _par_ver(tarjeta: dict) -> tuple[str, str]:
     for bid, title in list(tarjeta.get('botones') or [])[:2]:
-        bid = str(bid or '').strip()
-        title = str(title or '').strip()[:20]
-        if (
-            abrir_pagina
-            and title == 'Más información'
-            and url.startswith('https://')
-        ):
-            botones.append({
-                'type': 'cta_url',
-                'cta_url': {'display_text': title, 'url': url[:2000]},
-            })
-            continue
-        if bid and title:
-            botones.append({
-                'type': 'quick_reply',
-                'quick_reply': {'id': bid[:256], 'title': title},
-            })
-    return botones
+        titulo = str(title or '').strip()[:20]
+        if titulo and titulo != 'Más información':
+            return str(bid or '').strip()[:256], titulo
+    return '', ''
 
 
-def _cards_carrusel(tarjetas: list[dict], *, abrir_pagina: bool) -> list[dict]:
+def _cards_carrusel(tarjetas: list[dict], *, modo: str) -> list[dict]:
+    """modo: respuesta (dos quick reply), enlace (Ver curso + URL) o solo_url."""
     cards = []
     for i, tarjeta in enumerate(list(tarjetas)[:10]):
         imagen = (tarjeta.get('imagen') or '').strip()
         body = (tarjeta.get('body') or '').strip()[:160]
-        botones = _botones_carrusel(tarjeta, abrir_pagina=abrir_pagina)
-        if not imagen or not body or len(botones) != 2:
+        url = str(tarjeta.get('url') or '').strip()
+        if not imagen or not body:
+            continue
+        if modo == 'solo_url' and url.startswith('https://'):
+            cards.append({
+                'card_index': i,
+                'type': 'cta_url',
+                'header': {'type': 'image', 'image': {'link': imagen}},
+                'body': {'text': body},
+                'action': {
+                    'name': 'cta_url',
+                    'parameters': {
+                        'display_text': 'Más información',
+                        'url': url[:2000],
+                    },
+                },
+            })
+            continue
+        botones = []
+        ver_id, ver_titulo = _par_ver(tarjeta)
+        if ver_id and ver_titulo:
+            botones.append({
+                'type': 'quick_reply',
+                'quick_reply': {'id': ver_id, 'title': ver_titulo},
+            })
+        if modo == 'enlace' and url.startswith('https://'):
+            botones.append({
+                'type': 'url',
+                'url': {'title': 'Más información', 'url': url[:2000]},
+            })
+        else:
+            for bid, title in list(tarjeta.get('botones') or [])[:2]:
+                titulo = str(title or '').strip()[:20]
+                ident = str(bid or '').strip()[:256]
+                if titulo == 'Más información' and ident:
+                    botones.append({
+                        'type': 'quick_reply',
+                        'quick_reply': {'id': ident, 'title': titulo},
+                    })
+        if len(botones) != 2:
             continue
         cards.append({
             'card_index': i,
@@ -847,16 +869,21 @@ def enviar_meta_carrusel(
     abrir_pagina = bool(con_pagina) and all(
         str(t.get('url') or '').startswith('https://') for t in con_pagina
     )
-    cards = _cards_carrusel(lista, abrir_pagina=abrir_pagina)
+    modo = 'enlace' if abrir_pagina else 'respuesta'
+    cards = _cards_carrusel(lista, modo=modo)
     if len(cards) < 2 or not to or not cuerpo:
         return {'success': False, 'mensaje_id': None, 'response': 'Carrusel incompleto'}
     result = _post_graph(
         _payload_carrusel(to, cuerpo, cards),
         agente=agente_evento,
     )
-    if not result.get('success') and abrir_pagina and result.get('response') != 'Credentials not set':
+    if (
+        not result.get('success')
+        and abrir_pagina
+        and result.get('response') != 'Credentials not set'
+    ):
         logger.warning('sandbox_carrusel_url_rechazado %s', result.get('response'))
-        cards = _cards_carrusel(lista, abrir_pagina=False)
+        cards = _cards_carrusel(lista, modo='solo_url')
         if len(cards) >= 2:
             result = _post_graph(
                 _payload_carrusel(to, cuerpo, cards),

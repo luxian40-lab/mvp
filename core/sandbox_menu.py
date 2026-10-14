@@ -772,22 +772,23 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
     if dato.get('accion') == 'info':
         from core.sandbox_canal import enviar_meta_url, sandbox_via_meta
 
-        ficha = f"*{item['nombre']}*\n{item['resumen']}\n\n{item['url']}\n\n_*menu* para volver._"
-        if sandbox_via_meta() and str(item.get('url') or '').startswith('https://'):
+        destino = str(item.get('url') or '')
+        if sandbox_via_meta() and destino.startswith('https://'):
             enviar_meta_url(
                 telefono_usuario,
-                ficha,
-                item['url'],
-                boton='Abrir página',
+                item['nombre'],
+                destino,
+                boton='Más información',
                 agente_evento='sandbox_formacion',
             )
             return
-        enviar_texto_sandbox(
-            telefono_usuario,
-            from_number,
-            ficha,
-            agente='sandbox_formacion',
-        )
+        if destino.startswith('https://'):
+            enviar_texto_sandbox(
+                telefono_usuario,
+                from_number,
+                destino,
+                agente='sandbox_formacion',
+            )
         return
     resultado = inscribir_en_catalogo(telefono_usuario, item['clave'])
     if resultado.get('error') == 'sin_plan_cursos':
