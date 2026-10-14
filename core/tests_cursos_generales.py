@@ -167,6 +167,7 @@ class CatalogoFormacionTests(TestCase):
         tiempo = Curso.objects.get(nombre=NOMBRE_TIEMPO, cliente__isnull=True)
         self.assertEqual(len(tarjetas), 3)
         self.assertEqual(tarjetas[f'curso_{tiempo.id}']['url'], URL_TIEMPO)
+        self.assertIn(URL_TIEMPO, tarjetas[f'curso_{tiempo.id}']['body'])
         self.assertEqual(
             tarjetas[f'curso_{riendas.id}']['botones'],
             [(f'ver_curso_{riendas.id}', 'Ver curso'), (f'info_curso_{riendas.id}', 'Más información')],
@@ -345,12 +346,12 @@ class CatalogoFormacionTests(TestCase):
                 '573001112233',
                 'Deslice los cursos.',
                 [{
-                    'body': '*Tiempo*\nPrioridades en el campo.',
+                    'body': f'*Tiempo*\n{URL_TIEMPO}',
                     'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_tiempo.jpg',
                     'url': URL_TIEMPO,
                     'botones': [('ver_tiempo', 'Ver curso'), ('info_tiempo', 'Más información')],
                 }, {
-                    'body': '*Innovación*\nIA en el negocio.',
+                    'body': f'*Innovación*\n{URL_INNOVACION}',
                     'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_innovacion.jpg',
                     'url': URL_INNOVACION,
                     'botones': [('ver_innovacion', 'Ver curso'), ('info_innovacion', 'Más información')],
@@ -358,58 +359,38 @@ class CatalogoFormacionTests(TestCase):
             )
         self.assertTrue(out['success'])
         self.assertEqual(post.call_count, 1)
-        self.assertEqual(post.call_args.kwargs.get('api_version'), 'v23.0')
         cards = post.call_args.args[0]['interactive']['action']['cards']
-        for card, url in ((cards[0], URL_TIEMPO), (cards[1], URL_INNOVACION)):
-            self.assertEqual(card['type'], 'cta_url')
-            self.assertNotIn('buttons', card['action'])
-            self.assertEqual(card['action']['name'], 'cta_url')
-            self.assertEqual(card['action']['parameters']['display_text'], 'Más información')
-            self.assertEqual(card['action']['parameters']['url'], url)
-        self.assertNotIn('info_tiempo', str(cards[0]['action']))
-        self.assertNotIn('quick_reply', str(cards))
+        self.assertIn(URL_TIEMPO, cards[0]['body']['text'])
+        self.assertIn(URL_INNOVACION, cards[1]['body']['text'])
+        self.assertEqual(cards[0]['action']['buttons'][1]['quick_reply']['id'], 'info_tiempo')
+        self.assertTrue(all(
+            b['type'] == 'quick_reply'
+            for card in cards
+            for b in card['action']['buttons']
+        ))
 
-    def test_si_meta_rechaza_el_enlace_el_carrusel_sigue(self):
-        from core.sandbox_canal import enviar_meta_carrusel
+    def test_nombre_corto_de_tiempo_sigue_teniendo_la_pagina(self):
+        from core.cursos_generales import _url_de_curso, tarjetas_catalogo
 
-        with patch('core.sandbox_canal._post_graph', side_effect=[
-            {'success': False, 'mensaje_id': None, 'response': 'button mix'},
-            {'success': True, 'mensaje_id': '2'},
-            {'success': True, 'mensaje_id': '3'},
-        ]) as post:
-            out = enviar_meta_carrusel(
-                '573001112233',
-                'Deslice los cursos.',
-                [{
-                    'body': '*Tiempo*\nPrioridades.',
-                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_tiempo.jpg',
-                    'url': URL_TIEMPO,
-                    'botones': [('ver_tiempo', 'Ver curso'), ('info_tiempo', 'Más información')],
-                }, {
-                    'body': '*Riendas*\nLa plata.',
-                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_riendas.jpg',
-                    'url': URL_RIENDAS,
-                    'botones': [('ver_riendas', 'Ver curso'), ('info_riendas', 'Más información')],
-                }],
-            )
-        self.assertTrue(out['success'])
-        self.assertEqual(post.call_count, 3)
-        primero = post.call_args_list[0].args[0]['interactive']['action']['cards'][0]['action']
-        self.assertEqual(primero['name'], 'cta_url')
-        self.assertEqual(primero['parameters']['url'], URL_TIEMPO)
-        self.assertNotIn('buttons', primero)
-        for call, url, imagen in (
-            (post.call_args_list[1], URL_TIEMPO, 'carrusel_tiempo.jpg'),
-            (post.call_args_list[2], URL_RIENDAS, 'carrusel_riendas.jpg'),
-        ):
-            payload = call.args[0]
-            self.assertEqual(payload['interactive']['type'], 'cta_url')
-            self.assertEqual(payload['interactive']['action']['parameters']['url'], url)
-            self.assertEqual(
-                payload['interactive']['action']['parameters']['display_text'], 'Más información',
-            )
-            self.assertIn(imagen, payload['interactive']['header']['image']['link'])
-            self.assertNotIn('quick_reply', str(payload))
+        corto = 'Gestión de tiempo y productividad personal'
+        self.assertEqual(_url_de_curso(corto), URL_TIEMPO)
+        Curso.objects.filter(nombre=NOMBRE_TIEMPO, cliente__isnull=True).update(nombre=corto)
+        tiempo = Curso.objects.get(nombre=corto, catalogo_menu=True)
+        tarjetas = {t['clave']: t for t in tarjetas_catalogo()}
+        self.assertEqual(tarjetas[f'curso_{tiempo.id}']['url'], URL_TIEMPO)
+        self.assertIn(URL_TIEMPO, tarjetas[f'curso_{tiempo.id}']['body'])
+        resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
+        with patch(
+            'core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'},
+        ) as post:
+            out = dispatch_sandbox_menu({**self.base, 'Body': f'info_curso_{tiempo.id}'})
+        self.assertEqual(out, 'handled')
+        payload = post.call_args.args[0]
+        self.assertEqual(payload['interactive']['type'], 'cta_url')
+        self.assertEqual(payload['interactive']['action']['parameters']['url'], URL_TIEMPO)
+        self.assertEqual(
+            payload['interactive']['action']['parameters']['display_text'], 'Más información',
+        )
 
     def test_mas_informacion_abre_la_pagina_del_programa(self):
         self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')

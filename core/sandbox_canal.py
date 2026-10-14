@@ -731,20 +731,6 @@ def enviar_meta_lista(
     return enviar_meta(telefono, respaldo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
-def _version_carrusel_url() -> str:
-    """El CTA del carrusel pide Graph v23+. v19.0 lo redirige a un alias sin ese botón. Verificado 2026-10-14."""
-    from core.meta_waba import _version
-
-    ver = str(_version() or '').strip() or 'v23.0'
-    try:
-        n = int(ver.split('.')[0].lstrip('v'))
-    except ValueError:
-        return 'v23.0'
-    if n < 23:
-        return 'v23.0'
-    return ver
-
-
 def enviar_meta_url(
     telefono: str,
     texto: str,
@@ -871,50 +857,18 @@ def enviar_meta_carrusel(
     canal_evento: str = 'whatsapp_sandbox',
     agente_evento: str = 'sandbox_formacion',
 ) -> dict:
-    """Carrusel con foto. Más información abre la página, sin otro mensaje."""
+    """Carrusel con foto. Ver curso inscribe. El enlace de la tarjeta abre la página."""
     to = _telefono_graph(telefono)
     cuerpo = (texto or '').strip()[:1024]
     lista = list(tarjetas)[:10]
-    con_pagina = [
-        t for t in lista
-        if (t.get('imagen') or '').strip() and (t.get('body') or '').strip()
-    ]
-    abrir_pagina = bool(con_pagina) and all(
-        str(t.get('url') or '').startswith('https://') for t in con_pagina
-    )
-    modo = 'enlace' if abrir_pagina else 'respuesta'
-    cards = _cards_carrusel(lista, modo=modo)
+    cards = _cards_carrusel(lista, modo='respuesta')
     if len(cards) < 2 or not to or not cuerpo:
         return {'success': False, 'mensaje_id': None, 'response': 'Carrusel incompleto'}
-    logger.info('sandbox_carrusel_modo %s cards=%s', modo, len(cards))
+    logger.info('sandbox_carrusel_modo respuesta cards=%s', len(cards))
     result = _post_graph(
         _payload_carrusel(to, cuerpo, cards),
-        api_version=_version_carrusel_url() if abrir_pagina else None,
         agente=agente_evento,
     )
-    if (
-        not result.get('success')
-        and abrir_pagina
-        and result.get('response') != 'Credentials not set'
-    ):
-        logger.warning('sandbox_carrusel_url_rechazado %s', result.get('response'))
-        ultimo = result
-        for tarjeta in con_pagina:
-            destino = str(tarjeta.get('url') or '')
-            if not destino.startswith('https://'):
-                continue
-            ultimo = enviar_meta_url(
-                telefono,
-                (tarjeta.get('body') or '').strip()[:1024],
-                destino,
-                boton='Más información',
-                imagen=(tarjeta.get('imagen') or '').strip(),
-                canal_evento=canal_evento,
-                agente_evento=agente_evento,
-            )
-            if not ultimo.get('success'):
-                return ultimo
-        return ultimo
     if result.get('success'):
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
     return result

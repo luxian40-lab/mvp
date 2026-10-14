@@ -769,9 +769,10 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         enviar_catalogo_formacion(telefono_usuario, from_number)
         return
     if dato.get('accion') == 'info':
+        from core.cursos_generales import _url_de_curso
         from core.sandbox_canal import enviar_meta_url, sandbox_via_meta
 
-        destino = str(item.get('url') or '')
+        destino = str(item.get('url') or '') or _url_de_curso(item.get('nombre') or '')
         if sandbox_via_meta() and destino.startswith('https://'):
             enviar_meta_url(
                 telefono_usuario,
@@ -788,6 +789,14 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
                 destino,
                 agente='sandbox_formacion',
             )
+            return
+        logger.warning('sandbox_formacion_sin_url clave=%s nombre=%s', item.get('clave'), item.get('nombre'))
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            (item.get('nombre') or 'Este programa') + '.\n\n_*menu* para volver._',
+            agente='sandbox_formacion',
+        )
         return
     resultado = inscribir_en_catalogo(telefono_usuario, item['clave'])
     if resultado.get('error') == 'sin_plan_cursos':

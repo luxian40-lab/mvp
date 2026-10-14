@@ -68,10 +68,45 @@ def payload_catalogo(body: str) -> dict | None:
     return None
 
 
+def _norm_nombre(valor: str) -> str:
+    return ' '.join((valor or '').casefold().split())
+
+
+def _url_de_curso(curso) -> str:
+    """Cruza el nombre real del curso (admin) con las páginas de eki.com.co."""
+    nombre = curso if isinstance(curso, str) else (getattr(curso, 'nombre', None) or '')
+    exacto = _URL_POR_NOMBRE.get(nombre) or ''
+    if exacto:
+        return exacto
+    clave = _norm_nombre(nombre)
+    if not clave:
+        return ''
+    for item in CATALOGO:
+        catalogo = _norm_nombre(item['nombre'])
+        if clave == catalogo or catalogo.startswith(clave) or clave.startswith(catalogo):
+            return item['url']
+        buscar = _norm_nombre(item.get('buscar') or '')
+        if buscar and buscar in clave:
+            return item['url']
+    if 'riendas' in clave:
+        return URL_RIENDAS
+    if 'innov' in clave or 'emprendedor' in clave:
+        return URL_INNOVACION
+    if 'tiempo' in clave or 'productividad' in clave:
+        return URL_TIEMPO
+    return ''
+
+
 def texto_tarjeta(item: dict) -> str:
     """Cuerpo de la card. WhatsApp admite 160 caracteres y dos saltos de línea."""
     nombre = f"*{item['nombre']}*"
     resumen = (item.get('resumen') or '').strip()
+    url = str(item.get('url') or '').strip()
+    if url.startswith('https://'):
+        hueco = 160 - len(nombre) - len(url) - 2
+        if hueco > 24 and resumen:
+            return f"{nombre}\n{resumen[:hueco].rstrip()}\n{url}"[:160]
+        return f"{nombre}\n{url}"[:160]
     texto = f"{nombre}\n{resumen}" if resumen else nombre
     return texto[:160]
 
@@ -92,7 +127,7 @@ def url_imagen_catalogo(archivo: str) -> str:
 def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> dict:
     return {
         'clave': clave,
-        'body': texto_tarjeta({'nombre': nombre, 'resumen': resumen}),
+        'body': texto_tarjeta({'nombre': nombre, 'resumen': resumen, 'url': url}),
         'imagen': imagen,
         'url': url,
         'botones': [
@@ -140,7 +175,7 @@ def tarjetas_catalogo() -> list[dict]:
             curso.nombre,
             resumen[:120],
             _imagen_de_curso(curso),
-            _URL_POR_NOMBRE.get(curso.nombre, ''),
+            _url_de_curso(curso),
         ))
     return tarjetas
 
@@ -179,7 +214,7 @@ def item_catalogo(clave: str) -> dict | None:
         'clave': clave,
         'nombre': curso.nombre,
         'resumen': ' '.join((curso.descripcion or '').split())[:200],
-        'url': _URL_POR_NOMBRE.get(curso.nombre, ''),
+        'url': _url_de_curso(curso),
     }
 
 
