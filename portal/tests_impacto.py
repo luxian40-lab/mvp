@@ -199,5 +199,7 @@ class ImpactoPortalTests(TestCase):
         social = bloque.find('>Social<')
         ambiental = bloque.find('>Ambiental<')
         self.assertTrue(0 <= eco < social < ambiental)
+        self.assertLess(bloque.find('imp-name--eco'), bloque.find('imp-name--soc'))
+        self.assertLess(bloque.find('imp-name--soc'), bloque.find('imp-name--amb'))
         self.assertNotIn('G1', bloque)
         self.assertNotIn('G2', bloque)

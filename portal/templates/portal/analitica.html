@@ -105,9 +105,12 @@
         font-weight: 700;
         color: var(--texto);
         background: var(--surface);
-        border: 1px solid var(--borde);
+        border: 2px solid var(--borde);
         border-radius: 14px;
     }
+    .imp-name--eco { border-color: #2f6fad; }
+    .imp-name--soc { border-color: #c44545; }
+    .imp-name--amb { border-color: #2d8a4e; }
     html[data-theme="dark"] .imp-name,
     html[data-theme="dark"] .imp-slot { background: var(--blanco); }
     .imp-arrow {
@@ -353,7 +356,7 @@
         <div class="imp-row">
             {% for grupo, indicadores in impacto.grupos.items %}
             <article class="imp-col">
-                <h2 class="imp-name">{{ grupo }}</h2>
+                <h2 class="imp-name {% if grupo == 'Económico' %}imp-name--eco{% elif grupo == 'Social' %}imp-name--soc{% elif grupo == 'Ambiental' %}imp-name--amb{% endif %}">{{ grupo }}</h2>
                 {% for ind in indicadores %}
                 <div class="imp-card">
                     <span class="imp-ev">{{ ind.codigo }} · evidencia {{ ind.evidencia }}{% if ind.rotulo %} · {{ ind.rotulo }}{% endif %}</span>
