@@ -152,7 +152,9 @@ class SandboxMenuTests(TestCase):
             'cursos_bootstrap',
         )
         _habeas('573001234569')
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}), patch(
+            'core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True},
+        ):
             dispatch_sandbox_menu({**base, 'Body': 'curso'})
         self.assertEqual(
             SandboxCanalSesion.objects.get(telefono='573001234569').modo,
@@ -253,6 +255,8 @@ class SandboxMenuTests(TestCase):
                 return_value={'ok': False},
             ), patch(
                 'core.sandbox_canal.enviar_sandbox', return_value={'success': True}
+            ), patch(
+                'core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}
             ):
                 out = dispatch_sandbox_menu({
                     'From': 'whatsapp:+573001234584',

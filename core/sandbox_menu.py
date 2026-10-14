@@ -96,6 +96,9 @@ TEXTO_AGENTES = (
     "*reiniciar* = memoria nueva · *menu* = menú principal."
 )
 
+# Quick reply de las plantillas de bienvenida (eki_inicio_curso_btn, eki_bienvenida_*).
+_BOTONES_INICIO_PLANTILLA = frozenset({'iniciar', 'empezar'})
+
 # Comandos para cortar memoria (todos los agentes sandbox).
 _COMANDOS_REINICIAR = frozenset({
     'reiniciar',
@@ -163,11 +166,28 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
         body = (payload.get('Body', '') or '').strip()  # type: ignore[union-attr]
     except Exception:
         return '', '', ''
+    if not body:
+        try:
+            from core.habeas_respuestas import texto_desde_webhook_twilio
+
+            body = (texto_desde_webhook_twilio(payload, '') or '').strip()
+        except Exception:
+            body = ''
     return (
         normalizar_telefono_whatsapp(from_raw),
         normalizar_telefono_whatsapp(to_raw),
         body,
     )
+
+
+def _es_boton_inicio_flujo(body: str) -> bool:
+    """Iniciar / Empezar, o el mismo botón citado debajo del texto de la plantilla."""
+    t = (body or '').strip().lower()
+    if not t:
+        return False
+    if t in _BOTONES_INICIO_PLANTILLA:
+        return True
+    return t.splitlines()[-1].strip() in _BOTONES_INICIO_PLANTILLA
 
 
 def _body_o_audio_transcrito(payload: Any, body: str) -> str:
@@ -356,6 +376,23 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.action = 'show_menu'
         return decision
 
+    # Plantilla inicial: habeas ya se cortó arriba. Aquí no abrir "sin curso".
+    if _es_boton_inicio_flujo(body):
+        from core.utils_telefono import estudiante_por_telefono
+
+        persona = estudiante_por_telefono(from_tel)
+        if persona is not None and persona.estado_chat == 'ESPERANDO_CEDULA':
+            _set_modo(sesion, MODO_CURSOS)
+            decision.action = 'pedir_cedula'
+            return decision
+        if persona is not None and persona.estado_chat == 'CONFIRMANDO_DATOS':
+            _set_modo(sesion, MODO_CURSOS)
+            decision.action = 'cursos'
+            return decision
+        _set_modo(sesion, MODO_MENU)
+        decision.action = 'show_menu'
+        return decision
+
     # Dentro del submenú agentes: priorizar 1/2/3 de agentes
     if sesion.modo == MODO_AGENTES:
         eleccion_ag = _normalizar_eleccion_agentes(body)
@@ -462,19 +499,6 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     eleccion = _normalizar_eleccion_raiz(body)
-
-    if (body or '').strip().lower() == 'iniciar':
-        from core.utils_telefono import estudiante_por_telefono
-
-        persona = estudiante_por_telefono(from_tel)
-        if persona is not None and persona.estado_chat in (
-            'ESPERANDO_CEDULA', 'CONFIRMANDO_DATOS',
-        ):
-            decision.action = 'cursos'
-            return decision
-        _set_modo(sesion, MODO_MENU)
-        decision.action = 'show_menu'
-        return decision
 
     if eleccion == 'menu':
         _set_modo(sesion, MODO_MENU)
@@ -864,12 +888,7 @@ def entrar_cursos_inscrito(telefono_usuario: str, from_number: str) -> bool:
     if not progresos:
         _set_modo(sesion, MODO_MENU)
         with canal_sandbox_si_meta():
-            enviar_texto_sandbox(
-                telefono_usuario,
-                from_number,
-                TEXTO_CURSO_NO_INSCRITO,
-                agente='sandbox_cursos',
-            )
+            enviar_menu_sandbox(telefono_usuario, from_number)
         return True
 
     if not abiertos:
@@ -1206,6 +1225,17 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             except Exception:
                 logger.exception('sandbox_plan_send_failed tel=%s', decision.telefono_usuario)
             return 'handled'
+
+    if decision.action == 'pedir_cedula':
+        from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+
+        try:
+            enviar_texto_sandbox(
+                decision.telefono_usuario, from_n, MSG_ACEPTO_CEDULA, agente='habeas_meta',
+            )
+        except Exception:
+            logger.exception('sandbox_pedir_cedula_fail tel=%s', decision.telefono_usuario)
+        return 'handled'
 
     if decision.action == 'show_menu':
         try:

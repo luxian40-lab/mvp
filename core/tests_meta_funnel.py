@@ -94,6 +94,72 @@ class MetaFunnelTests(TestCase):
         self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).modo, 'cursos')
 
+    def test_iniciar_sin_habeas_pide_botones_aunque_el_modo_sea_formacion(self):
+        tel = '573009991010'
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=False, modo='formacion')
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'Iniciar'))
+        self.assertEqual(ruta, 'handled')
+        habeas.assert_called_once()
+
+    def test_iniciar_citando_la_plantilla_pide_habeas(self):
+        from core.management.commands.cargar_plantillas_bienvenida import TEXTO_INICIO_CURSO
+
+        tel = '573009991011'
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            ruta = dispatch_sandbox_menu(_payload(tel, f'{TEXTO_INICIO_CURSO}\nIniciar'))
+        self.assertEqual(ruta, 'handled')
+        habeas.assert_called_once()
+
+    def test_iniciar_ya_activo_abre_menu_y_no_el_aviso_de_sin_curso(self):
+        tel = '573009991012'
+        Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1016',
+            telefono=tel,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
+        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send, \
+                patch('core.sandbox_menu.entrar_cursos_inscrito') as boot:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'Iniciar'))
+        self.assertEqual(ruta, 'handled')
+        boot.assert_not_called()
+        titulos = []
+        for call in send.call_args_list:
+            body = call.args[0]
+            inter = body.get('interactive') or {}
+            if inter.get('type') == 'button':
+                titulos = [b['reply']['title'] for b in inter['action']['buttons']]
+        self.assertEqual(titulos, ['Formación', 'Asesoría'])
+        textos = []
+        for call in send.call_args_list:
+            body = call.args[0]
+            if body.get('type') == 'text':
+                textos.append((body.get('text') or {}).get('body') or '')
+            inter = body.get('interactive') or {}
+            if inter.get('body'):
+                textos.append((inter.get('body') or {}).get('text') or '')
+        self.assertFalse(any('no abre cursos' in t.lower() for t in textos))
+
+    def test_iniciar_esperando_cedula_vuelve_a_pedirla(self):
+        tel = '573009991013'
+        Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1017',
+            telefono=tel,
+            acepto_terminos=True,
+            estado_chat='ESPERANDO_CEDULA',
+        )
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto, \
+                patch('core.sandbox_menu.entrar_cursos_inscrito') as boot:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'Iniciar'))
+        self.assertEqual(ruta, 'handled')
+        boot.assert_not_called()
+        self.assertIn('cédula', texto.call_args.args[2].lower())
+
     def test_continuemos_con_curso_abierto_entra_a_la_leccion(self):
         from core.models import Curso, ProgresoEstudiante
 
