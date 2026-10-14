@@ -7,11 +7,13 @@ dato crítico que falta, personalizado al cultivo/región/síntoma ya conocidos.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 _PATRON_SINTOMA = re.compile(
     r'\b(mancha|manchas|plaga|plagas|enfermedad|seco|seca|amarill\w*|caíd\w*|caid\w*|'
     r'marchit|roya|gusano|hongos?|problema|daño|dano|síntoma|sintoma|'
-    r'no crece|se muere|se están muriendo|tengo unas|débil|debil|'
+    r'no crece|se muere|se están muriendo|muriendo|mueren|'
+    r'tengo unas|débil|debil|'
     r'pudric|necros|deficien|clorosis|quemadur)\b',
     re.I,
 )
@@ -24,6 +26,39 @@ _KEYWORDS_CURSOS = frozenset({
     'listo', 'continuar', 'menu', 'menú', 'siguiente', 'continuar curso',
     'ok', 'dale', 'sigue',
 })
+# Cómo hacer / desde cero. No es una planta enferma.
+_ORIENTACION = re.compile(
+    r'\b('
+    r'desde\s+cero|'
+    r'c[oó]mo\s+(se\s+)?(hago|hacer|cultivo|cultivar|siembro|sembrar|preparo|preparar|'
+    r'evito|evitar|empiezo|empezar|inicio|iniciar|aprendo|aprender)|'
+    r'quiero\s+(aprender|empezar|iniciar|sembrar|cultivar|arrancar)|'
+    r'para\s+empezar|'
+    r'qu[eé]\s+hago|'
+    r'qu[eé]\s+(puedo|debo)\s+hacer'
+    r')\b',
+    re.I,
+)
+# "cómo evitar plagas" es prevención. "ya veo manchas" es daño presente.
+_PREVENCION = re.compile(
+    r'\b(evitar|evito|prevenir|prevenga|para que no|que no haya|que no salga)\b',
+    re.I,
+)
+_PRESENTE = re.compile(
+    r'\b(tengo|veo|vi|hay|salieron|apareci[oó]|aparecieron|est[aá]n|est[aá]|'
+    r'le\s+dio|se\s+ven|se\s+est[aá]n)\b',
+    re.I,
+)
+# Otra pregunta, distinta de la planta enferma: no llena el casillero clínico.
+_OTRA_COSA = re.compile(
+    r'\b(precio|cu[aá]nto\s+vale|cu[aá]nto\s+cuesta|vender|venta|curso|aula|diploma)\b',
+    re.I,
+)
+_SOLO_SALUDO = re.compile(
+    r'^(hola|buenas|buenos dias|buen dia|buenas tardes|buenas noches|hey|que tal)\b',
+    re.I,
+)
+
 # Solo abortar anamnesis activa si el productor pide clima de forma explícita.
 _CLIMA_EXPLICITO = re.compile(
     r'\b('
@@ -56,6 +91,7 @@ def reiniciar_diagnostico(ctx) -> None:
                 'foto_omitida',
                 'pidio_foto',
                 'anamnesis_completa',
+                'diagnostico_en_pausa',
                 'extension_afectada',
                 'tiempo_problema',
                 'manejo_previo',
@@ -82,6 +118,93 @@ def _set_meta(ctx, meta: dict) -> None:
 
 def es_consulta_diagnostico(mensaje: str) -> bool:
     return bool(_PATRON_SINTOMA.search(mensaje or ''))
+
+
+def es_orientacion(mensaje: str) -> bool:
+    """Cómo hacer algo, o arrancar desde cero. No describe una planta ya enferma."""
+    return bool(_ORIENTACION.search(mensaje or ''))
+
+
+def es_otra_pregunta(mensaje: str) -> bool:
+    """Precio, venta o curso. *continuar curso* sigue siendo palabra del guion."""
+    if _norm_msg(mensaje) in _KEYWORDS_CURSOS:
+        return False
+    return bool(_OTRA_COSA.search(mensaje or ''))
+
+
+def _sin_tildes(texto: str) -> str:
+    t = unicodedata.normalize('NFKD', texto or '')
+    return ''.join(c for c in t if not unicodedata.combining(c))
+
+
+def mensaje_es_solo_saludo(mensaje: str) -> bool:
+    """Hola suelto. Si atrás viene la pregunta, no se queda en el saludo."""
+    t = _sin_tildes(_norm_msg(mensaje))
+    if not t or not _SOLO_SALUDO.match(t):
+        return False
+    if es_orientacion(mensaje) or dano_presente(mensaje) or es_otra_pregunta(mensaje):
+        return False
+    return len(t.split()) <= 4
+
+
+def dano_presente(mensaje: str) -> bool:
+    """Daño que está pasando. Prevenir, o la palabra «problema» suelta, no alcanza."""
+    if not es_consulta_diagnostico(mensaje):
+        return False
+    if es_orientacion(mensaje) and not _PRESENTE.search(mensaje or ''):
+        sin_generico = re.sub(r'\bproblemas?\b', ' ', mensaje or '', flags=re.I)
+        if not _PATRON_SINTOMA.search(sin_generico):
+            return False
+        if _PREVENCION.search(mensaje or ''):
+            return False
+    elif es_orientacion(mensaje) and _PREVENCION.search(mensaje or '') and not _PRESENTE.search(mensaje or ''):
+        return False
+    return True
+
+
+def _consulta_abierta(meta: dict) -> bool:
+    return bool(meta.get('diagnostico_activo')) and not meta.get('diagnostico_omitido')
+
+
+def _poner_pausa(ctx) -> None:
+    meta = _get_meta(ctx)
+    if meta.get('diagnostico_en_pausa'):
+        return
+    meta['diagnostico_en_pausa'] = True
+    _set_meta(ctx, meta)
+
+
+def _quitar_pausa(ctx) -> None:
+    meta = _get_meta(ctx)
+    if not meta.get('diagnostico_en_pausa'):
+        return
+    meta.pop('diagnostico_en_pausa', None)
+    _set_meta(ctx, meta)
+
+
+def frase_que_oyo(ctx, mensaje: str) -> str:
+    """Una línea de lo oído. No inventa un daño que el mensaje no trae."""
+    cultivo = ((getattr(ctx, 'cultivo', None) or '') if ctx else '').strip()
+    if es_orientacion(mensaje) and not dano_presente(mensaje):
+        if cultivo and _PREVENCION.search(mensaje or ''):
+            return f'Entendí que quiere saber cómo cuidar {cultivo} y prevenir problemas.'
+        if cultivo:
+            return f'Entendí que quiere saber cómo arrancar {cultivo}.'
+        return 'Entendí que quiere saber cómo hacerlo desde el inicio.'
+    if dano_presente(mensaje) and cultivo:
+        corto = _sintoma_corto(ctx) if (getattr(ctx, 'problema', None) or '').strip() else 'un daño'
+        return f'Entendí que en {cultivo} ve {corto}.'
+    if cultivo:
+        return f'Entendí que habla de {cultivo}.'
+    return 'Entendí lo que me cuenta.'
+
+
+def anteponer_entendio(ctx, mensaje: str, texto: str) -> str:
+    """La frase va arriba del mismo mensaje. No es otro envío ni otro cupo."""
+    cuerpo = (texto or '').strip()
+    if not cuerpo or cuerpo.startswith('Entendí'):
+        return cuerpo
+    return f'{frase_que_oyo(ctx, mensaje)}\n\n{cuerpo}'
 
 
 def datos_suficientes(ctx) -> bool:
@@ -134,16 +257,15 @@ def _sintoma_corto(ctx) -> str:
 
 
 def _ack(ctx, frase: str) -> str:
-    """Ancla breve (cultivo/zona) + pregunta. Sin ecoear el mensaje completo."""
+    """La pregunta, dicha. Sin rótulo «En café (Este):»."""
     frase = (frase or '').strip()
-    cultivo = (ctx.cultivo or '').strip()
-    lugar_ok = bool((ctx.municipio or '').strip() or (ctx.region or '').strip())
-    if cultivo and lugar_ok:
-        return f'En {_cultivo_txt(ctx)} ({_lugar_txt(ctx)}): {frase}'.strip()
-    if cultivo:
-        return f'En {_cultivo_txt(ctx)}: {frase}'.strip()
-    if (ctx.problema or '').strip():
-        return f'Sobre {_sintoma_corto(ctx)}: {frase}'.strip()
+    if not frase:
+        return ''
+    i = 0
+    while i < len(frase) and frase[i] in '¿¡':
+        i += 1
+    if i < len(frase) and frase[i].islower():
+        frase = frase[:i] + frase[i].upper() + frase[i + 1:]
     return frase
 
 
@@ -257,6 +379,9 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
             )
             clima_explicito = bool(_CLIMA_EXPLICITO.search(mensaje or ''))
             ubicacion = (ctx.municipio or '').strip() or (ctx.region or '').strip()
+            # En pausa el clima lo responde el criterio. No cerrar la consulta.
+            if meta_prev.get('diagnostico_en_pausa'):
+                return None
             # Con anamnesis activa, riego/fumigar son respuestas clínicas salvo clima explícito.
             if ubicacion and not esperando and (not en_curso or clima_explicito):
                 meta = meta_prev
@@ -269,6 +394,22 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
     meta = _get_meta(ctx)
     if meta.get('diagnostico_omitido'):
         return None
+
+    # Cómo / desde cero, sin daño presente: no es consulta clínica.
+    # Pausa el guion. No lo borra: un daño después lo reabre.
+    if (
+        (es_orientacion(mensaje) or es_otra_pregunta(mensaje))
+        and not dano_presente(mensaje)
+        and not tiene_imagen
+    ):
+        _poner_pausa(ctx)
+        return None
+
+    if meta.get('diagnostico_en_pausa') and not dano_presente(mensaje) and not tiene_imagen:
+        return None
+
+    if dano_presente(mensaje) or tiene_imagen:
+        _quitar_pausa(ctx)
 
     # Capturar respuestas pendientes antes de decidir la siguiente pregunta
     _capturar_si_responde(ctx, 'extension_afectada', mensaje, min_len=4)
@@ -342,11 +483,8 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
         return _preguntar(
             ctx,
             'extension_afectada',
-            _ack(
-                ctx,
-                '¿en qué parte de la planta empezó (hojas, tallo, fruto, raíz) '
-                'y aproximadamente qué tanto del lote está afectado?',
-            ),
+            f'En su {_cultivo_txt(ctx)}, ¿en qué parte de la planta empezó '
+            '(hojas, tallo, fruto, raíz) y qué tanto del lote está afectado?',
         )
 
     # 5. Tiempo / evolución

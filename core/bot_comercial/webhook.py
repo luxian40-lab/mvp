@@ -927,12 +927,19 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             len(historial_chat),
         )
 
-    es_saludo = bool(
-        re.match(
-            r'^(hola|buenas|buenos dias|buen día|buenas tardes|buenas noches|hey|que tal|qué tal)\b',
-            msg_normalizado,
+    es_saludo = False
+    try:
+        from core.nat_diagnostico import mensaje_es_solo_saludo
+
+        es_saludo = mensaje_es_solo_saludo(msg_body)
+    except Exception:
+        es_saludo = bool(
+            re.match(
+                r'^(hola|buenas|buenos dias|buen día|buenas tardes|buenas noches|hey|que tal|qué tal)\b',
+                msg_normalizado,
+            )
         )
-    )
+    llevar_entendio = False
 
     cliente_id_cfg = int(
         getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
@@ -1022,8 +1029,14 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                 consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
             texto_respuesta = None
+            llevar_entendio = False
             try:
-                from core.nat_diagnostico import siguiente_pregunta_diagnostico
+                from core.nat_diagnostico import (
+                    anteponer_entendio,
+                    dano_presente,
+                    es_orientacion,
+                    siguiente_pregunta_diagnostico,
+                )
 
                 pregunta_diag = siguiente_pregunta_diagnostico(
                     ctx_agro,
@@ -1031,14 +1044,17 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                     tiene_imagen=bool(diagnostico_vision),
                 )
                 if pregunta_diag and vision_util:
-                    # Foto útil + dato pendiente: análisis + pregunta, sin rótulo extra
                     texto_respuesta = (
                         f"{diagnostico_vision.strip()}\n\n{pregunta_diag.strip()}"
                     )
+                    llevar_entendio = True
                 elif pregunta_diag:
                     texto_respuesta = pregunta_diag
+                    llevar_entendio = True
                 elif vision_util and not (msg_body or '').strip():
                     pass
+                elif es_orientacion(msg_body) and not dano_presente(msg_body):
+                    llevar_entendio = True
             except Exception:
                 pass
 
@@ -1271,6 +1287,10 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             logger.debug('senal_shadow hook omitido', exc_info=True)
 
     try:
+        if llevar_entendio and texto_respuesta:
+            from core.nat_diagnostico import anteponer_entendio
+
+            texto_respuesta = anteponer_entendio(ctx_agro, msg_body, texto_respuesta)
         resultado_envio = enviar_whatsapp_twilio(
             telefono_limpio,
             texto_respuesta,
