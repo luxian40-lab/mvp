@@ -543,6 +543,10 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
             fecha_aceptacion_terminos=timezone.now(),
             estado_chat='ACTIVO',
         )
+    from core.sandbox_menu import alinear_ficha_con_sesion_habeas
+
+    alinear_ficha_con_sesion_habeas(tel)
+    est = Estudiante.objects.filter(pk=est.pk).first() or est
     antes = ProgresoEstudiante.objects.filter(estudiante=est).count()
     progreso, creado = inscribir_estudiante_en_curso(est, curso)
     ctx = dict(est.contexto_temporal or {})

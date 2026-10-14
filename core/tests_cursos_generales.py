@@ -11,6 +11,7 @@ from core.cursos_generales import (
     URL_RIENDAS,
     URL_TIEMPO,
     asegurar_cursos_generales,
+    inscribir_en_catalogo,
     item_catalogo,
 )
 from core.models import (
@@ -480,3 +481,89 @@ class CatalogoFormacionTests(TestCase):
             dispatch_sandbox_menu({**self.base, 'Body': 'ver_tiempo'})
         self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=tiempo).exists())
         self.assertIn('[send_button:continuemos]', texto.call_args.args[2].lower())
+
+    def test_ver_curso_con_sesion_habeas_alinea_la_ficha_y_continuemos_entra(self):
+        est = Estudiante.objects.create(
+            nombre='Julian',
+            cedula='GEN0629',
+            telefono=self.tel,
+            acepto_terminos=False,
+            estado_chat='ESPERANDO_HABEAS_DATA',
+            estado_onboarding='nuevo',
+        )
+        riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+            out = dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'})
+        self.assertEqual(out, 'handled')
+        est.refresh_from_db()
+        self.assertTrue(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ACTIVO')
+        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists())
+        ruta = dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'})
+        self.assertEqual(ruta, 'cursos')
+
+    def test_flujo_ver_curso_inscribe_y_asesoria_abre_agente(self):
+        riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
+        with patch(
+            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True},
+        ) as carrusel:
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': 'formacion'}), 'handled',
+            )
+        self.assertEqual(carrusel.call_count, 1)
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'}),
+                'handled',
+            )
+        est = Estudiante.objects.get(telefono=self.tel)
+        self.assertTrue(
+            ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists()
+        )
+        with patch('core.sandbox_canal.enviar_sandbox_habeas') as habeas:
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'}), 'cursos',
+            )
+            habeas.assert_not_called()
+        with patch(
+            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True},
+        ):
+            self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': 'menu'}), 'handled')
+        with patch(
+            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True},
+        ) as lista:
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': 'asesoria'}), 'handled',
+            )
+        self.assertEqual(lista.call_count, 1)
+        with patch(
+            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True},
+        ), patch('core.sandbox_canal.enviar_sandbox_habeas') as habeas:
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': 'ventas'}), 'handled',
+            )
+            habeas.assert_not_called()
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'ventas')
+        with patch(
+            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True},
+        ):
+            self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': 'menu'}), 'handled')
+            self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': 'nat'}), 'handled')
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'nat')
+
+    def test_inscribir_sin_sesion_habeas_no_marca_terminos(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(habeas_aceptado=False)
+        est = Estudiante.objects.create(
+            nombre='Julian',
+            cedula='GEN0630',
+            telefono=self.tel,
+            acepto_terminos=False,
+            estado_chat='ESPERANDO_HABEAS_DATA',
+            estado_onboarding='nuevo',
+        )
+        riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
+        inscribir_en_catalogo(self.tel, f'curso_{riendas.id}')
+        est.refresh_from_db()
+        self.assertFalse(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists())

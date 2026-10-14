@@ -471,3 +471,54 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         menu.assert_called_once()
         cuerpo.assert_not_called()
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est).exists())
+
+    def test_continuemos_con_sesion_aceptada_y_curso_inscrito_entra_al_curso(self):
+        from core.models import Curso, ProgresoEstudiante, SandboxCanalSesion
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        est = self._est()
+        est.estado_chat = 'ESPERANDO_HABEAS_DATA'
+        est.estado_onboarding = 'nuevo'
+        est.save(update_fields=['estado_chat', 'estado_onboarding'])
+        SandboxCanalSesion.objects.create(
+            telefono=est.telefono, habeas_aceptado=True, modo='cursos',
+        )
+        curso = Curso.objects.create(nombre='Tome las riendas de su dinero', activo=True)
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('continuemos', 'wamid.cont1'))
+        botones.assert_not_called()
+        cuerpo.assert_called_once()
+        est.refresh_from_db()
+        self.assertTrue(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ACTIVO')
+
+    def test_continuemos_sin_sesion_habeas_sigue_pidiendo_botones(self):
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        self._est()
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('continuemos', 'wamid.cont2'))
+        botones.assert_called_once()
+        cuerpo.assert_not_called()
+
+    def test_continuemos_esperando_cedula_no_salta_la_cedula(self):
+        from core.models import SandboxCanalSesion
+        from core.views.webhook_twilio import _procesar_twilio_webhook
+
+        est = self._est()
+        est.acepto_terminos = True
+        est.estado_chat = 'ESPERANDO_CEDULA'
+        est.save(update_fields=['acepto_terminos', 'estado_chat'])
+        SandboxCanalSesion.objects.create(
+            telefono=est.telefono, habeas_aceptado=True, modo='cursos',
+        )
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            _procesar_twilio_webhook(self._post('continuemos', 'wamid.ced1'))
+        botones.assert_not_called()
+        cuerpo.assert_called_once()
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')

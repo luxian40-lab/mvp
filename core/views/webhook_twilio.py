@@ -72,7 +72,13 @@ def _cortar_habeas_meta(post_data) -> bool:
     body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip()
     if not body:
         return False
-    est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
+    tel = normalizar_telefono_whatsapp(post_data.get('From', ''))
+    from core.sandbox_menu import _habeas_listo, alinear_ficha_con_sesion_habeas
+
+    if _habeas_listo(tel):
+        alinear_ficha_con_sesion_habeas(tel)
+        return False
+    est = estudiante_por_telefono(tel)
     if est is None or est.acepto_terminos:
         return False
     if (est.contexto_temporal or {}).get('cert_envio_pendiente'):

@@ -1080,6 +1080,33 @@ def _habeas_listo(telefono: str) -> bool:
     return False
 
 
+def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
+    """Si la línea ya aceptó, la ficha no se queda en habeas.
+
+    No toca ESPERANDO_CEDULA ni CONFIRMANDO_DATOS: esa identidad sigue.
+    """
+    if not telefono or not _habeas_listo(telefono):
+        return
+    from core.utils_telefono import estudiante_por_telefono
+
+    est = estudiante_por_telefono(telefono)
+    if est is None:
+        return
+    campos = []
+    if not est.acepto_terminos:
+        from core.consentimiento_wa import registrar_optin
+
+        est.acepto_terminos = True
+        est.fecha_aceptacion_terminos = timezone.now()
+        campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
+        registrar_optin(est, 'sesion_linea')
+    if (est.estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
+        est.estado_chat = 'ACTIVO'
+        campos.append('estado_chat')
+    if campos:
+        est.save(update_fields=campos)
+
+
 def _aceptar_habeas_y_abrir_menu(telefono: str, from_number: str, est) -> str:
     """Sin ficha no hay cédula que verificar: abre el menú."""
     sesion = _get_or_create_sesion(telefono)

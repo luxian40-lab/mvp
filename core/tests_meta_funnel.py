@@ -178,6 +178,32 @@ class MetaFunnelTests(TestCase):
         self.assertEqual(ruta, 'cursos')
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).modo, 'cursos')
 
+    def test_continuemos_tras_inscribir_con_sesion_aceptada_no_reabre_habeas(self):
+        from core.models import Curso, ProgresoEstudiante
+        from core.views.webhook_meta import _aplicar_sandbox_menu
+
+        tel = '573009991014'
+        curso = Curso.objects.create(nombre='Tome las riendas de su dinero', activo=True)
+        est = Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1018',
+            telefono=tel,
+            acepto_terminos=False,
+            estado_chat='ESPERANDO_HABEAS_DATA',
+            estado_onboarding='nuevo',
+        )
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas, \
+                patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
+            resp = _aplicar_sandbox_menu(_payload(tel, 'continuemos', MessageSid='wamid.cont3'))
+        self.assertEqual(resp.status_code, 200)
+        habeas.assert_not_called()
+        cuerpo.assert_called_once()
+        est.refresh_from_db()
+        self.assertTrue(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ACTIVO')
+
     def test_inscrito_con_telefono_local_toma_plan_de_la_org(self):
         org = Cliente.objects.create(
             nombre='OrgVar',
