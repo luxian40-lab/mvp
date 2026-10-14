@@ -572,6 +572,11 @@ except (TypeError, ValueError):
 NAT_OPEN_METEO_ENABLED = os.environ.get('NAT_OPEN_METEO_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Cierres de impacto en agrónomo, finanzas, ventas y campo. Pausados el 14 de octubre de 2026.
+# Reactivar con PREGUNTA_IMPACTO_AGENTES=true.
+PREGUNTA_IMPACTO_AGENTES = os.environ.get('PREGUNTA_IMPACTO_AGENTES', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 try:
     NAT_OPEN_METEO_TIMEOUT = float(os.environ.get('NAT_OPEN_METEO_TIMEOUT', '4'))
 except (TypeError, ValueError):

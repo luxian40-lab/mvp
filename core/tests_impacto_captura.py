@@ -56,15 +56,14 @@ class ImpactoCapturaTests(TestCase):
         )
         SandboxCanalSesion.objects.create(telefono=self.tel, habeas_aceptado=True)
 
-    def test_finanzas_anexa_e1_y_guarda_si(self):
+    def test_finanzas_no_guarda_impacto_mientras_esta_pausada(self):
         with patch('core.sandbox_canal._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
             with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Revise el flujo de caja.'):
                 dispatch_sandbox_menu(_payload(self.tel, 'cómo ordeno gastos'))
-            ruta = dispatch_sandbox_menu(_payload(self.tel, 'sí'))
-        self.assertEqual(ruta, 'handled')
+            dispatch_sandbox_menu(_payload(self.tel, 'sí'))
         self.est.refresh_from_db()
-        self.assertTrue(self.est.impacto_respuestas['E1']['positivo'])
+        self.assertNotIn('E1', self.est.impacto_respuestas or {})
 
     def test_tablero_usa_la_captura_sin_inventar(self):
         WhatsappLog.objects.create(
@@ -88,7 +87,20 @@ class ImpactoCapturaTests(TestCase):
         self.assertEqual(texto, 'Ok.')
         self.assertIsNone(capturar_si_pendiente(self.tel, 'sí'))
 
+    def test_ningun_agente_pregunta_impacto_mientras_esta_pausada(self):
+        with override_settings(PREGUNTA_IMPACTO_AGENTES=False):
+            for agente in ('nat', 'finanzas', 'ventas', 'ia_campo'):
+                texto = anexar_cierre(agente, self.tel, 'Revise el lote.')
+                self.assertEqual(texto, 'Revise el lote.')
+        self.assertIsNone(capturar_si_pendiente(self.tel, 'sí'))
+
+    def test_nat_pregunta_impacto_si_se_reactiva(self):
+        with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
+            texto = anexar_cierre('nat', self.tel, 'Revise el lote.')
+        self.assertIn('clima o Nat', texto)
+
     def test_no_repite_pregunta_mientras_espera_respuesta(self):
-        primero = anexar_cierre('finanzas', self.tel, 'A')
-        self.assertIn('gastos del predio', primero)
-        self.assertEqual(anexar_cierre('finanzas', self.tel, 'B'), 'B')
+        with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
+            primero = anexar_cierre('finanzas', self.tel, 'A')
+            self.assertIn('gastos del predio', primero)
+            self.assertEqual(anexar_cierre('finanzas', self.tel, 'B'), 'B')

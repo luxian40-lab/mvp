@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import unicodedata
 
+from django.conf import settings
 from django.core.cache import cache
 
 from core.nati import normalizar_telefono_whatsapp
@@ -59,6 +60,8 @@ def ya_tiene(telefono: str, codigo: str) -> bool:
 
 
 def preparar_cierre(agente: str, telefono: str) -> str:
+    if not getattr(settings, 'PREGUNTA_IMPACTO_AGENTES', False):
+        return ''
     spec = PREGUNTAS.get(agente or '')
     if not spec:
         return ''
