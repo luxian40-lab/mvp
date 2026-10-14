@@ -336,6 +336,63 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(cards[0]['action']['buttons'][1]['quick_reply']['title'], 'Más información')
         self.assertEqual(cards[1]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
 
+    def test_mas_informacion_abre_la_pagina_en_el_carrusel(self):
+        from core.sandbox_canal import enviar_meta_carrusel
+
+        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
+            out = enviar_meta_carrusel(
+                '573001112233',
+                'Deslice los cursos.',
+                [{
+                    'body': '*Tiempo*\nPrioridades en el campo.',
+                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_tiempo.jpg',
+                    'url': URL_TIEMPO,
+                    'botones': [('ver_tiempo', 'Ver curso'), ('info_tiempo', 'Más información')],
+                }, {
+                    'body': '*Innovación*\nIA en el negocio.',
+                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_innovacion.jpg',
+                    'url': URL_INNOVACION,
+                    'botones': [('ver_innovacion', 'Ver curso'), ('info_innovacion', 'Más información')],
+                }],
+            )
+        self.assertTrue(out['success'])
+        self.assertEqual(post.call_count, 1)
+        cards = post.call_args.args[0]['interactive']['action']['cards']
+        self.assertEqual(cards[0]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
+        enlace = cards[0]['action']['buttons'][1]
+        self.assertEqual(enlace['type'], 'cta_url')
+        self.assertEqual(enlace['cta_url']['display_text'], 'Más información')
+        self.assertEqual(enlace['cta_url']['url'], URL_TIEMPO)
+        self.assertEqual(cards[1]['action']['buttons'][1]['cta_url']['url'], URL_INNOVACION)
+        self.assertNotIn('info_tiempo', str(cards[0]['action']['buttons'][1]))
+
+    def test_si_meta_rechaza_el_enlace_el_carrusel_sigue(self):
+        from core.sandbox_canal import enviar_meta_carrusel
+
+        with patch('core.sandbox_canal._post_graph', side_effect=[
+            {'success': False, 'mensaje_id': None, 'response': 'button mix'},
+            {'success': True, 'mensaje_id': '2'},
+        ]) as post:
+            out = enviar_meta_carrusel(
+                '573001112233',
+                'Deslice los cursos.',
+                [{
+                    'body': '*Tiempo*\nPrioridades.',
+                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_tiempo.jpg',
+                    'url': URL_TIEMPO,
+                    'botones': [('ver_tiempo', 'Ver curso'), ('info_tiempo', 'Más información')],
+                }, {
+                    'body': '*Riendas*\nLa plata.',
+                    'imagen': 'https://admin.eki.technology/static/carrusel/carrusel_riendas.jpg',
+                    'url': URL_RIENDAS,
+                    'botones': [('ver_riendas', 'Ver curso'), ('info_riendas', 'Más información')],
+                }],
+            )
+        self.assertTrue(out['success'])
+        self.assertEqual(post.call_count, 2)
+        segunda = post.call_args_list[1].args[0]['interactive']['action']['cards']
+        self.assertEqual(segunda[0]['action']['buttons'][1]['type'], 'quick_reply')
+
     def test_mas_informacion_abre_la_pagina_del_programa(self):
         self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')
         self.assertEqual(
