@@ -137,6 +137,7 @@ class CursosGeneralesTests(TestCase):
     SECURE_SSL_REDIRECT=False,
     LINEA_META_PLAN_DEFAULT='curso_asesor',
     LINEA_META_SOLO_REGISTRADOS=False,
+    WHATSAPP_API_VERSION='v19.0',
 )
 class CatalogoFormacionTests(TestCase):
     def setUp(self):
@@ -357,6 +358,7 @@ class CatalogoFormacionTests(TestCase):
             )
         self.assertTrue(out['success'])
         self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_args.kwargs.get('api_version'), 'v23.0')
         cards = post.call_args.args[0]['interactive']['action']['cards']
         for card, url in ((cards[0], URL_TIEMPO), (cards[1], URL_INNOVACION)):
             self.assertEqual(card['type'], 'cta_url')
@@ -373,6 +375,7 @@ class CatalogoFormacionTests(TestCase):
         with patch('core.sandbox_canal._post_graph', side_effect=[
             {'success': False, 'mensaje_id': None, 'response': 'button mix'},
             {'success': True, 'mensaje_id': '2'},
+            {'success': True, 'mensaje_id': '3'},
         ]) as post:
             out = enviar_meta_carrusel(
                 '573001112233',
@@ -390,16 +393,23 @@ class CatalogoFormacionTests(TestCase):
                 }],
             )
         self.assertTrue(out['success'])
-        self.assertEqual(post.call_count, 2)
+        self.assertEqual(post.call_count, 3)
         primero = post.call_args_list[0].args[0]['interactive']['action']['cards'][0]['action']
         self.assertEqual(primero['name'], 'cta_url')
         self.assertEqual(primero['parameters']['url'], URL_TIEMPO)
         self.assertNotIn('buttons', primero)
-        botones = post.call_args_list[1].args[0]['interactive']['action']['cards'][0]['action']['buttons']
-        self.assertEqual(len(botones), 2)
-        self.assertTrue(all(b['type'] == 'quick_reply' for b in botones))
-        self.assertEqual(botones[0]['quick_reply']['id'], 'ver_tiempo')
-        self.assertEqual(botones[1]['quick_reply']['title'], 'Más información')
+        for call, url, imagen in (
+            (post.call_args_list[1], URL_TIEMPO, 'carrusel_tiempo.jpg'),
+            (post.call_args_list[2], URL_RIENDAS, 'carrusel_riendas.jpg'),
+        ):
+            payload = call.args[0]
+            self.assertEqual(payload['interactive']['type'], 'cta_url')
+            self.assertEqual(payload['interactive']['action']['parameters']['url'], url)
+            self.assertEqual(
+                payload['interactive']['action']['parameters']['display_text'], 'Más información',
+            )
+            self.assertIn(imagen, payload['interactive']['header']['image']['link'])
+            self.assertNotIn('quick_reply', str(payload))
 
     def test_mas_informacion_abre_la_pagina_del_programa(self):
         self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')

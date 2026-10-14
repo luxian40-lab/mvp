@@ -731,12 +731,27 @@ def enviar_meta_lista(
     return enviar_meta(telefono, respaldo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
+def _version_carrusel_url() -> str:
+    """El CTA del carrusel pide Graph v23+. v19.0 lo redirige a un alias sin ese botón. Verificado 2026-10-14."""
+    from core.meta_waba import _version
+
+    ver = str(_version() or '').strip() or 'v23.0'
+    try:
+        n = int(ver.split('.')[0].lstrip('v'))
+    except ValueError:
+        return 'v23.0'
+    if n < 23:
+        return 'v23.0'
+    return ver
+
+
 def enviar_meta_url(
     telefono: str,
     texto: str,
     url: str,
     *,
     boton: str = 'Abrir página',
+    imagen: str = '',
     canal_evento: str = 'whatsapp_sandbox',
     agente_evento: str = 'sandbox_formacion',
 ) -> dict:
@@ -744,23 +759,27 @@ def enviar_meta_url(
     to = _telefono_graph(telefono)
     cuerpo = (texto or '').strip()[:1024]
     destino = (url or '').strip()
+    foto = (imagen or '').strip()
     if to and cuerpo and destino.startswith('https://'):
+        interactive = {
+            'type': 'cta_url',
+            'body': {'text': cuerpo},
+            'action': {
+                'name': 'cta_url',
+                'parameters': {
+                    'display_text': (boton or 'Abrir página')[:20],
+                    'url': destino[:2000],
+                },
+            },
+        }
+        if foto.startswith('https://'):
+            interactive['header'] = {'type': 'image', 'image': {'link': foto[:2000]}}
         result = _post_graph({
             'messaging_product': 'whatsapp',
             'recipient_type': 'individual',
             'to': to,
             'type': 'interactive',
-            'interactive': {
-                'type': 'cta_url',
-                'body': {'text': cuerpo},
-                'action': {
-                    'name': 'cta_url',
-                    'parameters': {
-                        'display_text': (boton or 'Abrir página')[:20],
-                        'url': destino[:2000],
-                    },
-                },
-            },
+            'interactive': interactive,
         }, agente=agente_evento)
         if result.get('success'):
             _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
@@ -790,7 +809,7 @@ def _cards_carrusel(tarjetas: list[dict], *, modo: str) -> list[dict]:
             continue
         if modo == 'enlace' and url.startswith('https://'):
             cards.append({
-                'card_index': i,
+                'card_index': len(cards),
                 'type': 'cta_url',
                 'header': {'type': 'image', 'image': {'link': imagen}},
                 'body': {'text': body},
@@ -870,6 +889,7 @@ def enviar_meta_carrusel(
     logger.info('sandbox_carrusel_modo %s cards=%s', modo, len(cards))
     result = _post_graph(
         _payload_carrusel(to, cuerpo, cards),
+        api_version=_version_carrusel_url() if abrir_pagina else None,
         agente=agente_evento,
     )
     if (
@@ -878,12 +898,23 @@ def enviar_meta_carrusel(
         and result.get('response') != 'Credentials not set'
     ):
         logger.warning('sandbox_carrusel_url_rechazado %s', result.get('response'))
-        cards = _cards_carrusel(lista, modo='respuesta')
-        if len(cards) >= 2:
-            result = _post_graph(
-                _payload_carrusel(to, cuerpo, cards),
-                agente=agente_evento,
+        ultimo = result
+        for tarjeta in con_pagina:
+            destino = str(tarjeta.get('url') or '')
+            if not destino.startswith('https://'):
+                continue
+            ultimo = enviar_meta_url(
+                telefono,
+                (tarjeta.get('body') or '').strip()[:1024],
+                destino,
+                boton='Más información',
+                imagen=(tarjeta.get('imagen') or '').strip(),
+                canal_evento=canal_evento,
+                agente_evento=agente_evento,
             )
+            if not ultimo.get('success'):
+                return ultimo
+        return ultimo
     if result.get('success'):
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
     return result
