@@ -713,8 +713,7 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     tarjetas = tarjetas_catalogo()
     cuerpo = (
         "Deslice los cursos de eki. "
-        "*Ver curso* lo inscribe en ese programa. "
-        "*Más información* abre la página."
+        "*Más información* abre la página del programa."
     )
     if not tarjetas:
         enviar_texto_sandbox(

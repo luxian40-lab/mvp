@@ -780,7 +780,7 @@ def _par_ver(tarjeta: dict) -> tuple[str, str]:
 
 
 def _cards_carrusel(tarjetas: list[dict], *, modo: str) -> list[dict]:
-    """modo: respuesta (dos quick reply), enlace (Ver curso + URL) o solo_url."""
+    """modo enlace: un botón nativo que abre la página. modo respuesta: dos quick reply."""
     cards = []
     for i, tarjeta in enumerate(list(tarjetas)[:10]):
         imagen = (tarjeta.get('imagen') or '').strip()
@@ -788,7 +788,7 @@ def _cards_carrusel(tarjetas: list[dict], *, modo: str) -> list[dict]:
         url = str(tarjeta.get('url') or '').strip()
         if not imagen or not body:
             continue
-        if modo == 'solo_url' and url.startswith('https://'):
+        if modo == 'enlace' and url.startswith('https://'):
             cards.append({
                 'card_index': i,
                 'type': 'cta_url',
@@ -810,20 +810,14 @@ def _cards_carrusel(tarjetas: list[dict], *, modo: str) -> list[dict]:
                 'type': 'quick_reply',
                 'quick_reply': {'id': ver_id, 'title': ver_titulo},
             })
-        if modo == 'enlace' and url.startswith('https://'):
-            botones.append({
-                'type': 'url',
-                'url': {'title': 'Más información', 'url': url[:2000]},
-            })
-        else:
-            for bid, title in list(tarjeta.get('botones') or [])[:2]:
-                titulo = str(title or '').strip()[:20]
-                ident = str(bid or '').strip()[:256]
-                if titulo == 'Más información' and ident:
-                    botones.append({
-                        'type': 'quick_reply',
-                        'quick_reply': {'id': ident, 'title': titulo},
-                    })
+        for bid, title in list(tarjeta.get('botones') or [])[:2]:
+            titulo = str(title or '').strip()[:20]
+            ident = str(bid or '').strip()[:256]
+            if titulo == 'Más información' and ident:
+                botones.append({
+                    'type': 'quick_reply',
+                    'quick_reply': {'id': ident, 'title': titulo},
+                })
         if len(botones) != 2:
             continue
         cards.append({
@@ -858,7 +852,7 @@ def enviar_meta_carrusel(
     canal_evento: str = 'whatsapp_sandbox',
     agente_evento: str = 'sandbox_formacion',
 ) -> dict:
-    """Carrusel con foto. Ver curso inscribe. Más información abre la página, sin otro mensaje."""
+    """Carrusel con foto. Más información abre la página, sin otro mensaje."""
     to = _telefono_graph(telefono)
     cuerpo = (texto or '').strip()[:1024]
     lista = list(tarjetas)[:10]
@@ -873,6 +867,7 @@ def enviar_meta_carrusel(
     cards = _cards_carrusel(lista, modo=modo)
     if len(cards) < 2 or not to or not cuerpo:
         return {'success': False, 'mensaje_id': None, 'response': 'Carrusel incompleto'}
+    logger.info('sandbox_carrusel_modo %s cards=%s', modo, len(cards))
     result = _post_graph(
         _payload_carrusel(to, cuerpo, cards),
         agente=agente_evento,
@@ -883,7 +878,7 @@ def enviar_meta_carrusel(
         and result.get('response') != 'Credentials not set'
     ):
         logger.warning('sandbox_carrusel_url_rechazado %s', result.get('response'))
-        cards = _cards_carrusel(lista, modo='solo_url')
+        cards = _cards_carrusel(lista, modo='respuesta')
         if len(cards) >= 2:
             result = _post_graph(
                 _payload_carrusel(to, cuerpo, cards),

@@ -358,13 +358,14 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(out['success'])
         self.assertEqual(post.call_count, 1)
         cards = post.call_args.args[0]['interactive']['action']['cards']
-        self.assertEqual(cards[0]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
-        enlace = cards[0]['action']['buttons'][1]
-        self.assertEqual(enlace['type'], 'url')
-        self.assertEqual(enlace['url']['title'], 'Más información')
-        self.assertEqual(enlace['url']['url'], URL_TIEMPO)
-        self.assertEqual(cards[1]['action']['buttons'][1]['url']['url'], URL_INNOVACION)
-        self.assertNotIn('info_tiempo', str(cards[0]['action']['buttons'][1]))
+        for card, url in ((cards[0], URL_TIEMPO), (cards[1], URL_INNOVACION)):
+            self.assertEqual(card['type'], 'cta_url')
+            self.assertNotIn('buttons', card['action'])
+            self.assertEqual(card['action']['name'], 'cta_url')
+            self.assertEqual(card['action']['parameters']['display_text'], 'Más información')
+            self.assertEqual(card['action']['parameters']['url'], url)
+        self.assertNotIn('info_tiempo', str(cards[0]['action']))
+        self.assertNotIn('quick_reply', str(cards))
 
     def test_si_meta_rechaza_el_enlace_el_carrusel_sigue(self):
         from core.sandbox_canal import enviar_meta_carrusel
@@ -390,11 +391,15 @@ class CatalogoFormacionTests(TestCase):
             )
         self.assertTrue(out['success'])
         self.assertEqual(post.call_count, 2)
-        accion = post.call_args_list[1].args[0]['interactive']['action']['cards'][0]['action']
-        self.assertEqual(accion['name'], 'cta_url')
-        self.assertEqual(accion['parameters']['display_text'], 'Más información')
-        self.assertEqual(accion['parameters']['url'], URL_TIEMPO)
-        self.assertNotIn('buttons', accion)
+        primero = post.call_args_list[0].args[0]['interactive']['action']['cards'][0]['action']
+        self.assertEqual(primero['name'], 'cta_url')
+        self.assertEqual(primero['parameters']['url'], URL_TIEMPO)
+        self.assertNotIn('buttons', primero)
+        botones = post.call_args_list[1].args[0]['interactive']['action']['cards'][0]['action']['buttons']
+        self.assertEqual(len(botones), 2)
+        self.assertTrue(all(b['type'] == 'quick_reply' for b in botones))
+        self.assertEqual(botones[0]['quick_reply']['id'], 'ver_tiempo')
+        self.assertEqual(botones[1]['quick_reply']['title'], 'Más información')
 
     def test_mas_informacion_abre_la_pagina_del_programa(self):
         self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')
