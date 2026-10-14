@@ -441,19 +441,15 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         botones.assert_called_once()
         cuerpo.assert_not_called()
 
-    def test_si_acepta_y_pide_la_cedula(self):
-        from core.models import Estudiante
+    def test_si_acepta_y_abre_el_menu(self):
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
         est = self._est()
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio, \
-                patch('core.sandbox_canal.enviar_sandbox_habeas') as botones, \
+        with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('Si', 'wamid.si1'))
         est.refresh_from_db()
         self.assertTrue(est.acepto_terminos)
-        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
-        self.assertIn('cédula', envio.call_args[0][1])
-        botones.assert_not_called()
+        self.assertEqual(est.estado_chat, 'ACTIVO')
+        menu.assert_called_once()
         cuerpo.assert_not_called()
-        self.assertTrue(Estudiante.objects.filter(pk=est.pk, acepto_terminos=True).exists())

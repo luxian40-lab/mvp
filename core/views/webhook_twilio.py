@@ -96,6 +96,18 @@ def _cortar_habeas_meta(post_data) -> bool:
     from core.utils import enviar_whatsapp_twilio
 
     destino = post_data.get('From', '') or est.telefono
+    if resultado.get('accion') == 'acepto':
+        if est.estado_chat == 'ESPERANDO_CEDULA':
+            est.estado_chat = 'ACTIVO'
+            est.save(update_fields=['estado_chat'])
+        from core.sandbox_menu import MODO_MENU, _get_or_create_sesion, _set_modo, enviar_menu_sandbox
+
+        sesion = _get_or_create_sesion(est.telefono)
+        sesion.habeas_aceptado = True
+        sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
+        _set_modo(sesion, MODO_MENU)
+        enviar_menu_sandbox(est.telefono, destino)
+        return True
     if resultado.get('accion') == 'reenviar_plantilla':
         enviar_sandbox_habeas(destino)
     else:

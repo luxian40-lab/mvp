@@ -170,27 +170,27 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(tarjetas[f'curso_{riendas.id}']['imagen'].startswith('https://'))
         self.assertIn('carrusel_riendas', tarjetas[f'curso_{riendas.id}']['imagen'])
 
-    def test_formacion_no_repite_carrusel_si_ya_eligio_este_mes(self):
+    def test_formacion_muestra_el_carrusel_aunque_ya_tenga_curso(self):
         from core.models import Estudiante, ProgresoEstudiante
 
         curso = Curso.objects.filter(catalogo_menu=True).first()
-        est = Estudiante.objects.create(nombre='Ya', cedula='CF1', telefono=self.tel)
+        est = Estudiante.objects.create(
+            nombre='Ya', cedula='CF1', telefono=self.tel, acepto_terminos=True,
+        )
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
-        with patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
-            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
-        ) as texto:
+        with patch(
+            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+        ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
-        carrusel.assert_not_called()
-        self.assertIn(f'Seguimos *{curso.nombre}*', texto.call_args.args[2])
-        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'cursos')
-        est.refresh_from_db()
-        self.assertEqual(est.contexto_temporal.get('curso_activo_id'), curso.id)
+        self.assertEqual(carrusel.call_count, 1)
 
     def test_menu_con_un_curso_muestra_el_menu(self):
         from core.models import Estudiante, ProgresoEstudiante
 
         curso = Curso.objects.filter(catalogo_menu=True).first()
-        Estudiante.objects.create(nombre='Ya', cedula='CF2', telefono=self.tel)
+        Estudiante.objects.create(
+            nombre='Ya', cedula='CF2', telefono=self.tel, acepto_terminos=True,
+        )
         ProgresoEstudiante.objects.create(
             estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
         )
@@ -212,7 +212,9 @@ class CatalogoFormacionTests(TestCase):
         from core.models import Estudiante, ProgresoEstudiante
 
         curso = Curso.objects.filter(catalogo_menu=True).first()
-        Estudiante.objects.create(nombre='Ya', cedula='CF2b', telefono=self.tel)
+        Estudiante.objects.create(
+            nombre='Ya', cedula='CF2b', telefono=self.tel, acepto_terminos=True,
+        )
         ProgresoEstudiante.objects.create(
             estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
         )
@@ -230,25 +232,20 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(lista.call_count, 1)
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, MODO_ASESORIA)
 
-    def test_dos_cursos_pregunta_cual_y_el_numero_entra(self):
+    def test_dos_cursos_abiertos_formacion_sigue_mostrando_el_carrusel(self):
         from core.models import Estudiante, ProgresoEstudiante
 
         cursos = list(Curso.objects.filter(catalogo_menu=True).order_by('id')[:2])
-        est = Estudiante.objects.create(nombre='Dos', cedula='CF3', telefono=self.tel)
+        est = Estudiante.objects.create(
+            nombre='Dos', cedula='CF3', telefono=self.tel, acepto_terminos=True,
+        )
         for curso in cursos:
             ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
-        with patch('core.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista:
+        with patch(
+            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+        ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
-        filas = lista.call_args.args[3]
-        self.assertCountEqual([fila[0] for fila in filas], [f'seguir_{c.id}' for c in cursos])
-        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'formacion')
-        elegido = int(filas[1][0].split('_')[1])
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
-            dispatch_sandbox_menu({**self.base, 'Body': '2'})
-        self.assertIn(Curso.objects.get(pk=elegido).nombre, texto.call_args.args[2])
-        est.refresh_from_db()
-        self.assertEqual(est.contexto_temporal.get('curso_activo_id'), elegido)
-        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'cursos')
+        self.assertEqual(carrusel.call_count, 1)
 
     def test_curso_nuevo_marcado_en_el_menu_entra_al_carrusel_y_se_inscribe(self):
         from core.cursos_generales import inscribir_en_catalogo, tarjetas_catalogo

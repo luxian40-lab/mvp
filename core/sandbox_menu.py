@@ -449,7 +449,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     eleccion = _normalizar_eleccion_raiz(body)
 
-    if eleccion == 'menu':
+    if eleccion == 'menu' or (body or '').strip().lower() == 'iniciar':
         _set_modo(sesion, MODO_MENU)
         decision.action = 'show_menu'
         return decision
@@ -658,9 +658,6 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     """Carrusel con los cursos generales del menú. Ver curso inscribe. Más información manda la ficha."""
     from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
     from core.sandbox_canal import enviar_meta_botones, enviar_meta_carrusel, sandbox_via_meta
-
-    if ofrecer_cursos_en_curso(telefono_usuario, from_number):
-        return
 
     tarjetas = tarjetas_catalogo()
     cuerpo = (
@@ -1016,24 +1013,44 @@ def _habeas_listo(telefono: str) -> bool:
     return False
 
 
+def _aceptar_habeas_y_abrir_menu(telefono: str, from_number: str, est) -> str:
+    from core.consentimiento_wa import registrar_optin
+
+    if est is not None:
+        registrar_optin(est, 'habeas')
+        campos = []
+        if not est.acepto_terminos:
+            est.acepto_terminos = True
+            est.fecha_aceptacion_terminos = timezone.now()
+            campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
+        if est.estado_chat in ('ESPERANDO_HABEAS_DATA', 'ESPERANDO_CEDULA'):
+            est.estado_chat = 'ACTIVO'
+            campos.append('estado_chat')
+        if campos:
+            est.save(update_fields=campos)
+    sesion = _get_or_create_sesion(telefono)
+    sesion.habeas_aceptado = True
+    sesion.modo = MODO_MENU
+    sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
+    enviar_menu_sandbox(telefono, from_number)
+    return 'handled'
+
+
 def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     """None si ya puede ver el menú. 'handled' si esta vuelta fue solo habeas."""
+    from core.utils_telefono import estudiante_por_telefono
+
+    t = (body or '').strip().lower()
+    est = estudiante_por_telefono(telefono)
+    # Aceptar abre el menú aunque la sesión ya estuviera en un curso.
+    if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo') and (
+        est is None or not est.acepto_terminos
+    ):
+        return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
     if _habeas_listo(telefono):
         return None
-    t = (body or '').strip().lower()
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo'):
-        from core.consentimiento_wa import registrar_optin
-        from core.utils_telefono import estudiante_por_telefono
-
-        est = estudiante_por_telefono(telefono)
-        if est is not None:
-            registrar_optin(est, 'habeas')
-        sesion = _get_or_create_sesion(telefono)
-        sesion.habeas_aceptado = True
-        sesion.modo = MODO_MENU
-        sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
-        enviar_menu_sandbox(telefono, from_number)
-        return 'handled'
+        return _aceptar_habeas_y_abrir_menu(telefono, from_number, est)
     if t in ('no_acepto', 'no acepto', 'no'):
         enviar_texto_sandbox(
             telefono,

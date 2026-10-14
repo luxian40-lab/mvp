@@ -73,6 +73,30 @@ class MetaFunnelTests(TestCase):
                 titulos = [b['reply']['title'] for b in inter['action']['buttons']]
         self.assertEqual(titulos, ['Formación', 'Asesoría'])
 
+    def test_acepto_abre_el_menu_aunque_la_sesion_siga_en_el_curso(self):
+        tel = '573009991003'
+        Estudiante.objects.create(
+            nombre='Julian',
+            cedula='1014',
+            telefono=tel,
+            acepto_terminos=False,
+            estado_chat='ACTIVO',
+            estado_onboarding='completado',
+        )
+        SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cursos')
+        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'acepto'))
+        self.assertEqual(ruta, 'handled')
+        titulos = []
+        for call in send.call_args_list:
+            inter = (call.args[0].get('interactive') or {})
+            if inter.get('type') == 'button':
+                titulos = [b['reply']['title'] for b in inter['action']['buttons']]
+        self.assertEqual(titulos, ['Formación', 'Asesoría'])
+        est = Estudiante.objects.get(telefono=tel)
+        self.assertTrue(est.acepto_terminos)
+        self.assertNotEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+
     def test_inscrito_con_telefono_local_toma_plan_de_la_org(self):
         org = Cliente.objects.create(
             nombre='OrgVar',

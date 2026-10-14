@@ -264,7 +264,7 @@ class MenuPorPlanTests(TestCase):
         self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_CURSOS] * 2)
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante__telefono=tel).exists())
 
-    def test_op1_dice_el_cupo_y_formacion_sigue_el_curso_del_mes(self):
+    def test_op1_dice_el_cupo_y_formacion_abre_el_carrusel(self):
         tel = '573005550015'
         self._sesion(tel, PLAN_CURSO_ASESOR)
         org = _org('OP1')
@@ -283,8 +283,8 @@ class MenuPorPlanTests(TestCase):
         with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'formacion'))
         cuerpo = _textos(send)[0]
-        self.assertIn('Seguimos *Café del mes*', cuerpo)
-        self.assertNotIn('Deslice', cuerpo)
+        self.assertNotIn('Seguimos', cuerpo)
+        self.assertNotIn('Café del mes', cuerpo)
 
     def test_op3_con_curso_empezado_ofrece_seguirlo(self):
         tel = '573005550016'
