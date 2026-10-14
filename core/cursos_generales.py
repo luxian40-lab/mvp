@@ -13,9 +13,9 @@ NOMBRE_RIENDAS = 'Tome las riendas de su dinero'
 NOMBRE_INNOVACION = 'Innovación e IA para nuevos emprendedores'
 NOMBRE_TIEMPO = 'Gestión de tiempo y productividad personal en el campo'
 
-URL_RIENDAS = 'https://www.eki.com.co/programas#tome-las-riendas-de-su-dinero'
-URL_INNOVACION = 'https://www.eki.com.co/programas#innovacion-e-ia-para-nuevos-emprendedores'
-URL_TIEMPO = 'https://www.eki.com.co/programas#gestion-de-tiempo-y-productividad-personal-en-el-campo'
+URL_RIENDAS = 'https://www.eki.com.co/programas/tome-las-riendas'
+URL_INNOVACION = 'https://www.eki.com.co/programas/emprendimiento-agro-rural'
+URL_TIEMPO = 'https://www.eki.com.co/programas/comercializacion-ventas'
 
 CATALOGO = (
     {
@@ -179,7 +179,7 @@ def item_catalogo(clave: str) -> dict | None:
         'clave': clave,
         'nombre': curso.nombre,
         'resumen': ' '.join((curso.descripcion or '').split())[:200],
-        'url': '',
+        'url': _URL_POR_NOMBRE.get(curso.nombre, ''),
     }
 
 

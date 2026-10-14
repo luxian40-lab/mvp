@@ -731,6 +731,46 @@ def enviar_meta_lista(
     return enviar_meta(telefono, respaldo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
+def enviar_meta_url(
+    telefono: str,
+    texto: str,
+    url: str,
+    *,
+    boton: str = 'Abrir página',
+    canal_evento: str = 'whatsapp_sandbox',
+    agente_evento: str = 'sandbox_formacion',
+) -> dict:
+    """Botón que abre una página. Si Meta no lo acepta, manda el enlace en texto."""
+    to = _telefono_graph(telefono)
+    cuerpo = (texto or '').strip()[:1024]
+    destino = (url or '').strip()
+    if to and cuerpo and destino.startswith('https://'):
+        result = _post_graph({
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'cta_url',
+                'body': {'text': cuerpo},
+                'action': {
+                    'name': 'cta_url',
+                    'parameters': {
+                        'display_text': (boton or 'Abrir página')[:20],
+                        'url': destino[:2000],
+                    },
+                },
+            },
+        }, agente=agente_evento)
+        if result.get('success'):
+            _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
+            return result
+    aviso = cuerpo or destino
+    if destino and destino not in aviso:
+        aviso = f'{aviso}\n\n{destino}'.strip()
+    return enviar_meta(telefono, aviso, canal_evento=canal_evento, agente_evento=agente_evento)
+
+
 def enviar_meta_carrusel(
     telefono: str,
     texto: str,

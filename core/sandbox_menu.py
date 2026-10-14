@@ -706,7 +706,7 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 
 
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
-    """Carrusel con los cursos generales del menú. Ver curso inscribe. Más información manda la ficha."""
+    """Carrusel con los cursos generales del menú. Ver curso inscribe. Más información abre la página."""
     from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
     from core.sandbox_canal import enviar_meta_botones, enviar_meta_carrusel, sandbox_via_meta
 
@@ -714,7 +714,7 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     cuerpo = (
         "Deslice los cursos de eki. "
         "*Ver curso* lo inscribe en ese programa. "
-        "*Más información* le manda la ficha."
+        "*Más información* abre la página."
     )
     if not tarjetas:
         enviar_texto_sandbox(
@@ -770,10 +770,22 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         enviar_catalogo_formacion(telefono_usuario, from_number)
         return
     if dato.get('accion') == 'info':
+        from core.sandbox_canal import enviar_meta_url, sandbox_via_meta
+
+        ficha = f"*{item['nombre']}*\n{item['resumen']}\n\n{item['url']}\n\n_*menu* para volver._"
+        if sandbox_via_meta() and str(item.get('url') or '').startswith('https://'):
+            enviar_meta_url(
+                telefono_usuario,
+                ficha,
+                item['url'],
+                boton='Abrir página',
+                agente_evento='sandbox_formacion',
+            )
+            return
         enviar_texto_sandbox(
             telefono_usuario,
             from_number,
-            f"*{item['nombre']}*\n{item['resumen']}\n\n{item['url']}\n\n_*menu* para volver._",
+            ficha,
             agente='sandbox_formacion',
         )
         return

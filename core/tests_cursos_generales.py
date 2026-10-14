@@ -7,8 +7,11 @@ from core.cursos_generales import (
     NOMBRE_INNOVACION,
     NOMBRE_RIENDAS,
     NOMBRE_TIEMPO,
+    URL_INNOVACION,
+    URL_RIENDAS,
     URL_TIEMPO,
     asegurar_cursos_generales,
+    item_catalogo,
 )
 from core.models import (
     Cliente,
@@ -333,14 +336,31 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(cards[0]['action']['buttons'][1]['quick_reply']['title'], 'Más información')
         self.assertEqual(cards[1]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
 
-    def test_mas_informacion_manda_la_ficha(self):
+    def test_mas_informacion_abre_la_pagina_del_programa(self):
+        self.assertEqual(URL_TIEMPO, 'https://www.eki.com.co/programas/comercializacion-ventas')
+        self.assertEqual(
+            URL_INNOVACION, 'https://www.eki.com.co/programas/emprendimiento-agro-rural',
+        )
+        self.assertEqual(URL_RIENDAS, 'https://www.eki.com.co/programas/tome-las-riendas')
         resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
-            out = dispatch_sandbox_menu({**self.base, 'Body': 'info_tiempo'})
+        tiempo = Curso.objects.get(nombre=NOMBRE_TIEMPO, catalogo_menu=True)
+        innovacion = Curso.objects.get(nombre=NOMBRE_INNOVACION, catalogo_menu=True)
+        riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
+        self.assertEqual(item_catalogo(f'curso_{tiempo.id}')['url'], URL_TIEMPO)
+        self.assertEqual(item_catalogo(f'curso_{innovacion.id}')['url'], URL_INNOVACION)
+        self.assertEqual(item_catalogo(f'curso_{riendas.id}')['url'], URL_RIENDAS)
+        with patch(
+            'core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'},
+        ) as post:
+            out = dispatch_sandbox_menu({**self.base, 'Body': f'info_curso_{tiempo.id}'})
         self.assertEqual(out, 'handled')
-        cuerpo = texto.call_args.args[2]
-        self.assertIn(NOMBRE_TIEMPO, cuerpo)
-        self.assertIn(URL_TIEMPO, cuerpo)
+        payload = post.call_args.args[0]
+        self.assertEqual(payload['interactive']['type'], 'cta_url')
+        self.assertEqual(payload['interactive']['action']['parameters']['url'], URL_TIEMPO)
+        self.assertEqual(
+            payload['interactive']['action']['parameters']['display_text'], 'Abrir página',
+        )
+        self.assertIn(NOMBRE_TIEMPO, payload['interactive']['body']['text'])
 
     def test_ver_curso_no_borra_otro_progreso(self):
         org = Cliente.objects.get(nit='900222')
