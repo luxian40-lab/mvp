@@ -90,9 +90,8 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, '*aula*')
         self.assertContains(r, 'Cómo entro')
         self.assertNotContains(r, 'Aula virtual')
-        self.assertNotContains(r, 'hero-aula.png')
-        self.assertNotContains(r, 'hero-estudiante.png')
-        self.assertNotContains(r, 'hero-docente.png')
+        self.assertContains(r, 'hero-aula.png')
+        self.assertContains(r, 'eki-hero-bleed__media')
 
     def test_login_estudiante_celebra_whatsapp(self):
         r = self.http.get('/aprende/estudiante/login/')
@@ -101,8 +100,8 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'name="codigo"')
         self.assertContains(r, '*aula*')
         self.assertContains(r, 'Documento + clave')
-        self.assertNotContains(r, 'hero-estudiante.png')
-        self.assertNotContains(r, 'hero-aula.png')
+        self.assertContains(r, 'hero-estudiante.png')
+        self.assertContains(r, 'eki-login-visual__media--estudiante')
         self.assertContains(r, 'Olvidé')
         self.assertContains(r, 'og:image')
         self.assertContains(r, 'og-aprende-v3')
@@ -876,6 +875,8 @@ class AprendeProfesorAuthTests(TestCase):
         })
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Administrador o Profesor')
+        self.assertContains(r, 'hero-docente.png')
+        self.assertContains(r, 'eki-login-visual__media--docente')
 
     def test_superuser_no_entra_profesor_login(self):
         su = User.objects.create_superuser('su_luisa', 'su@t.com', 'pass1234')

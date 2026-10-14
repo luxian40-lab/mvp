@@ -59,6 +59,9 @@
             --font-read: "Expletus Sans", "Segoe UI", sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
             --eki-hero-wash: linear-gradient(145deg, #5F3A6E 0%, #3d2750 52%, #1a1224 100%);
+            --eki-hero-art: url("{% static 'aprende/hero-estudiante.png' %}");
+            --eki-hero-docente: url("{% static 'aprende/hero-docente.png' %}");
+            --eki-hero-landing: url("{% static 'aprende/hero-aula.png' %}");
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -280,14 +283,25 @@
             color: #fff;
             overflow: hidden;
             isolation: isolate;
-            background: var(--eki-hero-wash);
+            background: #1a1224;
+        }
+
+        .eki-hero-bleed__media {
+            position: absolute;
+            inset: -4% -6%;
+            z-index: -2;
+            background: var(--eki-hero-landing) center 42% / cover no-repeat;
+            opacity: 0.92;
+            animation: eki-ken 22s var(--ease) both;
         }
 
         .eki-hero-bleed__shade {
             position: absolute;
             inset: 0;
             z-index: -1;
-            background: linear-gradient(180deg, rgba(26, 18, 36, 0.12) 0%, rgba(26, 18, 36, 0.38) 100%);
+            background:
+                linear-gradient(105deg, rgba(26, 18, 36, 0.88) 0%, rgba(26, 18, 36, 0.42) 46%, rgba(26, 18, 36, 0.12) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.9) 0%, transparent 52%);
         }
 
         .eki-hero-bleed__inner {
@@ -769,7 +783,29 @@
             justify-content: flex-end;
             padding: clamp(2rem, 5vw, 3.5rem);
             color: #fff;
-            background: var(--eki-hero-wash);
+            background: #1a1224;
+        }
+
+        .eki-login-visual__media {
+            position: absolute;
+            inset: -5% -8%;
+            z-index: -2;
+            background: var(--eki-hero-art) center 36% / cover no-repeat;
+            opacity: 0.88;
+            animation: eki-ken 22s var(--ease) both;
+        }
+
+        .eki-login-visual__media--estudiante {
+            background-image: var(--eki-hero-art);
+            background-position: center 32%;
+        }
+
+        .eki-login-visual__media--docente {
+            background-image: var(--eki-hero-docente);
+            background-position: center 40%;
+            opacity: 0.92;
+            animation: eki-ken 22s var(--ease) both;
+            inset: -5% -8%;
         }
 
         .eki-login-visual--docente {
@@ -778,7 +814,9 @@
         }
 
         .eki-login-visual--docente .eki-login-visual__shade {
-            background: linear-gradient(180deg, rgba(26, 18, 36, 0.12) 0%, rgba(26, 18, 36, 0.38) 100%);
+            background:
+                linear-gradient(105deg, rgba(26, 18, 36, 0.9) 0%, rgba(26, 18, 36, 0.45) 48%, rgba(26, 18, 36, 0.12) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.88) 0%, transparent 50%);
         }
 
         .eki-login-visual--docente .eki-login-visual__logo,
@@ -809,7 +847,9 @@
             position: absolute;
             inset: 0;
             z-index: -1;
-            background: linear-gradient(180deg, rgba(26, 18, 36, 0.08) 0%, rgba(26, 18, 36, 0.32) 100%);
+            background:
+                linear-gradient(115deg, rgba(26, 18, 36, 0.78) 0%, rgba(61, 39, 80, 0.42) 50%, rgba(26, 18, 36, 0.2) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.88) 0%, rgba(26, 18, 36, 0.2) 48%, transparent 72%);
         }
 
         .eki-login-visual__logo {
