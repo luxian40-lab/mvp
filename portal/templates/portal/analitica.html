@@ -78,7 +78,7 @@
     .ana-links { margin-top: 56px; color: var(--texto-muted); font-size: 14px; }
     .imp-row {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 36px;
         align-items: start;
         margin-top: 12px;
@@ -289,12 +289,8 @@
         </div>
 
         <p class="ana-links">También:
-            <a href="/portal/cobertura/">Cobertura</a>
             <a href="/portal/metricas/">Métricas detalladas</a>
             <a href="/portal/reportes/">Reportes</a>
-            <a href="/portal/timeline/">Actividad</a>
-            <a href="/portal/gamificacion/">Gamificación</a>
-            <a href="/portal/certificados/">Certificados</a>
         </p>
     </section>
 
@@ -333,6 +329,10 @@
             <p class="muted" style="margin:0;">El ranking aparece cuando la organización tiene puntos o calificación activos.</p>
         </article>
         {% endif %}
+        <p class="ana-links">También:
+            <a href="/portal/certificados/">Certificados</a>
+            <a href="/portal/gamificacion/">Gamificación</a>
+        </p>
     </section>
 
     <section id="ana-retencion" {% if seccion != 'retencion' %}hidden{% endif %}>

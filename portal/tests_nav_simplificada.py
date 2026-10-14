@@ -51,9 +51,19 @@ class PortalNavSimplificadaTests(TestCase):
         html = r.content.decode()
         for label in (
             'Uso de plataforma', 'Desarrollo de habilidades', 'Retención', 'Impacto',
-            'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación',
+            'Cobertura', 'Métricas detalladas', 'Reportes',
         ):
             self.assertIn(label, html)
+        sub = html.split('id="analitica-sub"', 1)[1].split('</div>', 1)[0]
+        self.assertLess(sub.find('Impacto'), sub.find('Cobertura'))
+        self.assertNotIn('href="/portal/timeline/"', html)
+        uso = html.split('id="ana-uso"', 1)[1].split('id="ana-habilidades"', 1)[0]
+        hab = html.split('id="ana-habilidades"', 1)[1].split('id="ana-retencion"', 1)[0]
+        self.assertNotIn('/portal/gamificacion/', uso)
+        self.assertNotIn('/portal/certificados/', uso)
+        self.assertNotIn('/portal/cobertura/', uso)
+        self.assertIn('/portal/certificados/', hab)
+        self.assertLess(hab.find('/portal/certificados/'), hab.find('/portal/gamificacion/'))
         self.assertIn('id="analitica-sub"', html)
         self.assertIn('analitica-toggle', html)
 

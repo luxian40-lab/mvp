@@ -1594,16 +1594,17 @@
                 <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
                 <span class="link-text">Fábrica de competencias</span>
             </a>
-            <button type="button" class="sidebar-link sidebar-analitica-toggle {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" id="analitica-toggle" aria-expanded="{% if request.path == '/portal/analitica/' %}true{% else %}false{% endif %}" aria-controls="analitica-sub" title="Métricas y reportes">
+            <button type="button" class="sidebar-link sidebar-analitica-toggle {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" id="analitica-toggle" aria-expanded="{% if request.path == '/portal/analitica/' or '/portal/cobertura' in request.path %}true{% else %}false{% endif %}" aria-controls="analitica-sub" title="Métricas y reportes">
                 <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                 <span class="link-text">Analítica</span>
                 <svg class="link-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
             </button>
-            <div class="sidebar-sub" id="analitica-sub" {% if request.path != '/portal/analitica/' %}hidden{% endif %}>
+            <div class="sidebar-sub" id="analitica-sub" {% if request.path != '/portal/analitica/' and '/portal/cobertura' not in request.path %}hidden{% endif %}>
                 <a class="sidebar-sublink {% if request.GET.s == 'uso' or not request.GET.s and request.path == '/portal/analitica/' %}active{% endif %}" href="/portal/analitica/?s=uso">Uso de plataforma</a>
                 <a class="sidebar-sublink {% if request.GET.s == 'habilidades' %}active{% endif %}" href="/portal/analitica/?s=habilidades">Desarrollo de habilidades</a>
                 <a class="sidebar-sublink {% if request.GET.s == 'retencion' or request.GET.s == 'exito' %}active{% endif %}" href="/portal/analitica/?s=retencion">Retención</a>
                 <a class="sidebar-sublink {% if request.GET.s == 'impacto' %}active{% endif %}" href="/portal/analitica/?s=impacto">Impacto</a>
+                <a class="sidebar-sublink {% if '/portal/cobertura' in request.path %}active{% endif %}" href="/portal/cobertura/">Cobertura</a>
             </div>
             {% endif %}
             <a href="{% url 'portal_soporte' %}" class="sidebar-link {% if request.path == '/portal/soporte/' or '/portal/feedback' in request.path or '/portal/pqrs' in request.path %}active{% endif %}" title="Ayuda y PQRS">

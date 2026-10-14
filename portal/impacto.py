@@ -1,4 +1,7 @@
-"""Doce indicadores núcleo para Portal → Analítica → Impacto.
+"""Indicadores núcleo para Portal → Analítica → Impacto.
+
+El tablero muestra tres ejes: Económico, Social y Ambiental.
+G1 y G2 siguen en ``por_codigo`` y no se publican en la vista.
 
 S1 y S2 salen del sistema (A). El resto se muestra pendiente hasta que exista
 captura. No se inventa un porcentaje. Un corte con n < 10 no publica %.
@@ -288,10 +291,9 @@ def impacto_nucleo(org, *, ahora=None) -> dict:
     por_codigo['G2'] = g2
 
     grupos = {
-        'Social': [por_codigo[c] for c in ('S1', 'S2', 'S3', 'S4')],
         'Económico': [por_codigo[c] for c in ('E1', 'E2', 'E3')],
+        'Social': [por_codigo[c] for c in ('S1', 'S2', 'S3', 'S4')],
         'Ambiental': [por_codigo[c] for c in ('A1', 'A2', 'A3')],
-        'Gobernanza': [por_codigo[c] for c in ('G1', 'G2')],
     }
     return {
         'periodo_dias': DIAS_PERIODO,

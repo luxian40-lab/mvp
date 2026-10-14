@@ -177,7 +177,11 @@ class ImpactoPortalTests(TestCase):
         self.http = Client()
         self.http.post('/portal/login/', {'username': 'imp_admin', 'password': 'pass'})
 
-    def test_impacto_muestra_los_12_y_no_el_dibujo_viejo(self):
+    def test_grupos_visibles_economico_social_ambiental(self):
+        grupos = list(impacto_nucleo(self.org)['grupos'])
+        self.assertEqual(grupos, ['Económico', 'Social', 'Ambiental'])
+
+    def test_impacto_muestra_tres_ejes_y_no_el_dibujo_viejo(self):
         r = self.http.get('/portal/analitica/?s=impacto')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
@@ -185,8 +189,15 @@ class ImpactoPortalTests(TestCase):
         self.assertNotIn('id="ana-impacto" hidden', html)
         self.assertIn('S1', html)
         self.assertIn('Alcance inclusivo', html)
-        self.assertIn('G1', html)
         self.assertIn('contribución', html)
         self.assertNotIn('Power skills', html)
-        for codigo in ('S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'A1', 'A2', 'A3', 'G1', 'G2'):
+        self.assertNotIn('Gobernanza', html)
+        for codigo in ('S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'A1', 'A2', 'A3'):
             self.assertIn(codigo, html)
+        bloque = html.split('id="ana-impacto"', 1)[1]
+        eco = bloque.find('>Económico<')
+        social = bloque.find('>Social<')
+        ambiental = bloque.find('>Ambiental<')
+        self.assertTrue(0 <= eco < social < ambiental)
+        self.assertNotIn('G1', bloque)
+        self.assertNotIn('G2', bloque)
