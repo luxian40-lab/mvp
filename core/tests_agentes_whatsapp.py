@@ -74,9 +74,11 @@ class CheckpointSinTitularTests(TestCase):
         msg = activar_checkpoint_facilitador(self.est, self.prog, self.mod)
         self.assertFalse(titular_agente_al_inicio(msg, 'Carlos'))
         self.assertFalse(msg.startswith('*Carlos*'))
-        self.assertTrue(msg.startswith('¡Hola!'), msg[:80])
+        self.assertTrue(msg.startswith('Soy el Compañero'), msg[:80])
         self.assertIn('pausa para repasar', msg.lower())
-        self.assertIn('Su asesor lo va a recibir', msg)
+        self.assertIn('El Formador', msg)
+        self.assertNotIn('Carlos', msg)
+        self.assertNotIn('Claudia', msg)
 
 
 class PresentacionYRetoSinTitularTests(TestCase):
@@ -90,9 +92,10 @@ class PresentacionYRetoSinTitularTests(TestCase):
         fac, asist = generar_presentacion_agentes(
             curso.nombre, 'Ana', nombre_tutor='Claudia', nombre_asistente='Darío', curso=curso,
         )
-        self.assertFalse(titular_agente_al_inicio(fac, 'Claudia'))
-        self.assertFalse(titular_agente_al_inicio(asist, 'Darío'))
-        self.assertIn('compañero de estudio', asist)
+        self.assertIn('Formador', fac)
+        self.assertIn('Compañero', asist)
+        self.assertNotIn('Claudia', fac)
+        self.assertNotIn('Darío', asist)
         self.assertIn('Ana', fac)
 
     def test_reto_no_abre_con_titular(self):

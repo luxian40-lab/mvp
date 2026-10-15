@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # PROMPT FACILITADOR(A) — ABR (Aprendizaje Basado en Retos)
 # Se activa DESPUÉS de que Darío termina (módulos 3 y 5)
 # =====================================================
-PROMPT_FACILITADOR_RETO = """Eres la Facilitadora de eki. Tu rol es plantear un reto conversacional al participante.
+PROMPT_FACILITADOR_RETO = """Eres el Formador de eki. Tu rol es plantear un reto conversacional al participante.
 
 FORMATO DEL RETO:
 - Describe una situación real en 2-3 oraciones alineada SOLO al tema de los módulos y al nombre del curso recibidos en el mensaje (finanzas del hogar, emprendimiento rural, agricultura, otro — según ese contexto, sin inventar otro dominio).
@@ -41,7 +41,7 @@ REGLAS OBLIGATORIAS:
 10. PROHIBIDO usar la palabra "ACCIONA", "Acciona" o variaciones como encabezado o en negrita."""
 
 
-PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
+PROMPT_FACILITADOR_EVALUACION = """Eres el Formador de eki, evaluador con metodología ABR.
 El participante respondió a un reto. Evalúa su respuesta con esta RÚBRICA (1-10):
 
 DIMENSIONES DE EVALUACIÓN:
@@ -80,7 +80,7 @@ ESCALA OBLIGATORIA (no regalar puntos; varíe según evidencia real):
 - Nunca repita la misma retroalimentación genérica si la evidencia cambió."""
 
 
-PROMPT_FACILITADOR_EVALUACION_NOTAS = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
+PROMPT_FACILITADOR_EVALUACION_NOTAS = """Eres el Formador de eki, evaluador con metodología ABR.
 El participante respondió a un reto. Asigne una NOTA de 1 a 5 (puede usar un decimal, ej. 3.5).
 
 DIMENSIONES (referencia interna, no liste todo al estudiante):
@@ -114,7 +114,7 @@ ESCALA OBLIGATORIA (nota 1–5; no regalar):
 # Se activa SOLO al final de módulo 3 y módulo 5
 # =====================================================
 def _prompt_sistema_asistente(nombre_asistente: str) -> str:
-    na = (nombre_asistente or "Darío").strip() or "Darío"
+    na = (nombre_asistente or "Compañero").strip() or "Compañero"
     return f"""Eres {na}, el asistente y compañero de estudio de eki.
 TRATO DE USTED siempre ("usted", "su", "le").
 Su rol: ayudar a repasar el dominio del curso antes del reto de la facilitadora.
@@ -702,9 +702,9 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
         na = (
             (getattr(cl, "nombre_agente_asistente", None) or "")
             or (getattr(c, "nombre_agente_asistente", None) or "")
-            or "Darío"
+            or "Compañero"
         )
-    na = (na or "Darío").strip() or "Darío"
+    na = (na or "Compañero").strip() or "Compañero"
 
     if not client:
         return _fallback_respuesta_asistente()
@@ -879,7 +879,7 @@ def _fallback_respuesta_asistente():
     """Respuesta del compañero sin IA."""
     return (
         "En este momento no pude consultar las fuentes. "
-        "Toque Continuemos para pasar al reto de la facilitadora, \n\n[SEND_BUTTON:continuemos] "
+        "Pulse continuar, para seguir aprendiendo, "
         "o formule de nuevo su pregunta sobre el tema del curso."
     )
 
@@ -900,7 +900,7 @@ def evaluar_respuesta_modulo(modulo, respuesta_estudiante: str, pregunta_origina
 # PROMPT MARÍA — REMOVED in v1.9.8g (replaced by Darío)
 # Functions kept as stubs for backward compatibility
 # =====================================================
-PROMPT_MARIA_MENTORA = """Eres Darío, asistente de estudio de eki. Trato informal (tú). Máximo 60 palabras. Sé amigable y cercano."""
+PROMPT_MARIA_MENTORA = """Eres el Compañero, asistente de estudio de eki. Trato de usted. Máximo 60 palabras. Sea claro y cercano."""
 
 
 def generar_revision_progreso(modulo_actual, modulos_completados, curso_nombre,
@@ -1081,8 +1081,8 @@ def _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre):
 def generar_presentacion_agentes(
     curso_nombre,
     estudiante_nombre="Estudiante",
-    nombre_tutor="Claudia",
-    nombre_asistente="Darío",
+    nombre_tutor="Formador",
+    nombre_asistente="Compañero",
     *,
     curso=None,
 ) -> tuple:
@@ -1099,31 +1099,30 @@ def generar_presentacion_agentes(
         nombre_display_facilitador,
     )
 
-    nombre_tutor = nombre_display_facilitador(curso, fallback=nombre_tutor or 'Claudia')
+    nombre_tutor = 'Formador'
+    if es_perfil_tecnicoagro(curso):
+        nombre_tutor = nombre_display_facilitador(curso, fallback='Formador')
     from core.agentes_whatsapp import mensaje_con_titular_agente
 
     if es_perfil_tecnicoagro(curso):
         rol = etiqueta_rol_facilitador(curso)
         cuerpo_fac = (
-            f"¡Hola {estudiante_nombre}! Soy el {rol} ({nombre_tutor}).\n\n"
+            f"Hola {estudiante_nombre}. Soy el {rol} ({nombre_tutor}).\n\n"
             f"Seré su apoyo técnico en el curso *{curso_nombre}*. "
-            f"Le plantearé micro-retos de campo para aplicar lo aprendido. "
-            f"¡Vamos a aprender juntos!"
+            f"Le plantearé micro-retos de campo para aplicar lo aprendido."
         )
     else:
         cuerpo_fac = (
-            f"¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}.\n\n"
-            f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
-            f"Le plantearé retos prácticos para que aplique lo aprendido. "
-            f"¡Vamos a aprender juntos!"
+            f"Hola {estudiante_nombre}. Soy el Formador.\n\n"
+            f"Seré su formador en el curso *{curso_nombre}*. "
+            f"Le plantearé retos prácticos para que aplique lo aprendido."
         )
     msg_facilitador = mensaje_con_titular_agente(nombre_tutor, cuerpo_fac)
 
     cuerpo_asist = (
-        f"¡Y yo soy {nombre_asistente}, su compañero de estudio!\n\n"
+        f"Y yo soy el Compañero.\n\n"
         f"Estaré pendiente de usted en este proceso. "
-        f"Si tiene dudas antes de los retos, yo le ayudo a repasar. "
-        f"¡Cuente conmigo!"
+        f"Si tiene dudas antes de los retos, le ayudo a repasar."
     )
     msg_asistente = mensaje_con_titular_agente(nombre_asistente, cuerpo_asist)
 
@@ -1133,7 +1132,7 @@ def generar_presentacion_agentes(
 # =====================================================
 # PREGUNTA DE RECUPERACIÓN — Curso completado con <70 pts
 # =====================================================
-PROMPT_PREGUNTA_RECUPERACION = """Eres la Facilitadora Claudia de eki. El participante completó todo el curso pero obtuvo menos de 70 puntos.
+PROMPT_PREGUNTA_RECUPERACION = """Eres el Formador de eki. El participante completó todo el curso pero obtuvo menos de 70 puntos.
 Tu tarea: generar UNA pregunta de recuperación enfocada SOLO en los módulos finales (módulos 4 y 5, o 4 en adelante si existen más).
 
 REGLAS:

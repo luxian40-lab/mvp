@@ -89,7 +89,7 @@ def armar_menu_seleccion_cursos(estudiante, prefijo: str = '') -> str:
         lineas.append('')
 
     lineas.append("Escribe el *número* del curso que quieres seguir (ej.: *1* o *2*).")
-    lineas.append("También puedes tocar Continuemos y luego elegir, o *progreso* / *ayuda*.")
+    lineas.append("También puede escribir *progreso* o *ayuda*. Pulse continuar, para seguir aprendiendo.")
 
     estudiante.estado_onboarding = 'esperando_seleccion_curso'
     ctx = dict(estudiante.contexto_temporal or {})
@@ -140,7 +140,7 @@ def mensaje_curso_por_campana(estudiante) -> str:
         return (
             f"📚 Tu programa en *{org}* avanza por campaña.\n\n"
             f"Curso actual: *{prog.curso.nombre}*\n\n"
-            "Toca Continuemos para continuar tu lección.\n\n[SEND_BUTTON:continuemos]\n"
+            "Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]\n"
             "Escribe *progreso* para ver tu avance.\n"
             "Escribe *ayuda* si necesitas soporte."
         )
@@ -156,7 +156,7 @@ def mensaje_digitos_sin_menu(estudiante) -> str:
         return armar_menu_seleccion_cursos(estudiante)
     base = mensaje_curso_por_campana(estudiante)
     return (
-        f"{base}\n\n_Tip: no hace falta elegir con números; toca Continuemos para seguir._"
+        f"{base}\n\n_Tip: no hace falta elegir con números; Pulse continuar, para seguir aprendiendo._"
         "\n\n[SEND_BUTTON:continuemos]"
     )
 
@@ -190,7 +190,7 @@ def respuesta_b2b_sin_menu(estudiante, intent: str, nombre_usuario: str, kwargs:
     if intent == 'numero_invalido':
         return (
             "Ese número no aplica en tu programa.\n\n"
-            "Toca Continuemos para continuar, escribe *progreso* para tu avance o *ayuda* para soporte."
+            "Pulse continuar, para seguir aprendiendo."
             "\n\n[SEND_BUTTON:continuemos]"
         )
 
@@ -222,20 +222,20 @@ def respuesta_tras_keyword_menu(estudiante, nombre: str, mensaje_original: str =
 
 
 def _texto_ayuda_b2b(nombre_usuario: str) -> str:
-    return f"""🆘 ¿NECESITAS AYUDA, {nombre_usuario}?
+    return f"""🆘 ¿NECESITA AYUDA, {nombre_usuario}?
 
-Estoy aquí para apoyarte con tu aprendizaje.
+Estoy aquí para apoyarle con su aprendizaje.
 
-Puedes preguntarme:
+Puede preguntarme:
 💬 Dudas sobre el contenido del curso
-📊 Tu progreso escribiendo *progreso*
-📖 Cómo seguir: toca Continuemos
+📊 Su progreso, escribiendo *progreso*
+📖 Pulse continuar, para seguir aprendiendo.
 
-También puedes:
-• Escribir *corregir datos* para actualizar tu información
-• Tocar Continuemos para retomar tu lección
-• Escribir *cursos* si tienes más de un curso activo
+También puede:
+• Escribir *corregir datos* para actualizar su información
+• Pulse continuar, para seguir aprendiendo.
+• Escribir *cursos* si tiene más de un curso activo
 
-✍️ ¿En qué te puedo ayudar?
+✍️ ¿En qué le puedo ayudar?
 
 [SEND_BUTTON:continuemos]"""

@@ -519,7 +519,7 @@ def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
         "y le responderá enseguida por este chat.\n\n"
         "Si solo necesita corregir un dato (nombre, municipio o cédula), "
         "también puede escribir *corregir datos*.\n\n"
-        "Para retomar la lección cuando quiera, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
+        "Para retomar la lección cuando quiera, Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
     )
 
 

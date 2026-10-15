@@ -551,8 +551,10 @@ class SelectorCursoAgentesPrimeraVezTests(TestCase):
         )
         r = continuar_curso_seleccionado(self.est.id, 1, '1')
         self.assertIn('Iniciando', r)
-        self.assertIn('Facilitadora Claudia', r)
-        self.assertIn('Darío', r)
+        self.assertIn('Formador', r)
+        self.assertIn('Compañero', r)
+        self.assertNotIn('Claudia', r)
+        self.assertNotIn('Darío', r)
         self.assertIn('Contenido solo paso 1', r)
 
     def test_selector_retomar_no_repite_presentacion_agentes(self):
@@ -576,7 +578,7 @@ class SelectorCursoAgentesPrimeraVezTests(TestCase):
         )
         r = continuar_curso_seleccionado(self.est.id, 1, '1')
         self.assertIn('Retomando', r)
-        self.assertNotIn('Facilitadora Claudia', r)
+        self.assertNotIn('Formador', r)
         # Progreso pre-creado sin material entregado: debe mandar micros, no solo CTA.
         self.assertIn('Contenido solo paso 1', r)
 

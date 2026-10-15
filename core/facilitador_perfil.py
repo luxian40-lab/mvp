@@ -34,20 +34,34 @@ def es_perfil_tecnicoagro(curso: Curso | None) -> bool:
     return resolver_perfil_facilitador(curso) == PERFIL_TECNICOAGRO
 
 
-def nombre_display_facilitador(curso: Curso | None, fallback: str = 'Claudia') -> str:
-    """Nombre visible en WhatsApp (presentación / cabeceras)."""
-    if curso is not None:
-        custom = (getattr(curso, 'nombre_agente_tutor', None) or '').strip()
+NOMBRE_FORMADOR = 'Formador'
+NOMBRE_COMPANERO = 'Compañero'
+_NOMBRES_DE_CURSO = frozenset({
+    '', 'formador', 'compañero', 'companero', 'claudia', 'dario', 'darío',
+    'geronimo', 'gerónimo', 'maria', 'maría',
+})
+
+
+def _nombre_propio_tecnico(valor: str) -> str:
+    limpio = (valor or '').strip()
+    if limpio.casefold() in _NOMBRES_DE_CURSO:
+        return ''
+    return limpio
+
+
+def nombre_display_facilitador(curso: Curso | None, fallback: str = NOMBRE_FORMADOR) -> str:
+    """Nombre visible en WhatsApp. En los cursos eki es el Formador."""
+    if es_perfil_tecnicoagro(curso) and curso is not None:
+        custom = _nombre_propio_tecnico(getattr(curso, 'nombre_agente_tutor', None) or '')
         if custom:
             return custom
         cliente = getattr(curso, 'cliente', None)
         if cliente is not None:
-            custom_cli = (getattr(cliente, 'nombre_agente_tutor', None) or '').strip()
+            custom_cli = _nombre_propio_tecnico(getattr(cliente, 'nombre_agente_tutor', None) or '')
             if custom_cli:
                 return custom_cli
-    if es_perfil_tecnicoagro(curso):
         return NOMBRE_DEFAULT_TECNICOAGRO
-    return fallback or 'Claudia'
+    return fallback or NOMBRE_FORMADOR
 
 
 def system_prompt_reto_para_curso(curso: Curso | None) -> str:
@@ -77,4 +91,4 @@ def etiqueta_rol_facilitador(curso: Curso | None) -> str:
     """Prefijo de mensaje (Facilitadora vs asistente técnico)."""
     if es_perfil_tecnicoagro(curso):
         return 'Asistente técnico'
-    return 'Facilitadora'
+        return 'Formador'

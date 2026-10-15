@@ -150,4 +150,5 @@ class RetoGeneradoSinEmojisTests(TestCase):
         self.assertIn('Ana', msg_facilitador)
         self.assertFalse(msg_facilitador.startswith('*Claudia*'), msg_facilitador[:40])
         self.assertFalse(msg_asistente.startswith('*Darío*'), msg_asistente[:40])
-        self.assertIn('compañero de estudio', msg_asistente)
+        self.assertIn('Compañero', msg_asistente)
+        self.assertNotIn('Claudia', msg_facilitador)

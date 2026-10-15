@@ -27,7 +27,7 @@ class FacilitadorPerfilTests(TestCase):
     def test_default_es_claudia(self):
         self.assertEqual(resolver_perfil_facilitador(self.curso), PERFIL_CLAUDIA)
         self.assertFalse(es_perfil_tecnicoagro(self.curso))
-        self.assertIn('Facilitadora', PROMPT_FACILITADOR_RETO)
+        self.assertIn('Formador', PROMPT_FACILITADOR_RETO)
         self.assertEqual(system_prompt_reto_para_curso(self.curso), PROMPT_FACILITADOR_RETO)
 
     def test_cliente_tecnicoagro_hereda(self):
@@ -57,7 +57,7 @@ class FacilitadorPerfilTests(TestCase):
 
     def test_claudia_prompts_intactos(self):
         """No borrar Claudia: constantes siguen existiendo."""
-        self.assertIn('Facilitadora Claudia', __import__('core.tutor_ia_modulo', fromlist=['PROMPT_FACILITADOR_EVALUACION']).PROMPT_FACILITADOR_EVALUACION)
+        self.assertIn('Formador', __import__('core.tutor_ia_modulo', fromlist=['PROMPT_FACILITADOR_EVALUACION']).PROMPT_FACILITADOR_EVALUACION)
 
     @patch('core.tutor_ia_modulo._get_client')
     def test_generar_reto_usa_prompt_tecnicoagro(self, mock_client):

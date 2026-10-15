@@ -261,16 +261,16 @@ class Cliente(models.Model):
     nombre_agente_tutor = models.CharField(
         max_length=100,
         blank=True,
-        default='',
-        verbose_name='Nombre del Profesor (Tutor IA)',
-        help_text='Nombre personalizado para el agente tutor/profesor (por defecto: Gerónimo). Ej: Carlos, Sofía'
+        default='Formador',
+        verbose_name='Nombre del formador',
+        help_text='En todos los cursos se llama Formador.'
     )
     nombre_agente_asistente = models.CharField(
         max_length=100,
         blank=True,
-        default='',
-        verbose_name='Nombre de la Asistente (IA)',
-        help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
+        default='Compañero',
+        verbose_name='Nombre del compañero',
+        help_text='En todos los cursos se llama Compañero.'
     )
     # BOT COMERCIAL (Nat) — identidad y prompt extra editable desde admin
     nombre_bot = models.CharField(
@@ -1457,16 +1457,16 @@ class Curso(models.Model):
     nombre_agente_tutor = models.CharField(
         max_length=100,
         blank=True,
-        default='',
-        verbose_name='Nombre del Profesor (Tutor IA)',
-        help_text='Nombre personalizado para el agente tutor/profesor (por defecto: Gerónimo). Ej: Carlos, Sofía'
+        default='Formador',
+        verbose_name='Nombre del formador',
+        help_text='En todos los cursos se llama Formador.'
     )
     nombre_agente_asistente = models.CharField(
         max_length=100,
         blank=True,
-        default='',
-        verbose_name='Nombre de la Asistente (IA)',
-        help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
+        default='Compañero',
+        verbose_name='Nombre del compañero',
+        help_text='En todos los cursos se llama Compañero.'
     )
     
     PERFIL_FACILITADOR_HEREDAR = ''

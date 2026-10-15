@@ -18,10 +18,11 @@ MODO_AVANCE_CHOICES = (
 
 # Id y título del botón. El id entra al curso como si la persona hubiera seguido.
 BOTON_CONTINUEMOS_ID = 'continuemos'
-BOTON_CONTINUEMOS_TITULO = 'Continuemos'
+BOTON_CONTINUEMOS_TITULO = 'Continuar'
 MARCADOR_BOTON_CONTINUEMOS = '[SEND_BUTTON:continuemos]'
-# WhatsApp exige cuerpo en un mensaje con botones. No pide escribir listo.
-CUERPO_BOTON_CONTINUEMOS = 'Cuando termines de revisar, sigue.'
+# WhatsApp exige cuerpo en un mensaje con botones.
+FRASE_PULSE_CONTINUAR = 'Pulse continuar, para seguir aprendiendo.'
+CUERPO_BOTON_CONTINUEMOS = FRASE_PULSE_CONTINUAR
 
 # Fin de entrega de módulo (material listo para marcar avance).
 CTX_FIN_ENTREGA_MODULO = 'fin_entrega_modulo'

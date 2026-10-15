@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import unicodedata
 
-from django.conf import settings
 from django.core.cache import cache
 
 from core.nati import normalizar_telefono_whatsapp
@@ -60,19 +59,9 @@ def ya_tiene(telefono: str, codigo: str) -> bool:
 
 
 def preparar_cierre(agente: str, telefono: str) -> str:
-    if not getattr(settings, 'PREGUNTA_IMPACTO_AGENTES', False):
-        return ''
-    spec = PREGUNTAS.get(agente or '')
-    if not spec:
-        return ''
-    codigo, pregunta = spec
-    if ya_tiene(telefono, codigo):
-        return ''
-    clave = _clave(telefono)
-    if cache.get(clave):
-        return ''
-    cache.set(clave, codigo, TTL_PENDIENTE)
-    return pregunta
+    """No anexa preguntas de impacto. El interruptor ya no las vuelve a enviar."""
+    del agente, telefono
+    return ''
 
 
 def anexar_cierre(agente: str, telefono: str, texto: str) -> str:

@@ -14,7 +14,7 @@ from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 logger = logging.getLogger(__name__)
 
-TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a tocar Continuemos."
+TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y Pulse continuar, para seguir aprendiendo."
 # Un *listo* mientras el anterior todavía se está enviando. No se manda al chat.
 LECCION_EN_CURSO = '[LECCION_EN_CURSO]'
 _VENTANA_ENTREGA_SEG = 90
@@ -85,8 +85,8 @@ def partes_presentacion_agentes_curso(estudiante, curso) -> list:
         return []
     from .tutor_ia_modulo import generar_presentacion_agentes
 
-    nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
-    nombre_asistente = curso.nombre_agente_asistente or 'María'
+    nombre_tutor = 'Formador'
+    nombre_asistente = 'Compañero'
     msg_facilitador, msg_asistente = generar_presentacion_agentes(
         curso.nombre,
         estudiante_nombre=getattr(estudiante, 'nombre', None) or 'Estudiante',
@@ -228,8 +228,8 @@ def _generar_completado_final(estudiante, curso_id):
             )
 
             if usar_gamificacion_final:
-                nombre_tutor_final = curso.nombre_agente_tutor or 'Claudia'
-                nombre_asist_final = curso.nombre_agente_asistente or 'Dario'
+                nombre_tutor_final = 'Formador'
+                nombre_asist_final = 'Compañero'
                 modulos_all = list(curso.modulos.filter(numero__gte=4).order_by('numero'))
                 if not modulos_all:
                     modulos_all = list(curso.modulos.all().order_by('numero'))
@@ -269,7 +269,7 @@ def _generar_completado_final(estudiante, curso_id):
                         (
                             f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
                             "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
-                            "Si no tienes dudas, toca Continuemos para pasar con la facilitadora.\n\n"
+                            "Si no tiene dudas, pulse continuar, para seguir aprendiendo.\n\n"
                             "[SEND_BUTTON:continuemos]"
                         ),
                     )
@@ -492,16 +492,8 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     )
 
     cliente = getattr(estudiante, 'cliente', None)
-    nombre_tutor = (
-        (getattr(cliente, 'nombre_agente_tutor', '') or '')
-        or progreso.curso.nombre_agente_tutor
-        or 'Claudia'
-    )
-    nombre_asistente = (
-        (getattr(cliente, 'nombre_agente_asistente', '') or '')
-        or progreso.curso.nombre_agente_asistente
-        or 'Darío'
-    )
+    nombre_tutor = 'Formador'
+    nombre_asistente = 'Compañero'
 
     logger.info(
         '🎯 [checkpoint-reto] activo | est=%s curso_id=%s modulo_cerrado_id=%s num=%s',
@@ -519,11 +511,11 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     dario_msg = mensaje_con_titular_agente(
         nombre_asistente,
         (
-            f"Soy {nombre_asistente}. Es hora de una pausa para repasar conceptos. "
-            f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+            f"Soy el Compañero. Es hora de una pausa para repasar conceptos. "
+            f"El Formador le va a plantear un reto sobre {modulos_reto_range}.\n\n"
             f"Le puedo ayudar a resolver un par de preguntas antes. "
             f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "
-            "escríbame; si no tiene preguntas, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
+            "escríbame. Si no tiene preguntas, pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
         ),
     )
 
@@ -606,7 +598,7 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
                         return (
                             f"🌱 Hola {nombre_usuario}, bienvenido al programa de *{org}*.\n\n"
                             f"{emoji} Tu curso: *{cur.nombre}*\n\n"
-                            "Toca Continuemos para seguir tu lección.\n\n[SEND_BUTTON:continuemos]\n"
+                            "Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]\n"
                             "Si tienes dudas, escribe *ayuda*."
                         )
                     return (
@@ -719,7 +711,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             respuesta += "\n"
         
         if getattr(estudiante, 'cliente_id', None):
-            respuesta += "Toca Continuemos para seguir tu lección.\n\n[SEND_BUTTON:continuemos]"
+            respuesta += "Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
         else:
             respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
             respuesta += "O escribe *MENÚ* para volver al inicio"
@@ -1101,8 +1093,8 @@ Te inscribiste en: *{curso.nombre}*
 
         # Message 2 & 3: Agent introductions (custom names from curso)
         from .tutor_ia_modulo import generar_presentacion_agentes
-        nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
-        nombre_asistente = curso.nombre_agente_asistente or 'María'
+        nombre_tutor = 'Formador'
+        nombre_asistente = 'Compañero'
         msg_geronimo, msg_maria = generar_presentacion_agentes(
             curso.nombre,
             estudiante_nombre=estudiante.nombre or "Estudiante",
@@ -1498,15 +1490,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         if getattr(estudiante, 'cliente_id', None)
                         else None
                     )
-                    nombre_tutor = (
-                        (
-                            _cliente.nombre_agente_tutor
-                            if _cliente and getattr(_cliente, 'nombre_agente_tutor', None)
-                            else ''
-                        )
-                        or progreso_reto.curso.nombre_agente_tutor
-                        or 'Claudia'
-                    )
+                    nombre_tutor = 'Formador'
                     reto = generar_reto_facilitador(
                         modulos_reto,
                         progreso_reto.curso.nombre,
@@ -2009,14 +1993,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 if usar_gamificacion_final:
                     try:
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-                        nombre_tutor = (
-                            (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                            progreso.curso.nombre_agente_tutor or 'Claudia'
-                        )
-                        nombre_asistente = (
-                            (_cliente.nombre_agente_asistente if _cliente and hasattr(_cliente, 'nombre_agente_asistente') and _cliente.nombre_agente_asistente else '') or
-                            progreso.curso.nombre_agente_asistente or 'Darío'
-                        )
+                        nombre_tutor = 'Formador'
+                        nombre_asistente = 'Compañero'
                         
                         modulos_final = list(progreso.curso.modulos.filter(numero__gte=4).order_by('numero'))
                         if not modulos_final:
@@ -2038,7 +2016,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             (
                                 f"¡Felicitaciones! Terminaste todos los módulos. "
                                 f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
-                                "¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, toca Continuemos.\n\n"
+                                "¿Tiene alguna pregunta sobre lo que vimos en esta parte del curso? Envíeme un audio o escríbame. Si no tiene preguntas, pulse continuar, para seguir aprendiendo.\n\n"
                                 "[SEND_BUTTON:continuemos]"
                             ),
                         )
@@ -2132,7 +2110,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 ):
                     return (
                         "✅ Ya recibiste todo el material de esta unidad.\n\n"
-                        "Toca Continuemos para registrar tu avance y seguir.\n\n[SEND_BUTTON:continuemos]"
+                        "Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
                     )
                 _rem_p = mensaje_recordatorio_paso_actual(progreso, modulo_actual)
                 if _rem_p:

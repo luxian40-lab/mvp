@@ -867,11 +867,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             cliente_obj = estudiante.cliente
                             nombre_tutor = (
                                 (cliente_obj.nombre_agente_tutor if cliente_obj and hasattr(cliente_obj, 'nombre_agente_tutor') and cliente_obj.nombre_agente_tutor else '') or
-                                curso.nombre_agente_tutor or 'Claudia'
+                                curso.nombre_agente_tutor or 'Formador'
                             )
                             nombre_asistente = (
                                 (cliente_obj.nombre_agente_asistente if cliente_obj and hasattr(cliente_obj, 'nombre_agente_asistente') and cliente_obj.nombre_agente_asistente else '') or
-                                curso.nombre_agente_asistente or 'Darío'
+                                curso.nombre_agente_asistente or 'Compañero'
                             )
                             
                             # Presentación de agentes
@@ -1615,11 +1615,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                         texto_respuesta = (
                             "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo o escríbeme. "
-                            "Para avanzar, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                            "Para avanzar, Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                         )
                     else:
                         texto_respuesta = (
-                            "No entendí. Si quieres avanzar de módulo, toca Continuemos. "
+                            "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
                             "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
                         )
                     try:
@@ -1732,7 +1732,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                     ):
                                         texto_respuesta = (
                                             "✅ Ya recibiste todo el material de esta unidad.\n\n"
-                                            "Toca Continuemos para registrar tu avance y seguir.\n\n"
+                                            "Pulse continuar, para seguir aprendiendo.\n\n"
                                             + _MARCADOR_CONTINUEMOS
                                         )
                                     else:
@@ -1783,7 +1783,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         texto_respuesta = (
                             "📚 Aún no tienes un curso asignado. "
                             "Tu coordinador te lo asignará pronto.\n\n"
-                            "Si acabas de reportar un problema, cuando quieras retomar toca Continuemos o escribe *menú*.\n\n"
+                            "Si acaba de reportar un problema, cuando quiera retomar, pulse continuar, para seguir aprendiendo. O escriba *menú*.\n\n"
                             + _MARCADOR_CONTINUEMOS
                         )
                     try:
@@ -1906,7 +1906,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         
         # Default safety - will be overwritten by any branch below
         texto_respuesta = (
-            "No entendí. Si quieres avanzar de módulo, toca Continuemos. "
+            "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
             "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
         )
         
@@ -2250,7 +2250,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     texto_respuesta = (
                         f"🎉 *¡Tienes un nuevo curso asignado!*\n\n"
                         f"📚 *{nuevo_progreso.curso.nombre}*\n\n"
-                        "Toca Continuemos para comenzar.\n\n" + _MARCADOR_CONTINUEMOS
+                        "Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                     )
                 else:
                     texto_respuesta = (
@@ -2278,7 +2278,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         _na_curso = (_pp.curso.nombre_agente_asistente if _pp.curso else '') or ''
                     except ProgresoEstudiante.DoesNotExist:
                         pass
-                nombre_asistente = (_na_cli or _na_curso or 'Darío').strip() or 'Darío'
+                nombre_asistente = 'Compañero'
                 print(f"💬 Asistente ({nombre_asistente}): Esperando respuesta del compañero IA")
                 
                 msg_lower = msg_body.strip().lower()
@@ -2297,7 +2297,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             f"No pude escuchar su audio. Por favor intente de nuevo "
                             f"o escríbame su pregunta.\n\n"
                             f"Le quedan {preguntas_restantes} pregunta(s). "
-                            "Si no tiene preguntas, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
+                            "Si no tiene preguntas, Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
                         ),
                     )
                 elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
@@ -2329,11 +2329,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                         from core.facilitador_perfil import nombre_display_facilitador
 
-                        nombre_tutor = (
-                            (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                            progreso.curso.nombre_agente_tutor or
-                            nombre_display_facilitador(progreso.curso)
-                        )
+                        nombre_tutor = nombre_display_facilitador(progreso.curso)
                         reto = generar_reto_facilitador(
                             modulos_reto,
                             progreso.curso.nombre,
@@ -2440,7 +2436,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             (
                                 f"{respuesta_dario}\n\n"
                                 f"¿Tiene otra pregunta? Le queda {2 - preguntas_hechas} pregunta más. "
-                                "Puede preguntar sobre el tema del curso. Si no, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
+                                "Puede preguntar sobre el tema del curso. Si no, Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
                             ),
                         )
             
@@ -2578,15 +2574,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
                     from core.facilitador_perfil import nombre_display_facilitador
 
-                    nombre_tutor = (
-                        (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                        nombre_display_facilitador(_curso_reto)
+                    nombre_tutor = nombre_display_facilitador(
+                        progreso.curso if progreso is not None else _curso_reto
                     )
-                    if progreso is not None:
-                        nombre_tutor = (
-                            progreso.curso.nombre_agente_tutor
-                            or nombre_display_facilitador(progreso.curso)
-                        )
 
                     msg_eval = construir_mensaje_evaluacion_reto(
                         estudiante, progreso, puntaje, feedback, nombre_tutor,
@@ -2740,7 +2730,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 )
                                 texto_respuesta = (
                                     f"{msg_eval}\n\n"
-                                    "Toca Continuemos para recibir el contenido del siguiente módulo.\n\n"
+                                    "Pulse continuar, para seguir aprendiendo.\n\n"
                                     + _MARCADOR_CONTINUEMOS
                                 )
                         else:
@@ -2750,7 +2740,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             )
                             texto_respuesta = (
                                 f"{msg_eval}\n\n"
-                                "Toca Continuemos para recibir el contenido del siguiente módulo.\n\n"
+                                "Pulse continuar, para seguir aprendiendo.\n\n"
                                 + _MARCADOR_CONTINUEMOS
                             )
                     print(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}", flush=True)
@@ -2773,7 +2763,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     texto_respuesta = (
                         "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         "o escríbeme tu respuesta.\n\n"
-                        "Si prefieres continuar sin responder, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                        "Si prefiere continuar sin responder, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                     )
                 elif any(p in msg_lower for p in palabras_skip):
                     # Usuario quiere seguir sin responder al tutor
@@ -2794,7 +2784,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         # y escriba "listo" de nuevo, avanzará por el flujo normal (estado=completado).
                         texto_respuesta = (
                             "👍 Sin problema.\n\nContinúa revisando el contenido del módulo 👆\n\n"
-                            "Cuando termines, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                            "Cuando termine, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                         )
                         print(f"✅ v1.9.6: Skip Gerónimo sin avance automático", flush=True)
                 else:
@@ -2821,14 +2811,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             perfil.agregar_puntos(5, "Respuesta correcta - Profesor Gerónimo")
                             texto_respuesta = (
                                 f"{feedback}\n\n💰 *+5 puntos bonus* por tu respuesta 💪\n\n"
-                                "Continúa revisando el módulo 👆\nCuando termines, toca Continuemos.\n\n"
+                                "Continúa revisando el módulo 👆\nCuando termines, Pulse continuar, para seguir aprendiendo.\n\n"
                                 + _MARCADOR_CONTINUEMOS
                             )
                             print(f"✅ v1.9.8: Gerónimo aprobado — 1 interacción", flush=True)
                         else:
                             texto_respuesta = (
                                 f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo 👆\n\n"
-                                "Cuando termines, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                                "Cuando termine, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                             )
                             print(f"✅ v1.9.8: Gerónimo incorrecto — feedback y continúa", flush=True)
                     else:
@@ -2838,7 +2828,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         # v1.9.6: Solo enviar feedback, NO auto-avanzar
                         texto_respuesta = (
                             "✅ Gracias por tu respuesta!\n\nContinúa revisando el módulo 👆\n"
-                            "Cuando termines, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                            "Cuando termine, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                         )
                         print(f"✅ v1.9.6: Gerónimo sin módulo — feedback sin auto-avance", flush=True)
             
@@ -2910,10 +2900,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             "o *ayuda* si necesitás soporte."
                         ).strip()
                     _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-                    nombre_tutor = (
-                        (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                        progreso_r.curso.nombre_agente_tutor or 'Claudia'
-                    )
+                    nombre_tutor = nombre_display_facilitador(progreso_r.curso)
                     reto = generar_reto_facilitador(
                         modulos_reto,
                         progreso_r.curso.nombre,
@@ -2945,7 +2932,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     texto_respuesta = (
                         "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         "o escríbeme tu respuesta.\n\n"
-                        "Si prefieres continuar sin responder, toca Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                        "Si prefiere continuar sin responder, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                     )
                 elif any(p in msg_lower for p in palabras_skip):
                     print(f"⏭️ María omitida por usuario → activando reto")
@@ -3034,7 +3021,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     else:
                         texto_respuesta = (
                             "No hay una pregunta pendiente. "
-                            "Si quiere avanzar, toque Continuemos.\n\n" + _MARCADOR_CONTINUEMOS
+                            "Si quiere avanzar, Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                         )
                 elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     texto_respuesta = (
@@ -3338,8 +3325,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                                     if activar_reto_final:
                                         try:
-                                            nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
-                                            nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
+                                            nombre_tutor_final = 'Formador'
+                                            nombre_asist_final = 'Compañero'
                                             modulos_all = list(progreso.curso.modulos.filter(numero__gte=4).order_by('numero'))
                                             if not modulos_all:
                                                 modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
@@ -3379,7 +3366,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                         "• ¿Qué paso práctico recomienda para validar en campo?\n"
                                                         "• ¿Qué indicador debo monitorear cada semana?\n\n"
                                                         "Envíame tu pregunta (texto o audio).\n"
-                                                        "Si no tienes dudas, toca Continuemos para pasar con la facilitadora.\n\n"
+                                                        "Si no tiene dudas, pulse continuar, para seguir aprendiendo.\n\n"
                                                         "[SEND_BUTTON:continuemos]"
                                                     ),
                                                 )

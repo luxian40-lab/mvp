@@ -383,7 +383,7 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     intro = (
         f'📚 *Demo sandbox · {curso.nombre}*\n'
         f'Módulo {m1.numero}: {m1.titulo}\n\n'
-        '_Toque Continuemos para avanzar. *menu* vuelve al menú._\n\n[SEND_BUTTON:continuemos]\n'
+        '_Pulse continuar, para seguir aprendiendo. *menu* vuelve al menú._\n\n[SEND_BUTTON:continuemos]\n'
     )
     enviar_whatsapp_twilio(dest, intro)
     body = (m1.contenido or '').strip()
@@ -396,7 +396,7 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     if not archivos and not body:
         enviar_whatsapp_twilio(
             dest,
-            'Este módulo aún no tiene contenido. Toque Continuemos por si hay media.\n\n[SEND_BUTTON:continuemos]',
+            'Este módulo aún no tiene contenido.\n\nPulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]',
         )
         return
     for arch in archivos:
@@ -520,7 +520,7 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
     enviar_whatsapp_twilio(
         dest,
         'Vamos con la demo *Tome las riendas de su dinero*. '
-        'Primero el tratamiento de datos; si acepta, después toque Continuemos.\n\n[SEND_BUTTON:continuemos]',
+        'Primero el tratamiento de datos; si acepta, después Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]',
     )
     enviar_habeas_data(tel, cliente=curso.cliente)
     return True

@@ -106,7 +106,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
 # Mensaje al estudiante si modo "pasos" quedó mal configurado (sin filas PasoModulo activas).
 FALLBACK_MODULO_PASOS_SIN_PASOS = (
     '📚 Estamos organizando el contenido de esta unidad. '
-    'Intentá de nuevo en unos minutos, o toca Continuemos para retomar tu curso.\n\n'
+    'Intente de nuevo en unos minutos. Pulse continuar, para seguir aprendiendo.\n\n'
     + MARCADOR_BOTON_CONTINUEMOS
 )
 
@@ -449,7 +449,7 @@ def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
         parts.append("\n\n✍️ Envía tu respuesta en un mensaje. La facilitadora la calificará.")
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
         parts.append(
-            "\n\n📎 Envía tu respuesta. Cuando termines, toca Continuemos.\n\n"
+            "\n\n📎 Envíe su respuesta. Cuando termine, pulse continuar, para seguir aprendiendo.\n\n"
             + MARCADOR_BOTON_CONTINUEMOS
         )
     return ''.join(parts)

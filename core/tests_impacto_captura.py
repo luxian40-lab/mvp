@@ -119,13 +119,15 @@ class ImpactoCapturaTests(TestCase):
         self.assertNotIn('reporte de impacto', junto)
         self.assertNotIn('gastos del predio', junto)
 
-    def test_nat_pregunta_impacto_si_se_reactiva(self):
+    def test_nat_no_pregunta_impacto_aunque_el_interruptor_este_activo(self):
         with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
             texto = anexar_cierre('nat', self.tel, 'Revise el lote.')
-        self.assertIn('clima o Nat', texto)
+        self.assertEqual(texto, 'Revise el lote.')
+        self.assertNotIn('reporte de impacto', texto)
 
-    def test_no_repite_pregunta_mientras_espera_respuesta(self):
+    def test_no_anexa_pregunta_aunque_el_interruptor_este_activo(self):
         with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
             primero = anexar_cierre('finanzas', self.tel, 'A')
-            self.assertIn('gastos del predio', primero)
+            self.assertEqual(primero, 'A')
+            self.assertNotIn('gastos del predio', primero)
             self.assertEqual(anexar_cierre('finanzas', self.tel, 'B'), 'B')

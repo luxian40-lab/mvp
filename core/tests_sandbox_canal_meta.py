@@ -149,7 +149,7 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(body.get('type'), 'interactive')
         botones = body['interactive']['action']['buttons']
         self.assertEqual(botones[0]['reply']['id'], 'continuemos')
-        self.assertEqual(botones[0]['reply']['title'], 'Continuemos')
+        self.assertEqual(botones[0]['reply']['title'], 'Continuar')
         self.assertNotIn('listo', (body['interactive']['body']['text'] or '').lower())
 
     @patch('core.sandbox_canal.requests.post')

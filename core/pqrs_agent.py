@@ -25,7 +25,7 @@ MENSAJE_CONTENIDO_CURSO = (
     "o consúltela con su facilitador.\n\n[SEND_BUTTON:continuemos]"
 )
 
-CIERRE_PQRS = "Para seguir con el curso, toque Continuemos.\n\n[SEND_BUTTON:continuemos]"
+CIERRE_PQRS = "Para seguir con el curso, Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
 
 PQRS_SYSTEM_PROMPT = f"""\
 Usted es el asistente de soporte de eki para personas en formación por WhatsApp.
