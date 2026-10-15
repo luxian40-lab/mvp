@@ -360,7 +360,10 @@ class CupoCursosTests(TestCase):
     def test_curso_de_la_organizacion_cuenta_en_el_cupo(self):
         tel = '573005550021'
         org = _org('Coop1', PLAN_CURSO_ASESOR)
-        est = Estudiante.objects.create(nombre='A', cedula='P5', telefono=tel, cliente=org)
+        est = Estudiante.objects.create(
+            nombre='A', cedula='P5', telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True)
         propio = Curso.objects.create(nombre='Curso de la coop', descripcion='d', cliente=org, activo=True)
         ProgresoEstudiante.objects.create(estudiante=est, curso=propio, completado=False)
@@ -679,7 +682,10 @@ class RachaEnMensajeTests(TestCase):
     def _estudiante_con_racha_ayer(self, dias):
         from core.gamificacion import PerfilGamificacion
 
-        est = Estudiante.objects.create(nombre='A', cedula='R1', telefono=self.tel)
+        est = Estudiante.objects.create(
+            nombre='A', cedula='R1', telefono=self.tel,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         PerfilGamificacion.objects.update_or_create(
             estudiante=est,
             defaults={
@@ -743,7 +749,10 @@ class AccesoAulaMetaTests(TestCase):
     def test_aula_en_meta_avisa_linea_twilio(self):
         tel = '573005550778'
         org = _org('AulaNat', PLAN_CURSO_ASESOR)
-        Estudiante.objects.create(nombre='Luis', cedula='A778', telefono=tel, cliente=org)
+        Estudiante.objects.create(
+            nombre='Luis', cedula='A778', telefono=tel, cliente=org,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='nat')
         with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             ruta = dispatch_sandbox_menu(_payload(tel, 'aula'))

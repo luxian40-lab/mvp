@@ -103,11 +103,10 @@ class MetaFunnelTests(TestCase):
         habeas.assert_called_once()
 
     def test_iniciar_citando_la_plantilla_pide_habeas(self):
-        from core.management.commands.cargar_plantillas_bienvenida import TEXTO_INICIO_CURSO
-
         tel = '573009991011'
+        citado = 'Bienvenida al curso.\nToque el botón para empezar.\nIniciar'
         with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
-            ruta = dispatch_sandbox_menu(_payload(tel, f'{TEXTO_INICIO_CURSO}\nIniciar'))
+            ruta = dispatch_sandbox_menu(_payload(tel, citado))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()
 

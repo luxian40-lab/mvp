@@ -495,15 +495,18 @@ class CatalogoFormacionTests(TestCase):
             estado_onboarding='nuevo',
         )
         riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             out = dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'})
         self.assertEqual(out, 'handled')
+        habeas.assert_called_once()
         est.refresh_from_db()
-        self.assertTrue(est.acepto_terminos)
-        self.assertEqual(est.estado_chat, 'ACTIVO')
-        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists())
-        ruta = dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'})
-        self.assertEqual(ruta, 'cursos')
+        self.assertFalse(est.acepto_terminos)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists())
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            ruta = dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'})
+        self.assertEqual(ruta, 'handled')
+        habeas.assert_called_once()
 
     def test_flujo_ver_curso_inscribe_y_asesoria_abre_agente(self):
         riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
