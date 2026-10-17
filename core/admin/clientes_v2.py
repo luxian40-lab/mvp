@@ -285,6 +285,7 @@ class ClienteAdminFormV2(ClientePortalAdminForm):
             obj.save()
             self.save_m2m()
             if obj.pk:
+                self.sync_cursos_whatsapp(obj)
                 self.sync_media_fields(obj)
         return obj
 
@@ -397,13 +398,34 @@ class ClienteAdminV2(ClienteAdmin):
                 'plan_linea_meta',
             ),
         }),
-        ('Productos y canales', {
+        ('Productos', {
             'classes': ['tab'],
-            'description': 'Las casillas se guardan como el texto separado por comas de siempre.',
             'fields': (
                 'tipo_proyecto',
                 'portal_modulos',
+                'gei_factores_json',
+            ),
+        }),
+        ('WhatsApp', {
+            'classes': ['tab'],
+            'description': (
+                'A la izquierda: cursos generales de eki. '
+                'A la derecha: cursos de esta empresa. '
+                'Abajo: agentes. De 2 a 10 cursos: carrusel. Más de 10: lista.'
+            ),
+            'fields': (
+                'cursos_eki',
+                'cursos_empresa',
+                'agentes_menu',
+                'aviso_formato_whatsapp',
                 'numero_whatsapp_nat',
+            ),
+        }),
+        ('WhatsApp avanzado', {
+            'classes': ['tab'],
+            'description': 'Id del número y secretos. No eligen qué curso ni qué agente sale.',
+            'fields': (
+                'phone_id_meta',
                 'numero_whatsapp_autorizado',
                 'whatsapp_numero',
                 'twilio_account_sid',
@@ -412,7 +434,6 @@ class ClienteAdminV2(ClienteAdmin):
                 'enlace_habeas_data',
                 'content_sid_habeas_data_twilio',
                 'enlace_grupo_whatsapp',
-                'gei_factores_json',
             ),
         }),
         ('Enseñanza', {
@@ -626,8 +647,8 @@ class ClienteAdminV2(ClienteAdmin):
                 estado = f'Vigente, faltan {dias} días'
                 detalle = 'Al pasar la fecha de fin, el plan de la organización deja de aplicar.'
         filas = format_html(
-            '<tr><td>OP1</td><td>1 curso al mes y asesor (30 preguntas)</td></tr>'
-            '<tr><td>OP2</td><td>2 cursos al mes, sin asesor</td></tr>'
+            '<tr><td>OP1</td><td>1 curso al mes y asesor (60 preguntas)</td></tr>'
+            '<tr><td>OP2</td><td>2 cursos al mes y asesor (120 preguntas)</td></tr>'
             '<tr><td>OP3</td><td>Asesor, 60 preguntas al mes, sin cursos nuevos</td></tr>'
         )
         return format_html(

@@ -341,6 +341,36 @@ class Cliente(models.Model):
             'Ej: cursos,empleabilidad o cursos,gei,nat. Vacío = solo el tipo principal.'
         ),
     )
+    phone_id_meta = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        verbose_name='Phone number id de su línea',
+        help_text=(
+            'Id del número en Meta (WhatsApp Manager → Phone numbers). '
+            'Solo indica que ese número es de esta empresa. '
+            'Los cursos y los agentes se eligen aparte. Vacío = no tiene línea propia.'
+        ),
+    )
+    agentes_linea = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Agentes en esta línea',
+        help_text='Lo escriben las casillas del formulario. Vacío = los cinco agentes.',
+    )
+    cursos_whatsapp = models.ManyToManyField(
+        'Curso',
+        blank=True,
+        related_name='clientes_en_linea',
+        verbose_name='Cursos en WhatsApp',
+        help_text=(
+            'Cursos generales de eki y los de esta empresa. '
+            'Vacío = en su línea propia salen los cursos de la empresa; '
+            'en la línea principal sigue el catálogo general. '
+            'De 2 a 10 salen en carrusel. Más de 10, en lista.'
+        ),
+    )
     plan_linea_meta = models.CharField(
         max_length=20,
         blank=True,
@@ -4232,6 +4262,16 @@ class ConfiguracionGlobal(models.Model):
             'Encabezado: imagen. Cuerpo: {{1}} nombre, {{2}} curso, {{3}} código. '
             'Vacío: el diploma se manda como imagen solo si la persona escribió en las últimas 24 horas. '
             'Si META_TEMPLATE_DIPLOMA está en el entorno, ese valor gana.'
+        ),
+    )
+    cursos_linea_2 = models.ManyToManyField(
+        'Curso',
+        blank=True,
+        related_name='en_linea_2',
+        verbose_name='Cursos de la línea 2 (opcional)',
+        help_text=(
+            'La línea 2 no abre carrusel. El curso entra por campaña o inscripción. '
+            'Esta lista es opcional para campañas futuras; no cambia el menú de WhatsApp.'
         ),
     )
     fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name='Última actualización')

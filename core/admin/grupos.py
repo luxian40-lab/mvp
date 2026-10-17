@@ -27,6 +27,45 @@ EMOJI_GRUPO = (
 # 👥 ADMIN UNIFICADO DE GRUPOS (TODO EN UNO)
 # ========================================
 
+class GrupoLineaForm(forms.ModelForm):
+    """Casillas de agentes. El texto guardado sigue siendo la lista separada por comas."""
+
+    agentes_menu = forms.MultipleChoiceField(
+        choices=(
+            ('nat', 'Agrónomo'),
+            ('coach', 'Coach'),
+            ('profe', 'Innovación e IA'),
+            ('ventas', 'Ventas'),
+            ('finanzas', 'Finanzas'),
+        ),
+        required=False,
+        label='Agentes que este grupo no ve',
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Vacío = ve los de la empresa. Marque los que no debe ver.',
+    )
+
+    class Meta:
+        model = GrupoEstudiantes
+        exclude = ('agentes_apagados',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        raw = (self.instance.agentes_apagados or '').strip() if self.instance.pk else ''
+        if raw:
+            self.fields['agentes_menu'].initial = [
+                p.strip() for p in raw.replace(';', ',').split(',') if p.strip()
+            ]
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        claves = self.cleaned_data.get('agentes_menu') or []
+        obj.agentes_apagados = ','.join(claves) if claves else ''
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
+
+
 @admin.register(GrupoEstudiantes)
 class GrupoEstudiantesAdmin(admin.ModelAdmin):
     """
@@ -40,15 +79,19 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
     )
     list_filter = ('cliente', 'plan_linea_meta', 'activo', 'fecha_creacion')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    form = GrupoLineaForm
     filter_horizontal = ('cursos',)
-    exclude = ('estudiantes',)
+    exclude = ('estudiantes', 'agentes_apagados')
     readonly_fields = ('panel_gestion_miembros',)
     autocomplete_fields = ('cliente',)
     actions = ['crear_grupo_whatsapp', 'enviar_invitaciones']
 
     fieldsets = (
         ('📋 Información del Grupo', {
-            'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'plan_linea_meta', 'activo'),
+            'fields': (
+                'nombre', 'emoji', 'descripcion', 'cliente',
+                'plan_linea_meta', 'agentes_menu', 'activo',
+            ),
             'description': (
                 'Un cliente (ej. Cenipalma) puede tener varios grupos: cohorte WA 1, '
                 'cohorte WA 2, 10x Aprende, etc. Asigne siempre la organización. '
@@ -67,7 +110,8 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
             'fields': ('cursos',),
             'classes': ('collapse',),
             'description': (
-                'Solo se listan cursos de la misma organización (y cursos generales). '
+                'Lo que marque aquí es lo que este grupo ve en WhatsApp, '
+                'dentro de los cursos de la empresa. Vacío = ve todos los de la empresa. '
                 'Guarde el grupo con cliente antes de asociar cursos.'
             ),
         }),

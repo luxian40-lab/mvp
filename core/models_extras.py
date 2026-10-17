@@ -57,7 +57,17 @@ class GrupoEstudiantes(models.Model):
         related_name='grupos',
         verbose_name='Cursos Asociados',
         blank=True,
-        help_text='Cursos relacionados con este grupo (opcional)'
+        help_text=(
+            'Si marca cursos, en WhatsApp este grupo solo ve esos. '
+            'Vacío = ve los que la empresa dejó en «Cursos en WhatsApp».'
+        )
+    )
+    agentes_apagados = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Agentes que este grupo no ve',
+        help_text='Lo escriben las casillas del formulario. Vacío = ve los agentes de su empresa.',
     )
     plan_linea_meta = models.CharField(
         max_length=20,

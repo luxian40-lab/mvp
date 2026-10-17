@@ -113,9 +113,20 @@ class ClienteAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
+        sync_cursos = getattr(form, 'sync_cursos_whatsapp', None)
+        if sync_cursos and obj.pk:
+            sync_cursos(obj)
         sync = getattr(form, 'sync_media_fields', None)
         if sync and obj.pk:
             sync(obj)
+
+    @admin.display(description='Cómo sale en WhatsApp')
+    def aviso_formato_whatsapp(self, obj):
+        from portal.forms import texto_formato_whatsapp
+
+        if not obj or not obj.pk:
+            return texto_formato_whatsapp(0)
+        return texto_formato_whatsapp(obj.cursos_whatsapp.filter(activo=True).count())
 
     inlines = [
         PortalUsuarioInline,
@@ -146,6 +157,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'logo_preview',
         'wallpaper_preview',
         'mapa_cobertura_rapido',
+        'aviso_formato_whatsapp',
     )
     
     fieldsets = (
@@ -197,9 +209,24 @@ class ClienteAdmin(admin.ModelAdmin):
                 'Suba JPG/WebP ≤ 2 MB y pulse Guardar.</p>'
             ),
         }),
-        ('WhatsApp y legal', {
+        ('WhatsApp', {
             'classes': ['tab'],
+            'description': (
+                'Marque cursos y agentes. De 2 a 10 cursos: carrusel. '
+                'Más de 10: lista. Los agentes siempre salen en lista.'
+            ),
             'fields': (
+                'cursos_eki',
+                'cursos_empresa',
+                'agentes_menu',
+                'aviso_formato_whatsapp',
+                'numero_whatsapp_nat',
+            ),
+        }),
+        ('WhatsApp avanzado', {
+            'classes': ['tab', 'collapse'],
+            'fields': (
+                'phone_id_meta',
                 'numero_whatsapp_autorizado',
                 'twilio_account_sid',
                 'twilio_auth_token',

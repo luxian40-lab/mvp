@@ -22,9 +22,31 @@
     grid-column: 1;
     grid-row: 1;
 }
+.eki-cliente-v2 .fieldset-whatsapp {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem 1.5rem;
+    align-items: start;
+}
+.eki-cliente-v2 .fieldset-whatsapp > fieldset { display: contents; }
+.eki-cliente-v2 .fieldset-whatsapp .leading-relaxed {
+    grid-column: 1 / -1;
+}
+.eki-cliente-v2 .fieldset-whatsapp .form-row:has(#id_cursos_eki) {
+    grid-column: 1;
+}
+.eki-cliente-v2 .fieldset-whatsapp .form-row:has(#id_cursos_empresa) {
+    grid-column: 2;
+}
+.eki-cliente-v2 .fieldset-whatsapp .form-row:has(#id_agentes_menu),
+.eki-cliente-v2 .fieldset-whatsapp .form-row:has(.field-aviso_formato_whatsapp),
+.eki-cliente-v2 .fieldset-whatsapp .form-row:has(#id_numero_whatsapp_nat) {
+    grid-column: 1 / -1;
+}
 @media (max-width: 768px) {
     .eki-cliente-v2 .fieldset-marca { grid-template-columns: 1fr; }
     .eki-cliente-v2 .fieldset-marca .leading-relaxed { grid-column: 1; grid-row: 2; }
+    .eki-cliente-v2 .fieldset-whatsapp { grid-template-columns: 1fr; }
 }
 </style>
 <script>

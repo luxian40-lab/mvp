@@ -45,6 +45,9 @@ EXCLUIDOS_COBERTURA = {
     'portal_productos': (
         'No es input. Lo escriben las casillas portal_modulos con el mismo texto separado por comas.'
     ),
+    'agentes_linea': (
+        'No es input. Lo escriben las casillas agentes_menu con el mismo texto separado por comas.'
+    ),
 }
 
 
@@ -95,6 +98,12 @@ class CoberturaCamposClienteTests(TestCase):
         self.assertIn('portal_modulos', nuevos)
         self.assertIn('es_demo', nuevos)
         self.assertIn('gei_factores_json', nuevos)
+        self.assertIn('cursos_eki', nuevos)
+        self.assertIn('cursos_empresa', nuevos)
+        self.assertIn('agentes_menu', nuevos)
+        self.assertIn('aviso_formato_whatsapp', nuevos)
+        self.assertNotIn('cursos_whatsapp', nuevos)
+        self.assertNotIn('agentes_linea', nuevos)
 
     def test_inlines_anteriores_siguen_y_precios_entran(self):
         viejos = {inline.model._meta.label: set(inline.fields) for inline in self.viejo.inlines}
@@ -312,8 +321,8 @@ class ListadoClienteV2Tests(TestCase):
         demo_body = demo.content.decode('utf-8')
         self.assertIn('Sin plan Meta', demo_body)
         self.assertIn('Vencida hace 3 días', demo_body)
-        self.assertIn('1 curso al mes y asesor (30 preguntas)', demo_body)
-        self.assertIn('2 cursos al mes, sin asesor', demo_body)
+        self.assertIn('1 curso al mes y asesor (60 preguntas)', demo_body)
+        self.assertIn('2 cursos al mes y asesor (120 preguntas)', demo_body)
         self.assertIn('60 preguntas al mes', demo_body)
         self.assertIn('Ritmo drip por curso', body)
         self.assertIn('Calendario de módulos', body)
@@ -420,6 +429,8 @@ class ListadoClienteV2Tests(TestCase):
 
 
 def _datos_formulario(cliente, **cambios):
+    from django.db.models import QuerySet
+
     form = ClienteAdminFormV2(instance=cliente)
     data = {}
     for name, field in form.fields.items():
@@ -429,8 +440,10 @@ def _datos_formulario(cliente, **cambios):
         if isinstance(initial, bool):
             if initial:
                 data[name] = 'on'
+        elif isinstance(initial, QuerySet):
+            data[name] = list(initial.values_list('pk', flat=True))
         elif isinstance(initial, (list, tuple)):
-            data[name] = list(initial)
+            data[name] = [getattr(x, 'pk', x) for x in initial]
         elif isinstance(initial, dict):
             data[name] = json.dumps(initial)
         elif initial is None:
@@ -438,7 +451,7 @@ def _datos_formulario(cliente, **cambios):
         elif hasattr(initial, 'isoformat'):
             data[name] = initial.isoformat()
         else:
-            data[name] = initial
+            data[name] = getattr(initial, 'pk', initial)
     data.update(cambios)
     return data
 
@@ -473,6 +486,36 @@ class GuardadoClienteV2Tests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         guardado = form.save()
         self.assertEqual(guardado.portal_productos, 'cursos,gei')
+
+    def test_cursos_eki_y_empresa_se_guardan_juntos(self):
+        from core.models import Curso
+        from portal.forms import texto_formato_whatsapp
+
+        cliente = self._cliente()
+        general = Curso.objects.create(
+            nombre='General eki', descripcion='d', cliente=None, activo=True,
+        )
+        propio = Curso.objects.create(
+            nombre='Propio cafe', descripcion='d', cliente=cliente, activo=True,
+        )
+        form = ClienteAdminFormV2(
+            _datos_formulario(
+                cliente,
+                cursos_eki=[general.pk],
+                cursos_empresa=[propio.pk],
+                agentes_menu=['nat', 'coach', 'profe'],
+            ),
+            instance=cliente,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        guardado = form.save()
+        self.assertEqual(
+            set(guardado.cursos_whatsapp.values_list('id', flat=True)),
+            {general.id, propio.id},
+        )
+        self.assertEqual(guardado.agentes_linea, 'nat,coach,profe')
+        self.assertEqual(texto_formato_whatsapp(2), '2 cursos: carrusel.')
+        self.assertEqual(texto_formato_whatsapp(11), '11 cursos: lista.')
 
     def test_numero_nat_invalido_y_duplicado(self):
         otro = self._cliente(

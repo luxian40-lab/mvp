@@ -11,6 +11,28 @@ PORTAL_PRODUCTO_CHOICES = [
     ('empleabilidad', 'Empleabilidad territorial'),
 ]
 
+AGENTES_LINEA_CHOICES = [
+    ('nat', 'Agrónomo'),
+    ('coach', 'Coach'),
+    ('profe', 'Innovación e IA'),
+    ('ventas', 'Ventas'),
+    ('finanzas', 'Finanzas'),
+]
+
+
+def texto_formato_whatsapp(cantidad: int) -> str:
+    """Una línea: cuántos cursos y si salen en botones, carrusel o lista."""
+    from core.cursos_generales import modo_catalogo
+
+    if cantidad <= 0:
+        return (
+            'Sin cursos marcados: en su línea propia salen los de la empresa; '
+            'en la principal, el catálogo general.'
+        )
+    modo = modo_catalogo(cantidad)
+    etiqueta = {'botones': 'botones', 'carrusel': 'carrusel', 'lista': 'lista'}[modo]
+    return f'{cantidad} cursos: {etiqueta}.'
+
 
 class ClientePortalAdminForm(forms.ModelForm):
     portal_modulos = forms.MultipleChoiceField(
@@ -19,6 +41,27 @@ class ClientePortalAdminForm(forms.ModelForm):
         label='Módulos visibles en portal',
         widget=forms.CheckboxSelectMultiple,
         help_text='Si no marca ninguno, se usa solo el tipo de producto principal.',
+    )
+    cursos_eki = forms.ModelMultipleChoiceField(
+        queryset=None,
+        required=False,
+        label='Cursos generales de eki',
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Los del catálogo eki (sin empresa).',
+    )
+    cursos_empresa = forms.ModelMultipleChoiceField(
+        queryset=None,
+        required=False,
+        label='Cursos de esta empresa',
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Los que creó esta organización.',
+    )
+    agentes_menu = forms.MultipleChoiceField(
+        choices=AGENTES_LINEA_CHOICES,
+        required=False,
+        label='Agentes en WhatsApp',
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Si no marca ninguno, se muestran los cinco. Siempre salen en una lista.',
     )
 
     modo_gamificacion = forms.ChoiceField(
@@ -69,18 +112,41 @@ class ClientePortalAdminForm(forms.ModelForm):
         model = Cliente
         exclude = (
             'portal_productos',
+            'agentes_linea',
+            'cursos_whatsapp',
             'usar_gamificacion',
             'peso_gamificacion_reto',
             'peso_gamificacion_abierta',
         )
 
     def __init__(self, *args, **kwargs):
+        from core.models import Curso
+
         super().__init__(*args, **kwargs)
         raw = (self.instance.portal_productos or '').strip() if self.instance.pk else ''
         if raw:
             self.fields['portal_modulos'].initial = [
                 p.strip() for p in raw.split(',') if p.strip()
             ]
+        agentes = (self.instance.agentes_linea or '').strip() if self.instance.pk else ''
+        if agentes:
+            self.fields['agentes_menu'].initial = [
+                p.strip() for p in agentes.replace(';', ',').split(',') if p.strip()
+            ]
+        generales = Curso.objects.filter(cliente__isnull=True, activo=True).order_by(
+            'orden', 'nombre', 'id'
+        )
+        propios = Curso.objects.none()
+        if self.instance.pk:
+            propios = Curso.objects.filter(cliente=self.instance, activo=True).order_by(
+                'orden', 'nombre', 'id'
+            )
+        self.fields['cursos_eki'].queryset = generales
+        self.fields['cursos_empresa'].queryset = propios
+        if self.instance.pk:
+            elegidos = self.instance.cursos_whatsapp.filter(activo=True)
+            self.fields['cursos_eki'].initial = elegidos.filter(cliente__isnull=True)
+            self.fields['cursos_empresa'].initial = elegidos.filter(cliente=self.instance)
         if 'wallpaper_aula_url' in self.fields:
             self.fields['wallpaper_aula_url'].label = 'O pegar URL pública (opcional)'
             self.fields['wallpaper_aula_url'].help_text = (
@@ -133,13 +199,24 @@ class ClientePortalAdminForm(forms.ModelForm):
         obj = super().save(commit=False)
         mods = self.cleaned_data.get('portal_modulos') or []
         obj.portal_productos = ','.join(mods) if mods else ''
+        agentes = self.cleaned_data.get('agentes_menu') or []
+        obj.agentes_linea = ','.join(agentes) if agentes else ''
 
         if commit:
             obj.save()
             self.save_m2m()
             if obj.pk:
+                self.sync_cursos_whatsapp(obj)
                 self.sync_media_fields(obj)
         return obj
+
+    def sync_cursos_whatsapp(self, obj):
+        """Junta generales y propios en el M2M que lee WhatsApp."""
+        if 'cursos_eki' not in self.fields:
+            return
+        eki = list(self.cleaned_data.get('cursos_eki') or [])
+        empresa = list(self.cleaned_data.get('cursos_empresa') or [])
+        obj.cursos_whatsapp.set(eki + empresa)
 
     def sync_media_fields(self, obj):
         """Logo/wallpaper: el admin llama save(commit=False); requiere pk."""
