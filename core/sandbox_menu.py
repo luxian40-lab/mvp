@@ -63,7 +63,7 @@ def texto_asesoria(tope: int) -> str:
     )
 
 
-TEXTO_ASESORIA = texto_asesoria(30)
+TEXTO_ASESORIA = texto_asesoria(60)
 
 TEXTO_CURSO_NO_INSCRITO = (
     "Esta línea no abre cursos nuevos.\n\n"
@@ -83,7 +83,26 @@ def texto_cupo_ia(tope: int) -> str:
     )
 
 
-TEXTO_CUPO_IA = texto_cupo_ia(30)
+TEXTO_CUPO_IA = texto_cupo_ia(60)
+
+TEXTO_TOQUE_NO_PREGUNTA = (
+    "Escriba su pregunta con sus palabras. "
+    "Un botón no cuenta como pregunta.\n\n"
+    "_*menu* para volver._"
+)
+
+
+def _es_toque(payload: Any) -> bool:
+    """True si el mensaje es un botón o una lista, no un texto escrito."""
+    if not isinstance(payload, dict):
+        return False
+    tipo = str(payload.get('_eki_tipo') or '').strip().lower()
+    if tipo in ('interactive', 'button'):
+        return True
+    for clave in ('ButtonPayload', 'ButtonText', 'ListId', 'ListTitle'):
+        if str(payload.get(clave) or '').strip():
+            return True
+    return False
 
 TEXTO_AGENTES = (
     "🤖 *Asesoría*\n\n"
@@ -129,6 +148,7 @@ class SandboxRouteDecision:
     texto_menu: str = TEXTO_MENU
     reset_nat: bool = False  # True = comando *reiniciar* (corte de memoria)
     saludo_entrada: bool = False  # Entró por menú; no pasar "1"/"2" al LLM
+    es_toque: bool = False  # Botón o lista: no es una pregunta escrita
 
 
 def sandbox_menu_enabled() -> bool:
@@ -369,6 +389,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         action='show_menu',
         from_number=to_tel or sandbox_number(),
         telefono_usuario=from_tel,
+        es_toque=_es_toque(payload),
     )
     if not from_tel:
         return decision
@@ -644,8 +665,10 @@ def _entrar_en_progreso(telefono: str, from_number: str, progreso) -> None:
     est.contexto_temporal = ctx
     est.save(update_fields=['contexto_temporal'])
     _set_modo(_get_or_create_sesion(telefono), MODO_CURSOS)
+    from core.lineas.variante import es_solo_cursos
+
     extra = ''
-    if resolver_plan(telefono).incluye_asesor:
+    if not es_solo_cursos() and resolver_plan(telefono).incluye_asesor:
         extra = "\nEscriba *asesoria* si quiere hablar con el asesor.\n"
     enviar_texto_sandbox(
         telefono,
@@ -693,8 +716,14 @@ def ofrecer_cursos_en_curso(telefono: str, from_number: str) -> bool:
 
 
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
+    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, es_modo_twilio
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
+    if es_modo_twilio():
+        # Sin carrusel ni menú Meta: el curso sigue en el camino lineal.
+        return enviar_texto_sandbox(
+            telefono_usuario, from_number, TEXTO_LINEA_MODO_TWILIO, agente='sandbox_cursos',
+        )
     plan = resolver_plan(telefono_usuario)
     if not plan.activo:
         return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_SIN_PLAN, agente='sandbox_plan')
@@ -702,7 +731,10 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
     if plan.incluye_cursos:
         botones.append(('formacion', 'Formación'))
     if plan.incluye_asesor:
-        botones.append(('asesoria', 'Asesoría'))
+        from core.lineas.oferta import filas_agentes
+
+        if filas_agentes(telefono_usuario):
+            botones.append(('asesoria', 'Asesoría'))
     if not plan.incluye_cursos and _tiene_curso_abierto(telefono_usuario):
         botones.append(('seguir', 'Seguir mi curso'))
     texto = texto_menu_plan(plan)
@@ -722,11 +754,22 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 
 
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
-    """Carrusel con los cursos generales del menú. Ver curso inscribe. Más información abre la página."""
-    from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
-    from core.sandbox_canal import enviar_meta_botones, enviar_meta_carrusel, sandbox_via_meta
+    """De 2 a 10 cursos: carrusel. Más de 10: lista. Ver curso inscribe."""
+    from core.cursos_generales import (
+        filas_de_tarjetas,
+        modo_catalogo,
+        paginas_carrusel,
+        paginas_lista,
+        tarjetas_catalogo,
+    )
+    from core.sandbox_canal import (
+        enviar_meta_botones,
+        enviar_meta_carrusel,
+        enviar_meta_lista,
+        sandbox_via_meta,
+    )
 
-    tarjetas = tarjetas_catalogo()
+    tarjetas = tarjetas_catalogo(telefono_usuario)
     cuerpo = (
         "Deslice los cursos de eki. "
         "*Más información* abre la página del programa."
@@ -738,6 +781,19 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
             "Aún no hay cursos de formación publicados.\n\n_*menu* para volver._",
             agente='sandbox_formacion',
         )
+        return
+    if sandbox_via_meta() and modo_catalogo(len(tarjetas)) == 'lista':
+        aviso = "Elija el curso en la lista."
+        for i, pagina in enumerate(paginas_lista(filas_de_tarjetas(tarjetas))):
+            intro = aviso if i == 0 else "Siguen más cursos."
+            enviar_meta_lista(
+                telefono_usuario,
+                intro,
+                'Ver cursos',
+                pagina,
+                texto_respaldo=intro,
+                agente_evento='sandbox_formacion',
+            )
         return
     if sandbox_via_meta() and len(tarjetas) >= 2:
         fallo = None
@@ -782,6 +838,16 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
     dato = payload_catalogo(body) or {}
     item = item_catalogo(dato.get('clave') or '')
     if item is None:
+        from core.cursos_generales import resolver_curso_menu
+
+        curso_linea = resolver_curso_menu(dato.get('clave') or '', telefono_usuario)
+        if curso_linea is not None:
+            item = {
+                'clave': dato.get('clave') or '',
+                'nombre': curso_linea.nombre,
+                'url': '',
+            }
+    if item is None:
         enviar_catalogo_formacion(telefono_usuario, from_number)
         return
     if dato.get('accion') == 'info':
@@ -815,6 +881,16 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         )
         return
     resultado = inscribir_en_catalogo(telefono_usuario, item['clave'])
+    if resultado.get('error') == 'otra_empresa':
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            f"*{resultado.get('nombre') or 'Ese curso'}* no está en esta línea.\n\n"
+            "Escriba *formacion* para ver los cursos de su empresa.\n\n"
+            "_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
     if resultado.get('error') == 'sin_plan_cursos':
         enviar_texto_sandbox(
             telefono_usuario,
@@ -883,11 +959,21 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
 
     if not sandbox_via_meta():
         return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_AGENTES, agente='sandbox_agentes')
+    from core.lineas.oferta import filas_agentes
+
+    filas = filas_agentes(telefono_usuario)
+    if not filas:
+        return enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            "En esta línea no hay agentes.\n\nEscriba *formacion* para ver los cursos.\n\n_*menu* para volver._",
+            agente='sandbox_agentes',
+        )
     return enviar_meta_lista(
         telefono_usuario,
         texto_lista_agentes(_tope_asesor_mes(telefono_usuario)),
         'Ver agentes',
-        FILAS_AGENTES,
+        filas,
         texto_respaldo=TEXTO_AGENTES,
         agente_evento='sandbox_agentes',
     )
@@ -1033,6 +1119,8 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         texto = saludo_agente(agente, reinicio=True)  # type: ignore[arg-type]
     elif decision.saludo_entrada:
         texto = saludo_agente(agente)  # type: ignore[arg-type]
+    elif decision.es_toque:
+        texto = TEXTO_TOQUE_NO_PREGUNTA
     elif not (body or '').strip():
         texto = (
             f"{saludo_agente(agente)}\n\n"  # type: ignore[arg-type]
@@ -1079,12 +1167,10 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
 def _habeas_listo(telefono: str) -> bool:
     from core.utils_telefono import estudiante_por_telefono
 
-    est = estudiante_por_telefono(telefono)
-    if est is not None and not est.acepto_terminos:
-        return False
     sesion = _get_or_create_sesion(telefono)
     if getattr(sesion, 'habeas_aceptado', False):
         return True
+    est = estudiante_por_telefono(telefono)
     if est is not None and est.acepto_terminos:
         sesion.habeas_aceptado = True
         sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
@@ -1113,7 +1199,7 @@ def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
         campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
         registrar_optin(est, 'sesion_linea')
     if (est.estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
-        est.estado_chat = 'ESPERANDO_CEDULA'
+        est.estado_chat = 'ACTIVO'
         campos.append('estado_chat')
     if campos:
         est.save(update_fields=campos)
@@ -1224,6 +1310,11 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
 
     t = (body or '').strip().lower()
     est = estudiante_por_telefono(telefono)
+    if t in ('continuemos', 'continuar') and est is not None and not est.acepto_terminos:
+        from core.sandbox_canal import enviar_sandbox_habeas
+
+        enviar_sandbox_habeas(telefono)
+        return 'handled'
     if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo') and (
         est is None or not est.acepto_terminos
     ):
@@ -1257,13 +1348,25 @@ def _avisar_aula_es_twilio(telefono: str, from_number: str, body: str) -> bool:
 
     if not mensaje_pide_acceso_aula(body):
         return False
+    from core.lineas.variante import es_modo_twilio
+
+    if es_modo_twilio():
+        aviso = (
+            'El *aula* se pide por la otra línea. Escriba *aula* allá para recibir el código. '
+            'Esta línea es solo del curso (Formador y Compañero). '
+            'Escriba *continuar* si ya está inscrito.'
+        )
+    else:
+        aviso = (
+            'El *aula* (eki Aprende) se pide por la línea de cursos. '
+            'Escriba *aula* allá para recibir el código. '
+            'En esta línea están *Formación* y *Asesoría*.'
+        )
     try:
         enviar_texto_sandbox(
             telefono,
             from_number,
-            'El *aula* (eki Aprende) se pide por la línea de cursos. '
-            'Escriba *aula* allá para recibir el código. '
-            'En esta línea están *Formación* y *Asesoría*.',
+            aviso,
             agente='sandbox_menu',
         )
     except Exception:
@@ -1332,7 +1435,40 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     _, _, body = _extract_from_body(payload)
     body = _body_o_audio_transcrito(payload, body)
 
-    if decision.action in _ACCIONES_ASESOR or decision.action == 'show_formacion':
+    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, es_modo_twilio
+
+    if es_modo_twilio():
+        # Modo Twilio: sin carrusel ni agentes. Todo el cuerpo va al curso.
+        if decision.action in _ACCIONES_ASESOR or decision.action in (
+            'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
+        ):
+            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
+            try:
+                enviar_texto_sandbox(
+                    decision.telefono_usuario,
+                    from_n,
+                    TEXTO_LINEA_MODO_TWILIO,
+                    agente='sandbox_cursos',
+                )
+            except Exception:
+                logger.exception('sandbox_linea_twilio_fail tel=%s', decision.telefono_usuario)
+            return 'handled'
+        return 'cursos'
+
+    if decision.action in ('nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe'):
+        from core.lineas.oferta import agente_permitido
+
+        if not agente_permitido(decision.telefono_usuario, decision.action):
+            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
+            try:
+                enviar_menu_agentes(decision.telefono_usuario, from_n)
+            except Exception:
+                logger.exception('sandbox_agente_no_permitido tel=%s', decision.telefono_usuario)
+            return 'handled'
+
+    if (
+        decision.action in _ACCIONES_ASESOR or decision.action == 'show_formacion'
+    ):
         plan = resolver_plan(decision.telefono_usuario)
         bloqueo = ''
         if not plan.activo:
@@ -1464,6 +1600,17 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         from core.planes_linea import registrar_pregunta_asesor
         from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
 
+        if decision.es_toque:
+            try:
+                enviar_texto_sandbox(
+                    decision.telefono_usuario,
+                    from_n,
+                    TEXTO_TOQUE_NO_PREGUNTA,
+                    agente='sandbox_plan',
+                )
+            except Exception:
+                logger.exception('sandbox_nat_toque_fail')
+            return 'handled'
         if excedio_cupo_ia_linea(decision.telefono_usuario):
             try:
                 enviar_texto_sandbox(

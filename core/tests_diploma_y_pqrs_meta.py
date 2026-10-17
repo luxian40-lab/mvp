@@ -101,7 +101,7 @@ class PqrsMetaTests(TestCase):
 
 class PlantillaDiplomaMetaTests(SimpleTestCase):
     @override_settings(META_TEMPLATE_DIPLOMA='diploma_eki', META_TEMPLATE_DIPLOMA_IDIOMA='es')
-    @patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.TPL'})
+    @patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.TPL'})
     def test_encabezado_imagen_y_cuerpo(self, post):
         from core.views.diploma_meta import enviar_diploma_plantilla_meta
 

@@ -130,6 +130,7 @@ def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> di
         'body': texto_tarjeta({'nombre': nombre, 'resumen': resumen, 'url': url}),
         'imagen': imagen,
         'url': url,
+        'titulo': nombre,
         'botones': [
             (f"ver_{clave}", 'Ver curso'),
             (f"info_{clave}", 'Más información'),
@@ -165,10 +166,15 @@ def cursos_del_menu():
     ).order_by('orden', 'nombre', 'id')
 
 
-def tarjetas_catalogo() -> list[dict]:
-    """Una tarjeta por curso general del menú. La clave es curso_{id}, no un nombre fijo."""
+def tarjetas_catalogo(telefono: str | None = None) -> list[dict]:
+    """Una tarjeta por curso del menú. En una línea de empresa, solo los cursos de esa empresa."""
+    from core.lineas.oferta import cursos_de_la_linea
+
+    cursos = cursos_de_la_linea(telefono)
+    if cursos is None:
+        cursos = cursos_del_menu()
     tarjetas = []
-    for curso in cursos_del_menu():
+    for curso in cursos:
         resumen = ' '.join((curso.descripcion or '').split())
         tarjetas.append(_tarjeta(
             f'curso_{curso.id}',
@@ -178,6 +184,28 @@ def tarjetas_catalogo() -> list[dict]:
             _url_de_curso(curso),
         ))
     return tarjetas
+
+
+def modo_catalogo(cantidad: int) -> str:
+    """1 = botones, 2 a 10 = carrusel, más de 10 = lista."""
+    if cantidad <= 1:
+        return 'botones'
+    if cantidad <= MAX_TARJETAS_CARRUSEL:
+        return 'carrusel'
+    return 'lista'
+
+
+def filas_de_tarjetas(tarjetas: list[dict]) -> list[tuple[str, str, str]]:
+    filas = []
+    for tarjeta in tarjetas:
+        ver = tarjeta['botones'][0][0]
+        titulo = (tarjeta.get('titulo') or 'Curso')[:24]
+        filas.append((ver, titulo, ''))
+    return filas
+
+
+def paginas_lista(filas: list[tuple[str, str, str]], n: int = 10) -> list[list[tuple[str, str, str]]]:
+    return [filas[i:i + n] for i in range(0, len(filas), n)]
 
 
 def paginas_carrusel(tarjetas: list[dict]) -> list[list[dict]]:
@@ -216,6 +244,24 @@ def item_catalogo(clave: str) -> dict | None:
         'resumen': ' '.join((curso.descripcion or '').split())[:200],
         'url': _url_de_curso(curso),
     }
+
+
+def resolver_curso_menu(clave: str, telefono: str | None = None):
+    """Curso general, o curso de la empresa dueña de la línea."""
+    curso = curso_catalogo(clave)
+    if curso is not None:
+        return curso
+    if not str(clave).startswith('curso_') or not str(clave)[6:].isdigit():
+        return None
+    from core.lineas.oferta import cursos_de_la_linea
+    from core.models import Curso
+
+    visibles = cursos_de_la_linea(telefono)
+    if visibles is None:
+        return None
+    return Curso.objects.filter(pk=int(str(clave)[6:]), activo=True).filter(
+        pk__in=visibles.values('pk'),
+    ).first()
 
 
 def curso_catalogo(clave: str):
@@ -509,24 +555,37 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
     from core.nati import normalizar_telefono_whatsapp
     from core.planes_linea import cursos_iniciados_en_el_mes, resolver_plan
 
+    tel = normalizar_telefono_whatsapp(telefono)
     item = item_catalogo(clave)
-    curso = curso_catalogo(clave)
+    curso = resolver_curso_menu(clave, tel)
+    if curso is not None and item is None:
+        item = {
+            'clave': clave,
+            'nombre': curso.nombre,
+            'url': _url_de_curso(curso),
+        }
     if item is None or curso is None:
         return {'ok': False, 'error': 'sin_curso', 'nombre': (item or {}).get('nombre', '')}
-    tel = normalizar_telefono_whatsapp(telefono)
-    plan = resolver_plan(tel)
-    if not plan.incluye_cursos:
-        return {'ok': False, 'error': 'sin_plan_cursos', 'nombre': curso.nombre}
-    iniciados = list(cursos_iniciados_en_el_mes(tel, excluir_curso_id=curso.id)[: plan.cursos_mes])
-    if len(iniciados) >= plan.cursos_mes:
-        return {
-            'ok': False,
-            'error': 'cupo_mes',
-            'nombre': curso.nombre,
-            'nombre_activo': iniciados[0].curso.nombre,
-            'curso_activo_id': iniciados[0].curso_id,
-            'cursos_mes': plan.cursos_mes,
-        }
+    from core.lineas.oferta import cursos_de_la_linea
+    from core.lineas.variante import es_solo_cursos
+
+    visibles = cursos_de_la_linea(telefono)
+    if visibles is not None and not visibles.filter(pk=curso.id).exists():
+        return {'ok': False, 'error': 'otra_empresa', 'nombre': curso.nombre}
+    if not es_solo_cursos():
+        plan = resolver_plan(tel)
+        if not plan.incluye_cursos:
+            return {'ok': False, 'error': 'sin_plan_cursos', 'nombre': curso.nombre}
+        iniciados = list(cursos_iniciados_en_el_mes(tel, excluir_curso_id=curso.id)[: plan.cursos_mes])
+        if len(iniciados) >= plan.cursos_mes:
+            return {
+                'ok': False,
+                'error': 'cupo_mes',
+                'nombre': curso.nombre,
+                'nombre_activo': iniciados[0].curso.nombre,
+                'curso_activo_id': iniciados[0].curso_id,
+                'cursos_mes': plan.cursos_mes,
+            }
     est = Estudiante.objects.filter(telefono=tel).first()
     if est is None:
         digitos = ''.join(ch for ch in tel if ch.isdigit())[-12:] or '0'

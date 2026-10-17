@@ -63,7 +63,7 @@ class MetaFunnelTests(TestCase):
     def test_acepto_abre_menu_formacion_asesoria(self):
         tel = '573009991002'
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=False)
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
             dispatch_sandbox_menu(_payload(tel, 'acepto'))
         titulos = []
         for call in send.call_args_list:
@@ -85,7 +85,7 @@ class MetaFunnelTests(TestCase):
         )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cursos')
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto, \
-                patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+                patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
             ruta = dispatch_sandbox_menu(_payload(tel, 'acepto'))
         self.assertEqual(ruta, 'handled')
         self.assertIn('cédula', texto.call_args.args[2].lower())
@@ -121,7 +121,7 @@ class MetaFunnelTests(TestCase):
             estado_chat='ACTIVO',
         )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send, \
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send, \
                 patch('core.sandbox_menu.entrar_cursos_inscrito') as boot:
             ruta = dispatch_sandbox_menu(_payload(tel, 'Iniciar'))
         self.assertEqual(ruta, 'handled')
@@ -242,7 +242,7 @@ class MetaFunnelTests(TestCase):
         self.assertIn('573009991020', cuerpo.replace(' ', '').replace('+', ''))
         self.assertEqual([b[0] for b in botones.call_args.args[2]], ['si', 'no'])
 
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'w'}) as send:
             dispatch_sandbox_menu(_payload(tel, 'si'))
         est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ACTIVO')

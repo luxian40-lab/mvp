@@ -59,7 +59,7 @@ class ImpactoCapturaTests(TestCase):
         SandboxCanalSesion.objects.create(telefono=self.tel, habeas_aceptado=True)
 
     def test_finanzas_no_guarda_impacto_mientras_esta_pausada(self):
-        with patch('core.sandbox_canal._post_graph', return_value=OK):
+        with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
             with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Revise el flujo de caja.'):
                 dispatch_sandbox_menu(_payload(self.tel, 'cómo ordeno gastos'))
@@ -98,13 +98,13 @@ class ImpactoCapturaTests(TestCase):
 
     def test_finanzas_no_anexa_impacto_en_el_agente(self):
         with override_settings(PREGUNTA_IMPACTO_AGENTES=True):
-            with patch('core.sandbox_canal._post_graph', return_value=OK):
+            with patch('core.lineas.envio._post_graph', return_value=OK):
                 dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
             with patch(
                 'core.sandbox_agentes.responder_agente_sandbox',
                 return_value='Revise el flujo de caja.',
             ):
-                with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+                with patch('core.lineas.envio._post_graph', return_value=OK) as send:
                     dispatch_sandbox_menu(_payload(self.tel, 'cómo ordeno gastos'))
         textos = []
         for call in send.call_args_list:

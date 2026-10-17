@@ -289,7 +289,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(nuevo.catalogo_menu)
         self.assertIn(f'curso_{nuevo.id}', [t['clave'] for t in tarjetas_catalogo()])
 
-    def test_mas_de_diez_cursos_van_en_dos_carruseles(self):
+    def test_mas_de_diez_cursos_van_en_dos_listas(self):
         from core.cursos_generales import paginas_carrusel, tarjetas_catalogo
 
         for i in range(9):
@@ -299,17 +299,20 @@ class CatalogoFormacionTests(TestCase):
         paginas = paginas_carrusel(tarjetas_catalogo())
         self.assertEqual([len(p) for p in paginas], [10, 2])
         with patch(
+            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True}
+        ) as lista, patch(
             'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
         ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
-        self.assertEqual(carrusel.call_count, 2)
-        self.assertEqual(len(carrusel.call_args_list[0].args[2]), 10)
-        self.assertEqual(len(carrusel.call_args_list[1].args[2]), 2)
+        carrusel.assert_not_called()
+        self.assertEqual(lista.call_count, 2)
+        self.assertEqual(len(lista.call_args_list[0].args[3]), 10)
+        self.assertEqual(len(lista.call_args_list[1].args[3]), 2)
 
     def test_carrusel_dos_botones_de_respuesta(self):
         from core.sandbox_canal import enviar_meta_carrusel
 
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
             out = enviar_meta_carrusel(
                 '573001112233',
                 'Deslice los cursos.',
@@ -342,7 +345,7 @@ class CatalogoFormacionTests(TestCase):
     def test_mas_informacion_abre_la_pagina_en_el_carrusel(self):
         from core.sandbox_canal import enviar_meta_carrusel
 
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
             out = enviar_meta_carrusel(
                 '573001112233',
                 'Deslice los cursos.',
@@ -382,7 +385,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertIn(URL_TIEMPO, tarjetas[f'curso_{tiempo.id}']['body'])
         resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
         with patch(
-            'core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'},
+            'core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'},
         ) as post:
             out = dispatch_sandbox_menu({**self.base, 'Body': f'info_curso_{tiempo.id}'})
         self.assertEqual(out, 'handled')
@@ -407,7 +410,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(item_catalogo(f'curso_{innovacion.id}')['url'], URL_INNOVACION)
         self.assertEqual(item_catalogo(f'curso_{riendas.id}')['url'], URL_RIENDAS)
         with patch(
-            'core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': '1'},
+            'core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'},
         ) as post:
             out = dispatch_sandbox_menu({**self.base, 'Body': f'info_curso_{tiempo.id}'})
         self.assertEqual(out, 'handled')

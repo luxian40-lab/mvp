@@ -1,7 +1,7 @@
 """Planes comerciales de la línea Meta: lo único que se vende a clientes.
 
-OP1 = 1 curso al mes + asesor (30 preguntas).
-OP2 = 2 cursos al mes, sin asesor.
+OP1 = 1 curso al mes + asesor (60 preguntas).
+OP2 = 2 cursos al mes + asesor (120 preguntas).
 OP3 = asesor con 60 preguntas al mes, sin cursos.
 
 El plan sale de la persona (SandboxCanalSesion.plan), si no tiene de su
@@ -18,8 +18,8 @@ PLAN_DOS_CURSOS = 'dos_cursos'
 PLAN_ASESOR_60 = 'asesor_60'
 
 PLAN_CHOICES = [
-    (PLAN_CURSO_ASESOR, 'OP1 — 1 curso al mes + asesor (30 preguntas)'),
-    (PLAN_DOS_CURSOS, 'OP2 — 2 cursos al mes'),
+    (PLAN_CURSO_ASESOR, 'OP1 — 1 curso al mes + asesor (60 preguntas)'),
+    (PLAN_DOS_CURSOS, 'OP2 — 2 cursos al mes + asesor (120 preguntas)'),
     (PLAN_ASESOR_60, 'OP3 — asesor, 60 preguntas al mes'),
 ]
 
@@ -44,8 +44,8 @@ class PlanLinea:
 
 
 _PLANES = {
-    PLAN_CURSO_ASESOR: PlanLinea(PLAN_CURSO_ASESOR, cursos_mes=1, preguntas_mes=30),
-    PLAN_DOS_CURSOS: PlanLinea(PLAN_DOS_CURSOS, cursos_mes=2, preguntas_mes=0),
+    PLAN_CURSO_ASESOR: PlanLinea(PLAN_CURSO_ASESOR, cursos_mes=1, preguntas_mes=60),
+    PLAN_DOS_CURSOS: PlanLinea(PLAN_DOS_CURSOS, cursos_mes=2, preguntas_mes=120),
     PLAN_ASESOR_60: PlanLinea(PLAN_ASESOR_60, cursos_mes=0, preguntas_mes=60),
 }
 SIN_PLAN = PlanLinea('', cursos_mes=0, preguntas_mes=0)
@@ -201,7 +201,10 @@ def cursos_iniciados_en_el_mes(telefono: str, *, excluir_curso_id: int | None = 
 
 def texto_menu_plan(plan: PlanLinea) -> str:
     if plan.clave == PLAN_DOS_CURSOS:
-        oferta = "puede escoger dos cursos de formación este mes."
+        oferta = (
+            "puede escoger dos cursos de formación este mes y consultar al asesor, "
+            f"hasta {plan.preguntas_mes} preguntas."
+        )
     elif plan.clave == PLAN_ASESOR_60:
         oferta = (
             f"puede consultar al asesor, hasta {plan.preguntas_mes} "

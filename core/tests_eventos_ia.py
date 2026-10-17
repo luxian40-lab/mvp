@@ -73,6 +73,30 @@ class EventoIATests(TestCase):
         self.assertEqual(ev.regla_aplicada, 'auto_regla_m3')
         self.assertTrue(ev.es_reto)
 
+
+class CursoConModuloCeroCheckpointTests(TestCase):
+    def test_modulo_3_y_el_final_aunque_el_conteo_no_coincida(self):
+        from core.models import Curso, Modulo
+
+        curso = Curso.objects.create(
+            nombre='Carrusel con cero',
+            descripcion='d',
+            usar_agentes_ia=True,
+        )
+        mods = {}
+        for numero in range(0, 6):
+            mods[numero] = Modulo.objects.create(
+                curso=curso,
+                numero=numero,
+                titulo=f'M{numero}',
+                descripcion='d',
+                publicado_wa=True,
+            )
+        # El conteo publicado es 6; el cierre es el número 5.
+        for numero, espera in ((0, False), (1, False), (2, False), (3, True), (4, False), (5, True)):
+            decision = evaluar_checkpoint_reto_ia(mods[numero], 6, True)
+            self.assertEqual(decision.es_reto, espera, numero)
+
     def test_emit_webhook_e_intent(self):
         emit_webhook_recibido(mensaje='hola', telefono='573001234567')
         emit_intent_detectado(intent='saludo', mensaje='hola')

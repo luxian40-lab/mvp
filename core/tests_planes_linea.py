@@ -86,7 +86,7 @@ class ResolverPlanTests(TestCase):
         org = _org('Coop', PLAN_DOS_CURSOS)
         Estudiante.objects.create(nombre='A', cedula='P1', telefono=self.tel, cliente=org)
         plan = resolver_plan(self.tel)
-        self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (2, 0))
+        self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (2, 120))
 
     @override_settings(SANDBOX_PROVEEDOR='twilio')
     def test_twilio_es_canal_de_demos_con_op1(self):
@@ -113,7 +113,7 @@ class ResolverPlanTests(TestCase):
     @override_settings(LINEA_META_PLAN_DEFAULT=PLAN_CURSO_ASESOR)
     def test_default_configurable(self):
         plan = resolver_plan(self.tel)
-        self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (1, 30))
+        self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (1, 60))
 
     def _grupo(self, org, nombre, plan, estudiante):
         from core.models_extras import GrupoEstudiantes
@@ -147,8 +147,8 @@ class ResolverPlanTests(TestCase):
     def test_un_cliente_tres_grupos_con_los_tres_planes(self):
         org = _org('Coop', PLAN_CURSO_ASESOR)
         casos = (
-            ('573005550101', 'G-OP1', 'c1', PLAN_CURSO_ASESOR, (1, 30)),
-            ('573005550102', 'G-OP2', 'c2', PLAN_DOS_CURSOS, (2, 0)),
+            ('573005550101', 'G-OP1', 'c1', PLAN_CURSO_ASESOR, (1, 60)),
+            ('573005550102', 'G-OP2', 'c2', PLAN_DOS_CURSOS, (2, 120)),
             ('573005550103', 'G-OP3', 'c3', PLAN_ASESOR_60, (0, 60)),
         )
         for tel, nombre, cedula, plan, esperado in casos:
@@ -189,7 +189,7 @@ class MenuPorPlanTests(TestCase):
     def test_sin_plan_menu_sin_botones_y_todo_bloqueado(self):
         tel = '573005550010'
         self._sesion(tel)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
             dispatch_sandbox_menu(_payload(tel, 'formacion'))
             dispatch_sandbox_menu(_payload(tel, 'asesoria'))
@@ -217,51 +217,51 @@ class MenuPorPlanTests(TestCase):
     def test_grupo_op1_ve_formacion_y_asesoria(self):
         tel = '573005550201'
         self._persona_en_grupo(tel, PLAN_CURSO_ASESOR, plan_org=PLAN_ASESOR_60)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
 
-    def test_grupo_op2_ve_solo_formacion(self):
+    def test_grupo_op2_ve_formacion_y_asesoria(self):
         tel = '573005550202'
         self._persona_en_grupo(tel, PLAN_DOS_CURSOS)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
-        self.assertEqual([b['reply']['id'] for b in botones], ['formacion'])
+        self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
 
     def test_grupo_op3_ve_solo_asesoria(self):
         tel = '573005550203'
         self._persona_en_grupo(tel, PLAN_ASESOR_60, plan_org=PLAN_DOS_CURSOS)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['asesoria'])
 
-    def test_op2_solo_formacion_y_sin_asesor(self):
+    def test_op2_formacion_y_asesor_de_120(self):
         tel = '573005550011'
         self._sesion(tel, PLAN_DOS_CURSOS)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
-        self.assertEqual([b['reply']['id'] for b in botones], ['formacion'])
+        self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
         self.assertIn('dos cursos', _textos(send)[0])
-        self.assertIn('este mes', _textos(send)[0])
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        self.assertIn('120', _textos(send)[0])
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'asesoria'))
             dispatch_sandbox_menu(_payload(tel, 'asesor'))
-            dispatch_sandbox_menu(_payload(tel, 'nat'))
-        self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_ASESOR] * 3)
+        self.assertNotIn(TEXTO_PLAN_SIN_ASESOR, _textos(send))
+        self.assertTrue(all('120' in t for t in _textos(send)))
 
     def test_op3_solo_asesoria_y_sin_cursos(self):
         tel = '573005550012'
         self._sesion(tel, PLAN_ASESOR_60)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['asesoria'])
         self.assertIn('60', _textos(send)[0])
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'formacion'))
             dispatch_sandbox_menu(_payload(tel, 'ver_tiempo'))
         self.assertEqual(_textos(send), [TEXTO_PLAN_SIN_CURSOS] * 2)
@@ -278,15 +278,15 @@ class MenuPorPlanTests(TestCase):
         Curso.objects.create(nombre='Café del mes', descripcion='d', cliente=org, activo=True)
         curso = Curso.objects.get(nombre='Café del mes')
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         texto = _textos(send)[0]
         self.assertIn('un curso', texto)
         self.assertIn('este mes', texto)
-        self.assertIn('30', texto)
+        self.assertIn('60', texto)
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['formacion', 'asesoria'])
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'formacion'))
         cuerpo = _textos(send)[0]
         self.assertNotIn('Seguimos', cuerpo)
@@ -305,12 +305,12 @@ class MenuPorPlanTests(TestCase):
         ProgresoEstudiante.objects.filter(pk=progreso.pk).update(
             fecha_inicio=timezone.now() - timedelta(days=40)
         )
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         botones = send.call_args.args[0]['interactive']['action']['buttons']
         self.assertEqual([b['reply']['id'] for b in botones], ['asesoria', 'seguir'])
         self.assertIn('60', _textos(send)[0])
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'seguir'))
         self.assertIn('Seguimos *Curso que ya iba*', _textos(send)[0])
         self.assertEqual(ProgresoEstudiante.objects.filter(estudiante__telefono=tel).count(), 1)
@@ -318,7 +318,7 @@ class MenuPorPlanTests(TestCase):
     def test_op3_muestra_60_preguntas_en_asesoria(self):
         tel = '573005550013'
         self._sesion(tel, PLAN_ASESOR_60)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'asesoria'))
         self.assertIn('hasta 60 preguntas', _textos(send)[0])
 
@@ -332,7 +332,7 @@ class MenuPorPlanTests(TestCase):
         )
         curso = Curso.objects.create(nombre='Curso finca', descripcion='d', cliente=org, activo=True)
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             out = dispatch_sandbox_menu(_payload(tel, 'curso'))
         self.assertEqual(out, 'handled')
         self.assertIn('Seguimos *Curso finca*', _textos(send)[0])
@@ -344,7 +344,7 @@ class CupoCursosTests(TestCase):
         _cursos_catalogo()
 
     def _ver(self, tel, clave):
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, f'ver_{clave}'))
         return _textos(send)[0]
 
@@ -388,7 +388,7 @@ class ContadorAsesorTests(TestCase):
         return SandboxCanalSesion.objects.get(telefono=self.tel).preguntas_mes
 
     def test_saludo_no_cuenta_y_pregunta_si(self):
-        with patch('core.sandbox_canal._post_graph', return_value=OK):
+        with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
             self.assertEqual(self._usadas(), 0)
             with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'):
@@ -396,21 +396,37 @@ class ContadorAsesorTests(TestCase):
         self.assertEqual(self._usadas(), 1)
 
     def test_nat_cuenta_al_enrutar(self):
-        with patch('core.sandbox_canal._post_graph', return_value=OK):
+        with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'nat'))
         self.assertEqual(dispatch_sandbox_menu(_payload(self.tel, 'tengo roya en el café')), 'nat')
         self.assertEqual(self._usadas(), 1)
 
+    def test_toque_no_gasta_pregunta(self):
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'nat'))
+            toque = _payload(self.tel, 'ver_detalle')
+            toque['_eki_tipo'] = 'interactive'
+            self.assertEqual(dispatch_sandbox_menu(toque), 'handled')
+            with patch('core.sandbox_agentes.responder_agente_sandbox') as llm:
+                ventas = _payload(self.tel, 'ventas')
+                dispatch_sandbox_menu(ventas)
+                boton = _payload(self.tel, 'precio_1')
+                boton['ButtonPayload'] = 'precio_1'
+                dispatch_sandbox_menu(boton)
+        llm.assert_not_called()
+        self.assertEqual(self._usadas(), 0)
+        self.assertTrue(any('no cuenta como pregunta' in t for t in _textos(send)))
+
     def test_tope_agotado_no_llama_ia(self):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(
-            preguntas_mes=30, preguntas_mes_desde=timezone.localdate().replace(day=1)
+            preguntas_mes=60, preguntas_mes_desde=timezone.localdate().replace(day=1)
         )
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'ventas'))
             with patch('core.sandbox_agentes.responder_agente_sandbox') as llm:
                 dispatch_sandbox_menu(_payload(self.tel, 'cómo cobro más'))
         llm.assert_not_called()
-        self.assertIn('ya usó las 30 preguntas', _textos(send)[-1])
+        self.assertIn('ya usó las 60 preguntas', _textos(send)[-1])
 
     def test_memoria_del_agente_guarda_pregunta_y_respuesta(self):
         from core.sandbox_agentes import _historial_sandbox
@@ -558,7 +574,7 @@ class ContadorAsesorTests(TestCase):
                 'Aumenta tus ingresos',
                 'Educación financiera a tu alcance',
             ])
-            self.assertIn('hasta 30 preguntas', lista['interactive']['body']['text'])
+            self.assertIn('hasta 60 preguntas', lista['interactive']['body']['text'])
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'coach')
 
@@ -616,7 +632,7 @@ class RachaEnMensajeTests(TestCase):
 
     def test_primer_mensaje_del_dia_lleva_racha_sin_mensaje_extra(self):
         self._ayer(3)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertEqual(send.call_count, 1)
         cuerpo = _textos(send)[0]
@@ -627,7 +643,7 @@ class RachaEnMensajeTests(TestCase):
 
     def test_segundo_mensaje_del_dia_sin_racha(self):
         self._ayer(3)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
             dispatch_sandbox_menu(_payload(self.tel, 'menu'))
         segundo = _textos(send)[1]
@@ -638,7 +654,7 @@ class RachaEnMensajeTests(TestCase):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(
             racha_actual=9, racha_maxima=9, racha_ultimo_dia=timezone.localdate() - timedelta(days=3)
         )
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertNotIn('Racha', _textos(send)[0])
         ses = SandboxCanalSesion.objects.get(telefono=self.tel)
@@ -652,7 +668,7 @@ class RachaEnMensajeTests(TestCase):
             nombre='Semana firme', descripcion='7 días', icono='🌟', tipo='RACHA', valor_requerido=7
         )
         self._ayer(6)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertEqual(send.call_count, 1)
         cuerpo = _textos(send)[0]
@@ -677,7 +693,7 @@ class RachaEnMensajeTests(TestCase):
     def test_racha_del_estudiante_manda_sobre_el_contador_de_la_linea(self):
         self._estudiante_con_racha_ayer(10)
         self._ayer(2)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertTrue(_textos(send)[0].startswith('🔥 Racha: 11 días seguidos'))
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).racha_actual, 11)
@@ -690,7 +706,7 @@ class RachaEnMensajeTests(TestCase):
         Badge.objects.create(
             nombre='Apagado', descripcion='5', icono='x', tipo='RACHA', valor_requerido=5, activo=False, orden=-1
         )
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertIn('Nueva insignia: *Cinco*', _textos(send)[0])
         self.assertEqual(list(BadgeEstudiante.objects.filter(estudiante=est).values_list('badge', flat=True)), [cinco.pk])
@@ -700,7 +716,7 @@ class RachaEnMensajeTests(TestCase):
 
         self._estudiante_con_racha_ayer(3)
         Badge.objects.create(nombre='Semana firme', descripcion='7', icono='🌟', tipo='RACHA', valor_requerido=7)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'hola'))
         self.assertIn('Próxima insignia: Semana firme (faltan 3 días)', _textos(send)[0])
 
@@ -729,7 +745,7 @@ class AccesoAulaMetaTests(TestCase):
         org = _org('AulaNat', PLAN_CURSO_ASESOR)
         Estudiante.objects.create(nombre='Luis', cedula='A778', telefono=tel, cliente=org)
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='nat')
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             ruta = dispatch_sandbox_menu(_payload(tel, 'aula'))
         self.assertEqual(ruta, 'handled')
         texto = '\n'.join(_textos(send))
@@ -739,7 +755,7 @@ class AccesoAulaMetaTests(TestCase):
     def test_numero_sin_ficha_no_recibe_codigo(self):
         tel = '573005550779'
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True)
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, 'aula'))
         self.assertNotIn('/aprende/estudiante/login/', '\n'.join(_textos(send)))
 
@@ -759,7 +775,7 @@ class MenuTrasConfirmarCedulaTests(TestCase):
             estado_chat='CONFIRMANDO_DATOS',
         )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cursos')
-        with patch('core.sandbox_canal._post_graph', return_value=OK) as send:
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             self.assertEqual(dispatch_sandbox_menu(_payload(tel, 'si')), 'handled')
         est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ACTIVO')
@@ -778,8 +794,11 @@ class MenuTrasConfirmarCedulaTests(TestCase):
             ['formacion', 'asesoria'],
         )
 
-    def test_op2_solo_formacion(self):
-        self.assertEqual(self._botones('573005551002', PLAN_DOS_CURSOS), ['formacion'])
+    def test_op2_formacion_y_asesoria(self):
+        self.assertEqual(
+            self._botones('573005551002', PLAN_DOS_CURSOS),
+            ['formacion', 'asesoria'],
+        )
 
     def test_op3_solo_asesoria(self):
         self.assertEqual(self._botones('573005551003', PLAN_ASESOR_60), ['asesoria'])

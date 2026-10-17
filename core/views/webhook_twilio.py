@@ -18,8 +18,14 @@ from .empleabilidad import (
 )
 from .twilio_transporte import (
     _enviar_mensaje_twilio_segmentado,
+    _es_status_callback_twilio,
     _registrar_estado_twilio_callback,
     youtube_hace_solo_enlace_en_texto,
+)
+from core.lineas.identidad import (
+    cortar_certificado_meta as _cortar_certificado_meta,
+    cortar_habeas_meta as _cortar_habeas_meta,
+    menu_tras_confirmar_datos_meta as _menu_tras_confirmar_datos_meta,
 )
 from .ventana_drip import _pregunta_abierta_final_pendiente
 
@@ -56,106 +62,6 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     return True
 
 
-def _cortar_habeas_meta(post_data) -> bool:
-    """En Meta, sin autorización no se entra al curso. Botones Acepto / No acepto."""
-    from core.sandbox_canal import inbound_es_meta
-
-    if not inbound_es_meta(post_data):
-        return False
-    status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
-    if status:
-        return False
-    from core.habeas_respuestas import aplicar_respuesta_habeas, texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
-
-    body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip()
-    if not body:
-        return False
-    tel = normalizar_telefono_whatsapp(post_data.get('From', ''))
-    from core.sandbox_menu import _habeas_listo, alinear_ficha_con_sesion_habeas
-
-    if _habeas_listo(tel):
-        alinear_ficha_con_sesion_habeas(tel)
-        return False
-    est = estudiante_por_telefono(tel)
-    if est is None or est.acepto_terminos:
-        return False
-    if (est.contexto_temporal or {}).get('cert_envio_pendiente'):
-        return False
-    sid = str(post_data.get('MessageSid') or '').strip()
-    if sid and WhatsappLog.objects.filter(mensaje_id=sid, tipo='INCOMING').exists():
-        return True
-    if sid:
-        WhatsappLog.objects.create(
-            telefono=est.telefono,
-            mensaje=body[:500],
-            mensaje_id=sid,
-            tipo='INCOMING',
-        )
-    try:
-        resultado = aplicar_respuesta_habeas(est, body)
-    except Exception:
-        logger.exception('habeas_meta_corte')
-        resultado = {'accion': 'reenviar_plantilla', 'texto': None}
-    from core.sandbox_canal import enviar_sandbox_habeas
-    from core.utils import enviar_whatsapp_twilio
-
-    destino = post_data.get('From', '') or est.telefono
-    if resultado.get('accion') == 'reenviar_plantilla':
-        enviar_sandbox_habeas(destino)
-    else:
-        texto = resultado.get('texto') or ''
-        if texto:
-            enviar_whatsapp_twilio(destino, texto, agente_evento='habeas_meta')
-    return True
-
-
-_SI_CONFIRMA_DATOS = {'si', 'sí', 'todo bien', 'correcto', 'ok', 'yes', 'confirmo', 'confirmar'}
-
-
-def _menu_tras_confirmar_datos_meta(post_data) -> bool:
-    """En Meta, el sí de la cédula abre el menú. El curso empieza al elegirlo."""
-    from core.sandbox_canal import inbound_es_meta
-
-    if not inbound_es_meta(post_data):
-        return False
-    status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
-    if status:
-        return False
-    from core.habeas_respuestas import texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
-
-    body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip().lower()
-    if body not in _SI_CONFIRMA_DATOS:
-        return False
-    est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
-    if est is None or est.estado_chat != 'CONFIRMANDO_DATOS':
-        return False
-    sid = str(post_data.get('MessageSid') or '').strip()
-    if sid and WhatsappLog.objects.filter(mensaje_id=sid, tipo='INCOMING').exists():
-        return True
-    if sid:
-        WhatsappLog.objects.create(
-            telefono=est.telefono,
-            mensaje=body[:500],
-            mensaje_id=sid,
-            tipo='INCOMING',
-        )
-    est.estado_chat = 'ACTIVO'
-    est.estado_onboarding = 'completado'
-    est.save(update_fields=['estado_chat', 'estado_onboarding'])
-    from core.sandbox_menu import MODO_MENU, _get_or_create_sesion, _set_modo, enviar_menu_sandbox
-
-    sesion = _get_or_create_sesion(est.telefono)
-    sesion.habeas_aceptado = True
-    sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
-    _set_modo(sesion, MODO_MENU)
-    enviar_menu_sandbox(est.telefono, post_data.get('From', '') or est.telefono)
-    return True
-
-
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
@@ -163,6 +69,11 @@ def _procesar_twilio_webhook(post_data):
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
     with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
+        if canal == CANAL_TWILIO and _es_status_callback_twilio(post_data):
+            _registrar_estado_twilio_callback(post_data)
+            return None
+        if canal == CANAL_META and _cortar_certificado_meta(post_data):
+            return None
         if canal == CANAL_META and _cortar_habeas_meta(post_data):
             return None
         if canal == CANAL_META and _menu_tras_confirmar_datos_meta(post_data):
@@ -863,6 +774,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                     ]
                                 )
                         if modulo:
+                            from core.inicio_curso import marcar_inicio_entregado
+                            marcar_inicio_entregado(estudiante, curso.id)
                             # Get agent names: Cliente > Curso > defaults
                             cliente_obj = estudiante.cliente
                             nombre_tutor = (
@@ -1041,62 +954,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 )
             
             try:
-                from twilio.rest import Client as TwilioClient
-                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                client_tw = TwilioClient(account_sid, auth_token)
-                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                
-                # Handle multi-message (process [MULTI_MSG]/[SEP]/[MEDIA:] markers)
-                if texto_respuesta.startswith('[MULTI_MSG]'):
-                    import re as re_conf
-                    partes_conf = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
-                    for parte_c in partes_conf:
-                        if not parte_c.strip():
-                            continue
-                        parte_texto_c = parte_c.strip()
-                        # [DELAY:N] — pausa intencional para que WhatsApp entregue videos
-                        delay_m_c = re_conf.match(r'^\[DELAY:(\d+)\]$', parte_texto_c)
-                        if delay_m_c:
-                            import time; time.sleep(int(delay_m_c.group(1)))
-                            continue
-                        # Detectar Content Template → enviar como template, NO como texto
-                        if parte_texto_c.startswith('[SEND_TEMPLATE:'):
-                            tmpl_m_c = re_conf.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto_c)
-                            if tmpl_m_c:
-                                from ..whatsapp_service import enviar_template_twilio
-                                tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
-                                enviar_template_twilio(tel_limpio_t, tmpl_m_c.group(1))
-                            import time; time.sleep(0.5)
-                            continue
-                        parte_media_c = None
-                        media_m_c = re_conf.search(r'\[MEDIA:(.*?)\]', parte_texto_c)
-                        if media_m_c:
-                            parte_media_c = (media_m_c.group(1) or '').strip()
-                            parte_texto_c = parte_texto_c.replace(media_m_c.group(0), '').strip()
-                        enviados_c = _enviar_mensaje_twilio_segmentado(
-                            client=client_tw,
-                            from_number=str(twilio_number).strip(),
-                            to_number=str(destino).strip(),
-                            body=parte_texto_c,
-                            media_url=parte_media_c,
-                        )
-                        import time; time.sleep(0.5)
-                        from ..twilio_media import mensaje_log_con_media
-                        for seg_i, (msg_sent, texto_env) in enumerate(enviados_c, start=1):
-                            WhatsappLog.objects.create(
-                                telefono=telefono_limpio,
-                                mensaje=mensaje_log_con_media(
-                                    texto_env or parte_texto_c,
-                                    parte_media_c if seg_i == 1 else None,
-                                )[:1500],
-                                mensaje_id=getattr(msg_sent, 'sid', None),
-                                tipo='SENT',
-                            )
-                else:
-                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                from core.lineas.entrega import enviar_marcado
+
+                enviar_marcado(msg_from, telefono_limpio, texto_respuesta, registro='segmentos')
             except Exception as e:
                 logger.error(f"❌ Error enviando confirmación: {e}")
                 import traceback; traceback.print_exc()
@@ -1256,62 +1116,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             texto_respuesta = "No entendí tu selección. Escribe *tomar 1* para escoger un curso o *menú* para volver."
                 # — Enviar respuesta de selección de curso y CORTAR —
                 try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    # Check for multi-message or media markers
-                    if texto_respuesta.startswith('[MULTI_MSG]'):
-                        partes = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
-                        for parte in partes:
-                            if not parte.strip():
-                                continue
-                            import re as re_multi
-                            parte_texto = parte.strip()
-                            # [DELAY:N] — pausa intencional para entrega de videos
-                            delay_m = re_multi.match(r'^\[DELAY:(\d+)\]$', parte_texto)
-                            if delay_m:
-                                import time; time.sleep(int(delay_m.group(1)))
-                                continue
-                            # Detectar Content Template
-                            if parte_texto.startswith('[SEND_TEMPLATE:'):
-                                tmpl_m = re_multi.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto)
-                                if tmpl_m:
-                                    from ..whatsapp_service import enviar_template_twilio
-                                    tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
-                                    enviar_template_twilio(tel_limpio_t, tmpl_m.group(1))
-                                import time; time.sleep(0.5)
-                                continue
-                            parte_media = None
-                            media_m = re_multi.search(r'\[MEDIA:(.*?)\]', parte_texto)
-                            if media_m:
-                                parte_media = media_m.group(1).strip()
-                                parte_texto = parte_texto.replace(media_m.group(0), '').strip()
-                            _enviar_mensaje_twilio_segmentado(
-                                client=client_tw,
-                                from_number=str(twilio_number).strip(),
-                                to_number=str(destino).strip(),
-                                body=parte_texto,
-                                media_url=parte_media,
-                            )
-                            import time; time.sleep(0.5)
-                    else:
-                        media_url_sel = None
-                        import re as re_sel
-                        media_m = re_sel.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
-                        if media_m:
-                            media_url_sel = media_m.group(1).strip()
-                            texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                        _enviar_mensaje_twilio_segmentado(
-                            client=client_tw,
-                            from_number=str(twilio_number).strip(),
-                            to_number=str(destino).strip(),
-                            body=texto_respuesta,
-                            media_url=media_url_sel,
-                        )
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                    from core.lineas.entrega import enviar_marcado
+
+                    enviar_marcado(msg_from, telefono_limpio, texto_respuesta, registro='cierre')
                 except Exception as e:
                     logger.error(f"❌ Error enviando selección curso: {e}")
                 return  # CORTAR EJECUCIÓN
@@ -1343,71 +1150,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 pass
 
             else:
-                # 🆘 PQRS / ayuda — cede a evaluación/agentes; no duplicar tickets
-                try:
-                    from ..pqrs_agent import (
-                        intentar_procesar_seguimiento_pqrs_whatsapp,
-                        mensaje_activa_soporte,
-                        mensaje_es_solo_ayuda,
-                        obtener_ticket_pqrs_abierto,
-                        pedagogia_tiene_prioridad,
-                        respuesta_ayuda_con_ticket_abierto,
-                    )
-                    from ..security_handler import procesar_solicitud_soporte
-
-                    _resp_pqrs_gate = None
-                    if not pedagogia_tiene_prioridad(estudiante):
-                        if mensaje_activa_soporte(msg_body):
-                            _ticket_abierto = obtener_ticket_pqrs_abierto(estudiante)
-                            if _ticket_abierto:
-                                if mensaje_es_solo_ayuda(msg_body):
-                                    _resp_pqrs_gate = respuesta_ayuda_con_ticket_abierto(
-                                        estudiante, msg_body,
-                                    )
-                                else:
-                                    # ayuda + detalle con ticket abierto → seguimiento, no 2.º ticket
-                                    _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
-                                        estudiante, msg_body,
-                                    )
-                            else:
-                                _resp_pqrs_gate = procesar_solicitud_soporte(
-                                    estudiante, msg_body, 'curso_ayuda',
-                                )
-                        else:
-                            _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
-                                estudiante, msg_body,
-                            )
-
-                    if _resp_pqrs_gate:
-                        try:
-                            from twilio.rest import Client as TwilioClient
-
-                            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                            twilio_number = getattr(
-                                settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806',
-                            )
-                            client_tw = TwilioClient(account_sid, auth_token)
-                            destino = (
-                                f'whatsapp:{msg_from}'
-                                if not msg_from.startswith('whatsapp:')
-                                else msg_from
-                            )
-                            client_tw.messages.create(
-                                body=_resp_pqrs_gate,
-                                from_=str(twilio_number).strip(),
-                                to=str(destino).strip(),
-                            )
-                            WhatsappLog.objects.create(
-                                telefono=telefono_limpio,
-                                mensaje=_resp_pqrs_gate[:500],
-                                tipo='SENT',
-                            )
-                        except Exception as e:
-                            logger.error('❌ Error enviando PQRS/ayuda en gate curso: %s', e)
-                        return
-                except Exception:
-                    logger.exception('PQRS gate curso omitido')
+                from core.lineas.pqrs_linea import respuesta_en_puerta
+                if respuesta_en_puerta(estudiante, msg_body, msg_from, telefono_limpio):
+                    return
 
                 # 🎥 Reenvío de video/material (sin avanzar curso) — antes de eval/listo
                 if estado_chat == 'ACTIVO':
@@ -1456,159 +1201,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     except Exception:
                         logger.exception('Reenvío media curso omitido')
 
-                # 📚 Paso módulo: evaluación / reto — antes del gate "solo listo" (A, texto libre, etc.)
-                if estado_chat == 'ACTIVO':
-                    from ..module_steps import procesar_respuesta_evaluacion_paso
-                    from ..models import ProgresoEstudiante
+                from core.lineas.paso import responder_evaluacion_paso
+                if responder_evaluacion_paso(
+                    estudiante, msg_body, msg_from, telefono_limpio, estado_chat,
+                ):
+                    return
 
-                    _prog_eval = (
-                        ProgresoEstudiante.objects.filter(
-                            estudiante=estudiante,
-                            completado=False,
-                        )
-                        .order_by('-fecha_inicio')
-                        .first()
-                    )
-                    _ctx_eval = estudiante.contexto_temporal or {}
-                    _fid_eval = _ctx_eval.get('curso_activo_id')
-                    if (
-                        _fid_eval
-                        and _prog_eval
-                        and _prog_eval.curso_id != int(_fid_eval)
-                    ):
-                        _prog_eval = (
-                            ProgresoEstudiante.objects.filter(
-                                estudiante=estudiante,
-                                completado=False,
-                                curso_id=int(_fid_eval),
-                            ).first()
-                            or _prog_eval
-                        )
-                    if _prog_eval:
-                        _resp_paso = procesar_respuesta_evaluacion_paso(
-                            estudiante, _prog_eval, msg_body
-                        )
-                        if _resp_paso is not None:
-                            logger.info(
-                                "📚 [pasos] respuesta evaluación procesada en webhook | est=%s",
-                                estudiante.id,
-                            )
-                            try:
-                                from twilio.rest import Client as TwilioClient
-                                import re as _re_paso
-
-                                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                                twilio_number = getattr(
-                                    settings,
-                                    'TWILIO_PHONE_NUMBER',
-                                    'whatsapp:+573202948806',
-                                )
-                                client_tw = TwilioClient(account_sid, auth_token)
-                                destino = (
-                                    f'whatsapp:{msg_from}'
-                                    if not msg_from.startswith('whatsapp:')
-                                    else msg_from
-                                )
-                                twilio_from = str(twilio_number).strip()
-                                destino_st = str(destino).strip()
-
-                                def _log_twilio_segments_pasos(mensajes_enviados, parte_texto, parte_media):
-                                    for _seg_idx, (mensaje, texto_enviado) in enumerate(
-                                        mensajes_enviados, start=1
-                                    ):
-                                        texto_log = texto_enviado or parte_texto or (
-                                            f'[MEDIA:{parte_media}]' if parte_media else ''
-                                        )
-                                        WhatsappLog.objects.create(
-                                            telefono=telefono_limpio,
-                                            mensaje=texto_log[:1500],
-                                            mensaje_id=mensaje.sid,
-                                            tipo='SENT',
-                                        )
-
-                                if _resp_paso.startswith('[MULTI_MSG]'):
-                                    partes = _resp_paso.replace('[MULTI_MSG]', '', 1).split('[SEP]')
-                                    for parte in partes:
-                                        if not parte.strip():
-                                            continue
-                                        parte_texto = parte.strip()
-                                        delay_m = _re_paso.match(
-                                            r'^\[DELAY:(\d+)\]$', parte_texto
-                                        )
-                                        if delay_m:
-                                            import time as _time_p
-
-                                            _time_p.sleep(int(delay_m.group(1)))
-                                            continue
-                                        parte_media = None
-                                        if '[MEDIA:' in parte_texto:
-                                            mm = _re_paso.search(r'\[MEDIA:(.*?)\]', parte_texto)
-                                            if mm:
-                                                parte_media = (mm.group(1) or '').strip()
-                                                parte_texto = parte_texto.replace(
-                                                    mm.group(0), ''
-                                                ).strip()
-                                                if parte_media and youtube_hace_solo_enlace_en_texto(
-                                                    parte_media
-                                                ):
-                                                    logger.warning(
-                                                        '📎 [pasos] URL parece YouTube (no MP4 directo) | est=%s',
-                                                        estudiante.id,
-                                                    )
-                                        enviados_p = _enviar_mensaje_twilio_segmentado(
-                                            client=client_tw,
-                                            from_number=twilio_from,
-                                            to_number=destino_st,
-                                            body=parte_texto,
-                                            media_url=parte_media,
-                                        )
-                                        _log_twilio_segments_pasos(enviados_p, parte_texto, parte_media)
-                                        import time as _time_p
-
-                                        _time_p.sleep(0.5)
-                                else:
-                                    parte_media = None
-                                    parte_texto = (_resp_paso or '').strip()
-                                    if '[MEDIA:' in parte_texto:
-                                        mm = _re_paso.search(r'\[MEDIA:(.*?)\]', parte_texto)
-                                        if mm:
-                                            parte_media = (mm.group(1) or '').strip()
-                                            parte_texto = parte_texto.replace(
-                                                mm.group(0), ''
-                                            ).strip()
-                                    enviados_p = _enviar_mensaje_twilio_segmentado(
-                                        client=client_tw,
-                                        from_number=twilio_from,
-                                        to_number=destino_st,
-                                        body=parte_texto,
-                                        media_url=parte_media,
-                                    )
-                                    _log_twilio_segments_pasos(enviados_p, parte_texto, parte_media)
-                            except Exception as e:
-                                logger.error(f"❌ Error enviando respuesta paso módulo: {e}", exc_info=True)
-                            return
-
-                keywords_corregir_curso = [
-                    '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
-                    'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos', 'modificar',
-                    'datos incorrectos', 'mis datos', 'actualizar datos'
-                ]
-
-                if msg_lower in keywords_corregir_curso:
-                    from ..correccion_datos import iniciar_flujo_correccion
-                    texto_respuesta = iniciar_flujo_correccion(estudiante)
-                    try:
-                        from twilio.rest import Client as TwilioClient
-                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                        client_tw = TwilioClient(account_sid, auth_token)
-                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                        client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
-                    except Exception as e:
-                        logger.error(f"❌ Error enviando corrección datos: {e}")
+                from core.lineas.pqrs_linea import corregir_datos_si_pide
+                if corregir_datos_si_pide(estudiante, msg_lower, msg_from, telefono_limpio):
                     return
 
                 if not _mensaje_indica_listo(msg_body):
@@ -1865,26 +1465,8 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # ============================================================
         # PQRS: seguimiento de ticket abierto (cede a pedagogía / agentes)
         # ============================================================
-        pqrs_atendido = False
-        respuesta_pqrs = None
-        try:
-            from ..pqrs_agent import (
-                intentar_procesar_seguimiento_pqrs_whatsapp,
-                pedagogia_tiene_prioridad,
-            )
-
-            if not pedagogia_tiene_prioridad(estudiante):
-                respuesta_pqrs = intentar_procesar_seguimiento_pqrs_whatsapp(
-                    estudiante, msg_body,
-                )
-                if respuesta_pqrs:
-                    pqrs_atendido = True
-                    logger.info(
-                        '🆘 PQRS seguimiento — respuesta automática estudiante_id=%s',
-                        estudiante.id,
-                    )
-        except Exception as e:
-            logger.exception('PQRS seguimiento omitido: %s', e)
+        from core.lineas.pqrs_linea import seguimiento_en_linea
+        pqrs_atendido, respuesta_pqrs = seguimiento_en_linea(estudiante, msg_body)
 
         # ============================================================
         # FLUJO EXISTENTE: Procesamiento normal (IA tutors, módulos, etc.)
@@ -2845,85 +2427,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 es_reto_final = ctx.get('es_reto_final', False)
 
                 def _activar_reto_despues_de_maria(prefijo=""):
-                    from ..models import ProgresoEstudiante, Modulo
-                    from ..tutor_ia_modulo import (
-                        cargar_modulos_reto,
-                        generar_reto_facilitador,
-                        listar_modulos_cobertura_reto,
+                    from core.lineas.reto import activar_reto_despues_de_maria
+                    return activar_reto_despues_de_maria(
+                        estudiante, prefijo, progreso_id, modulos_reto_ids, es_reto_final,
                     )
-                    progreso_r = (
-                        ProgresoEstudiante.objects.filter(id=progreso_id)
-                        .select_related('curso', 'modulo_actual')
-                        .first()
-                        if progreso_id
-                        else None
-                    )
-                    _mids = list(modulos_reto_ids) if modulos_reto_ids else []
-                    modulos_reto = (
-                        cargar_modulos_reto(_mids, progreso_r.curso_id if progreso_r else None)
-                        if _mids
-                        else []
-                    )
-                    if not modulos_reto and progreso_r:
-                        _mchk = None
-                        _outer = estudiante.contexto_temporal or {}
-                        mid = _outer.get('modulo_id')
-                        if mid:
-                            _mchk = Modulo.objects.filter(
-                                id=mid, curso_id=progreso_r.curso_id
-                            ).first()
-                        if not _mchk and getattr(progreso_r, 'modulo_actual_id', None):
-                            _mchk = progreso_r.modulo_actual
-                        if _mchk:
-                            modulos_reto = listar_modulos_cobertura_reto(_mchk, progreso_r.curso)
-                            _mids = [m.id for m in modulos_reto]
-                    if not (progreso_r and modulos_reto):
-                        logger.warning(
-                            "reto post-María vacío | progreso_id=%s modulo_ctx=%s ids_ctx=%s",
-                            progreso_id,
-                            (estudiante.contexto_temporal or {}).get('modulo_id'),
-                            modulos_reto_ids,
-                        )
-                        estudiante.contexto_temporal = None
-                        estudiante.estado_onboarding = 'completado'
-                        estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-                        if progreso_r and progreso_r.completado:
-                            return (
-                                f"{prefijo}\n\n"
-                                "🎉 Ya completaste este curso.\n\n"
-                                "Si el certificado aún no llega, escribe *ayuda*. "
-                                "Si tienes otro curso asignado, también puedes escribir *listo*."
-                            ).strip()
-                        return (
-                            f"{prefijo}\n\n"
-                            "Seguimos con tu curso. Escribí *listo* para continuar "
-                            "o *ayuda* si necesitás soporte."
-                        ).strip()
-                    _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-                    nombre_tutor = nombre_display_facilitador(progreso_r.curso)
-                    reto = generar_reto_facilitador(
-                        modulos_reto,
-                        progreso_r.curso.nombre,
-                        estudiante_nombre=estudiante.nombre or "Estudiante",
-                        curso=progreso_r.curso,
-                        modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
-                    )
-                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                    estudiante.contexto_temporal = {
-                        'tipo': 'reto_facilitador',
-                        'modulos_reto_ids': _mids,
-                        'reto_texto': reto,
-                        'progreso_id': progreso_id,
-                        'es_final': es_reto_final,
-                        '_ts_leccion': _prev_ts,
-                    }
-                    estudiante.estado_onboarding = 'esperando_respuesta_reto'
-                    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-                    from core.tutor_ia_modulo import bloque_reto_whatsapp
 
-                    bloque_reto = bloque_reto_whatsapp(nombre_tutor, reto)
-                    return f"{prefijo}\n\n{bloque_reto}".strip()
-                
                 # Detectar si el usuario quiere omitir
                 msg_lower = msg_body.strip().lower()
                 palabras_skip = ['listo', 'continuar', 'saltar', 'omitir', 'siguiente', 'pasar', 'menu', 'menú']

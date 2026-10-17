@@ -148,7 +148,7 @@ class FlowSesionTests(TestCase):
         self.tipo.meta_flow_id = '999'
         self.tipo.save(update_fields=['meta_flow_id'])
         with canal_sandbox_meta(), patch(
-            'core.sandbox_canal._post_graph',
+            'core.lineas.envio._post_graph',
             return_value={'success': True, 'mensaje_id': 'wamid.flow'},
         ) as post:
             msg = iniciar_sesion_formulario(self.est, self.tipo)

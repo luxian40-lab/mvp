@@ -198,7 +198,7 @@ class SandboxCanalMetaSendTests(TestCase):
         cfg.content_sid_habeas_data_global = 'HXOTROHABEAS0001'
         cfg.save(update_fields=['content_sid_habeas_data_global', 'fecha_actualizacion'])
         with canal_sandbox_meta():
-            with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.h'}) as post:
+            with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.h'}) as post:
                 result = enviar_habeas_data('573001234567', cliente=cliente)
         self.assertTrue(result.get('success'))
         payload = post.call_args[0][0]
@@ -211,7 +211,7 @@ class SandboxCanalMetaSendTests(TestCase):
         from core.models import SandboxCanalSesion
 
         SandboxCanalSesion.objects.create(telefono='573001234590', habeas_aceptado=True)
-        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'x'}) as send:
+        with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'x'}) as send:
             with patch('core.utils.enviar_whatsapp_twilio') as mock_tw:
                 out = dispatch_sandbox_menu({
                     'From': 'whatsapp:+573001234590',

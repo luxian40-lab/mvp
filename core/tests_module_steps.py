@@ -1141,8 +1141,9 @@ class InscripcionConPasosSinContenidoModuloMuestraAgentesTests(TestCase):
             estudiante_id=self.est.id,
             mensaje_original='1',
         )
-        self.assertIn('Facilitadora', r)
-        self.assertIn('compañero de estudio', r)
+        self.assertIn('Formador', r)
+        self.assertIn('Compañero', r)
+        self.assertNotIn('Claudia', r)
         self.assertIn('BLOQUE_PASO_UNICO', r)
 
 
@@ -1300,8 +1301,9 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
         )
         self.assertNotIn('Tu próxima lección se desbloquea el', r)
         self.assertIn('pausa para repasar', r.lower())
+        self.assertIn('Compañero', r)
+        self.assertIn('Formador', r)
         self.assertFalse(r.lstrip().startswith('*Darío*'), r[:80])
-        self.assertTrue('¡hola!' in r.lower() or 'hola!' in r.lower(), r[:120])
 
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')

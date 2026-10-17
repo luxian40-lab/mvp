@@ -404,6 +404,35 @@ class CheckpointDecision:
     modulo_ya_completado_anulo: bool = False
 
 
+def numero_cierre_de_regla(modulo, total_modulos: int) -> int:
+    """Último módulo publicado por número, no por conteo.
+
+    Con un módulo 0 el conteo no coincide con el número del cierre
+    (0…5 son 6 módulos; el final es el 5).
+    """
+    curso = getattr(modulo, 'curso', None)
+    if curso is None and not getattr(modulo, 'curso_id', None):
+        return int(total_modulos or 0)
+    try:
+        from core.modulo_publicacion import modulos_publicados_wa_qs
+        if curso is None:
+            from core.models import Curso
+            curso = Curso.objects.filter(pk=modulo.curso_id).first()
+        if curso is None:
+            return int(total_modulos or 0)
+        ultimo = (
+            modulos_publicados_wa_qs(curso)
+            .order_by('-numero', '-id')
+            .values_list('numero', flat=True)
+            .first()
+        )
+    except Exception:
+        return int(total_modulos or 0)
+    if ultimo is None:
+        return int(total_modulos or 0)
+    return int(ultimo)
+
+
 def evaluar_checkpoint_reto_ia(
     modulo,
     total_modulos: int,
@@ -446,8 +475,9 @@ def evaluar_checkpoint_reto_ia(
     elif pref == Modulo.FACILITADOR_CP_SI:
         decision = CheckpointDecision(es_reto=True, regla_aplicada='override_si', **base_kw)
     else:
-        es_auto = debe_activar_checkpoint_reto_ia(numero, total_modulos, True)
-        regla = _regla_auto_aplicada(numero, total_modulos) if es_auto else 'auto_sin_match'
+        total_regla = numero_cierre_de_regla(modulo, total_modulos)
+        es_auto = debe_activar_checkpoint_reto_ia(numero, total_regla, True)
+        regla = _regla_auto_aplicada(numero, total_regla) if es_auto else 'auto_sin_match'
         decision = CheckpointDecision(es_reto=es_auto, regla_aplicada=regla, **base_kw)
 
     if decision.es_reto and modulo_ya_completado:
