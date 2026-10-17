@@ -4,7 +4,9 @@ from django.test import TestCase
 
 from core.management.commands.cargar_plantillas_bienvenida import (
     AVISO_CARRUSEL,
+    META_NAME_INICIO_CURSO,
     PLANTILLAS_TEXTO,
+    TEXTO_INICIO_CURSO,
     cargar_borradores,
 )
 from core.meta_waba import armar_componentes_alta
@@ -15,7 +17,19 @@ class CargarPlantillasBienvenidaTests(TestCase):
     def test_crea_cuatro_textos_y_un_carrusel_bloqueado(self):
         filas = dict(cargar_borradores())
         self.assertEqual(set(filas.values()), {'creada'})
-        self.assertEqual(PlantillaMeta.objects.count(), 5)
+        self.assertEqual(PlantillaMeta.objects.count(), 6)
+        inicio = PlantillaMeta.objects.get(meta_name=META_NAME_INICIO_CURSO, idioma='es')
+        self.assertEqual(inicio.estado, 'BORRADOR')
+        self.assertEqual(inicio.nombre_interno, 'Inicio de curso')
+        self.assertEqual(inicio.cuerpo, TEXTO_INICIO_CURSO)
+        self.assertEqual(inicio.boton_1_tipo, 'QUICK_REPLY')
+        self.assertEqual(inicio.boton_1_texto, 'Iniciar')
+        self.assertEqual(inicio.boton_2_tipo, '')
+        self.assertEqual(inicio.footer, '')
+        self.assertEqual(inicio.meta_template_id, '')
+        comps_inicio = armar_componentes_alta(inicio)
+        self.assertEqual([c['type'] for c in comps_inicio], ['BODY', 'BUTTONS'])
+        self.assertEqual(comps_inicio[-1]['buttons'], [{'type': 'QUICK_REPLY', 'text': 'Iniciar'}])
         for definicion in PLANTILLAS_TEXTO:
             fila = PlantillaMeta.objects.get(meta_name=definicion['meta_name'], idioma='es')
             self.assertEqual(fila.estado, 'BORRADOR')
@@ -45,8 +59,9 @@ class CargarPlantillasBienvenidaTests(TestCase):
         publicada.cuerpo = 'Texto ya aprobado en Meta.'
         publicada.save()
         filas = dict(cargar_borradores())
-        self.assertEqual(PlantillaMeta.objects.count(), 5)
+        self.assertEqual(PlantillaMeta.objects.count(), 6)
         self.assertEqual(filas['eki_bienvenida_texto'], 'intacta')
+        self.assertEqual(filas[META_NAME_INICIO_CURSO], 'actualizada')
         self.assertEqual(filas['eki_bienvenida_generica'], 'actualizada')
         publicada.refresh_from_db()
         self.assertEqual(publicada.estado, 'APPROVED')
@@ -59,4 +74,4 @@ class CargarPlantillasBienvenidaTests(TestCase):
         with patch('core.meta_waba.crear_plantilla_en_meta') as alta:
             call_command('cargar_plantillas_bienvenida')
         alta.assert_not_called()
-        self.assertEqual(PlantillaMeta.objects.filter(estado='BORRADOR').count(), 5)
+        self.assertEqual(PlantillaMeta.objects.filter(estado='BORRADOR').count(), 6)

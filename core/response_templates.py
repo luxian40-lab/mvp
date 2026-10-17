@@ -1604,6 +1604,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
                     return adaptar_mensaje_drip_bloqueo(_blk, estudiante)
 
+            from core.inicio_curso import falta_primera_entrega, mensaje_primera_entrega
+
+            if falta_primera_entrega(estudiante, progreso, modulo_actual):
+                return mensaje_primera_entrega(estudiante, progreso, modulo_actual)
+
             from .module_steps import (
                 modulo_usa_pasos,
                 pasos_activos_qs,

@@ -79,6 +79,38 @@ PLANTILLAS_TEXTO = (
     },
 )
 
+TEXTO_INICIO_CURSO = (
+    'Bienvenido a eki. Somos tu copiloto de formación y queremos acompañarte '
+    'en tu aprendizaje. Aquí vas a encontrar herramientas muy útiles para tu día a día'
+)
+META_NAME_INICIO_CURSO = 'eki_inicio_curso_btn'
+BOTON_INICIO_CURSO = 'Iniciar'
+
+PLANTILLA_INICIO = {
+    'meta_name': META_NAME_INICIO_CURSO,
+    'nombre_interno': 'Inicio de curso',
+    'cuerpo': TEXTO_INICIO_CURSO,
+    'ejemplos_cuerpo': '',
+    'tipo': 'TEXTO',
+    'categoria': 'MARKETING',
+    'idioma': 'es',
+    'estado': 'BORRADOR',
+    'activa': True,
+    'footer': '',
+    'header_texto': '',
+    'header_ejemplo': '',
+    'boton_1_tipo': 'QUICK_REPLY',
+    'boton_1_texto': BOTON_INICIO_CURSO,
+    'boton_1_url': '',
+    'boton_1_ejemplo': '',
+    'boton_2_tipo': '',
+    'boton_2_texto': '',
+    'boton_2_url': '',
+    'boton_2_ejemplo': '',
+    'ultimo_error_mensaje': '',
+    'notas': 'Inicio de todos los cursos. Primer mensaje, con botón Iniciar.',
+}
+
 PLANTILLA_CARRUSEL = {
     'meta_name': 'eki_bienvenida_carrusel',
     'nombre_interno': 'Bienvenida carrusel',
@@ -97,6 +129,7 @@ def cargar_borradores() -> list[tuple[str, str]]:
     filas = []
     for definicion in PLANTILLAS_TEXTO:
         filas.append(_guardar({**_BOTONES, **definicion, 'ultimo_error_mensaje': ''}))
+    filas.append(_guardar(dict(PLANTILLA_INICIO)))
     filas.append(_guardar({
         **_BOTONES,
         **PLANTILLA_CARRUSEL,
