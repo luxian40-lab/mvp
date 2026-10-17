@@ -315,6 +315,8 @@ class ListadoClienteV2Tests(TestCase):
         self.assertIn('id_nombre', body)
         self.assertIn('id_nit', body)
         self.assertIn('dejan de recibir mensajes', body)
+        self.assertIn('no la línea 1 ni la 2 de producto', body)
+        self.assertIn('Mensajería → Líneas', body)
 
         demo = self.client.get(reverse('admin:core_cliente_change', args=[self.demo.pk]))
         self.assertEqual(demo.status_code, 200)

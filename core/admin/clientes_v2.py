@@ -411,7 +411,9 @@ class ClienteAdminV2(ClienteAdmin):
             'description': (
                 'A la izquierda: cursos generales de eki. '
                 'A la derecha: cursos de esta empresa. '
-                'Abajo: agentes. De 2 a 10 cursos: carrusel. Más de 10: lista.'
+                'Abajo: agentes. De 2 a 10 cursos: carrusel. Más de 10: lista. '
+                'El phone number id de avanzado es el de esta empresa, '
+                'no la línea 1 ni la 2 de producto. Esas están en Mensajería → Líneas.'
             ),
             'fields': (
                 'cursos_eki',
@@ -423,7 +425,11 @@ class ClienteAdminV2(ClienteAdmin):
         }),
         ('WhatsApp avanzado', {
             'classes': ['tab'],
-            'description': 'Id del número y secretos. No eligen qué curso ni qué agente sale.',
+            'description': (
+                'El phone number id es el número de esta empresa, no la línea 1 ni la 2 '
+                'de producto. Esas están en Mensajería → Líneas (/admin/lineas/). '
+                'No elige qué curso ni qué agente sale.'
+            ),
             'fields': (
                 'phone_id_meta',
                 'numero_whatsapp_autorizado',

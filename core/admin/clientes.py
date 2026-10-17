@@ -213,7 +213,9 @@ class ClienteAdmin(admin.ModelAdmin):
             'classes': ['tab'],
             'description': (
                 'Marque cursos y agentes. De 2 a 10 cursos: carrusel. '
-                'Más de 10: lista. Los agentes siempre salen en lista.'
+                'Más de 10: lista. Los agentes siempre salen en lista. '
+                'El phone number id de avanzado es el de esta empresa, '
+                'no la línea 1 ni la 2 de producto. Esas están en Mensajería → Líneas.'
             ),
             'fields': (
                 'cursos_eki',
@@ -238,7 +240,8 @@ class ClienteAdmin(admin.ModelAdmin):
                 'enlace_grupo_whatsapp',
             ),
             'description': (
-                'Secretos Twilio, Habeas y avance «Listo». Solo si configura el canal.'
+                'El phone number id es el número de esta empresa, no la línea 1 ni la 2 '
+                'de producto. Esas están en Mensajería → Líneas (/admin/lineas/).'
             ),
         }),
         ('Certificados y drip', {
