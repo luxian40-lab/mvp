@@ -86,6 +86,7 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
         estado='PENDING',
         tipo='SENT',
         canal='meta',
+        phone_id=_salida_phone_id(),
         fecha=timezone.now(),
         agente_usado=(agente or 'sandbox_meta')[:50],
     )

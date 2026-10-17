@@ -524,8 +524,11 @@ class WebhookFallidoAdmin(admin.ModelAdmin):
 
 @admin.register(SandboxCanalSesion)
 class SandboxCanalSesionAdmin(admin.ModelAdmin):
-    list_display = ('actualizado_en', 'telefono', 'modo', 'plan', 'preguntas_mes', 'racha_actual', 'creado_en')
-    list_filter = ('modo', 'plan')
+    list_display = (
+        'actualizado_en', 'telefono', 'phone_id', 'modo', 'plan',
+        'preguntas_mes', 'racha_actual', 'creado_en',
+    )
+    list_filter = ('modo', 'plan', 'phone_id')
     search_fields = ('telefono',)
     readonly_fields = (
         'creado_en',

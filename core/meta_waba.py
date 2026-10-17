@@ -981,7 +981,7 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
                 if getattr(campana, 'es_inicio_flujo', False):
                     from core.campana_audiencia import poner_en_inicio_de_flujo
 
-                    poner_en_inicio_de_flujo(estudiante)
+                    poner_en_inicio_de_flujo(estudiante, phone_id=phone_id)
             else:
                 err = _error_meta(data)
                 _guardar_envio_v1(previo, campana, estudiante, 'FALLIDO', '', err['message'][:2000])

@@ -133,10 +133,23 @@ def resolver_plan(telefono: str) -> PlanLinea:
     tel = normalizar_telefono_whatsapp(telefono or '')
     if not tel:
         return SIN_PLAN
+    from core.lineas.sesion import phone_id_sesion
+
+    phone_id = phone_id_sesion()
     propio = (
-        SandboxCanalSesion.objects.filter(telefono=tel).values_list('plan', flat=True).first()
+        SandboxCanalSesion.objects.filter(telefono=tel, phone_id=phone_id)
+        .values_list('plan', flat=True)
+        .first()
         or ''
     )
+    if not propio:
+        propio = (
+            SandboxCanalSesion.objects.filter(telefono=tel)
+            .exclude(plan='')
+            .values_list('plan', flat=True)
+            .first()
+            or ''
+        )
     if propio:
         return plan_por_clave(propio)
     if not sandbox_via_meta():
@@ -157,16 +170,15 @@ def inicio_mes_local():
 
 
 def preguntas_usadas_mes(telefono: str) -> int:
-    from core.models import SandboxCanalSesion
+    from core.lineas.sesion import sesion_de
 
-    fila = (
-        SandboxCanalSesion.objects.filter(telefono=telefono)
-        .values('preguntas_mes', 'preguntas_mes_desde')
-        .first()
-    )
-    if not fila or fila['preguntas_mes_desde'] != inicio_mes_local().date():
+    try:
+        sesion = sesion_de(telefono)
+    except ValueError:
         return 0
-    return fila['preguntas_mes']
+    if sesion.preguntas_mes_desde != inicio_mes_local().date():
+        return 0
+    return sesion.preguntas_mes
 
 
 def registrar_pregunta_asesor(telefono: str) -> None:
@@ -175,14 +187,18 @@ def registrar_pregunta_asesor(telefono: str) -> None:
 
     from core.models import SandboxCanalSesion
 
+    from core.lineas.sesion import sesion_de
+
     mes = inicio_mes_local().date()
-    sumadas = SandboxCanalSesion.objects.filter(
-        telefono=telefono, preguntas_mes_desde=mes
-    ).update(preguntas_mes=F('preguntas_mes') + 1)
-    if not sumadas:
-        SandboxCanalSesion.objects.filter(telefono=telefono).update(
-            preguntas_mes=1, preguntas_mes_desde=mes
+    sesion = sesion_de(telefono)
+    if sesion.preguntas_mes_desde == mes:
+        SandboxCanalSesion.objects.filter(pk=sesion.pk).update(
+            preguntas_mes=F('preguntas_mes') + 1,
         )
+        return
+    sesion.preguntas_mes = 1
+    sesion.preguntas_mes_desde = mes
+    sesion.save(update_fields=['preguntas_mes', 'preguntas_mes_desde', 'actualizado_en'])
 
 
 def cursos_iniciados_en_el_mes(telefono: str, *, excluir_curso_id: int | None = None):
@@ -260,8 +276,17 @@ def explicar_plan(telefono: str) -> dict:
         return vacio
     from core.models import SandboxCanalSesion
 
+    from core.lineas.sesion import phone_id_sesion
+
     propio = (
-        SandboxCanalSesion.objects.filter(telefono=tel).values_list('plan', flat=True).first()
+        SandboxCanalSesion.objects.filter(
+            telefono=tel, phone_id=phone_id_sesion(),
+        ).values_list('plan', flat=True).first()
+        or SandboxCanalSesion.objects.filter(telefono=tel)
+        .exclude(plan='')
+        .values_list('plan', flat=True)
+        .first()
+        or ''
     )
     if propio:
         plan = plan_por_clave(propio)

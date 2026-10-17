@@ -256,13 +256,9 @@ def _body_o_audio_transcrito(payload: Any, body: str) -> str:
 
 
 def _get_or_create_sesion(telefono: str):
-    from core.models import SandboxCanalSesion
+    from core.lineas.sesion import sesion_de
 
-    sesion, _ = SandboxCanalSesion.objects.get_or_create(
-        telefono=telefono,
-        defaults={'modo': MODO_MENU},
-    )
-    return sesion
+    return sesion_de(telefono)
 
 
 def _set_modo(sesion, modo: str, *, reset_nat: bool = False) -> None:
@@ -374,12 +370,14 @@ def marcar_corte_memoria_nat(telefono: str) -> None:
 
 def memoria_corte_nat(telefono: str):
     """Timestamp de corte: logs anteriores no entran al historial LLM."""
-    from core.models import SandboxCanalSesion
-
     if not telefono:
         return None
-    row = SandboxCanalSesion.objects.filter(telefono=telefono).only('memoria_corte_en').first()
-    return row.memoria_corte_en if row else None
+    from core.lineas.sesion import sesion_de
+
+    try:
+        return sesion_de(telefono).memoria_corte_en
+    except ValueError:
+        return None
 
 
 def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
@@ -1079,11 +1077,14 @@ def _guardar_pregunta_en_memoria(telefono: str, agente: str, body: str) -> None:
     try:
         from core.models import WhatsappLog
 
+        from core.lineas.sesion import phone_id_sesion
+
         WhatsappLog.objects.create(
             telefono=telefono,
             mensaje=(body or '').strip()[:4000],
             tipo='INCOMING',
             agente_usado=f'sandbox_{agente}',
+            phone_id=phone_id_sesion(),
         )
     except Exception:
         logger.exception('sandbox_memoria_incoming_fail agente=%s', agente)

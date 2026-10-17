@@ -208,7 +208,7 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
             if getattr(campana, 'es_inicio_flujo', False):
                 from core.campana_audiencia import poner_en_inicio_de_flujo
 
-                poner_en_inicio_de_flujo(estudiante)
+                poner_en_inicio_de_flujo(estudiante, phone_id=phone_id)
         elif estado == 'ERROR':
             anotar_resultado(campana, fallo=True, nuevo=True)
         campana.refresh_from_db(fields=['pausada', 'pausa_motivo'])

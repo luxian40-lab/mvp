@@ -115,7 +115,10 @@ def plan_persona_actual(telefono: str) -> str:
     if not tel:
         return ''
     return (
-        SandboxCanalSesion.objects.filter(telefono=tel).values_list('plan', flat=True).first()
+        SandboxCanalSesion.objects.filter(telefono=tel)
+        .exclude(plan='')
+        .values_list('plan', flat=True)
+        .first()
         or ''
     )
 
@@ -134,7 +137,16 @@ def guardar_plan_persona(estudiante, clave: str, telefono_anterior: str = '') ->
     if not clave:
         SandboxCanalSesion.objects.filter(telefono=nuevo).update(plan='')
         return
-    SandboxCanalSesion.objects.update_or_create(telefono=nuevo, defaults={'plan': clave})
+    actualizadas = SandboxCanalSesion.objects.filter(telefono=nuevo).update(plan=clave)
+    if not actualizadas:
+        from core.sandbox_canal import sandbox_phone_id
+
+        SandboxCanalSesion.objects.create(
+            telefono=nuevo,
+            phone_id=sandbox_phone_id(),
+            plan=clave,
+            modo='menu',
+        )
 
 
 def etiquetas_plan_pagina(estudiantes) -> dict:
@@ -157,7 +169,9 @@ def etiquetas_plan_pagina(estudiantes) -> dict:
     numeros = {tel for tel in tels.values() if tel}
     if numeros:
         sesiones = dict(
-            SandboxCanalSesion.objects.filter(telefono__in=numeros).values_list('telefono', 'plan')
+            SandboxCanalSesion.objects.filter(telefono__in=numeros)
+            .exclude(plan='')
+            .values_list('telefono', 'plan')
         )
     sin_propio = [
         est.pk for est in filas

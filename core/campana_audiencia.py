@@ -662,24 +662,31 @@ def numeros_de_prueba() -> list[str]:
     return [digitos(p) for p in bruto if digitos(p)]
 
 
-def poner_en_inicio_de_flujo(estudiante) -> None:
-    """Deja a la persona al inicio del habeas de la línea Meta.
+def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
+    """Deja a la persona al inicio del habeas de esa línea Meta.
 
     El recordatorio no llama esto: su respuesta sigue en el modo que ya tenía.
     """
-    from core.models import SandboxCanalSesion
+    from contextlib import nullcontext
+
+    from core.lineas.sesion import sesion_de
+    from core.sandbox_canal import salida_por_phone_id
     from core.sandbox_menu import MODO_MENU
     from core.utils_telefono import normalizar_e164_co
 
     telefono = normalizar_e164_co(getattr(estudiante, 'telefono', '') or '')
+    linea = (phone_id or '').strip()
+    ctx = salida_por_phone_id(linea) if linea else nullcontext()
     if telefono:
-        sesion, _ = SandboxCanalSesion.objects.get_or_create(
-            telefono=telefono,
-            defaults={'modo': MODO_MENU, 'habeas_aceptado': False},
-        )
-        sesion.modo = MODO_MENU
-        sesion.habeas_aceptado = False
-        sesion.save(update_fields=['modo', 'habeas_aceptado', 'actualizado_en'])
+        with ctx:
+            sesion = sesion_de(
+                telefono,
+                modo=MODO_MENU,
+                habeas_aceptado=False,
+            )
+            sesion.modo = MODO_MENU
+            sesion.habeas_aceptado = False
+            sesion.save(update_fields=['modo', 'habeas_aceptado', 'actualizado_en'])
     if not getattr(estudiante, 'pk', None):
         return
     estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'

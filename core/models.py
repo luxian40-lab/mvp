@@ -1276,6 +1276,14 @@ class WhatsappLog(models.Model):
         db_index=True,
         help_text='meta o twilio. Vacío en el histórico: no abre la ventana de la línea Meta.',
     )
+    phone_id = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Línea Meta',
+        help_text='Phone number id de la línea por la que salió o entró. Vacío en el histórico.',
+    )
     fecha = models.DateTimeField(auto_now_add=True)
     estudiante = models.ForeignKey(
         Estudiante, 
@@ -4552,7 +4560,14 @@ class SandboxCanalSesion(models.Model):
         ('asesoria', 'Asesoría'),
     ]
 
-    telefono = models.CharField(max_length=30, unique=True, db_index=True)
+    telefono = models.CharField(max_length=30, db_index=True)
+    phone_id = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        verbose_name='Línea Meta',
+        help_text='Phone number id de la línea. Vacío = sesión anterior a las dos líneas.',
+    )
     modo = models.CharField(max_length=16, choices=MODO_CHOICES, default=MODO_MENU)
     # Historial Nat/BOT_COMERCIAL solo cuenta mensajes posteriores a este corte.
     memoria_corte_en = models.DateTimeField(null=True, blank=True)
@@ -4589,6 +4604,12 @@ class SandboxCanalSesion(models.Model):
     class Meta:
         verbose_name = 'Sesión menú sandbox'
         verbose_name_plural = 'Sesiones menú sandbox'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('telefono', 'phone_id'),
+                name='uniq_sandbox_sesion_tel_linea',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.telefono} → {self.modo}'

@@ -390,7 +390,7 @@ class SandboxMenuTests(TestCase):
         self.assertNotIn('sandbox', TEXTO_MENU.lower())
         self.assertNotIn('riendas', TEXTO_MENU.lower())
         self.assertIn('formación', TEXTO_MENU.lower())
-        self.assertIn('30', TEXTO_MENU)
+        self.assertIn('60', TEXTO_MENU)
         self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
@@ -467,7 +467,7 @@ class SandboxMenuTests(TestCase):
                 telefono=tel, tipo='SENT', agente_usado='sandbox_cursos', mensaje='clase'
             )
         self.assertFalse(excedio_cupo_ia_linea(tel))
-        for _ in range(30):
+        for _ in range(60):
             registrar_pregunta_asesor(tel)
         self.assertTrue(excedio_cupo_ia_linea(tel))
         SandboxCanalSesion.objects.filter(telefono=tel).update(
