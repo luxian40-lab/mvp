@@ -97,6 +97,7 @@ class ListaPlantillasTests(TestCase):
         self.assertContains(editor, 'Texto')
         self.assertContains(editor, 'Imagen')
         self.assertContains(editor, 'Carrusel')
+        self.assertContains(editor, 'Línea')
         self.assertNotContains(editor, 'pm-wrap')
 
 
@@ -105,6 +106,7 @@ class ListaPlantillasTests(TestCase):
     EKI_CAMPANA_META_ENABLED=True,
     WHATSAPP_TOKEN='tok',
     WHATSAPP_BUSINESS_ACCOUNT_ID=WABA,
+    WHATSAPP_BUSINESS_ACCOUNT_ID_2='',
     WHATSAPP_PHONE_ID=PHONE,
     WHATSAPP_PHONE_NUMBER_ID_2='222',
     WHATSAPP_APP_SECRET=SECRET,

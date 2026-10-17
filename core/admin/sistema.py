@@ -13,9 +13,10 @@ from core.webhook_evento import WebhookFallido
 class ConfiguracionGlobalAdmin(admin.ModelAdmin):
     """Singleton: solo permite editar la fila id=1, no agregar ni borrar."""
     list_display = ('__str__', 'content_sid_habeas_data_global', 'meta_plantilla_diploma', 'fecha_actualizacion')
-    readonly_fields = ('fecha_actualizacion',)
+    readonly_fields = ('fecha_actualizacion', 'aviso_linea_2')
     fieldsets = (
         ('Diploma por Meta', {
+            'classes': ['tab'],
             'fields': ('meta_plantilla_diploma',),
             'description': (
                 'Nombre de la plantilla ya aprobada en Meta. Encabezado de imagen y cuerpo '
@@ -25,7 +26,19 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
                 'y la persona tiene que haber escrito en las últimas 24 horas.'
             ),
         }),
+        ('Línea 2', {
+            'classes': ['tab'],
+            'description': (
+                'Las dos líneas se ven en Mensajería → Líneas. '
+                'eki inicia con una campaña. Aquí no se elige catálogo: '
+                'la línea 2 es curso lineal hasta que la persona acaba.'
+            ),
+            'fields': (
+                'aviso_linea_2',
+            ),
+        }),
         ('🛡️ Habeas Data — Plantilla Twilio general', {
+            'classes': ['tab'],
             'fields': ('content_sid_habeas_data_global',),
             'description': (
                 'Content SID (HX...) de la plantilla Twilio aprobada que se usa por defecto '
@@ -35,9 +48,26 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
             ),
         }),
         ('Auditoría', {
+            'classes': ['tab'],
             'fields': ('fecha_actualizacion',),
         }),
     )
+
+    @admin.display(description='Esta línea')
+    def aviso_linea_2(self, obj):
+        from django.conf import settings
+
+        e164 = (getattr(settings, 'WHATSAPP_NUMERO_2_E164', '') or '').strip()
+        if e164:
+            num = f'+{e164}' if not e164.startswith('+') else e164
+        else:
+            num = 'sin número en el entorno'
+        return format_html(
+            '{} · curso lineal. eki inicia con una campaña; '
+            'la persona sigue hasta acabar el curso.<br>'
+            '<a href="/admin/lineas/">Ver las dos líneas</a>',
+            num,
+        )
 
     def has_add_permission(self, request):
         return not _ConfiguracionGlobal.objects.exists()

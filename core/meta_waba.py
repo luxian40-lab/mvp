@@ -302,11 +302,11 @@ def _marcar_error_plantilla(plantilla: PlantillaMeta, mensaje: str) -> dict:
 def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
     if not campana_meta_habilitada():
         return {'success': False, 'message': 'Campaña Meta está apagada (EKI_CAMPANA_META_ENABLED).'}
-    waba = _waba()
+    waba = (getattr(plantilla, 'waba_id', '') or '').strip() or _waba()
     if not waba or not _token():
         return {
             'success': False,
-            'message': 'Faltan WHATSAPP_TOKEN o WHATSAPP_BUSINESS_ACCOUNT_ID.',
+            'message': 'Faltan WHATSAPP_TOKEN o el WABA de esa línea.',
         }
     if plantilla.meta_template_id and plantilla.estado in ('PENDING', 'APPROVED', 'IN_APPEAL'):
         return {
@@ -546,10 +546,15 @@ def _aplicar_item_catalogo(item: dict, waba: str) -> dict:
     }
 
 
-def _marcar_ausentes(ids_vistos: set[str]) -> int:
-    """Plantillas que ya tenían id en Meta y no volvieron en el catálogo. No borra."""
+def _marcar_ausentes(ids_vistos: set[str], waba: str) -> int:
+    """Plantillas de esa WABA que ya tenían id y no volvieron. No borra."""
     n = 0
+    principal = _waba()
     qs = PlantillaMeta.objects.exclude(meta_template_id='').exclude(estado='NO_EXISTE')
+    if principal and waba == principal:
+        qs = qs.filter(waba_id__in=['', principal])
+    else:
+        qs = qs.filter(waba_id=waba)
     for plantilla in qs.iterator():
         if plantilla.meta_template_id in ids_vistos:
             continue
@@ -560,17 +565,9 @@ def _marcar_ausentes(ids_vistos: set[str]) -> int:
     return n
 
 
-def sincronizar_catalogo_meta() -> dict:
-    """Lee el WABA completo. Un formato desconocido queda como Otro y el lote sigue."""
-    waba = _waba()
+def _sincronizar_un_waba(waba: str) -> dict:
+    """Lee un WABA. Un formato desconocido queda como Otro y el lote sigue."""
     resumen = _resumen_vacio()
-    if not waba or not _token():
-        return {
-            'ok': False,
-            'message': 'Faltan WHATSAPP_TOKEN o WHATSAPP_BUSINESS_ACCOUNT_ID.',
-            'filas': [],
-            'resumen': resumen,
-        }
     url = f'https://graph.facebook.com/{_version()}/{waba}/message_templates'
     params = {
         'fields': 'id,name,language,status,category,quality_score,rejected_reason,components',
@@ -627,8 +624,54 @@ def sincronizar_catalogo_meta() -> dict:
             'filas': filas,
             'resumen': resumen,
         }
-    resumen['ausentes'] = _marcar_ausentes(ids_vistos)
+    resumen['ausentes'] = _marcar_ausentes(ids_vistos, waba)
     return {'ok': True, 'message': '', 'filas': filas, 'resumen': resumen}
+
+
+def sincronizar_catalogo_meta(waba: str | None = None) -> dict:
+    """Lee las WABA de las líneas. Un WABA suelto sigue siendo el mismo catálogo."""
+    resumen = _resumen_vacio()
+    if not _token():
+        return {
+            'ok': False,
+            'message': 'Faltan WHATSAPP_TOKEN o el WABA de esa línea.',
+            'filas': [],
+            'resumen': resumen,
+        }
+    if waba:
+        destinos = [str(waba).strip()] if str(waba).strip() else []
+    else:
+        from core.lineas.campana import wabas_configuradas
+
+        destinos = wabas_configuradas()
+    if not destinos:
+        return {
+            'ok': False,
+            'message': 'Faltan WHATSAPP_TOKEN o el WABA de esa línea.',
+            'filas': [],
+            'resumen': resumen,
+        }
+    if len(destinos) == 1:
+        return _sincronizar_un_waba(destinos[0])
+    combinado = _resumen_vacio()
+    filas = []
+    mensajes = []
+    alguno = False
+    for destino in destinos:
+        r = _sincronizar_un_waba(destino)
+        filas.extend(r.get('filas') or [])
+        for clave, valor in (r.get('resumen') or {}).items():
+            combinado[clave] = combinado.get(clave, 0) + int(valor or 0)
+        if r.get('ok'):
+            alguno = True
+        elif r.get('message'):
+            mensajes.append(r['message'])
+    return {
+        'ok': alguno,
+        'message': ' '.join(mensajes),
+        'filas': filas,
+        'resumen': combinado,
+    }
 
 
 def enviar_prueba_de_plantilla(plantilla: PlantillaMeta, telefono: str, phone_number_id: str = '') -> dict:
@@ -894,6 +937,11 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
             f'Solo se envía si está Aprobada.'
         )
     phone_id = (campana.phone_number_id or _phone_default()).strip()
+    from core.lineas.campana import plantilla_sirve_en_linea
+
+    motivo_linea = plantilla_sirve_en_linea(plantilla, phone_id)
+    if motivo_linea:
+        raise ValueError(motivo_linea)
     waba = (plantilla.waba_id or _waba()).strip()
     ok, motivo = phone_pertenece_a_waba(phone_id, waba)
     if not ok:

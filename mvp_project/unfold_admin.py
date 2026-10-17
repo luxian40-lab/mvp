@@ -290,6 +290,12 @@ UNFOLD = {
                 "collapsible": False,
                 "items": [
                     {
+                        "title": _("Líneas"),
+                        "icon": "call",
+                        "link": "/admin/lineas/",
+                        "permission": _puede_modelo("core.view_campanameta"),
+                    },
+                    {
                         "title": _("Campañas"),
                         "icon": "campaign",
                         "link": reverse_lazy("admin:core_campanameta_changelist"),

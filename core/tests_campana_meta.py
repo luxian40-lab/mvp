@@ -499,7 +499,7 @@ class PantallaCampanaMetaTests(SimpleTestCase):
         self.assertEqual(list(por_titulo)[0], 'Mensaje')
         self.assertEqual(
             por_titulo['Mensaje']['fields'],
-            ('nombre_interno', 'tipo', 'cuerpo', 'estado'),
+            ('nombre_interno', 'linea', 'tipo', 'cuerpo', 'estado'),
         )
         self.assertIn('collapse', por_titulo['Más opciones']['classes'])
         self.assertEqual(adm.get_inlines(None, None), [])

@@ -98,6 +98,11 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
     asegurar_pendientes(campana)
     plantilla = campana.plantilla
     phone_id = (campana.phone_number_id or _phone_default()).strip()
+    from core.lineas.campana import plantilla_sirve_en_linea
+
+    motivo_linea = plantilla_sirve_en_linea(plantilla, phone_id)
+    if motivo_linea:
+        raise ValueError(motivo_linea)
     base = str(getattr(settings, 'WHATSAPP_GRAPH_BASE_URL', 'https://graph.facebook.com')).rstrip('/')
     url = f'{base}/{_version()}/{phone_id}/messages'
     tope = int(getattr(settings, 'META_OPAQUE_MAX', 512) or 512)

@@ -62,6 +62,94 @@ class PlantillaVistaFilter(admin.SimpleListFilter):
         return queryset
 
 
+class PlantillaLineaFilter(admin.SimpleListFilter):
+    title = 'Línea'
+    parameter_name = 'linea'
+
+    def lookups(self, request, model_admin):
+        from core.lineas.campana import fichas_admin
+
+        return [(f['phone_id'], f['nombre']) for f in fichas_admin() if f['phone_id']]
+
+    def queryset(self, request, queryset):
+        phone = self.value()
+        if not phone:
+            return queryset
+        from core.lineas.campana import waba_de_linea
+        from core.lineas.variante import es_modo_twilio
+        from core.meta_waba import _waba
+
+        waba = waba_de_linea(phone)
+        if es_modo_twilio(phone):
+            if waba:
+                return queryset.filter(waba_id=waba)
+            principal = _waba()
+            if principal:
+                return queryset.exclude(waba_id__in=['', principal])
+            return queryset.none()
+        principal = _waba()
+        if principal:
+            return queryset.filter(waba_id__in=['', principal])
+        return queryset
+
+
+class PlantillaMetaAdminForm(forms.ModelForm):
+    linea = forms.ChoiceField(
+        required=False,
+        label='Línea',
+        help_text='La plantilla se crea en la cuenta Meta de esa línea. No cruza de WABA.',
+    )
+
+    class Meta:
+        model = PlantillaMeta
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.lineas.campana import waba_de_linea
+
+        opciones = lineas_disponibles()
+        self.fields['linea'].choices = opciones
+        obj = self.instance
+        if obj and getattr(obj, 'waba_id', ''):
+            for phone, _nombre in opciones:
+                if waba_de_linea(phone) == obj.waba_id:
+                    self.initial['linea'] = phone
+                    break
+        elif opciones and 'linea' not in self.initial:
+            self.initial['linea'] = opciones[0][0]
+        enviado = bool(obj and obj.pk and obj.estado not in ('BORRADOR', 'ERROR', ''))
+        self.fields['linea'].required = bool(opciones) and not enviado
+        if enviado:
+            self.fields['linea'].disabled = True
+
+    def clean_linea(self):
+        from core.lineas.campana import waba_de_linea
+
+        phone = (self.cleaned_data.get('linea') or '').strip()
+        if not phone:
+            return phone
+        if not waba_de_linea(phone):
+            raise forms.ValidationError(
+                'Esa línea no tiene cuenta Meta (WABA) en el entorno. '
+                'No se puede crear la plantilla ahí.'
+            )
+        return phone
+
+    def save(self, commit=True):
+        from core.lineas.campana import waba_de_linea
+
+        obj = super().save(commit=False)
+        if obj.estado in ('BORRADOR', 'ERROR', '') or not obj.pk:
+            phone = (self.cleaned_data.get('linea') or '').strip()
+            if phone:
+                obj.waba_id = waba_de_linea(phone)
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
+
+
 def tabs_plantilla_meta(request):
     """Pestañas del listado. Vacío fuera de Plantillas Meta."""
     try:
@@ -204,8 +292,10 @@ def _texto_resumen(resumen: dict) -> str:
 
 @admin.register(PlantillaMeta)
 class PlantillaMetaAdmin(admin.ModelAdmin):
+    form = PlantillaMetaAdminForm
     list_display = (
         'col_nombre',
+        'col_linea',
         'col_tipo',
         'col_categoria',
         'idioma',
@@ -215,7 +305,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         'col_actualizada',
     )
     list_display_links = ('col_nombre',)
-    list_filter = (PlantillaVistaFilter, 'estado', 'tipo', 'categoria', 'idioma')
+    list_filter = (PlantillaVistaFilter, PlantillaLineaFilter, 'estado', 'tipo', 'categoria', 'idioma')
     search_fields = ('nombre_interno', 'meta_name')
     list_per_page = 50
     actions = ['sincronizar_seleccionadas']
@@ -252,11 +342,12 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     }
     fieldsets = (
         ('Mensaje', {
-            'fields': ('nombre_interno', 'tipo', 'cuerpo', 'estado'),
+            'fields': ('nombre_interno', 'linea', 'tipo', 'cuerpo', 'estado'),
             'description': (
-                '1. Nombre y tipo. 2. Escribe el mensaje. '
+                '1. Nombre, línea y tipo. 2. Escribe el mensaje. '
                 '3. En el listado, la acción «Enviar plantilla a Meta para aprobación». '
-                'Cuando Meta la acepte, el estado queda en Aprobada.'
+                'Cuando Meta la acepte, el estado queda en Aprobada. '
+                'La plantilla nace en la cuenta de esa línea y no cruza.'
             ),
         }),
         ('Más opciones', {
@@ -518,6 +609,18 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
             obj.nombre_interno,
             tecnico,
         )
+
+    @display(description='Línea', ordering='waba_id')
+    def col_linea(self, obj):
+        from core.lineas.campana import fichas_admin
+
+        waba = (obj.waba_id or '').strip()
+        for ficha in fichas_admin():
+            if waba and ficha['waba'] == waba:
+                return ficha['nombre']
+            if not waba and not ficha['lineal']:
+                return ficha['nombre']
+        return waba or '—'
 
     @display(description='Tipo', ordering='tipo')
     def col_tipo(self, obj):

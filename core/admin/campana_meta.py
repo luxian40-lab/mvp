@@ -97,18 +97,37 @@ class CampanaMetaForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        qs = PlantillaMeta.objects.filter(activa=True, estado='APPROVED')
         instancia = self.instance
-        if instancia.pk and instancia.plantilla_id and instancia.plantilla.estado != 'APPROVED':
-            qs = PlantillaMeta.objects.filter(pk__in=list(qs.values_list('pk', flat=True)) + [instancia.plantilla_id])
+        lineas = lineas_disponibles()
+        phone = ''
+        if self.data:
+            phone = (self.data.get('phone_number_id') or '').strip()
+        elif instancia.pk:
+            phone = (instancia.phone_number_id or '').strip()
+        elif lineas:
+            phone = lineas[0][0]
+        from core.lineas.campana import plantillas_aprobadas_de_linea
+
+        qs = plantillas_aprobadas_de_linea(phone)
+        extras = []
+        if instancia.pk and instancia.plantilla_id:
+            extras.append(instancia.plantilla_id)
+        if extras:
+            qs = PlantillaMeta.objects.filter(
+                pk__in=list(qs.values_list('pk', flat=True)) + extras
+            )
         self.fields['plantilla'].queryset = qs.order_by('nombre_interno')
         self.fields['plantilla'].label_from_instance = lambda obj: obj.nombre_interno
         self.fields['plantilla'].label = 'Plantilla'
-        lineas = lineas_disponibles()
         self.fields['phone_number_id'] = forms.ChoiceField(
             label='Línea',
             required=False,
             choices=lineas or [('', 'Sin línea configurada')],
+            help_text=(
+                'Versión Meta = carrusel y agentes. '
+                'Modo Twilio (línea 2) = curso lineal, Formador y Compañero, sin menú. '
+                'La plantilla debe estar aprobada en la WABA de esa línea.'
+            ),
         )
         if instancia.pk and instancia.phone_number_id:
             self.fields['phone_number_id'].initial = instancia.phone_number_id
@@ -123,8 +142,9 @@ class CampanaMetaForm(forms.ModelForm):
         self.fields['nombre'].label = 'Nombre de la campaña'
         self.fields['es_inicio_flujo'].label = 'Inicio de flujo'
         self.fields['es_inicio_flujo'].help_text = (
-            'Al enviarla, el botón Listo abre habeas, cédula, verificación del número '
-            'y el menú. Desmárquela solo si es un recordatorio y no debe reiniciar.'
+            'Al enviarla, el botón Listo abre habeas, cédula y el curso. '
+            'En la línea principal puede abrir el menú Meta; en la línea 2 sigue el curso lineal. '
+            'Desmárquela solo si es un recordatorio y no debe reiniciar.'
         )
         if not instancia.pk and not self.data:
             self.initial['es_inicio_flujo'] = True
@@ -143,6 +163,18 @@ class CampanaMetaForm(forms.ModelForm):
             self.fields['reglas_json'].initial = json.dumps(reglas_efectivas(instancia), ensure_ascii=False)
         else:
             self.fields['reglas_json'].initial = '{}'
+
+    def clean(self):
+        from core.lineas.campana import plantilla_sirve_en_linea
+
+        limpio = super().clean()
+        motivo = plantilla_sirve_en_linea(
+            limpio.get('plantilla'),
+            (limpio.get('phone_number_id') or '').strip(),
+        )
+        if motivo:
+            self.add_error('plantilla', motivo)
+        return limpio
 
 
 def tabs_campana_meta(request):

@@ -1,0 +1,125 @@
+{% extends "admin/eki_ops_base.html" %}
+
+{% block eki_ops_crumb %}Líneas{% endblock %}
+{% block title %}Líneas WhatsApp · eki{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .lineas-eki { max-width: 920px; color: #1e1b24; }
+  .lineas-eki h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+  .lineas-eki__sub {
+    margin: 0 0 1.4rem;
+    color: #6b6575;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    max-width: 40rem;
+  }
+  .lineas-eki__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 760px) {
+    .lineas-eki__grid { grid-template-columns: 1fr 1fr; }
+  }
+  .lineas-eki__card {
+    background: #fff;
+    border: 1px solid rgba(30, 27, 36, 0.12);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem 1.2rem;
+  }
+  .lineas-eki__modo {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #7A4E8E;
+    margin: 0 0 0.35rem;
+  }
+  .lineas-eki__card h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+  }
+  .lineas-eki__card p { margin: 0 0 0.85rem; line-height: 1.5; color: #3a3344; }
+  .lineas-eki__dl { margin: 0; }
+  .lineas-eki__dl div {
+    display: grid;
+    grid-template-columns: 7.5rem 1fr;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.88rem;
+    padding: 0.28rem 0;
+    border-top: 1px solid rgba(30, 27, 36, 0.08);
+  }
+  .lineas-eki__dl dt { color: #6b6575; margin: 0; }
+  .lineas-eki__dl dd { margin: 0; word-break: break-all; }
+  .lineas-eki__alerta {
+    margin: 0.85rem 0 0;
+    padding: 0.55rem 0.7rem;
+    background: #fffbeb;
+    color: #92400e;
+    border-radius: 8px;
+    font-size: 0.86rem;
+  }
+  .lineas-eki__pie {
+    margin: 1.25rem 0 0;
+    color: #6b6575;
+    font-size: 0.88rem;
+  }
+  .lineas-eki__pie a { color: #7A4E8E; }
+</style>
+{% endblock %}
+
+{% block eki_ops_content %}
+<div class="lineas-eki">
+  <h1>Líneas WhatsApp</h1>
+  <p class="lineas-eki__sub">
+    eki siempre inicia la conversación con una campaña. Después depende de la persona:
+    en la versión Meta puede seguir con planes mensuales; en la línea de curso lineal
+    sigue hasta acabar el curso.
+  </p>
+  <div class="lineas-eki__grid">
+    {% for ficha in fichas %}
+    <article class="lineas-eki__card">
+      <p class="lineas-eki__modo">{{ ficha.modo }}</p>
+      <h2>{{ ficha.nombre }}</h2>
+      <p>{{ ficha.entra }}</p>
+      <dl class="lineas-eki__dl">
+        <div>
+          <dt>Número</dt>
+          <dd>{% if ficha.e164 %}+{{ ficha.e164 }}{% else %}sin número en el entorno{% endif %}</dd>
+        </div>
+        <div>
+          <dt>Phone id</dt>
+          <dd>{{ ficha.phone_id|default:"sin dato" }}</dd>
+        </div>
+        <div>
+          <dt>Cuenta Meta</dt>
+          <dd>{% if ficha.waba %}{{ ficha.waba }}{% else %}sin WABA en el entorno{% endif %}</dd>
+        </div>
+      </dl>
+      {% if ficha.sin_waba %}
+      <p class="lineas-eki__alerta">
+        Falta WHATSAPP_BUSINESS_ACCOUNT_ID_2. Sin eso no se pueden crear plantillas ni
+        campañas de esta línea.
+      </p>
+      {% endif %}
+    </article>
+    {% empty %}
+    <p>No hay líneas en el entorno.</p>
+    {% endfor %}
+  </div>
+  <p class="lineas-eki__pie">
+    Las plantillas se crean en la cuenta de cada línea.
+    <a href="{% url 'admin:core_plantillameta_changelist' %}">Plantillas Meta</a>
+    ·
+    <a href="{% url 'admin:core_campanameta_changelist' %}">Campañas</a>
+  </p>
+</div>
+{% endblock %}

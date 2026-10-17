@@ -279,13 +279,18 @@ def sugerir_mapeo(plantilla: PlantillaMeta) -> dict:
 
 
 def lineas_disponibles() -> list[tuple[str, str]]:
-    principal = (getattr(settings, 'WHATSAPP_PHONE_ID', None) or '').strip()
-    segunda = (getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID_2', None) or '').strip()
+    from core.lineas.meta import USO_SOLO_CURSOS, lineas_producto
+
     opciones = []
-    if principal:
-        opciones.append((principal, 'Línea principal'))
-    if segunda and segunda != principal:
-        opciones.append((segunda, 'Línea 2'))
+    for linea in lineas_producto():
+        if not linea.phone_id:
+            continue
+        nombre = linea.nombre or linea.phone_id
+        if linea.uso == USO_SOLO_CURSOS:
+            nombre = f'{nombre} · modo Twilio (curso lineal)'
+        else:
+            nombre = f'{nombre} · versión Meta'
+        opciones.append((linea.phone_id, nombre))
     return opciones
 
 
