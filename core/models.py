@@ -1280,7 +1280,6 @@ class WhatsappLog(models.Model):
         max_length=32,
         blank=True,
         default='',
-        db_index=True,
         verbose_name='Línea Meta',
         help_text='Phone number id de la línea por la que salió o entró. Vacío en el histórico.',
     )
@@ -1371,6 +1370,7 @@ class WhatsappLog(models.Model):
         indexes = [
             models.Index(fields=['-fecha']),
             models.Index(fields=['telefono', '-fecha']),
+            models.Index(fields=['phone_id'], name='core_wlog_phone_id_idx'),
         ]
 
 

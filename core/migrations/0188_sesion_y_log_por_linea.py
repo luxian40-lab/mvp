@@ -36,7 +36,6 @@ class Migration(migrations.Migration):
             name='phone_id',
             field=models.CharField(
                 blank=True,
-                db_index=True,
                 default='',
                 help_text='Phone number id de la línea por la que salió o entró. Vacío en el histórico.',
                 max_length=32,
