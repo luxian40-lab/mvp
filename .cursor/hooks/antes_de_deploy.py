@@ -1,6 +1,8 @@
-"""beforeShellExecution: frena `eb deploy` con módulos sin trackear o desde la rama de escalabilidad.
+"""beforeShellExecution: frena `eb deploy` desde una carpeta sucia o desde la rama de escalabilidad.
 
-Un .py sin trackear no sube en `eb deploy` y el web arranca con ImportError.
+Con `.ebignore` la CLI comprime la carpeta en disco: lo que no tiene commit sube igual y `main`
+deja de ser lo que corre en producción. En un worktree limpio, lo que no tiene commit no existe
+y el web arranca con ImportError. Por eso la carpeta tiene que estar limpia.
 `slice/escalabilidad-base` quedó atrás de producción: desplegarla sería un rollback.
 """
 from __future__ import annotations
@@ -32,8 +34,7 @@ def main() -> None:
     if not cwd.is_dir():
         cwd = RAIZ
     rama = git(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')
-    sin_trackear = [p for p in git(cwd, 'ls-files', '--others', '--exclude-standard').splitlines() if p.endswith('.py')]
-    sucios = git(cwd, 'status', '--porcelain', '--untracked-files=no')
+    sucios = [linea[3:] for linea in git(cwd, 'status', '--porcelain').splitlines() if linea.strip()]
 
     if rama in RAMAS_PROHIBIDAS:
         responder({
@@ -42,18 +43,17 @@ def main() -> None:
             'agent_message': 'Lee docs/CONTINUAR_EKI.md y la skill eki-ship: adelantar main en fast-forward y desplegar desde un worktree limpio de main.',
         })
         return
-    if sin_trackear:
-        lista = ', '.join(sin_trackear[:10]) + (' …' if len(sin_trackear) > 10 else '')
+    if sucios:
+        lista = ', '.join(sucios[:10]) + (' …' if len(sucios) > 10 else '')
         responder({
             'permission': 'deny',
-            'user_message': f'Deploy bloqueado: hay módulos .py sin trackear ({lista}). No subirían y el web arrancaría con ImportError.',
-            'agent_message': 'Agrega a git (o borra) los .py sin trackear antes de eb deploy.',
+            'user_message': f'Deploy bloqueado: la carpeta tiene cambios sin commit o archivos sin trackear ({lista}).',
+            'agent_message': 'Commitea en la rama, adelanta main y despliega desde un worktree limpio de main (docs/CONTINUAR_EKI.md).',
         })
         return
-    aviso = ' Hay cambios sin commitear.' if sucios else ''
     responder({
         'permission': 'ask',
-        'user_message': f'eb deploy desde la rama {rama or "?"}.{aviso} ¿Pasó QA y es un pedido explícito de deploy?',
+        'user_message': f'eb deploy desde {rama or "?"}. ¿Pasó QA y es un pedido explícito de deploy?',
         'agent_message': 'Deploy solo con pedido explícito del usuario y gates de eki-ship en verde.',
     })
 
