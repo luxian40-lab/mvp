@@ -83,14 +83,14 @@ def borrar_entrega(canal: str, external_id: str) -> None:
         )
 
 
-def _cliente_redis():
+def _cliente_redis(**opciones):
     from redis import Redis
 
     url = (
         getattr(settings, 'CELERY_BROKER_URL', None)
         or 'redis://localhost:6379/0'
     )
-    return Redis.from_url(url)
+    return Redis.from_url(url, **opciones)
 
 
 @contextmanager
