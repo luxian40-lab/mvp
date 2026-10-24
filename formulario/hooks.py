@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 
-from django.db.models import Q
+from django.db.models import F, Q
 
 from .agent import iniciar_sesion_formulario
 from .models import SesionFormulario, TipoFormulario
@@ -56,7 +56,7 @@ def intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, modulo
     else:
         qs = qs.filter(cliente__isnull=True)
 
-    tf = qs.order_by("-cliente_id", "id").first()
+    tf = qs.order_by(F("cliente_id").desc(nulls_last=True), "id").first()
     if not tf:
         logger.info(
             "GEI: sin TipoFormulario activo curso=%s modulo=%s cliente=%s",
