@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 from core.module_structure import (
@@ -115,6 +115,7 @@ class EvaluarMp4WhatsappTests(SimpleTestCase):
 
 
 class GuardarUploadWaGateTests(SimpleTestCase):
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch('core.admin._common._validar_video_decodificable')
     @patch('core.twilio_media.optimizar_mp4_bytes_whatsapp')
     def test_rechaza_si_sigue_grande(self, mock_opt, _mock_val):
