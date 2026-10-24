@@ -21,7 +21,7 @@ from core.drip_schedule import dias_espera_efectivos
 from core.drip_schedule import drip_bloquea_siguiente_modulo
 from core.response_templates import get_response_for_intent, _generar_completado_final
 from core.security_handler import _url_politica_datos_cliente
-from core.selector_curso import continuar_curso_seleccionado
+from core.selector_curso import continuar_curso_seleccionado, cursos_visibles_para_estudiante
 from core.views import _haversine_metros, _procesar_ubicacion_empleabilidad
 
 
@@ -249,7 +249,7 @@ class DripGeoGamificacionTests(TestCase):
 			fecha_ultimo_avance=timezone.now() - timedelta(days=1),
 		)
 		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
-		cursos_list = list(Curso.objects.filter(activo=True).order_by('orden', 'nombre'))
+		cursos_list = list(cursos_visibles_para_estudiante(estudiante))
 		indice = next(i for i, c in enumerate(cursos_list, 1) if c.id == curso.id)
 		respuesta = continuar_curso_seleccionado(estudiante.id, indice, str(indice))
 		self.assertIn('preparando tu siguiente sesión', respuesta)
