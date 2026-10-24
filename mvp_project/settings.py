@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 
 # 1. RUTAS DEL PROYECTO
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Cargar .env si existe (tanto local como produccion)
+# Cargar .env si existe (tanto local como produccion). settings_test no lo lee:
+# las líneas, planes y cortes del .env local cambiarían el resultado frente a CI.
 env_file = BASE_DIR / '.env'
-if env_file.exists():
+if env_file.exists() and not os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('.settings_test'):
     load_dotenv(env_file)
 
 # 2. SEGURIDAD
