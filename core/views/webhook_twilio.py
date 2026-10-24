@@ -29,6 +29,12 @@ from core.lineas.identidad import (
 )
 from .ventana_drip import _pregunta_abierta_final_pendiente
 
+# La respuesta por defecto del cuerpo; la rama del examen la compara para saber si debe pisarla.
+_TEXTO_NO_ENTENDI = (
+    "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
+    "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
+)
+
 def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""
     from core.sandbox_canal import inbound_es_meta
@@ -1487,10 +1493,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
         
         # Default safety - will be overwritten by any branch below
-        texto_respuesta = (
-            "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
-            "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
-        )
+        texto_respuesta = _TEXTO_NO_ENTENDI
         
         if bloqueado:
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
@@ -2970,10 +2973,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     
                     # El default «No entendí» se asigna antes de esta rama.
                     # Opción inválida / error de contexto deben ganar.
-                    if (
-                        not texto_respuesta
-                        or texto_respuesta.startswith('No entendí. Si quieres avanzar')
-                    ):
+                    if not texto_respuesta or texto_respuesta == _TEXTO_NO_ENTENDI:
                         texto_respuesta = mensaje_respuesta
                     print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
             
