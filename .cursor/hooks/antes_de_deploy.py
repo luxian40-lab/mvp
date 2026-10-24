@@ -21,7 +21,7 @@ def git(cwd: Path, *args: str) -> str:
     proc = subprocess.run(
         ['git', *args], cwd=cwd, capture_output=True, text=True, encoding='utf-8', timeout=15, check=False,
     )
-    return proc.stdout.strip() if proc.returncode == 0 else ''
+    return proc.stdout.strip('\r\n') if proc.returncode == 0 else ''
 
 
 def main() -> None:
