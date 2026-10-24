@@ -81,6 +81,7 @@ class EvalAbiertaMetaListoTests(TestCase):
             cedula='10990088',
             nombre='Ana Eval',
             telefono=TEL,
+            acepto_terminos=True,
             estado_chat='ACTIVO',
             contexto_temporal={'curso_activo_id': curso.id},
         )
