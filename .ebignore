@@ -62,10 +62,15 @@ docs/
 test/
 tests/
 
-# Otros
+# Secretos: con .ebignore la CLI empaqueta la carpeta en disco, no git archive
 .env
-.env.local
-.env.production
+.env.*
+*.pem
+*.key
+*credentials*
+.cursor/
+
+# Otros
 ngrok.exe
 estudiantes_ejemplo.xlsx
 plantilla_valle.csv
