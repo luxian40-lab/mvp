@@ -16,10 +16,12 @@ eki es un monolito Django. El problema no es solo una función grande: `core` es
 | `core` importa apps de arriba (`portal`, `aprende`, `studio`, `formulario`) | 45 aristas |
 | `_procesar_twilio_webhook_cuerpo` | 3.226 líneas, 450 ramas, 436 variables locales |
 | `get_response_for_intent` | 1.761 líneas, 274 ramas |
-| `except Exception` en código de producto | 879 |
-| `if es_modo_twilio()` / `es_solo_cursos()` sueltos | 14 en 6 archivos |
+| `except Exception` / `except:` en código de producto | 896 |
+| `es_modo_twilio()` / `es_solo_cursos()` | 14 en 6 archivos; 6 fuera de `core/lineas/` |
 | Copias del parser `[MULTI_MSG]` / `[SEP]` | 12 |
-| Reemplazos globales de `twilio.rest.Client` | 2 (`sandbox_canal.py`, `twilio_transporte.py`) |
+| Reemplazos de atributos de módulos en runtime | 11; 2 son de `twilio.rest.Client` (`sandbox_canal.py`, `twilio_transporte.py`) |
+
+Los valores exactos que vigila CI están en `scripts/complejidad_baseline.json`.
 
 Las apps de dominio (`learning`, `agents_*`, `analytics`, `integrations`) son cascarones. La semilla buena es `core/lineas/`: módulos chicos, Meta primero, el curso llama esos nombres sin abrir el webhook.
 
