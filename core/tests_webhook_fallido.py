@@ -299,6 +299,7 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
     tarea = getattr(tasks_mod, nombre)
     with patch('core.locks._cliente_redis', return_value=falso), \
             patch('core.locks.telefono_lock', _abierto), \
+            patch('core.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'), \
             patch(cuerpo) as proc:
         for _ in range(2):
             _aplicar_con_redelivery(tarea, datos, kwargs, True)
