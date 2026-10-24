@@ -36,6 +36,7 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - Code review → `.cursor/skills/eki-code-review/SKILL.md`
    - Doubt (P0 alto riesgo) → `.cursor/skills/eki-doubt/SKILL.md`
    - Observability → `.cursor/skills/eki-observability/SKILL.md`
+ - Refactor / espagueti / modularidad / motor de curso / líneas → `.cursor/skills/eki-refactor-motor/SKILL.md`
 3. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Data → Dev → QA → Sec/SRE).
 4. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
 
@@ -51,6 +52,7 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
 - Twilio Content variables → https://www.twilio.com/docs/content/using-variables-with-content-api
 - Webhooks → raw body → HMAC → `hmac.compare_digest` (nunca `==`)
 - Split de `core/views` → `docs/REFACTOR_VIEWS.md` (mover, no reescribir; un bloque por commit)
+- Modularidad, dos líneas y motor de curso → `docs/PLAN_MODULARIDAD_EKI.md` + skill `eki-refactor-motor`
 
 ## Modelo (obligatorio)
 

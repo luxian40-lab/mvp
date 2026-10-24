@@ -22,6 +22,13 @@ Un slice vertical a la vez — implementar, testear, verificar, siguiente slice.
 3. **Deploy opcional** — Solo si PM autoriza; preferir label descriptivo.
 4. **Siguiente slice** — No mezclar drip + reorder + upload en un solo commit caótico.
 
+## Refactor: mover no es cambiar
+
+- Un commit mueve código (mismos nombres, orden y returns). Otro commit, si hace falta, cambia comportamiento.
+- En el cuerpo del webhook: un estado por commit (`eki-refactor-motor`).
+- En `core`: un dominio o un archivo por commit, con reexport en la ruta vieja.
+- Cada slice cierra con el freno (`scripts/ratchet_complejidad.py`) y los contratos de línea.
+
 ## Defaults seguros eki
 
 - Subidas Builder: `include_modulo_titulo=False` (no pisar nombres).

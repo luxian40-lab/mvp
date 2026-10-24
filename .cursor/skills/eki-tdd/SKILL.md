@@ -40,6 +40,17 @@ Si tocas `module_builder.js` o inputs que alimentan POST:
 
 Canon: `core/tests_module_builder_ui.py` · `docs/MODULE_BUILDER_QA_S4_CHECKLIST.md`
 
+## Código legado: caracterización y contratos de línea
+
+Para el cuerpo del webhook, `sandbox_menu` y `response_templates` el test no describe lo que debería pasar: fija lo que pasa hoy.
+
+1. Estado inicial explícito: estudiante, `estado_chat`, `estado_onboarding`, `contexto_temporal`, progreso, línea (phone id).
+2. Un mensaje entrante (payload Meta firmado o form Twilio).
+3. Afirmar los envíos capturados en el borde (Graph y Twilio, sin red) y el estado final en la base.
+4. Si el comportamiento actual parece un bug, el test lo fija igual y el bug va a otro commit.
+
+Contratos de línea (`docs/PLAN_MODULARIDAD_EKI.md` fase A): un recorrido de punta a punta de la línea principal y otro de la línea 2. Todo cambio de conversación los corre.
+
 ## Anti-racionalización
 
 | Excusa | Respuesta |

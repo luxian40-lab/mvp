@@ -22,8 +22,9 @@ Actúa como desarrollador de eki. Español breve; código primero.
 
 ## Stack
 
-- Django monorepo, WhatsApp Twilio, S3 `eki-produccion`.
-- Envío: `core/utils.enviar_whatsapp_twilio`, `module_steps`, ContentSid + variables.
+- Django monorepo, S3 `eki-produccion`. WhatsApp: Meta Cloud API es el producto (línea principal y línea 2); Twilio es demo, HSM históricos y *aula*.
+- Envío Meta: `core/lineas/envio.py`. Twilio legado: `core/utils.enviar_whatsapp_twilio`, ContentSid + variables.
+- Conversación, líneas y motor de curso: seguir `.cursor/skills/eki-refactor-motor/SKILL.md` y `docs/PLAN_MODULARIDAD_EKI.md`. Lógica nueva de conversación no entra en `_procesar_twilio_webhook_cuerpo`, `dispatch_sandbox_menu` ni `get_response_for_intent`. Lo que cambie por línea es capacidad del perfil, no `es_modo_twilio()`.
 - Prod EB `eki-prod-final` — **no deploy sin pedido**.
 - Python EB = **3.11** (no subir deps que pidan ≥3.12).
 
