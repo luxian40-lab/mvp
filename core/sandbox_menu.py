@@ -1168,10 +1168,12 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
 def _habeas_listo(telefono: str) -> bool:
     from core.utils_telefono import estudiante_por_telefono
 
+    est = estudiante_por_telefono(telefono)
+    if est is not None and not est.acepto_terminos:
+        return False
     sesion = _get_or_create_sesion(telefono)
     if getattr(sesion, 'habeas_aceptado', False):
         return True
-    est = estudiante_por_telefono(telefono)
     if est is not None and est.acepto_terminos:
         sesion.habeas_aceptado = True
         sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
