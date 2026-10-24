@@ -51,7 +51,7 @@ def enviar_balance_gei_tras_modulo(sender, instance, created, **kwargs):
     if not getattr(curso, "tiene_formulario_gei", False):
         return
 
-    from django.db.models import Q
+    from django.db.models import F, Q
 
     from formulario.gei_flujos import es_formulario_balance_gei
     from formulario.models import FichaGEI, TipoFormulario
@@ -67,7 +67,7 @@ def enviar_balance_gei_tras_modulo(sender, instance, created, **kwargs):
         tf_qs = tf_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
     else:
         tf_qs = tf_qs.filter(cliente__isnull=True)
-    tf_balance = tf_qs.order_by("-cliente_id", "id").first()
+    tf_balance = tf_qs.order_by(F("cliente_id").desc(nulls_last=True), "id").first()
     if tf_balance and es_formulario_balance_gei(tf_balance):
         logger.debug(
             "Balance GEI por WhatsApp diferido al formulario bloque balance (TF id=%s).",
