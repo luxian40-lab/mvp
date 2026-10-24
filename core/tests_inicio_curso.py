@@ -35,6 +35,7 @@ class PrimeraEntregaTests(TestCase):
             acepto_terminos=True,
             estado_chat='ACTIVO',
             estado_onboarding='completado',
+            contexto_temporal={'inicio_pendiente_curso_id': self.curso.id},
         )
         self.prog = ProgresoEstudiante.objects.create(
             estudiante=self.est,
@@ -67,6 +68,15 @@ class PrimeraEntregaTests(TestCase):
         ctx['_ts_leccion'] = time.time() - 60
         ctx.pop('_leccion_enviando', None)
         self.est.contexto_temporal = ctx
+        self.est.save(update_fields=['contexto_temporal'])
+        respuesta = self._continuar()
+        self.assertNotIn('Soy el Formador', respuesta)
+        self.assertIn('TEXTO_MODULO_2', respuesta)
+        self.prog.refresh_from_db()
+        self.assertEqual(self.prog.modulo_actual_id, self.mod2.id)
+
+    def test_quien_ya_iba_en_el_modulo_1_avanza_sin_saludo(self):
+        self.est.contexto_temporal = {}
         self.est.save(update_fields=['contexto_temporal'])
         respuesta = self._continuar()
         self.assertNotIn('Soy el Formador', respuesta)

@@ -1,11 +1,14 @@
 """Primera entrega de un curso: saludo de Formador y Compañero, y el módulo 1.
 
-Confirmar los datos y pulsar continuar en el carrusel dejan la misma marca.
+Solo la inscripción desde el carrusel deja el saludo pendiente. Quien ya iba
+en el curso antes no tiene la marca y su «listo» avanza como siempre.
+Confirmar los datos y pulsar continuar en el carrusel dejan la misma marca de entregado.
 El módulo 1 no se cierra en ese turno.
 """
 from __future__ import annotations
 
 MARCA = 'inicio_curso_id'
+PENDIENTE = 'inicio_pendiente_curso_id'
 
 
 def inicio_ya_entregado(estudiante, curso_id: int) -> bool:
@@ -13,19 +16,34 @@ def inicio_ya_entregado(estudiante, curso_id: int) -> bool:
     return ctx.get(MARCA) == curso_id
 
 
+def inicio_pendiente(estudiante, curso_id: int) -> bool:
+    ctx = getattr(estudiante, 'contexto_temporal', None) or {}
+    return ctx.get(PENDIENTE) == curso_id
+
+
+def marcar_inicio_pendiente(ctx: dict, curso_id: int) -> dict:
+    """Sobre el contexto que ya se va a guardar; no hace save."""
+    ctx[PENDIENTE] = curso_id
+    return ctx
+
+
 def marcar_inicio_entregado(estudiante, curso_id: int) -> None:
     estudiante.refresh_from_db(fields=['contexto_temporal'])
     ctx = dict(estudiante.contexto_temporal or {})
-    if ctx.get(MARCA) == curso_id:
+    if ctx.get(MARCA) == curso_id and ctx.get(PENDIENTE) != curso_id:
         return
     ctx[MARCA] = curso_id
+    if ctx.get(PENDIENTE) == curso_id:
+        ctx.pop(PENDIENTE)
     estudiante.contexto_temporal = ctx
     estudiante.save(update_fields=['contexto_temporal'])
 
 
 def falta_primera_entrega(estudiante, progreso, modulo) -> bool:
-    """Curso nuevo, todavía en el módulo 1, sin haberlo mostrado."""
+    """Inscrito desde el carrusel, todavía en el módulo 1, sin haberlo mostrado."""
     if modulo is None or progreso is None:
+        return False
+    if not inicio_pendiente(estudiante, progreso.curso_id):
         return False
     if inicio_ya_entregado(estudiante, progreso.curso_id):
         return False

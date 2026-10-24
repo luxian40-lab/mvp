@@ -610,6 +610,10 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
     progreso, creado = inscribir_estudiante_en_curso(est, curso)
     ctx = dict(est.contexto_temporal or {})
     ctx['curso_activo_id'] = curso.id
+    if creado:
+        from core.inicio_curso import marcar_inicio_pendiente
+
+        marcar_inicio_pendiente(ctx, curso.id)
     est.contexto_temporal = ctx
     est.save(update_fields=['contexto_temporal'])
     otros = ProgresoEstudiante.objects.filter(estudiante=est).exclude(pk=progreso.pk).count()
