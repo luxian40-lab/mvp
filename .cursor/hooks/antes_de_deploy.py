@@ -1,7 +1,7 @@
 """beforeShellExecution: frena `eb deploy` con módulos sin trackear o desde la rama de escalabilidad.
 
 Un .py sin trackear no sube en `eb deploy` y el web arranca con ImportError.
-`slice/escalabilidad-base` no se despliega: se hace cherry-pick sobre el árbol de producción.
+`slice/escalabilidad-base` quedó atrás de producción: desplegarla sería un rollback.
 """
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ def main() -> None:
     if rama in RAMAS_PROHIBIDAS:
         responder({
             'permission': 'deny',
-            'user_message': f'Deploy bloqueado: {rama} no se despliega. Cherry-pick sobre el árbol de producción en un worktree limpio.',
-            'agent_message': 'Lee docs/CONTINUAR_EKI.md y la skill eki-ship: deploy desde worktree limpio con cherry-pick.',
+            'user_message': f'Deploy bloqueado: {rama} quedó atrás de producción. Se despliega desde un worktree limpio de main.',
+            'agent_message': 'Lee docs/CONTINUAR_EKI.md y la skill eki-ship: adelantar main en fast-forward y desplegar desde un worktree limpio de main.',
         })
         return
     if sin_trackear:

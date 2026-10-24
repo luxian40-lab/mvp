@@ -1,24 +1,25 @@
-# Continuar eki — 9 de octubre de 2026, noche
+# Continuar eki — 24 de octubre de 2026
 
-Handoff para la siguiente sesión. La rama local va adelante de producción. No desplegar `HEAD` completo.
+Handoff para la siguiente sesión. `main` es lo que está en producción.
 
 ## Dónde quedó el código
 
-- Rama: `slice/escalabilidad-base`. Commits de esta tanda no están en `origin`.
-- Producción `eki-prod-final`: versión `main-inicio-campo-20261009-210538`.
-- Árbol que está en el aire: commit `0f29bba9` (Inicio en cola y tonos Campo/Oscuro `8692db81`, encima de la ficha de campaña `7ca3189e` y el copiloto `aa0bf6aa`).
-- Rollback de esa versión: `main-estudiante-persona-20261009-003102`.
-- `eb deploy` empaqueta `git archive` de `HEAD` del directorio desde el que se corre. Un archivo nuevo sin commit no sube y el web arranca con `ImportError`.
+- Producción `eki-prod-final`: versión `main-lineas-meta-20261024-142853`, commit `3c317d73` (rama `deploy/lineas-meta`).
+- `main` local (`010424b2`) tiene el mismo árbol que producción. Registra como incluidos los 5 commits de `origin/main`, que ya estaban en producción por cherry-pick, así que se empuja sin `--force`.
+- Rollback: `main-formador-continuar-20261014-212000`.
+- Trabajo en curso: `chore/guardianes-motor`, encima de `main` (plan `docs/PLAN_MODULARIDAD_EKI.md`).
+- `slice/escalabilidad-base` quedó atrás de producción. Desplegarla sería un rollback de dos semanas.
+- `.ebignore` existe, así que `eb deploy` comprime la carpeta tal como está en disco, no `git archive`. Desde una carpeta sucia subirían archivos sin commit; desde un worktree limpio, lo que no tiene commit no existe y el web arranca con `ImportError`.
 
 ## Cómo commitear y desplegar
 
-1. Un cambio por commit. No mezclar con el árbol sucio (Aprende, settings, docs de auditoría, scripts `qa_*`, conectores ajenos).
-2. Commit en `slice/escalabilidad-base`.
-3. No hacer `eb deploy` desde esa rama. Trae decenas de commits que producción no tiene (webhooks, campañas, consentimiento, presupuesto LLM).
-4. Worktree limpio desde `0f29bba9`, `git cherry-pick` solo del commit nuevo. Si aplica limpio, desplegar desde esa carpeta. La carpeta usada el 8 de octubre es `C:\Users\luxia\OneDrive\Escritorio\eki_deploy_diploma`.
-5. Label `main-<tema>-YYYYMMDD-HHMMSS`. Anotar la versión anterior (`eb status`) antes de subir.
-6. Después: `/health/` en `http://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/health/` debe ser 200.
-7. El commit de la rama y el del worktree no son el mismo hash. El siguiente cherry-pick sale del hash que quedó en producción, no de `73989a00`.
+1. Un cambio por commit, en una rama que sale de `main`. No mezclar con el árbol sucio (Aprende, settings, docs de auditoría, scripts `qa_*`, conectores ajenos).
+2. Para desplegar, adelantar `main` sin merge: `git fetch . <rama>:main` (falla si no es fast-forward; en ese caso rebasar la rama sobre `main`).
+3. Worktree limpio de `main`: la primera vez `git worktree add --detach C:\Users\luxia\eki_deploy_main main`; después `git -C C:\Users\luxia\eki_deploy_main checkout --detach main`. `git status` vacío y sin archivos sin trackear.
+4. Label `main-<tema>-YYYYMMDD-HHMMSS`. Anotar la versión anterior (`eb status eki-prod-final`) antes de subir. Desplegar desde esa carpeta.
+5. Después: `/health/` en `http://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/health/` debe ser 200.
+6. Si hay rollback en EB, revertir también el commit en `main`: `main` no puede quedar adelante de producción.
+7. No hay más cherry-pick sobre árboles viejos. Los worktrees `eki_deploy_*` anteriores son historia.
 
 Reglas fijas que ya están en `.cursor/rules/eki.mdc`: no tocar el cuerpo de `_procesar_twilio_webhook_cuerpo`; firma Meta/Twilio antes de cualquier lógica; `patch()` al módulo que usa el nombre.
 

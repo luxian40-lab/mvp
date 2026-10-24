@@ -7,7 +7,7 @@ alwaysApply: true
 
 Antes de tocar Twilio, el diploma, PQRS o de desplegar, lee `docs/CONTINUAR_EKI.md`.
 
-- No desplegar `HEAD` de `slice/escalabilidad-base`. Cherry-pick del commit nuevo sobre el árbol que está en producción (`0f29bba9` al 9 de octubre de 2026) y deploy desde un worktree limpio.
+- `main` es lo que está en producción (`3c317d73`, `main-lineas-meta-20261024-142853`, 24 de octubre de 2026). Se trabaja en ramas desde `main`, se adelanta `main` en fast-forward y se despliega desde un worktree limpio de `main`. No más cherry-pick. `slice/escalabilidad-base` quedó atrás de producción: no se despliega.
 - El número de Twilio solo entrega el código de *aula*. El curso entra por Meta. El diploma en imagen y el PQRS ya salen por Meta. La plantilla de imagen se llena en Configuración Global; vacía, sigue la imagen de sesión.
 - Las plantillas Meta se crean en el editor (lista, tipo, mensaje), no en el formulario largo.
 - El aviso previo del diploma con plantilla `HX…` sigue en Twilio hasta que la plantilla de Meta esté aprobada y un envío real salga bien.

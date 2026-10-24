@@ -117,11 +117,11 @@ Esperar «continúa» antes del siguiente bloque. Deploy solo con pedido explíc
 
 ### Fase 1 — Tronco único
 
-`main` va 191 commits atrás. `HEAD` y `deploy/lineas-meta` tienen el mismo árbol con historiales duplicados por cherry-pick. `0f29bba9` ya no es ancestro de `HEAD`.
+Hecho el 24 de octubre de 2026. Producción: `main-lineas-meta-20261024-142853`, commit `3c317d73`. `main` local = `010424b2`, mismo árbol, con los 5 commits de `origin/main` registrados (ya estaban en producción por cherry-pick).
 
-- [MANUAL] `eb status eki-prod-final` y anotar la versión en producción.
-- Llevar `main` al árbol que corre en producción y desplegar desde `main`.
-- Actualizar `.cursor/rules/continuar-eki.mdc` y `docs/CONTINUAR_EKI.md`: se retira el deploy por cherry-pick.
+- `.ebignore` deja fuera `.env*`, `*.pem`, credenciales y `.cursor/`: la CLI comprime la carpeta en disco.
+- `docs/CONTINUAR_EKI.md` y `.cursor/rules/continuar-eki.mdc`: deploy desde un worktree limpio de `main`, sin cherry-pick.
+- [MANUAL] `git push origin main` (fast-forward, sin `--force`).
 
 ### Fase A — Contratos de línea
 
