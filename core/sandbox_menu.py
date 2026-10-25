@@ -276,10 +276,13 @@ def _body_o_audio_transcrito(payload: Any, body: str) -> str:
     if mt and not any(x in mt for x in ('audio', 'ogg', 'opus', 'mpeg', 'mp4', 'amr', 'wav')):
         return body
     try:
+        from core.conversacion.transcripcion_turno import del_turno
         from core.sandbox_canal import inbound_es_meta, transcribir_audio_meta
 
         if inbound_es_meta(payload) or not media_url.startswith(('http://', 'https://')):
-            texto = (transcribir_audio_meta(media_url, media_type or 'audio/ogg') or '').strip()
+            texto = (del_turno(
+                media_url, lambda: transcribir_audio_meta(media_url, media_type or 'audio/ogg'),
+            ) or '').strip()
         else:
             from core.views import _transcribir_audio_twilio
 

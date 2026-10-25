@@ -46,6 +46,7 @@ def _aplicar_sandbox_menu(data):
     Graph responde por el phone number id al que escribieron. Si no es una
     línea configurada, sigue la principal.
     """
+    from core.conversacion.transcripcion_turno import un_turno
     from core.meta_inbound import traza_inbound
     from core.sandbox_canal import phone_ids_meta, salida_por_phone_id
 
@@ -54,7 +55,7 @@ def _aplicar_sandbox_menu(data):
         candidato = str(data.get('_eki_phone_number_id') or '').strip()
         if candidato in phone_ids_meta():
             pnid = candidato
-    with salida_por_phone_id(pnid):
+    with salida_por_phone_id(pnid), un_turno():
         with _estado_de_la_linea(data), traza_inbound(data):
             return _aplicar_sandbox_menu_cuerpo(data)
     return HttpResponse('OK')

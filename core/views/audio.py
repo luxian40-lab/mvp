@@ -38,9 +38,10 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
         str: Texto transcrito o None si falla
     """
     if media_url and not str(media_url).startswith(('http://', 'https://')):
+        from core.conversacion.transcripcion_turno import del_turno
         from core.sandbox_canal import transcribir_audio_meta
 
-        return transcribir_audio_meta(media_url, media_type)
+        return del_turno(media_url, lambda: transcribir_audio_meta(media_url, media_type))
     try:
         from core.twilio_inbound_media import descargar_bytes_twilio
 

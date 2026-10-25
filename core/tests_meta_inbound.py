@@ -120,6 +120,43 @@ class MetaInboundEventoTests(TestCase):
                 self.assertTrue(evento.resultado, wamid)
                 self.assertNotEqual(evento.resultado, 'recibido', wamid)
 
+    @patch('core.sandbox_canal.requests.post')
+    def test_audio_se_transcribe_una_vez_por_turno(self, post):
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
+        self.est.acepto_terminos = True
+        self.est.estado_chat = 'ACTIVO'
+        self.est.save(update_fields=['acepto_terminos', 'estado_chat'])
+        with patch('core.sandbox_canal.transcribir_audio_meta', return_value='menu') as transcribir:
+            resp = self._post(_mensaje('audio', {'audio': {'id': 'media9', 'mime_type': 'audio/ogg'}}, 'wamid.audio9'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(transcribir.call_count, 1)
+
+    @patch('core.sandbox_canal.requests.post')
+    def test_audio_que_llega_al_curso_se_transcribe_una_vez(self, post):
+        from core.models import SandboxCanalSesion
+
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
+        self.est.acepto_terminos = True
+        self.est.estado_chat = 'ACTIVO'
+        self.est.save(update_fields=['acepto_terminos', 'estado_chat'])
+        SandboxCanalSesion.objects.create(
+            telefono=TEL, phone_id='111222333', modo='cursos', habeas_aceptado=True,
+        )
+        from core.views import webhook_meta
+
+        with patch(
+            'core.sandbox_canal.transcribir_audio_meta', return_value='ya termine la tarea',
+        ) as transcribir, patch(
+            'core.views.webhook_meta._procesar_twilio_webhook',
+            wraps=webhook_meta._procesar_twilio_webhook,
+        ) as cuerpo:
+            resp = self._post(_mensaje('audio', {'audio': {'id': 'media10', 'mime_type': 'audio/ogg'}}, 'wamid.audio10'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(cuerpo.called)
+        self.assertEqual(transcribir.call_count, 1)
+
     @patch('core.sandbox_menu.dispatch_sandbox_menu', side_effect=RuntimeError('boom'))
     @patch('core.sandbox_canal.requests.post')
     def test_excepcion_responde_fallback_y_guarda_error(self, post, _dispatch):
