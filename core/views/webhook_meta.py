@@ -55,9 +55,22 @@ def _aplicar_sandbox_menu(data):
         if candidato in phone_ids_meta():
             pnid = candidato
     with salida_por_phone_id(pnid):
-        with traza_inbound(data):
+        with traza_inbound(data), _estado_de_la_linea(data):
             return _aplicar_sandbox_menu_cuerpo(data)
     return HttpResponse('OK')
+
+
+def _estado_de_la_linea(data):
+    """El estado que deje este turno queda también en la fila de la línea que lo recibió."""
+    from core.conversacion.estado_linea import en_linea
+    from core.nati import normalizar_telefono_whatsapp
+    from core.sandbox_canal import inbound_es_meta, phone_id_de_salida
+    from core.utils_telefono import estudiante_por_telefono
+
+    es_meta = isinstance(data, dict) and inbound_es_meta(data)
+    telefono = normalizar_telefono_whatsapp(str(data.get('From', '') or '')) if es_meta else ''
+    phone_id = phone_id_de_salida() if es_meta else ''
+    return en_linea(phone_id, lambda: estudiante_por_telefono(telefono) if telefono else None)
 
 
 def _aplicar_sandbox_menu_cuerpo(data):

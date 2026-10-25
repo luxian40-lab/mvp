@@ -364,6 +364,11 @@ EKI_LINEAS_BD_CACHE_SEG = int(os.environ.get('EKI_LINEAS_BD_CACHE_SEG', '60') or
 EKI_CLIENTE_CANAL_PERMANENTE = os.environ.get('EKI_CLIENTE_CANAL_PERMANENTE', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: cada turno y cada campaña de Meta copian estado_chat, estado_onboarding y contexto_temporal
+# a la fila de su línea (EstadoLinea). El código sigue leyendo Estudiante; nada cambia para el usuario.
+EKI_ESTADO_LINEA_ESCRITURA = os.environ.get('EKI_ESTADO_LINEA_ESCRITURA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates

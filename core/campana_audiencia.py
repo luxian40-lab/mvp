@@ -689,10 +689,14 @@ def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
             sesion.save(update_fields=['modo', 'habeas_aceptado', 'actualizado_en'])
     if not getattr(estudiante, 'pk', None):
         return
-    estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
-    estudiante.acepto_terminos = False
-    estudiante.estado_onboarding = 'nuevo'
-    estudiante.save(update_fields=['estado_chat', 'acepto_terminos', 'estado_onboarding'])
+    from core.conversacion.estado_linea import en_linea
+    from core.sandbox_canal import sandbox_phone_id
+
+    with en_linea(linea or sandbox_phone_id(), lambda: estudiante, copiar_al_salir=False):
+        estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
+        estudiante.acepto_terminos = False
+        estudiante.estado_onboarding = 'nuevo'
+        estudiante.save(update_fields=['estado_chat', 'acepto_terminos', 'estado_onboarding'])
 
 
 def numero_de_prueba_permitido(telefono: str) -> bool:
