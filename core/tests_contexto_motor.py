@@ -65,7 +65,7 @@ def test_rama_que_asigna_sin_condicion_no_pide_el_texto(tmp_path):
     assert r['salidas'] == ['texto_respuesta']
 
 
-BARRERAS_PENDIENTES = ('CONFIRMANDO_DATOS',)
+BARRERAS_PENDIENTES = ()
 AGENTES_PENDIENTES = ()
 
 

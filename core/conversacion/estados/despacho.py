@@ -7,6 +7,7 @@ agentes: el handler deja `texto_respuesta` para el envío común del cuerpo.
 from core.conversacion.estados import (
     asistente,
     cedula,
+    confirmando_datos,
     curso_finalizado,
     empleabilidad,
     modulo,
@@ -20,6 +21,8 @@ from core.conversacion.estados import (
 
 BARRERAS = {
     'ESPERANDO_CEDULA': cedula.manejar,
+    # Sí: activa y entrega el primer módulo. Modificar: ticket de soporte. Otro: reenvía la plantilla.
+    'CONFIRMANDO_DATOS': confirmando_datos.manejar,
 }
 
 AGENTES = {
