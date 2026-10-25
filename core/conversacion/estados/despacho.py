@@ -42,8 +42,8 @@ AGENTES = {
     'esperando_respuesta_reto': reto.manejar,
     # Examen clásico del módulo: valida la letra, avanza o cierra el curso.
     'esperando_respuesta_modulo': modulo.manejar,
-    # Lista numerada de cursos (B2B con 2+ cursos). El bloque ACTIVO ya la atiende y corta antes;
-    # esta es la copia que estaba en la cadena.
+    # Lista numerada de cursos (B2B con 2+ cursos). Con estado_chat ACTIVO la atiende antes la copia
+    # del bloque ACTIVO; esta atiende a quien llega con un estado_chat legado.
     'esperando_seleccion_curso': seleccion_curso.manejar,
 }
 

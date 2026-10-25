@@ -180,7 +180,7 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-b-c` (D3 antes que el resto de
 - `core/tests_contexto_motor.py` exige que lo despachado no tenga rama después del despachador. `core/tests_estados_legado.py` caracteriza recuperación antes de moverla.
 - Ratchet: con `--aceptar-movimiento`, `ciclo_mayor` solo puede crecer por módulos `core.conversacion.estados.*`, y `lineas_en_funciones_grandes` solo por el pegamento medido de cada handler grande (`def`, las líneas `x = contexto.x` y el `return Respuesta` final).
 - D4 sin conteo: se borró `elif False and …` («Mis cursos») y los imports de módulo que quedaron sin uso en `webhook_twilio`.
-- La copia de `esperando_seleccion_curso` en la cadena parece inalcanzable (el bloque ACTIVO atiende ese estado y corta antes), pero hay funciones que cambian el estado en memoria entre las dos. Se movió tal cual; no se borra sin una prueba que lo demuestre.
+- `esperando_seleccion_curso` tiene dos copias y las dos se usan: la del bloque ACTIVO atiende a quien tiene `estado_chat` ACTIVO, y la del despachador a quien llega con un `estado_chat` legado (por ejemplo `nuevo`), porque ese bloque no entra. No se borra. Prueba: `core/tests_seleccion_curso_cadena.py`.
 - [MANUAL] Correr `python manage.py contar_estados_motor` en producción. Con cero en `esperando_respuesta_tutor_ia`, `esperando_respuesta_progreso` y `esperando_respuesta_recuperacion`, borrar esos handlers y sus entradas, uno por commit.
 - Huecos vistos, sin arreglar (no es movimiento): en recuperación, responder con la letra da «No entendí»; en la línea 2, el módulo 1 termina sin instrucción.
 
