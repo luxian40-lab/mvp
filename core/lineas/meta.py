@@ -10,11 +10,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
+from core.lineas.perfil import USO_COMPLETA, USO_SOLO_CURSOS, PerfilLinea, perfil_por_uso
 from core.nati import normalizar_telefono_whatsapp
-
-
-USO_COMPLETA = 'completa'
-USO_SOLO_CURSOS = 'solo_cursos'
 
 
 @dataclass(frozen=True)
@@ -23,6 +20,10 @@ class LineaMeta:
     e164: str
     nombre: str
     uso: str = USO_COMPLETA
+
+    @property
+    def perfil(self) -> PerfilLinea:
+        return perfil_por_uso(self.uso)
 
 
 def lineas_producto() -> tuple[LineaMeta, ...]:

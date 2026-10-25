@@ -5,6 +5,7 @@ La segunda es el modo Twilio: curso lineal, solo Formador y Compañero,
 sin carrusel y sin lista de agentes. El aula sigue en Twilio HTTP.
 """
 from core.lineas.meta import USO_SOLO_CURSOS, lineas_producto
+from core.lineas.perfil import PERFIL_COMPLETA, PerfilLinea
 
 # Alias de producto: mismo flag técnico, nombre claro.
 USO_MODO_TWILIO = USO_SOLO_CURSOS
@@ -33,6 +34,23 @@ def es_solo_cursos(phone_id: str | None = None) -> bool:
         if linea.phone_id == buscado:
             return linea.uso == USO_SOLO_CURSOS
     return False
+
+
+def perfil_de(phone_id: str | None = None) -> PerfilLinea:
+    """Perfil de la línea de ese phone id; sin phone id, el de salida del turno.
+
+    Línea que no está en el registro = perfil principal, como `es_solo_cursos`.
+    """
+    if phone_id is None:
+        from core.sandbox_canal import phone_id_de_salida
+
+        phone_id = phone_id_de_salida()
+    buscado = str(phone_id or '').strip()
+    if buscado:
+        for linea in lineas_producto():
+            if linea.phone_id == buscado:
+                return linea.perfil
+    return PERFIL_COMPLETA
 
 
 def es_modo_twilio(phone_id: str | None = None) -> bool:
