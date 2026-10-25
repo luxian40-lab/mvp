@@ -3802,6 +3802,7 @@ from .models_video import VideoEnlace, VideoView
 from .models_agentes import ConocimientoAgente, PruebaAgente
 from .models_uso_llm import UsoLLM
 from .lineas.modelo import LineaWhatsapp
+from .conversacion.estado_linea import EstadoLinea
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
