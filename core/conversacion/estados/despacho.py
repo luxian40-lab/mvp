@@ -9,6 +9,7 @@ from core.conversacion.estados import (
     cedula,
     curso_finalizado,
     empleabilidad,
+    pregunta_abierta_final,
     progreso,
     recuperacion,
     tutor_ia,
@@ -29,6 +30,8 @@ AGENTES = {
     'esperando_respuesta_recuperacion': recuperacion.manejar,
     # Asistente (compañero): hasta 2 preguntas antes del reto.
     'esperando_respuesta_asistente': asistente.manejar,
+    # Respuesta abierta final, calificada por la facilitadora.
+    'esperando_respuesta_pregunta_abierta_final': pregunta_abierta_final.manejar,
 }
 
 
