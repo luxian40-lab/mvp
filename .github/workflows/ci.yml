@@ -67,6 +67,7 @@ jobs:
             core/tests_contrato_estados_motor.py \
             core/tests_contexto_motor.py \
             core/tests_estados_legado.py \
+            core/tests_seleccion_curso_cadena.py \
             core/tests_marcas.py \
             core/tests_envio_meta_marcas.py \
             core/tests_linea2_curso_directo.py \
