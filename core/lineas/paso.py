@@ -44,8 +44,9 @@ def responder_evaluacion_paso(estudiante, msg_body, msg_from, telefono_limpio, e
 
 
 def _entregar_paso(estudiante, msg_from, resp, enviar) -> None:
-    import re
+    import time
 
+    from core.conversacion.marcas import PAUSA, PLANTILLA, es_marcado, partes, separar_media
     from core.views.twilio_transporte import youtube_hace_solo_enlace_en_texto
 
     def _una(texto, media):
@@ -56,31 +57,15 @@ def _entregar_paso(estudiante, msg_from, resp, enviar) -> None:
             )
         enviar(msg_from, texto, media_url=media, agente='paso')
 
-    if resp.startswith('[MULTI_MSG]'):
-        for parte in resp.replace('[MULTI_MSG]', '', 1).split('[SEP]'):
-            parte_texto = (parte or '').strip()
-            if not parte_texto:
+    if es_marcado(resp):
+        for parte in partes(resp):
+            if parte.tipo == PAUSA:
+                time.sleep(parte.segundos)
                 continue
-            delay_m = re.match(r'^\[DELAY:(\d+)\]$', parte_texto)
-            if delay_m:
-                import time
-                time.sleep(int(delay_m.group(1)))
-                continue
-            parte_media = None
-            if '[MEDIA:' in parte_texto:
-                mm = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
-                if mm:
-                    parte_media = (mm.group(1) or '').strip()
-                    parte_texto = parte_texto.replace(mm.group(0), '').strip()
-            _una(parte_texto, parte_media)
-            import time
+            if parte.tipo == PLANTILLA:
+                _una(*separar_media(parte.texto))
+            else:
+                _una(parte.texto, parte.media)
             time.sleep(0.5)
         return
-    parte_media = None
-    parte_texto = (resp or '').strip()
-    if '[MEDIA:' in parte_texto:
-        mm = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
-        if mm:
-            parte_media = (mm.group(1) or '').strip()
-            parte_texto = parte_texto.replace(mm.group(0), '').strip()
-    _una(parte_texto, parte_media)
+    _una(*separar_media((resp or '').strip()))

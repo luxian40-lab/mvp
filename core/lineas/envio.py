@@ -1,11 +1,11 @@
 """Envio por WhatsApp Cloud API. El curso llama estos nombres y no abre el webhook."""
 import logging
-import re
 import time
 
 import requests
 from django.conf import settings
 
+from core.conversacion.marcas import PAUSA, PLANTILLA, es_marcado, partes
 from core.nati import normalizar_telefono_whatsapp
 
 logger = logging.getLogger(__name__)
@@ -316,7 +316,7 @@ def enviar_meta(
 
     texto = str(texto or '').strip()
     clean_url = str(media_url or '').strip() or None
-    if texto.startswith('[MULTI_MSG]'):
+    if es_marcado(texto):
         return _enviar_partes_marcadas(
             to, texto, media_url=clean_url, canal_evento=canal_evento, agente_evento=agente_evento,
         )
@@ -387,31 +387,22 @@ def _enviar_partes_marcadas(
     canal_evento: str,
     agente_evento: str,
 ) -> dict:
-    """[MULTI_MSG] llega armado desde el curso: un mensaje por [SEP], en orden.
+    """Texto armado por el curso: un mensaje por parte, en orden.
 
-    [SEND_TEMPLATE:HX…] es una plantilla de Twilio; por Meta no existe y se omite.
+    Las plantillas de Twilio no existen en Meta y se omiten.
     """
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
     if media_url:
         last = enviar_meta(to, '', media_url=media_url, canal_evento=canal_evento, agente_evento=agente_evento)
-    for parte in texto.replace('[MULTI_MSG]', '', 1).split('[SEP]'):
-        parte_texto = (parte or '').strip()
-        if not parte_texto:
+    for parte in partes(texto):
+        if parte.tipo == PAUSA:
+            time.sleep(parte.segundos)
             continue
-        pausa = re.match(r'^\[DELAY:(\d+)\]$', parte_texto)
-        if pausa:
-            time.sleep(int(pausa.group(1)))
-            continue
-        if parte_texto.startswith('[SEND_TEMPLATE:'):
+        if parte.tipo == PLANTILLA:
             logger.warning('meta_partes_plantilla_twilio_omitida to=***%s', to[-4:])
             continue
-        parte_media = None
-        marca_media = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
-        if marca_media:
-            parte_media = (marca_media.group(1) or '').strip() or None
-            parte_texto = parte_texto.replace(marca_media.group(0), '').strip()
         last = enviar_meta(
-            to, parte_texto, media_url=parte_media, canal_evento=canal_evento, agente_evento=agente_evento,
+            to, parte.texto, media_url=parte.media, canal_evento=canal_evento, agente_evento=agente_evento,
         )
         if not last.get('success'):
             return last
