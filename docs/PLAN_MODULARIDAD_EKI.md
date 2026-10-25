@@ -127,7 +127,7 @@ Hecho el 24 de octubre de 2026. Producción: `main-lineas-meta-20261024-142853`,
 
 Tests contra PostgreSQL (Docker local: `postgres:15`, `redis:7`). Envíos capturados en el borde (Graph y Twilio), sin red.
 
-- A1 Arnés: fábrica de payloads Meta firmados por línea (phone id), captura de envíos, reloj fijo.
+- A1 Arnés: fábrica de payloads Meta firmados por línea (phone id), captura de envíos, reloj fijo. Hecho: `core/tests_support/contrato_linea.py` (`ContratoLineaTestCase`), probado en `core/tests_contrato_arnes.py`, en el checklist de CI.
 - A2 Contrato principal: campaña, habeas, cédula, menú por plan, carrusel, curso, *listo*, asesor con cupo, fin de curso vuelve al menú.
 - A3 Contrato línea 2: campaña, habeas, cédula, curso directo, módulos, Formador y Compañero, evaluación, certificado. Pedir asesor responde «solo curso». Una segunda campaña inscribe el siguiente curso.
 - A4 Persona en las dos líneas: las sesiones no se mezclan. Documenta el comportamiento actual del estado compartido (es el caso que corrige E).
