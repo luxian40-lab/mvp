@@ -342,6 +342,70 @@ class UltimoModuloTests(ConCursoTestCase):
 
 
 @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class ResponseTemplatesTests(ConCursoTestCase):
+    def test_checkpoint_del_facilitador_conserva_las_claves(self):
+        from core.response_templates import activar_checkpoint_facilitador
+
+        self._con_contexto(tipo='pregunta_modulo', pregunta_id=4, ultimo_push_curso_id=self.curso.id)
+        activar_checkpoint_facilitador(self.est, self.progreso, self.mod)
+        ctx = self._contexto()
+        self.assertEqual(ctx['tipo'], 'asistente_dario')
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+        self.assertNotIn('pregunta_id', ctx)
+
+    def _completado_final(self, gamificacion):
+        from core.gamificacion import PerfilGamificacion
+        from core.models import PreguntaAbiertaFinalCurso
+        from core.response_templates import _generar_completado_final
+
+        Curso.objects.filter(id=self.curso.id).update(usar_gamificacion=gamificacion)
+        Cliente.objects.filter(id=self.cli.id).update(usar_gamificacion=gamificacion)
+        self.est.refresh_from_db()
+        PerfilGamificacion.objects.get_or_create(estudiante=self.est)
+        pregunta = PreguntaAbiertaFinalCurso.objects.create(curso=self.curso, pregunta='¿Qué cambiaría?', activa=True)
+        self._con_contexto(tipo='pregunta_modulo', pregunta_id=4, ultimo_push_curso_id=self.curso.id)
+        _generar_completado_final(self.est, self.curso.id)
+        return pregunta, self._contexto()
+
+    def test_completado_final_con_reto_conserva_las_claves(self):
+        pregunta, ctx = self._completado_final(gamificacion=True)
+        self.assertEqual((ctx['tipo'], ctx['pregunta_abierta_final_id']), ('asistente_dario', pregunta.id))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+        self.assertNotIn('pregunta_id', ctx)
+
+    def test_completado_final_con_pregunta_abierta_conserva_las_claves(self):
+        pregunta, ctx = self._completado_final(gamificacion=False)
+        self.assertEqual((ctx['tipo'], ctx['pregunta_abierta_final_id']), ('pregunta_abierta_final', pregunta.id))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+        self.assertNotIn('pregunta_id', ctx)
+
+    def _listo_con_el_companero(self, modulos_reto_ids):
+        from core.response_templates import get_response_for_intent
+
+        self._con_contexto(
+            tipo='asistente_dario', modulos_reto_ids=modulos_reto_ids, progreso_id=self.progreso.id,
+            preguntas_hechas=1, ultimo_push_curso_id=self.curso.id,
+        )
+        self.est.estado_onboarding = 'esperando_respuesta_asistente'
+        self.est.save()
+        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+            get_response_for_intent('continuar_leccion', 'Lu', estudiante_id=self.est.id, mensaje_original='listo')
+        return self._contexto()
+
+    def test_listo_con_el_companero_abre_el_reto_y_conserva_las_claves(self):
+        ctx = self._listo_con_el_companero([self.mod.id])
+        self.assertEqual((ctx['tipo'], ctx['reto_texto']), ('reto_facilitador', 'Riegue la huerta.'))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+        self.assertNotIn('preguntas_hechas', ctx)
+
+    def test_listo_con_el_companero_sin_reto_deja_solo_las_claves(self):
+        self.assertEqual(
+            self._listo_con_el_companero([]),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'ultimo_push_curso_id': self.curso.id},
+        )
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
 class RetoDespuesDeMariaTests(ConCursoTestCase):
     def test_abrir_el_reto_conserva_las_claves(self):
         from core.lineas.reto import activar_reto_despues_de_maria

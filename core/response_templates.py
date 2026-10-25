@@ -9,6 +9,7 @@ from django.utils import timezone
 from datetime import timedelta
 from urllib.parse import quote
 
+from .conversacion.claves_contexto import contexto_limpio
 from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 
@@ -243,7 +244,7 @@ def _generar_completado_final(estudiante, curso_id):
                 progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
 
                 _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                estudiante.contexto_temporal = {
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                     'tipo': 'asistente_dario',
                     'curso_activo_id': curso.id,
                     'curso_id': curso.id,
@@ -254,7 +255,7 @@ def _generar_completado_final(estudiante, curso_id):
                     'es_reto_final': True,
                     'pregunta_abierta_final_id': pregunta_abierta.id,
                     '_ts_leccion': _prev_ts,
-                }
+                })
                 estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
@@ -279,12 +280,12 @@ def _generar_completado_final(estudiante, curso_id):
             progreso.fecha_completado = timezone.now()
             progreso.fecha_ultimo_avance = timezone.now()
             progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
-            estudiante.contexto_temporal = {
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                 'tipo': 'pregunta_abierta_final',
                 'curso_id': curso.id,
                 'progreso_id': progreso.id,
                 'pregunta_abierta_final_id': pregunta_abierta.id,
-            }
+            })
             estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
             estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
             return _mensaje_pregunta_abierta_final(pregunta_abierta.pregunta)
@@ -520,7 +521,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     )
 
     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-    estudiante.contexto_temporal = {
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
         'tipo': 'asistente_dario',
         'curso_activo_id': progreso.curso_id,
         'modulo_id': modulo_cerrado.id,
@@ -528,7 +529,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
         'modulos_reto_ids': [m.id for m in modulos_reto],
         'preguntas_hechas': 0,
         '_ts_leccion': _prev_ts,
-    }
+    })
     estudiante.estado_onboarding = 'esperando_respuesta_asistente'
     estudiante.save()
 
@@ -1499,14 +1500,14 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
                     )
                     _prev_ts = _ctx_sesion_asistente.get('_ts_leccion', 0)
-                    estudiante.contexto_temporal = {
+                    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                         'tipo': 'reto_facilitador',
                         'modulos_reto_ids': modulos_reto_ids,
                         'reto_texto': reto,
                         'progreso_id': progreso_id,
                         'es_final': _ctx_sesion_asistente.get('es_reto_final', False),
                         '_ts_leccion': _prev_ts,
-                    }
+                    })
                     estudiante.estado_onboarding = 'esperando_respuesta_reto'
                     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                     logger.info(
@@ -1517,7 +1518,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 
                     return bloque_reto_whatsapp(nombre_tutor, reto)
                 estudiante.estado_onboarding = 'completado'
-                estudiante.contexto_temporal = None
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
                 estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
                 return (
                     "Seguimos con tu curso. Escribí *listo* para continuar "
@@ -2027,7 +2028,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         )
                         
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                        estudiante.contexto_temporal = {
+                        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                             'tipo': 'asistente_dario',
                             'curso_activo_id': progreso.curso_id,
                             'modulo_id': modulos_final[-1].id if modulos_final else None,
@@ -2036,7 +2037,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             'preguntas_hechas': 0,
                             'es_reto_final': True,
                             '_ts_leccion': _prev_ts,
-                        }
+                        })
                         if pregunta_abierta:
                             estudiante.contexto_temporal['pregunta_abierta_final_id'] = pregunta_abierta.id
                         estudiante.estado_onboarding = 'esperando_respuesta_asistente'
