@@ -10,7 +10,7 @@ from core.admin.estudiantes import (
     EstudianteAdmin,
     SinAvanzarEstudianteFilter,
 )
-from core.admin._common import CursosEstudianteFilter
+from core.admin._common import CursosEstudianteFilter, EstudianteSinProgresoFilter
 from core.models import Cliente, Curso, Estudiante, Modulo
 
 
@@ -90,6 +90,7 @@ class AdminListadosOrdenTests(SimpleTestCase):
                 'cliente',
                 SinAvanzarEstudianteFilter,
                 EstadoCrmEstudianteFilter,
+                EstudianteSinProgresoFilter,
             ),
         )
         self.assertEqual(adm.list_select_related, ('cliente',))
