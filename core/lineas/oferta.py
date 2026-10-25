@@ -54,8 +54,14 @@ def cliente_de_la_linea(phone_id: str | None = None):
     buscado = str(phone_id or '').strip()
     if not buscado:
         return None
+    from core.lineas.meta import linea_por_phone_id
     from core.models import Cliente
 
+    linea = linea_por_phone_id(buscado)
+    if linea is not None and linea.cliente_id:
+        cliente = Cliente.objects.filter(pk=linea.cliente_id, activo=True).first()
+        if cliente is not None:
+            return cliente
     return Cliente.objects.filter(phone_id_meta=buscado, activo=True).order_by('id').first()
 
 

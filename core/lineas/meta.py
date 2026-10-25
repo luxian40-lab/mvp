@@ -20,6 +20,8 @@ class LineaMeta:
     e164: str
     nombre: str
     uso: str = USO_COMPLETA
+    waba_id: str = ''
+    cliente_id: int | None = None
 
     @property
     def perfil(self) -> PerfilLinea:
@@ -27,6 +29,10 @@ class LineaMeta:
 
 
 def lineas_producto() -> tuple[LineaMeta, ...]:
+    if getattr(settings, 'EKI_LINEAS_BD_ENABLED', False):
+        de_bd = _lineas_bd()
+        if de_bd:
+            return de_bd
     explicito = _parsear(getattr(settings, 'META_LINEAS', '') or '')
     if explicito:
         return explicito
@@ -39,6 +45,16 @@ def phone_ids() -> tuple[str, ...]:
         if linea.phone_id and linea.phone_id not in vistos:
             vistos.append(linea.phone_id)
     return tuple(vistos)
+
+
+def linea_por_phone_id(phone_id: str | None) -> LineaMeta | None:
+    buscado = str(phone_id or '').strip()
+    if not buscado:
+        return None
+    for linea in lineas_producto():
+        if linea.phone_id == buscado:
+            return linea
+    return None
 
 
 def nombre_de_linea(phone_id: str) -> str:
@@ -55,6 +71,15 @@ def numeros_e164() -> tuple[str, ...]:
         if linea.e164 and linea.e164 not in vistos:
             vistos.append(linea.e164)
     return tuple(vistos)
+
+
+def _lineas_bd() -> tuple[LineaMeta, ...]:
+    from core.lineas.modelo import filas_activas
+
+    return tuple(
+        LineaMeta(phone, normalizar_telefono_whatsapp(e164) if e164 else '', nombre, uso=uso, waba_id=waba, cliente_id=cliente_id)
+        for phone, e164, nombre, uso, waba, cliente_id in filas_activas()
+    )
 
 
 def _lineas_historicas() -> tuple[LineaMeta, ...]:

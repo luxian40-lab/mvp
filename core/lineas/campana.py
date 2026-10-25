@@ -6,9 +6,13 @@ def waba_de_linea(phone_id: str) -> str:
     """WABA de esa línea. Vacío en la 2 si el entorno no la tiene."""
     from django.conf import settings
 
+    from core.lineas.meta import linea_por_phone_id
     from core.lineas.variante import perfil_de
     from core.meta_waba import _waba
 
+    linea = linea_por_phone_id(phone_id)
+    if linea is not None and linea.waba_id:
+        return linea.waba_id
     if not perfil_de(phone_id).usa_waba_principal:
         return (getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID_2', '') or '').strip()
     return _waba()
