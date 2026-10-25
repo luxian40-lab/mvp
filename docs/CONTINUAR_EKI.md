@@ -4,9 +4,10 @@ Handoff para la siguiente sesión. `main` es lo que está en producción.
 
 ## Dónde quedó el código
 
-- Producción `eki-prod-final`: versión `main-fases-e-f-20261025-163903`, commit `1e90f3f9`. `main` lo lleva y solo le suma este documento. Fases A a F de `docs/PLAN_MODULARIDAD_EKI.md`: estado por persona y línea (tabla `EstadoLinea`, migración `0191`) con `EKI_ESTADO_LINEA_ESCRITURA` y `EKI_ESTADO_LINEA_LECTURA` apagados; puertas en `core/conversacion/puertas.py`; menú, carrusel, cursos empezados y asesores en `core/lineas/principal/`.
-- Rollback: `main-release-20261025-135239` (commit `5051e000`). La tabla `core_estadolinea` no le estorba.
-- Para prender el estado por línea: plan, fase E, «Para prender».
+- Producción `eki-prod-final`: versión `main-audio-una-transcripcion-20261025-171016`, commit `57c311e8`. `main` lo lleva y solo le suma este documento. Fases A a F de `docs/PLAN_MODULARIDAD_EKI.md`: estado por persona y línea (tabla `EstadoLinea`, migración `0191`); puertas en `core/conversacion/puertas.py`; menú, carrusel, cursos empezados y asesores en `core/lineas/principal/`. Una nota de voz de Meta se transcribe una vez por turno (`core/conversacion/transcripcion_turno.py`).
+- Rollback: `main-fases-e-f-20261025-163903` (commit `1e90f3f9`). Solo vuelve a transcribir el audio tres o cuatro veces.
+- Estado por línea: el 25 de octubre a las 22:16 UTC se corrió `backfill_estado_linea --aplicar` (8 filas, una por sesión) y se prendió `EKI_ESTADO_LINEA_ESCRITURA=true`. Falta revisar las filas unos días y correr `backfill_estado_linea --aplicar` otra vez. `EKI_ESTADO_LINEA_LECTURA` sigue apagado porque requiere `SANDBOX_CELERY_ASYNC=true`, que está en `false` a propósito (`docs/RUTA_FINAL_EKI.md` §1.8). Apagar la escritura es `eb setenv EKI_ESTADO_LINEA_ESCRITURA=false`; las filas se quedan y no estorban.
+- Decidido el 25 de octubre, sin empezar: los campos viejos de estado se siguen escribiendo como espejo (E4 espera); el avance del curso se filtra por línea con una lista de cursos por línea, sin tocar `ProgresoEstudiante`; las líneas `contexto_temporal = None` pasan a una lista de claves que sobreviven, detrás de un flag apagado y un sitio por commit.
 - `slice/escalabilidad-base` quedó atrás de producción. Desplegarla sería un rollback de dos semanas.
 - `.ebignore` existe, así que `eb deploy` comprime la carpeta tal como está en disco, no `git archive`. Desde una carpeta sucia subirían archivos sin commit; desde un worktree limpio, lo que no tiene commit no existe y el web arranca con `ImportError`.
 
