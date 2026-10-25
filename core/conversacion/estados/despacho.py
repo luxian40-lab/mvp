@@ -5,6 +5,7 @@ corta el turno. AGENTES se busca por `estado_onboarding` en la cadena de
 agentes: el handler deja `texto_respuesta` para el envío común del cuerpo.
 """
 from core.conversacion.estados import (
+    asistente,
     cedula,
     curso_finalizado,
     empleabilidad,
@@ -26,6 +27,8 @@ AGENTES = {
     'esperando_respuesta_progreso': progreso.manejar,
     # Pregunta de recuperación (<70 pts) antes del certificado.
     'esperando_respuesta_recuperacion': recuperacion.manejar,
+    # Asistente (compañero): hasta 2 preguntas antes del reto.
+    'esperando_respuesta_asistente': asistente.manejar,
 }
 
 

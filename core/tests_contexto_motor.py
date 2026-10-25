@@ -68,7 +68,6 @@ def test_rama_que_asigna_sin_condicion_no_pide_el_texto(tmp_path):
 BARRERAS_PENDIENTES = ('CONFIRMANDO_DATOS',)
 AGENTES_PENDIENTES = (
     'esperando_respuesta_pregunta_abierta_final',
-    'esperando_respuesta_asistente',
     'esperando_respuesta_reto',
     'esperando_respuesta_modulo',
     'esperando_seleccion_curso',
