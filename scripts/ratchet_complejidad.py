@@ -8,8 +8,9 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
     python scripts/ratchet_complejidad.py --actualizar [--aceptar-movimiento]
 
 --aceptar-movimiento deja entrar funciones grandes nuevas solo si el total de
-líneas en funciones grandes no sube (una función que se movió de archivo), y
-deja crecer ciclo_mayor solo con módulos de core/conversacion/estados/ (fase D).
+líneas en funciones grandes no sube (una función que se movió de archivo).
+Para la fase D, cada función grande nueva en core/conversacion/estados/ puede
+sumar hasta HOLGURA_MOVIMIENTO líneas, y ciclo_mayor solo crece con esos módulos.
 """
 from __future__ import annotations
 
@@ -28,6 +29,9 @@ FUNCIONES_VARIANTE = {'es_modo_twilio', 'es_solo_cursos'}
 VARIANTE_PERMITIDA = 'core/lineas/'
 MARCADORES = ('[MULTI_MSG]', '[MEDIA:', '[DELAY:', '[SEND_TEMPLATE:', '[SEP]')
 MODULOS_ESTADOS = 'core.conversacion.estados.'
+ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
+# Una rama movida a un handler suma def, encabezado desde el contexto y return.
+HOLGURA_MOVIMIENTO = 6
 
 POR_ARCHIVO = (
     'excepts_amplios',
@@ -304,6 +308,12 @@ def comparar(base: dict, actual: dict, *, aceptar_movimiento: bool = False) -> l
         elif not aceptar_movimiento:
             problemas.append(f'función nueva de más de {UMBRAL_FUNCION} líneas: {clave} ({lineas})')
     t_base, t_actual = totales(base), totales(actual)
+    if aceptar_movimiento:
+        nuevas_en_estados = [
+            c for c in actual.get('funciones_grandes', {})
+            if c not in base_f and c.startswith(ARCHIVOS_ESTADOS)
+        ]
+        t_base['lineas_en_funciones_grandes'] += HOLGURA_MOVIMIENTO * len(nuevas_en_estados)
     for clave in (*POR_ARCHIVO, *ESCALARES):
         if t_actual[clave] > t_base[clave]:
             if clave == 'ciclo_mayor' and aceptar_movimiento and _ciclo_crece_solo_por_estados(base, actual):

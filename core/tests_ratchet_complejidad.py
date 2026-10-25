@@ -61,6 +61,27 @@ def test_movimiento_que_duplica_codigo_no_se_acepta(tmp_path):
     assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
 
 
+def test_estado_movido_puede_sumar_su_pegamento(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/w.py': _funcion('cuerpo', 400)})
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/views/w.py': _funcion('cuerpo', 200),
+        'core/conversacion/estados/x.py': _funcion('manejar', 200 + ratchet.HOLGURA_MOVIMIENTO),
+    })
+    assert not ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    _arbol(raiz, {'core/conversacion/estados/x.py': _funcion('manejar', 201 + ratchet.HOLGURA_MOVIMIENTO)})
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
+
+
+def test_holgura_solo_para_estados(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/w.py': _funcion('cuerpo', 400)})
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {'core/views/w.py': _funcion('cuerpo', 200), 'core/otro.py': _funcion('manejar', 202)})
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
+
+
 def test_variante_de_linea_solo_se_permite_en_lineas(tmp_path):
     codigo = 'from core.lineas.variante import es_modo_twilio\nes_modo_twilio()\n'
     raiz = _arbol(tmp_path, {'core/lineas/x.py': codigo, 'core/menu.py': codigo})
