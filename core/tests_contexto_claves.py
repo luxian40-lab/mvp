@@ -56,6 +56,37 @@ class ContextoLimpioTests(SimpleTestCase):
         self.assertEqual(antes, ANTES)
 
 
+class SinBorradoDirectoTests(SimpleTestCase):
+    # El cuerpo del webhook solo cambia por la fase D (mover estados), no por este bloque.
+    PERMITIDOS = {'core/views/webhook_twilio.py'}
+
+    def test_nadie_pisa_el_contexto_con_none_o_un_dict_literal(self):
+        import ast
+        from pathlib import Path
+
+        raiz = Path(__file__).resolve().parent.parent
+        encontrados = []
+        for ruta in sorted((raiz / 'core').rglob('*.py')):
+            rel = ruta.relative_to(raiz).as_posix()
+            if rel in self.PERMITIDOS or '/migrations/' in rel or ruta.name.startswith('test'):
+                continue
+            try:
+                arbol = ast.parse(ruta.read_text(encoding='utf-8'))
+            except SyntaxError:
+                continue
+            for nodo in ast.walk(arbol):
+                if not isinstance(nodo, ast.Assign):
+                    continue
+                pisa = isinstance(nodo.value, ast.Dict) or (
+                    isinstance(nodo.value, ast.Constant) and nodo.value.value is None
+                )
+                if pisa and any(
+                    isinstance(t, ast.Attribute) and t.attr == 'contexto_temporal' for t in nodo.targets
+                ):
+                    encontrados.append(f'{rel}:{nodo.lineno}')
+        self.assertEqual(encontrados, [], 'Use contexto_limpio(...) de core.conversacion.claves_contexto')
+
+
 class ConCursoTestCase(TestCase):
     """Una persona en el módulo 1 con certificado por enviar y empleabilidad en el contexto."""
 
