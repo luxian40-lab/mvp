@@ -4,9 +4,9 @@ Handoff para la siguiente sesión. `main` es lo que está en producción.
 
 ## Dónde quedó el código
 
-- Producción `eki-prod-final`: versión `main-release-20261025-135239`, commit `5051e000` = `main` (local y `origin`). Lleva las fases A a D de `docs/PLAN_MODULARIDAD_EKI.md` y el arreglo de la ventana de 24 h (solo eventos `wamid.` de Meta la abren).
-- Rollback: `main-examen-formulario-20261024-185556` (commit `d086c681`).
-- Trabajo en curso: `refactor/fases-e-f`, encima de `main` (estado por persona y línea detrás de flags apagados; puertas y menú fuera de `sandbox_menu.py`).
+- Producción `eki-prod-final`: versión `main-fases-e-f-20261025-163903`, commit `1e90f3f9`. `main` lo lleva y solo le suma este documento. Fases A a F de `docs/PLAN_MODULARIDAD_EKI.md`: estado por persona y línea (tabla `EstadoLinea`, migración `0191`) con `EKI_ESTADO_LINEA_ESCRITURA` y `EKI_ESTADO_LINEA_LECTURA` apagados; puertas en `core/conversacion/puertas.py`; menú, carrusel, cursos empezados y asesores en `core/lineas/principal/`.
+- Rollback: `main-release-20261025-135239` (commit `5051e000`). La tabla `core_estadolinea` no le estorba.
+- Para prender el estado por línea: plan, fase E, «Para prender».
 - `slice/escalabilidad-base` quedó atrás de producción. Desplegarla sería un rollback de dos semanas.
 - `.ebignore` existe, así que `eb deploy` comprime la carpeta tal como está en disco, no `git archive`. Desde una carpeta sucia subirían archivos sin commit; desde un worktree limpio, lo que no tiene commit no existe y el web arranca con `ImportError`.
 
