@@ -437,6 +437,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         'cliente',
         SinAvanzarEstudianteFilter,
         EstadoCrmEstudianteFilter,
+        EstudianteSinProgresoFilter,
     )
     list_filter_submit = True
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
