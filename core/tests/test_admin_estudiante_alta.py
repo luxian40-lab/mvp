@@ -46,11 +46,11 @@ def _org(nombre, tel, **extra):
 
 
 def _curso(nombre, cliente, **extra):
+    extra.setdefault('activo', True)
     return Curso.objects.create(
         nombre=nombre,
         descripcion='d',
         cliente=cliente,
-        activo=True,
         **extra,
     )
 
