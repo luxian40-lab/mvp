@@ -136,6 +136,20 @@ class ContratoLinea2Tests(ContratoLineaTestCase):
         self.assertTrue(progreso.esperando_respuesta_evaluacion_paso)
         self.assertEqual(progreso.modulo_actual_id, modulo.id)
 
+    def test_hoy_hola_retoma_el_modulo_con_los_marcadores_crudos(self):
+        self._identidad()
+        envios = self.escribir2('hola')
+        self.assertEqual(len(envios), 1)
+        self.assertTrue(envios[0].texto.startswith('[MULTI_MSG]'))
+        self.assertIn('CONTENIDO_Lineal1_1[SEP]', envios[0].texto)
+
+    @unittest.expectedFailure
+    def test_esperado_hola_parte_el_modulo_en_mensajes(self):
+        """Hueco conocido: el cuerpo manda [MULTI_MSG] por enviar_whatsapp_twilio y Meta no lo parte."""
+        self._identidad()
+        envios = self.escribir2('hola')
+        self.assertFalse([e for e in envios if '[MULTI_MSG]' in e.texto or '[SEP]' in e.texto])
+
     # Lo que la línea 2 no tiene
 
     def test_pedir_asesor_responde_solo_curso(self):
