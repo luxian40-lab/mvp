@@ -1,4 +1,19 @@
 {
- "cuerpo_autorizado": false,
- "estados_autorizados": []
+ "cuerpo_autorizado": true,
+ "autorizado_el": "2026-10-25",
+ "alcance": "Fase D: mover ramas de estado del cuerpo a core/conversacion/estados/, sin cambiar comportamiento. Un estado por commit. Contratos de linea verdes.",
+ "estados_autorizados": [
+  "ESPERANDO_CEDULA",
+  "curso_finalizado",
+  "esperando_respuesta_recuperacion",
+  "esperando_respuesta_progreso",
+  "esperando_respuesta_tutor_ia",
+  "esperando_respuesta_asistente",
+  "CONFIRMANDO_DATOS",
+  "esperando_respuesta_pregunta_abierta_final",
+  "esperando_respuesta_reto",
+  "esperando_respuesta_modulo",
+  "esperando_seleccion_curso",
+  "esperando_codigo_empleabilidad"
+ ]
 }

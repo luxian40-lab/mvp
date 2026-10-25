@@ -6,7 +6,7 @@ alwaysApply: true
 # Reglas permanentes eki
 
 - Un cambio por commit. No mezclar movimiento de código con cambio de comportamiento.
-- No tocar el cuerpo de `_procesar_twilio_webhook_cuerpo`. Solo se envuelve desde afuera (tareas, locks).
+- El cuerpo de `_procesar_twilio_webhook_cuerpo` solo cambia por la fase D de `docs/PLAN_MODULARIDAD_EKI.md` (autorizada el 25 de octubre de 2026, ver `.cursor/refactor_motor.json`): mover ramas de estado a `core/conversacion/estados/` sin cambiar comportamiento, un estado por commit, contratos de línea verdes. Cualquier otro cambio se hace envolviendo desde afuera (tareas, locks).
 - Todo archivo nuevo debe quedar en git. Cada bloque termina con `git status` y listado de archivos sin trackear. Un módulo sin trackear no sube en `eb deploy` y el web arranca con `ImportError`.
 - Migraciones compatibles hacia atrás (expand/contract). El rollback de EB revierte código, no esquema. Índices en tablas grandes: `AddIndexConcurrently` con `atomic = False` en migración separada.
 - Nada de SQL con f-strings. Solo ORM o placeholders.
