@@ -1,6 +1,7 @@
 """Estado esperando_respuesta_asistente. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
 import logging
 
+from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 
@@ -88,14 +89,14 @@ def manejar(contexto: Contexto) -> Respuesta:
                 modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
             )
             _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-            estudiante.contexto_temporal = {
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                 'tipo': 'reto_facilitador',
                 'modulos_reto_ids': modulos_reto_ids,
                 'reto_texto': reto,
                 'progreso_id': progreso_id,
                 'es_final': ctx.get('es_reto_final', False),
                 '_ts_leccion': _prev_ts,
-            }
+            })
             estudiante.estado_onboarding = 'esperando_respuesta_reto'
             estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
             try:
@@ -124,7 +125,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                 modulos_reto_ids,
             )
             estudiante.estado_onboarding = 'completado'
-            estudiante.contexto_temporal = None
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
             # Si el progreso ya está completado, no pedir *listo* como si hubiera más módulos
             _prog_fin = None

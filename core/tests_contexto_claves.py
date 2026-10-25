@@ -277,6 +277,35 @@ class PreguntaAbiertaFinalTests(ConCursoTestCase):
 
 
 @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class AsistenteTests(ConCursoTestCase):
+    def _listo(self, modulos_reto_ids):
+        from core.conversacion.contexto import Contexto
+        from core.conversacion.estados import asistente
+
+        self._con_contexto(
+            tipo='asistente_dario', preguntas_hechas=1, modulos_reto_ids=modulos_reto_ids,
+            progreso_id=self.progreso.id, curso_activo_id=self.curso.id,
+        )
+        self.est.estado_onboarding = 'esperando_respuesta_asistente'
+        self.est.save()
+        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+            asistente.manejar(Contexto(self.est, 'listo', self.est.telefono, self.est.telefono))
+        return self._contexto()
+
+    def test_pasar_al_reto_conserva_las_claves(self):
+        ctx = self._listo([self.mod.id])
+        self.assertEqual((ctx['tipo'], ctx['reto_texto']), ('reto_facilitador', 'Riegue la huerta.'))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['curso_activo_id']), (CERT, self.curso.id))
+        self.assertNotIn('preguntas_hechas', ctx)
+
+    def test_reto_vacio_deja_solo_las_claves(self):
+        self.assertEqual(
+            self._listo([]),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
 class RetoDespuesDeMariaTests(ConCursoTestCase):
     def test_abrir_el_reto_conserva_las_claves(self):
         from core.lineas.reto import activar_reto_despues_de_maria
