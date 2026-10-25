@@ -2377,58 +2377,12 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
-                from ..gamificacion import PerfilGamificacion
-                print(f"�‍🏫 Evaluando respuesta de María (Revisión de Progreso)")
-                ctx = estudiante.contexto_temporal or {}
-                pregunta_tutor = ctx.get('pregunta_tutor', '')
-                modulos_info = ctx.get('modulos_info', '')
-                intentos = ctx.get('intentos_tutor', 0)
-                modulos_reto_ids = ctx.get('modulos_reto_ids', [])
-                progreso_id = ctx.get('progreso_id')
-                es_reto_final = ctx.get('es_reto_final', False)
+                from core.conversacion.contexto import Contexto
+                from core.conversacion.estados import progreso as _estado_progreso
 
-                def _activar_reto_despues_de_maria(prefijo=""):
-                    from core.lineas.reto import activar_reto_despues_de_maria
-                    return activar_reto_despues_de_maria(
-                        estudiante, prefijo, progreso_id, modulos_reto_ids, es_reto_final,
-                    )
-
-                # Detectar si el usuario quiere omitir
-                msg_lower = msg_body.strip().lower()
-                palabras_skip = ['listo', 'continuar', 'saltar', 'omitir', 'siguiente', 'pasar', 'menu', 'menú']
-                
-                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
-                    texto_respuesta = (
-                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
-                        "o escríbeme tu respuesta.\n\n"
-                        "Si prefiere continuar sin responder, pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
-                    )
-                elif any(p in msg_lower for p in palabras_skip):
-                    print(f"⏭️ María omitida por usuario → activando reto")
-                    
-                    if msg_lower in ['menu', 'menú']:
-                        from ..flujo_whatsapp_b2b import respuesta_tras_keyword_menu
-                        texto_respuesta = respuesta_tras_keyword_menu(
-                            estudiante, estudiante.nombre, msg_body
-                        )
-                    else:
-                        texto_respuesta = _activar_reto_despues_de_maria("👍 Perfecto, pasemos al reto de la facilitadora.")
-                else:
-                    from ..tutor_ia_modulo import evaluar_respuesta_progreso
-                    
-                    resuelta, feedback = evaluar_respuesta_progreso(
-                        modulos_info, msg_body, pregunta_tutor,
-                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                    )
-                    
-                    if resuelta:
-                        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                        perfil.agregar_puntos(3, "Revisión de progreso - María")
-                        texto_respuesta = _activar_reto_despues_de_maria(f"{feedback}\n\n💰 *+3 puntos* por tu reflexión 💪")
-                        print(f"✅ María resuelta — activando reto", flush=True)
-                    else:
-                        texto_respuesta = _activar_reto_despues_de_maria(f"{feedback}\n\n✅ *Buena reflexión!*")
-                        print(f"✅ María evaluada — activando reto", flush=True)
+                texto_respuesta = _estado_progreso.manejar(Contexto(
+                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
+                )).texto
 
             # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
             elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
