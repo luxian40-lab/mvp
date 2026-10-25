@@ -285,7 +285,7 @@
   "core/tutor_ia_modulo.py::generar_reto_facilitador": 155,
   "core/utils.py::enviar_whatsapp_twilio": 232,
   "core/views/admin_panel.py::_construir_dashboard_unificado_contexto": 592,
-  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 3226,
+  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 3220,
   "core/views_admin_panel.py::_build_ecosistema": 313,
   "core/views_admin_panel.py::_build_panel_snapshot_uncached": 583,
   "core/views_analytics.py::api_metricas_json": 193,
@@ -299,7 +299,7 @@
   "portal/impacto.py::impacto_nucleo": 194,
   "portal/retencion_service.py::_analitica_retencion_portal_uncached": 192
  },
- "lineas_en_funciones_grandes": 18456,
+ "lineas_en_funciones_grandes": 18450,
  "marcadores_texto": {
   "core/avance_whatsapp.py": 2,
   "core/bot_comercial/webhook.py": 3,
@@ -323,11 +323,10 @@
  ],
  "parches_runtime": {
   "core/admin/_common.py": 3,
+  "core/lineas/cliente_canal.py": 1,
   "core/management/commands/migrate_locked.py": 2,
-  "core/sandbox_canal.py": 2,
   "core/twilio_timeout.py": 1,
-  "core/views/legacy.py": 1,
-  "core/views/twilio_transporte.py": 2
+  "core/views/legacy.py": 1
  },
  "parser_sep": {
   "core/inicio_curso.py": 1,
@@ -344,16 +343,12 @@
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 896,
   "funciones_grandes": 52,
-  "lineas_en_funciones_grandes": 18456,
+  "lineas_en_funciones_grandes": 18450,
   "marcadores_texto": 174,
-  "parches_runtime": 11,
+  "parches_runtime": 8,
   "parser_sep": 12,
-  "variante_linea": 6
+  "variante_linea": 0
  },
  "umbral_funcion": 150,
- "variante_linea": {
-  "core/admin/plantilla_meta_admin.py": 1,
-  "core/cursos_generales.py": 1,
-  "core/sandbox_menu.py": 4
- }
+ "variante_linea": {}
 }
