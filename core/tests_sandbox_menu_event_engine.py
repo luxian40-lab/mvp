@@ -493,7 +493,7 @@ class SandboxMenuTests(TestCase):
         coach = prompt_para('coach')
         profe = prompt_para('ia_campo')
         self.assertIn('REGISTRO Y ESTILO', coach)
-        self.assertIn('10 a 15 minutos', coach)
+        self.assertIn('1 a 5 minutos', coach)
         self.assertNotIn('de tú', coach.lower())
         self.assertIn('nota de voz', profe.lower())
         self.assertIn('RECORDATORIO FINAL', profe)
