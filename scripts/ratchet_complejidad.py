@@ -10,7 +10,8 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
 --aceptar-movimiento deja entrar funciones grandes nuevas solo si el total de
 líneas en funciones grandes no sube (una función que se movió de archivo).
 Para la fase D, un handler grande nuevo en core/conversacion/estados/ puede sumar
-su pegamento (ver `pegamento`), y ciclo_mayor solo crece con esos módulos.
+su pegamento (ver `pegamento`). ciclo_mayor solo crece con módulos de
+MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F).
 """
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ UMBRAL_FUNCION = 150
 FUNCIONES_VARIANTE = {'es_modo_twilio', 'es_solo_cursos'}
 VARIANTE_PERMITIDA = 'core/lineas/'
 MARCADORES = ('[MULTI_MSG]', '[MEDIA:', '[DELAY:', '[SEND_TEMPLATE:', '[SEP]')
-MODULOS_ESTADOS = 'core.conversacion.estados.'
+MODULOS_MOVIDOS = ('core.conversacion.estados', 'core.conversacion.puertas', 'core.lineas.principal')
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
 
 POR_ARCHIVO = (
@@ -322,12 +323,16 @@ def totales(datos: dict) -> dict[str, int]:
     return salida
 
 
+def _es_movido(modulo: str) -> bool:
+    return any(modulo == m or modulo.startswith(m + '.') for m in MODULOS_MOVIDOS)
+
+
 def _fuera_de_estados(miembros: list[str]) -> list[str]:
-    return [m for m in miembros if not m.startswith(MODULOS_ESTADOS)]
+    return [m for m in miembros if not _es_movido(m)]
 
 
 def _ciclo_crece_solo_por_estados(base: dict, actual: dict) -> bool:
-    """Una rama de estado movida del cuerpo hereda los imports del cuerpo y entra al ciclo."""
+    """Código movido de un miembro del ciclo hereda sus imports y entra al ciclo."""
     miembros_base = base.get('ciclo_mayor_miembros')
     if miembros_base is None:
         fuera_base = int(base.get('ciclo_mayor', 0))

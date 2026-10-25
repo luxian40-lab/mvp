@@ -170,6 +170,33 @@ def test_estado_movido_al_ciclo_se_acepta_solo_como_movimiento(tmp_path):
     assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
 
 
+def test_puertas_y_linea_principal_movidas_al_ciclo_se_aceptan_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': (
+            'from core import b\nfrom core.conversacion import puertas\n'
+            'from core.lineas.principal import menu\n'
+        ),
+        'core/conversacion/puertas.py': 'from core import a\n',
+        'core/lineas/principal/menu.py': 'from core import a\n',
+    })
+    actual = ratchet.medir(raiz)
+    assert actual['ciclo_mayor'] == 4
+    assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
+
+
+def test_un_nombre_parecido_a_puertas_no_cuenta_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core.conversacion import puertas_extra\n',
+        'core/conversacion/puertas_extra.py': 'from core import a\n',
+    })
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('ciclo_mayor subió' in p for p in problemas)
+
+
 def test_otro_modulo_que_entra_al_ciclo_no_se_acepta(tmp_path):
     raiz = _arbol(tmp_path, _CICLO)
     base = ratchet.medir(raiz)
