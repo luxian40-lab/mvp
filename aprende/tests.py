@@ -342,7 +342,7 @@ class AprendeWebTests(TestCase):
         self.assertFalse(mensaje_pide_acceso_aula('listo'))
         txt = emitir_acceso_desde_whatsapp(self.est)
         self.assertIn('eki Aprende', txt)
-        self.assertIn('listo', txt.lower())
+        self.assertIn('continuemos', txt.lower())
         self.assertIn('/aprende/estudiante/login/', txt)
         self.assertNotIn('/aprende/handoff/', txt)
         self.assertRegex(txt, r'\*\d{6}\*')
