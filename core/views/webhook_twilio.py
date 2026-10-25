@@ -97,8 +97,8 @@ def _entrada_para_medir(post_data, turno):
         return None
     try:
         est = estudiante_por_telefono(turno.telefono)
-        estado = 'sin_estudiante' if est is None else (est.estado_onboarding or '')
-        chat = '' if est is None else (est.estado_chat or '')
+        estado = 'sin_estudiante' if est is None else (getattr(est, 'estado_onboarding', '') or '')
+        chat = '' if est is None else (getattr(est, 'estado_chat', '') or '')
     except DatabaseError:
         logger.warning('motor_turno_estado_no_leido', exc_info=True)
         estado, chat = '', ''
