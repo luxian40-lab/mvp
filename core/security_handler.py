@@ -8,6 +8,7 @@
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from .conversacion.claves_contexto import contexto_limpio
 from .models import Estudiante, SolicitudSoporte
 from .utils import enviar_whatsapp
 import logging
@@ -561,12 +562,12 @@ def interceptar_mensaje(estudiante, mensaje_texto):
             es_soporte, keyword = verificar_keyword_soporte(mensaje_texto)
             respuesta_soporte = procesar_solicitud_soporte(estudiante, mensaje_texto, 'soporte persistente')
             # Limpiar contexto
-            estudiante.contexto_temporal = None
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
             return False, respuesta_soporte
         else:
             # Si no es escalación, limpiar contexto y continuar normal
-            estudiante.contexto_temporal = None
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
     
     # 2. Verificar keywords de soporte
@@ -597,11 +598,11 @@ def interceptar_mensaje(estudiante, mensaje_texto):
         respuesta_ia += "\nY te conectaremos con nuestro equipo. 💚"
         
         # Guardar en contexto temporal que ya pasó por IA empática (por si vuelve a pedir)
-        estudiante.contexto_temporal = {
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
             'tipo': 'post_ia_empatica',
             'mensaje_original': mensaje_texto,
             'timestamp': timezone.now().isoformat()
-        }
+        })
         estudiante.save()
         
         return False, respuesta_ia

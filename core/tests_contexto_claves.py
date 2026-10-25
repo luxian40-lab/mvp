@@ -129,3 +129,36 @@ class PreguntaHandlerTests(ConCursoTestCase):
         self.assertNotIn('cert_envio_pendiente', self._contexto())
         validar_respuesta(self.est, 'A')
         self.assertIsNone(self._contexto())
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class IaEmpaticaTests(ConCursoTestCase):
+    def setUp(self):
+        super().setUp()
+        self.est.estado_onboarding = 'completado'
+        self.est.save()
+
+    def _pedir_ayuda_y_seguir(self, segundo):
+        from core.security_handler import interceptar_mensaje
+
+        self._con_contexto(curso_activo_id=self.curso.id, tipo='reto_facilitador')
+        with patch('core.ia_empatica.responder_con_empatia', return_value='Tranquilo, vamos paso a paso.'):
+            interceptar_mensaje(self.est, 'necesito ayuda con el módulo')
+        ctx = self._contexto()
+        self.assertEqual(ctx['tipo'], 'post_ia_empatica')
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['curso_activo_id']), (CERT, self.curso.id))
+        with patch('core.security_handler.procesar_solicitud_soporte', return_value='Le escribe un humano.'):
+            interceptar_mensaje(self.est, segundo)
+        return self._contexto()
+
+    def test_tras_la_ia_empatica_seguir_normal_conserva_las_claves(self):
+        self.assertEqual(
+            self._pedir_ayuda_y_seguir('ya entendí, gracias'),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )
+
+    def test_tras_la_ia_empatica_escalar_conserva_las_claves(self):
+        self.assertEqual(
+            self._pedir_ayuda_y_seguir('quiero hablar con alguien de soporte humano'),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )
