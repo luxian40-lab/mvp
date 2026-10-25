@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 232,
- "ciclo_mayor": 193,
+ "ciclo_mayor": 196,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -106,6 +106,9 @@
   "core.lineas.oferta",
   "core.lineas.paso",
   "core.lineas.pqrs_linea",
+  "core.lineas.principal.asesores",
+  "core.lineas.principal.cursos",
+  "core.lineas.principal.menu",
   "core.lineas.sesion",
   "core.lineas.variante",
   "core.media_encode_async",
@@ -326,6 +329,7 @@
   "core/lineas/identidad.py": 2,
   "core/lineas/paso.py": 1,
   "core/lineas/pqrs_linea.py": 4,
+  "core/lineas/principal/asesores.py": 4,
   "core/locks.py": 4,
   "core/management/commands/backup_db.py": 2,
   "core/management/commands/cargar_catalogo.py": 2,
@@ -376,7 +380,7 @@
   "core/reto_evidencia.py": 3,
   "core/sandbox_agentes.py": 6,
   "core/sandbox_canal.py": 5,
-  "core/sandbox_menu.py": 29,
+  "core/sandbox_menu.py": 25,
   "core/security_handler.py": 7,
   "core/seguimiento_proactivo.py": 1,
   "core/selector_curso.py": 1,
@@ -563,7 +567,7 @@
  },
  "totales": {
   "archivos_sueltos_core": 232,
-  "ciclo_mayor": 193,
+  "ciclo_mayor": 196,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,
   "funciones_grandes": 57,
