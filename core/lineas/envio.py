@@ -1,5 +1,7 @@
 """Envio por WhatsApp Cloud API. El curso llama estos nombres y no abre el webhook."""
 import logging
+import re
+import time
 
 import requests
 from django.conf import settings
@@ -314,6 +316,10 @@ def enviar_meta(
 
     texto = str(texto or '').strip()
     clean_url = str(media_url or '').strip() or None
+    if texto.startswith('[MULTI_MSG]'):
+        return _enviar_partes_marcadas(
+            to, texto, media_url=clean_url, canal_evento=canal_evento, agente_evento=agente_evento,
+        )
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
     from core.response_templates import TEXTO_MODULO_CARGANDO
 
@@ -370,6 +376,46 @@ def enviar_meta(
         if not last.get('success'):
             return last
     _emit_enviado(to, texto, last.get('mensaje_id'), canal_evento, agente_evento)
+    return last
+
+
+def _enviar_partes_marcadas(
+    to: str,
+    texto: str,
+    *,
+    media_url: str | None,
+    canal_evento: str,
+    agente_evento: str,
+) -> dict:
+    """[MULTI_MSG] llega armado desde el curso: un mensaje por [SEP], en orden.
+
+    [SEND_TEMPLATE:HX…] es una plantilla de Twilio; por Meta no existe y se omite.
+    """
+    last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
+    if media_url:
+        last = enviar_meta(to, '', media_url=media_url, canal_evento=canal_evento, agente_evento=agente_evento)
+    for parte in texto.replace('[MULTI_MSG]', '', 1).split('[SEP]'):
+        parte_texto = (parte or '').strip()
+        if not parte_texto:
+            continue
+        pausa = re.match(r'^\[DELAY:(\d+)\]$', parte_texto)
+        if pausa:
+            time.sleep(int(pausa.group(1)))
+            continue
+        if parte_texto.startswith('[SEND_TEMPLATE:'):
+            logger.warning('meta_partes_plantilla_twilio_omitida to=***%s', to[-4:])
+            continue
+        parte_media = None
+        marca_media = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
+        if marca_media:
+            parte_media = (marca_media.group(1) or '').strip() or None
+            parte_texto = parte_texto.replace(marca_media.group(0), '').strip()
+        last = enviar_meta(
+            to, parte_texto, media_url=parte_media, canal_evento=canal_evento, agente_evento=agente_evento,
+        )
+        if not last.get('success'):
+            return last
+        time.sleep(0.5)
     return last
 
 

@@ -1281,6 +1281,25 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
     return 'handled'
 
 
+def abrir_tras_confirmar(est, telefono: str, from_number: str) -> None:
+    """El sí de los datos abre el menú; en la línea de curso lineal, el curso que no ha empezado."""
+    from core.lineas.variante import es_modo_twilio
+
+    sesion = _get_or_create_sesion(telefono)
+    sesion.habeas_aceptado = True
+    sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
+    if es_modo_twilio():
+        from core.inicio_curso import primera_entrega_al_confirmar
+
+        texto = primera_entrega_al_confirmar(est)
+        if texto:
+            _set_modo(sesion, MODO_CURSOS)
+            enviar_texto_sandbox(telefono, from_number, texto, agente='sandbox_cursos')
+            return
+    _set_modo(sesion, MODO_MENU)
+    enviar_menu_sandbox(telefono, from_number)
+
+
 def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str | None:
     """None si no está confirmando. 'handled' si esta vuelta fue la verificación."""
     from core.habeas_respuestas import MSG_DATOS_NO
@@ -1294,11 +1313,7 @@ def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str |
         est.estado_chat = 'ACTIVO'
         est.estado_onboarding = 'completado'
         est.save(update_fields=['estado_chat', 'estado_onboarding'])
-        sesion = _get_or_create_sesion(telefono)
-        sesion.habeas_aceptado = True
-        sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
-        _set_modo(sesion, MODO_MENU)
-        enviar_menu_sandbox(telefono, from_number)
+        abrir_tras_confirmar(est, telefono, from_number)
         return 'handled'
     if t in _NO_CONFIRMA_DATOS:
         enviar_texto_sandbox(telefono, from_number, MSG_DATOS_NO, agente='habeas_meta')

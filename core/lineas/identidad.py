@@ -98,7 +98,7 @@ def cortar_habeas_meta(post_data) -> bool:
 
 
 def menu_tras_confirmar_datos_meta(post_data) -> bool:
-    """En Meta, el sí de la cédula abre el menú. El curso empieza al elegirlo."""
+    """En Meta, el sí de la cédula abre el menú (o, en la línea de curso lineal, el curso sin empezar)."""
     from core.sandbox_canal import inbound_es_meta
 
     if not inbound_es_meta(post_data):
@@ -129,11 +129,7 @@ def menu_tras_confirmar_datos_meta(post_data) -> bool:
     est.estado_chat = 'ACTIVO'
     est.estado_onboarding = 'completado'
     est.save(update_fields=['estado_chat', 'estado_onboarding'])
-    from core.sandbox_menu import MODO_MENU, _get_or_create_sesion, _set_modo, enviar_menu_sandbox
+    from core.sandbox_menu import abrir_tras_confirmar
 
-    sesion = _get_or_create_sesion(est.telefono)
-    sesion.habeas_aceptado = True
-    sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
-    _set_modo(sesion, MODO_MENU)
-    enviar_menu_sandbox(est.telefono, post_data.get('From', '') or est.telefono)
+    abrir_tras_confirmar(est, est.telefono, post_data.get('From', '') or est.telefono)
     return True
