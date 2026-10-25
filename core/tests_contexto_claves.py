@@ -157,6 +157,18 @@ class IaEmpaticaTests(ConCursoTestCase):
             {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
         )
 
+    def test_cancelar_la_correccion_de_datos_conserva_las_claves(self):
+        from core.correccion_datos import iniciar_flujo_correccion, procesar_flujo_correccion
+
+        self._con_contexto(curso_activo_id=self.curso.id)
+        iniciar_flujo_correccion(self.est)
+        self.assertEqual(self._contexto()['tipo'], 'correccion_datos')
+        procesar_flujo_correccion(self.est, 'cancelar')
+        self.assertEqual(
+            self._contexto(),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )
+
     def test_tras_la_ia_empatica_escalar_conserva_las_claves(self):
         self.assertEqual(
             self._pedir_ayuda_y_seguir('quiero hablar con alguien de soporte humano'),

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 
+from .conversacion.claves_contexto import contexto_limpio
 from .models import SolicitudSoporte
 
 KEYWORDS_MENU = {"menu", "menú", "inicio"}
@@ -80,7 +81,7 @@ def iniciar_flujo_correccion(estudiante) -> str:
 def _limpiar_flujo_correccion(estudiante) -> None:
     ctx = estudiante.contexto_temporal or {}
     if ctx.get("tipo") == "correccion_datos":
-        estudiante.contexto_temporal = None
+        estudiante.contexto_temporal = contexto_limpio(ctx)
         estudiante.save(update_fields=["contexto_temporal"])
 
 
