@@ -8,7 +8,8 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
     python scripts/ratchet_complejidad.py --actualizar [--aceptar-movimiento]
 
 --aceptar-movimiento deja entrar funciones grandes nuevas solo si el total de
-líneas en funciones grandes no sube (una función que se movió de archivo).
+líneas en funciones grandes no sube (una función que se movió de archivo), y
+deja crecer ciclo_mayor solo con módulos de core/conversacion/estados/ (fase D).
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ UMBRAL_FUNCION = 150
 FUNCIONES_VARIANTE = {'es_modo_twilio', 'es_solo_cursos'}
 VARIANTE_PERMITIDA = 'core/lineas/'
 MARCADORES = ('[MULTI_MSG]', '[MEDIA:', '[DELAY:', '[SEND_TEMPLATE:', '[SEP]')
+MODULOS_ESTADOS = 'core.conversacion.estados.'
 
 POR_ARCHIVO = (
     'excepts_amplios',
@@ -182,11 +184,15 @@ def _aristas(rel: str, arbol: ast.AST, modulos: set[str]) -> set[str]:
 
 
 def ciclo_mayor(grafo: dict[str, set[str]]) -> int:
+    return max(1, len(miembros_ciclo_mayor(grafo)))
+
+
+def miembros_ciclo_mayor(grafo: dict[str, set[str]]) -> list[str]:
     indice: dict[str, int] = {}
     bajo: dict[str, int] = {}
     pila: list[str] = []
     en_pila: set[str] = set()
-    mayor = 1
+    mayor: list[str] = []
     contador = 0
     for raiz in grafo:
         if raiz in indice:
@@ -217,15 +223,16 @@ def ciclo_mayor(grafo: dict[str, set[str]]) -> int:
                 padre = trabajo[-1][0]
                 bajo[padre] = min(bajo[padre], bajo[nodo])
             if bajo[nodo] == indice[nodo]:
-                tam = 0
+                componente = []
                 while True:
                     w = pila.pop()
                     en_pila.discard(w)
-                    tam += 1
+                    componente.append(w)
                     if w == nodo:
                         break
-                mayor = max(mayor, tam)
-    return mayor
+                if len(componente) > len(mayor):
+                    mayor = componente
+    return sorted(mayor) if len(mayor) > 1 else []
 
 
 def _parsear(raiz: Path, rel: str) -> ast.AST | None:
@@ -258,7 +265,8 @@ def medir(raiz: Path = RAIZ) -> dict:
                 resultado[clave][rel] = valor
         grafo[nombre_modulo(rel)] = _aristas(rel, arbol, modulos)
     resultado['lineas_en_funciones_grandes'] = sum(resultado['funciones_grandes'].values())
-    resultado['ciclo_mayor'] = ciclo_mayor(grafo)
+    resultado['ciclo_mayor_miembros'] = miembros_ciclo_mayor(grafo)
+    resultado['ciclo_mayor'] = max(1, len(resultado['ciclo_mayor_miembros']))
     resultado['archivos_sueltos_core'] = sum(1 for r in rels if r.count('/') == 1 and r.startswith('core/'))
     return resultado
 
@@ -268,6 +276,22 @@ def totales(datos: dict) -> dict[str, int]:
     salida.update({k: int(datos.get(k, 0)) for k in ESCALARES})
     salida['funciones_grandes'] = len(datos.get('funciones_grandes', {}))
     return salida
+
+
+def _fuera_de_estados(miembros: list[str]) -> list[str]:
+    return [m for m in miembros if not m.startswith(MODULOS_ESTADOS)]
+
+
+def _ciclo_crece_solo_por_estados(base: dict, actual: dict) -> bool:
+    """Una rama de estado movida del cuerpo hereda los imports del cuerpo y entra al ciclo."""
+    miembros_base = base.get('ciclo_mayor_miembros')
+    if miembros_base is None:
+        fuera_base = int(base.get('ciclo_mayor', 0))
+        nuevos_fuera: list[str] = []
+    else:
+        fuera_base = len(_fuera_de_estados(miembros_base))
+        nuevos_fuera = _fuera_de_estados(sorted(set(actual.get('ciclo_mayor_miembros', [])) - set(miembros_base)))
+    return not nuevos_fuera and len(_fuera_de_estados(actual.get('ciclo_mayor_miembros', []))) <= fuera_base
 
 
 def comparar(base: dict, actual: dict, *, aceptar_movimiento: bool = False) -> list[str]:
@@ -282,6 +306,8 @@ def comparar(base: dict, actual: dict, *, aceptar_movimiento: bool = False) -> l
     t_base, t_actual = totales(base), totales(actual)
     for clave in (*POR_ARCHIVO, *ESCALARES):
         if t_actual[clave] > t_base[clave]:
+            if clave == 'ciclo_mayor' and aceptar_movimiento and _ciclo_crece_solo_por_estados(base, actual):
+                continue
             problemas.append(f'{clave} subió: {t_base[clave]} -> {t_actual[clave]}')
     nuevos_rotos = sorted(set(actual.get('no_parseables', [])) - set(base.get('no_parseables', [])))
     if nuevos_rotos:

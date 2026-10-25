@@ -112,6 +112,37 @@ def test_ciclo_mayor(tmp_path):
     assert ratchet.medir(raiz)['ciclo_mayor'] == 3
 
 
+_CICLO = {
+    'core/__init__.py': '',
+    'core/a.py': 'from core import b\n',
+    'core/b.py': 'from core import a\n',
+}
+
+
+def test_estado_movido_al_ciclo_se_acepta_solo_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core.conversacion.estados import cedula\n',
+        'core/conversacion/estados/cedula.py': 'from core import b\n',
+    })
+    actual = ratchet.medir(raiz)
+    assert actual['ciclo_mayor'] == 3
+    assert any('ciclo_mayor subió' in p for p in ratchet.comparar(base, actual))
+    assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
+
+
+def test_otro_modulo_que_entra_al_ciclo_no_se_acepta(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core import c\n',
+        'core/c.py': 'from core import b\n',
+    })
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('ciclo_mayor subió' in p for p in problemas)
+
+
 def test_tests_y_migraciones_no_cuentan(tmp_path):
     raiz = _arbol(tmp_path, {
         'core/tests_algo.py': _funcion('enorme', 300),
