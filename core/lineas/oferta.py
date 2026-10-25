@@ -125,11 +125,11 @@ def cursos_de_la_linea(telefono: str | None):
     Si la empresa marcó cursos, esos. Si no marcó nada y la línea es suya,
     los cursos activos de la empresa. El grupo, si tiene cursos, recorta esa lista.
     """
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
     from core.models import Curso, Estudiante
     from core.nati import normalizar_telefono_whatsapp
 
-    if es_modo_twilio():
+    if not perfil_de().varios_cursos:
         return None
 
     cliente_linea = cliente_de_la_linea()
