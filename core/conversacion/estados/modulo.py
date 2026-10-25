@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
+from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import ModuloCompletado
@@ -360,7 +361,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     modulos_final_range = f"los módulos {modulos_all[0].numero} a {modulos_all[-1].numero}"
 
                                 _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                                estudiante.contexto_temporal = {
+                                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                                     'tipo': 'asistente_dario',
                                     'curso_activo_id': progreso.curso_id,
                                     'curso_id': progreso.curso.id,
@@ -370,7 +371,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     'preguntas_hechas': 0,
                                     'es_reto_final': True,
                                     '_ts_leccion': _prev_ts,
-                                }
+                                })
                                 if pregunta_abierta:
                                     estudiante.contexto_temporal['pregunta_abierta_final_id'] = pregunta_abierta.id
                                 estudiante.estado_onboarding = 'esperando_respuesta_asistente'
@@ -408,12 +409,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                         if not _skip_cert:
                             if pregunta_abierta:
-                                estudiante.contexto_temporal = {
+                                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                                     'tipo': 'pregunta_abierta_final',
                                     'curso_id': progreso.curso.id,
                                     'progreso_id': progreso.id,
                                     'pregunta_abierta_final_id': pregunta_abierta.id,
-                                }
+                                })
                                 estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
                                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                                 texto_respuesta = (

@@ -306,6 +306,42 @@ class AsistenteTests(ConCursoTestCase):
 
 
 @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class UltimoModuloTests(ConCursoTestCase):
+    def _responder_ultimo_modulo(self, gamificacion):
+        from core.conversacion.contexto import Contexto
+        from core.conversacion.estados import modulo
+
+        Curso.objects.filter(id=self.curso.id).update(usar_gamificacion=gamificacion, usar_agentes_ia=True)
+        Cliente.objects.filter(id=self.cli.id).update(usar_gamificacion=gamificacion)
+        self.est.refresh_from_db()
+        ultimo = Modulo.objects.get(curso=self.curso, numero=2)
+        self.progreso.modulo_actual = ultimo
+        self.progreso.save()
+        self._con_contexto(
+            tipo='pregunta_tutor_ia', modulo_id=ultimo.id, progreso_id=self.progreso.id,
+            pregunta_tutor='¿Qué mediría?', ultimo_push_curso_id=self.curso.id,
+        )
+        self.est.estado_onboarding = 'esperando_respuesta_modulo'
+        self.est.save()
+        with patch('core.pregunta_handler.procesar_respuesta_abierta_ia', return_value=(True, 'Bien.')):
+            modulo.manejar(Contexto(self.est, 'mediría la humedad', self.est.telefono, self.est.telefono))
+        return self._contexto()
+
+    def test_reto_final_conserva_las_claves(self):
+        ctx = self._responder_ultimo_modulo(gamificacion=True)
+        self.assertEqual((ctx['tipo'], ctx['es_reto_final']), ('asistente_dario', True))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+
+    def test_pregunta_abierta_final_conserva_las_claves(self):
+        from core.models import PreguntaAbiertaFinalCurso
+
+        pregunta = PreguntaAbiertaFinalCurso.objects.create(curso=self.curso, pregunta='¿Qué cambiaría?', activa=True)
+        ctx = self._responder_ultimo_modulo(gamificacion=False)
+        self.assertEqual((ctx['tipo'], ctx['pregunta_abierta_final_id']), ('pregunta_abierta_final', pregunta.id))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
 class RetoDespuesDeMariaTests(ConCursoTestCase):
     def test_abrir_el_reto_conserva_las_claves(self):
         from core.lineas.reto import activar_reto_despues_de_maria
