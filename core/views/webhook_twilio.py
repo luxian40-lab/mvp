@@ -1795,27 +1795,12 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
             # v1.9.8g: Post-certificate cutoff — no more interaction
             elif estudiante.estado_onboarding == 'curso_finalizado':
-                print(f"🚫 Curso finalizado — sin interacción post-certificado")
-                # Check if student has a new active course
-                from ..models import ProgresoEstudiante
-                nuevo_progreso = ProgresoEstudiante.objects.filter(
-                    estudiante=estudiante, completado=False
-                ).first()
-                if nuevo_progreso:
-                    # New course assigned — reset state
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.save()
-                    texto_respuesta = (
-                        f"🎉 *¡Tienes un nuevo curso asignado!*\n\n"
-                        f"📚 *{nuevo_progreso.curso.nombre}*\n\n"
-                        "Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
-                    )
-                else:
-                    texto_respuesta = (
-                        "✅ *Tu proceso del curso ya finalizó y tu certificado fue enviado.*\n\n"
-                        "Cuando tu organización te inscriba en un nuevo curso, te notificaremos. "
-                        "¡Gracias por tu participación! 🎓"
-                    )
+                from core.conversacion.contexto import Contexto
+                from core.conversacion.estados import curso_finalizado as _estado_curso_finalizado
+
+                texto_respuesta = _estado_curso_finalizado.manejar(Contexto(
+                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
+                )).texto
             
             # v1.9.8g: Asistente (compañero) — hasta 2 preguntas antes del reto
             elif estudiante.estado_onboarding == 'esperando_respuesta_asistente':
