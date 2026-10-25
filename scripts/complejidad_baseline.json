@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 232,
- "ciclo_mayor": 192,
+ "ciclo_mayor": 193,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -62,6 +62,7 @@
   "core.conversacion.estados.pregunta_abierta_final",
   "core.conversacion.estados.progreso",
   "core.conversacion.estados.recuperacion",
+  "core.conversacion.estados.reto",
   "core.conversacion.estados.tutor_ia",
   "core.conversaciones_service",
   "core.copiar_conocimiento_nati",
@@ -276,6 +277,7 @@
   "core/conversacion/estados/empleabilidad.py": 1,
   "core/conversacion/estados/pregunta_abierta_final.py": 3,
   "core/conversacion/estados/recuperacion.py": 1,
+  "core/conversacion/estados/reto.py": 2,
   "core/copiar_conocimiento_nati.py": 1,
   "core/copiloto_ops.py": 5,
   "core/correccion_datos.py": 2,
@@ -407,7 +409,7 @@
   "core/views/twilio_transporte.py": 7,
   "core/views/webhook_comercial.py": 2,
   "core/views/webhook_meta.py": 8,
-  "core/views/webhook_twilio.py": 40,
+  "core/views/webhook_twilio.py": 38,
   "core/views_admin_home.py": 1,
   "core/views_admin_panel.py": 19,
   "core/views_analytics.py": 6,
@@ -459,6 +461,7 @@
   "core/certificado_service.py::generar_y_guardar_certificado": 190,
   "core/conversacion/estados/asistente.py::manejar": 183,
   "core/conversacion/estados/pregunta_abierta_final.py::manejar": 219,
+  "core/conversacion/estados/reto.py::manejar": 311,
   "core/copiloto_ops.py::snapshot_ops": 157,
   "core/course_engine/bundle_generator.py::CourseBundleGenerator.generar": 227,
   "core/course_engine/video_generator.py::CourseVideoGenerator.generar": 294,
@@ -486,7 +489,7 @@
   "core/tutor_ia_modulo.py::generar_reto_facilitador": 155,
   "core/utils.py::enviar_whatsapp_twilio": 232,
   "core/views/admin_panel.py::_construir_dashboard_unificado_contexto": 592,
-  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 2485,
+  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 2181,
   "core/views_admin_panel.py::_build_ecosistema": 313,
   "core/views_admin_panel.py::_build_panel_snapshot_uncached": 583,
   "core/views_analytics.py::api_metricas_json": 193,
@@ -500,13 +503,14 @@
   "portal/impacto.py::impacto_nucleo": 194,
   "portal/retencion_service.py::_analitica_retencion_portal_uncached": 192
  },
- "lineas_en_funciones_grandes": 18117,
+ "lineas_en_funciones_grandes": 18124,
  "marcadores_texto": {
   "core/avance_whatsapp.py": 2,
   "core/bot_comercial/webhook.py": 3,
   "core/certificado_service.py": 1,
   "core/conversacion/estados/pregunta_abierta_final.py": 6,
   "core/conversacion/estados/recuperacion.py": 2,
+  "core/conversacion/estados/reto.py": 4,
   "core/conversacion/marcas.py": 6,
   "core/inicio_curso.py": 5,
   "core/lineas/entrega.py": 9,
@@ -519,7 +523,7 @@
   "core/selector_curso.py": 15,
   "core/twilio_media.py": 6,
   "core/video_links.py": 3,
-  "core/views/webhook_twilio.py": 61
+  "core/views/webhook_twilio.py": 57
  },
  "no_parseables": [
   "core/admin_actions.py"
@@ -547,15 +551,16 @@
   "core/conversacion/estados/pregunta_abierta_final.py::manejar": 7,
   "core/conversacion/estados/progreso.py::manejar": 5,
   "core/conversacion/estados/recuperacion.py::manejar": 5,
+  "core/conversacion/estados/reto.py::manejar": 9,
   "core/conversacion/estados/tutor_ia.py::manejar": 5
  },
  "totales": {
   "archivos_sueltos_core": 232,
-  "ciclo_mayor": 192,
+  "ciclo_mayor": 193,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 896,
-  "funciones_grandes": 54,
-  "lineas_en_funciones_grandes": 18117,
+  "funciones_grandes": 55,
+  "lineas_en_funciones_grandes": 18124,
   "marcadores_texto": 172,
   "parches_runtime": 8,
   "parser_sep": 11,

@@ -12,6 +12,7 @@ from core.conversacion.estados import (
     pregunta_abierta_final,
     progreso,
     recuperacion,
+    reto,
     tutor_ia,
 )
 
@@ -32,6 +33,8 @@ AGENTES = {
     'esperando_respuesta_asistente': asistente.manejar,
     # Respuesta abierta final, calificada por la facilitadora.
     'esperando_respuesta_pregunta_abierta_final': pregunta_abierta_final.manejar,
+    # Facilitadora: evalúa la respuesta al reto (texto, audio o foto de evidencia).
+    'esperando_respuesta_reto': reto.manejar,
 }
 
 
