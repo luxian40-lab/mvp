@@ -192,6 +192,17 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-b-c` (D3 antes que el resto de
 - E4 Contract en un bloque posterior: dejar de escribir los campos viejos. No se borran columnas en el mismo deploy.
 - `contexto_temporal = None` deja de borrar claves ajenas: se limpian solo las claves del estado que sale.
 
+Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (E1 a E3; el cuerpo no se tocó):
+
+- E1 `core/conversacion/estado_linea.py`: `EstadoLinea` (estudiante, phone id, `estado_chat`, `estado_onboarding`, `contexto_temporal`), única por (estudiante, phone id). Migración `0191_estado_linea`: solo crea la tabla. El módulo no importa nada de `core` (el ciclo sigue en 192).
+- E2 `EKI_ESTADO_LINEA_ESCRITURA` (apagado). `en_linea(phone_id, buscar)` envuelve cada turno de Meta en `_aplicar_sandbox_menu` (dentro del candado por teléfono cuando `SANDBOX_CELERY_ASYNC` está prendido) y, al salir, deja la fila de esa línea igual al estudiante. Una señal sobre `Estudiante` copia lo que cambia: dentro de una línea, a su fila; fuera (admin, tareas, otro proceso), a todas las filas, como el estado compartido de hoy. Solo copia campos que cambiaron; guardar otro campo no consulta. En el código de producto no hay `.update()` sobre esos campos. La campaña (`poner_en_inicio_de_flujo`) escribe solo en la fila de su línea. Comando `backfill_estado_linea` (cuenta; `--aplicar` crea las filas que faltan desde `SandboxCanalSesion`, sin pisar).
+- E3 `EKI_ESTADO_LINEA_LECTURA` (apagado; prende también la escritura). Al empezar el turno, el estudiante toma el estado de la fila de esa línea, antes del menú, de la traza y del cuerpo, así que toda relectura ve el de la línea. Sin fila, sigue el compartido y la fila nace al salir. Una fila que nace de una campaña no hereda el `contexto_temporal` de otra línea (curso activo, reto). Se lee en la entrada del turno, no en `Turno`: el `Turno` no consulta la base.
+- Decisión del 25 de octubre de 2026: el habeas sigue siendo de la persona. Una campaña de cualquier línea pone `acepto_terminos = False` y lo vuelve a pedir en todas.
+- Contrato A4 con la lectura (`DosLineasConLecturaTests`): la campaña de la 2 pide habeas en la principal pero la principal no pierde su estado; *continuar* en la 2 ya no avanza el curso de la principal; *listo* en la 2 ya no contesta el reto de la principal. Los contratos principal, línea 2, estados del motor y selección de curso corren completos con escritura y con lectura.
+- Hueco que queda (no es estado de conversación): `ProgresoEstudiante` no tiene línea. Con la lectura, si la línea 2 no tiene curso activo en su contexto, ofrece todos los cursos abiertos de la persona, y `primera_entrega_al_confirmar` no entrega el módulo 1 cuando la persona tiene dos cursos abiertos.
+- Para prender: deploy con la migración, `backfill_estado_linea --aplicar`, `EKI_ESTADO_LINEA_ESCRITURA=true`, revisar filas unos días, `backfill_estado_linea --aplicar` otra vez y `EKI_ESTADO_LINEA_LECTURA=true`. La lectura supone `SANDBOX_CELERY_ASYNC=true` (el candado por teléfono evita dos turnos del mismo número a la vez).
+- Pendiente con decisión: las 16 asignaciones `contexto_temporal = None` (10 archivos, varias en handlers del motor) siguen borrando `cert_envio_pendiente`, las claves de empleabilidad y `ultimo_push_curso_id`. Cambiarlo es cambio de comportamiento dentro de lo que fue el cuerpo.
+
 ### Fase F — Puertas y menú
 
 - F1 Puertas compartidas fuera de `sandbox_menu.py`: opt-out, habeas, cédula, confirmación, aula.
