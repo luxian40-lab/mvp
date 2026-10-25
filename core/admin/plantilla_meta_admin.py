@@ -76,11 +76,11 @@ class PlantillaLineaFilter(admin.SimpleListFilter):
         if not phone:
             return queryset
         from core.lineas.campana import waba_de_linea
-        from core.lineas.variante import es_modo_twilio
+        from core.lineas.variante import perfil_de
         from core.meta_waba import _waba
 
         waba = waba_de_linea(phone)
-        if es_modo_twilio(phone):
+        if not perfil_de(phone).usa_waba_principal:
             if waba:
                 return queryset.filter(waba_id=waba)
             principal = _waba()
