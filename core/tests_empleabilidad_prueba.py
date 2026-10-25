@@ -157,7 +157,7 @@ class EmpleabilidadListoBypassWebhookTests(TestCase):
         except ImportError:
             _install_twilio_rest_stub(FakeTwilioClient)
 
-        with twilio_ctx:
+        with twilio_ctx, patch('core.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'):
             resp = HttpClient().post(
                 '/webhook/whatsapp/',
                 {

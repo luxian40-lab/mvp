@@ -350,7 +350,9 @@ def test_mensaje_entrante_con_sesion_activa(m_maneja):
     SesionFormulario.objects.create(
         estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, completado=False, progreso=None, modulo_siguiente=None
     )
-    with mock.patch("formulario.routing.debe_usar_agente_formulario", return_value=True):
+    with mock.patch("formulario.routing.debe_usar_agente_formulario", return_value=True), mock.patch(
+        "core.twilio_puerta.aplicar_puerta_twilio", return_value="seguir"
+    ):
         cl = Client()
         r = cl.post(
             "/webhook/whatsapp/",
