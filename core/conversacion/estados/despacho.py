@@ -16,7 +16,6 @@ from core.conversacion.estados import (
     recuperacion,
     reto,
     seleccion_curso,
-    tutor_ia,
 )
 
 BARRERAS = {
@@ -30,7 +29,6 @@ AGENTES = {
     'esperando_codigo_empleabilidad': empleabilidad.manejar,
     # Después del certificado: solo avisa si hay un curso nuevo.
     'curso_finalizado': curso_finalizado.manejar,
-    'esperando_respuesta_tutor_ia': tutor_ia.manejar,
     'esperando_respuesta_progreso': progreso.manejar,
     # Pregunta de recuperación (<70 pts) antes del certificado.
     'esperando_respuesta_recuperacion': recuperacion.manejar,

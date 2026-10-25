@@ -79,7 +79,6 @@ _HORAS_TICKET_ABIERTO = 72
 ESTADOS_PEDAGOGIA = frozenset({
     'esperando_respuesta_asistente',
     'esperando_respuesta_reto',
-    'esperando_respuesta_tutor_ia',
     'esperando_respuesta_progreso',
     'esperando_respuesta_modulo',
     'esperando_respuesta_pregunta_abierta_final',

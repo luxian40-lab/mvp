@@ -1,6 +1,6 @@
-"""Contrato A5: los 13 estados del motor de curso, tal como responden hoy.
+"""Contrato A5: los 12 estados del motor de curso, tal como responden hoy.
 
-Son los 11 `estado_onboarding` que despacha `_procesar_twilio_webhook_cuerpo`,
+Son los 10 `estado_onboarding` que despacha `_procesar_twilio_webhook_cuerpo`,
 más `nuevo` (el valor por defecto) y `esperando_tipo_doc` (flujo de corrección
 sin su contexto). Cada caso parte de un estudiante activo en el módulo 1 de 3,
 por la línea 2, y manda *listo* o una pregunta libre.
@@ -50,10 +50,6 @@ CASOS = {
         Caso('Para el reto necesito su respuesta', 'esperando_respuesta_reto', 1, 0),
         Caso('*+35 puntos*', 'completado', 2, 1),
     ),
-    'esperando_respuesta_tutor_ia': (
-        Caso('Sin problema', 'completado', 1, 0),
-        Caso('*+5 puntos bonus*', 'completado', 1, 0),
-    ),
     'esperando_respuesta_progreso': (
         Caso('pasemos al reto de la facilitadora', 'esperando_respuesta_reto', 1, 1),
         Caso('Buena reflexión', 'esperando_respuesta_reto', 1, 2),
@@ -101,7 +97,7 @@ class ContratoEstadosMotorTests(ContratoLineaTestCase):
         return est
 
     def _verificar(self, estado):
-        self.assertEqual(len(CASOS), 13)
+        self.assertEqual(len(CASOS), 12)
         for texto, caso in zip(('listo', PREGUNTA), CASOS[estado]):
             with self.subTest(texto=texto):
                 est = self._estudiante_en(estado)
@@ -139,9 +135,6 @@ class ContratoEstadosMotorTests(ContratoLineaTestCase):
 
     def test_esperando_respuesta_reto(self):
         self._verificar('esperando_respuesta_reto')
-
-    def test_esperando_respuesta_tutor_ia(self):
-        self._verificar('esperando_respuesta_tutor_ia')
 
     def test_esperando_respuesta_progreso(self):
         self._verificar('esperando_respuesta_progreso')

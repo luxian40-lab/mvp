@@ -574,7 +574,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             'completado',
             'esperando_respuesta_asistente',
             'esperando_respuesta_reto',
-            'esperando_respuesta_tutor_ia',
             'esperando_respuesta_progreso',
             'esperando_respuesta_modulo',
             'esperando_respuesta_pregunta_abierta_final',
@@ -874,7 +873,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             estados_agente = [
                 'esperando_respuesta_asistente',     # Darío
                 'esperando_respuesta_reto',          # Facilitadora
-                'esperando_respuesta_tutor_ia',      # Tutor legacy
                 'esperando_respuesta_progreso',      # María
                 'esperando_respuesta_modulo',         # Evaluación módulo
                 'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
