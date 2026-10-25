@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 232,
- "ciclo_mayor": 193,
+ "ciclo_mayor": 192,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -62,7 +62,6 @@
   "core.conversacion.estados.empleabilidad",
   "core.conversacion.estados.modulo",
   "core.conversacion.estados.pregunta_abierta_final",
-  "core.conversacion.estados.recuperacion",
   "core.conversacion.estados.reto",
   "core.conversacion.estados.seleccion_curso",
   "core.conversaciones_service",
@@ -278,7 +277,6 @@
   "core/conversacion/estados/empleabilidad.py": 1,
   "core/conversacion/estados/modulo.py": 5,
   "core/conversacion/estados/pregunta_abierta_final.py": 3,
-  "core/conversacion/estados/recuperacion.py": 1,
   "core/conversacion/estados/reto.py": 2,
   "core/copiar_conocimiento_nati.py": 1,
   "core/copiloto_ops.py": 5,
@@ -515,7 +513,6 @@
   "core/conversacion/estados/confirmando_datos.py": 13,
   "core/conversacion/estados/modulo.py": 17,
   "core/conversacion/estados/pregunta_abierta_final.py": 6,
-  "core/conversacion/estados/recuperacion.py": 2,
   "core/conversacion/estados/reto.py": 4,
   "core/conversacion/marcas.py": 6,
   "core/inicio_curso.py": 5,
@@ -559,18 +556,17 @@
   "core/conversacion/estados/empleabilidad.py::manejar": 5,
   "core/conversacion/estados/modulo.py::manejar": 5,
   "core/conversacion/estados/pregunta_abierta_final.py::manejar": 7,
-  "core/conversacion/estados/recuperacion.py::manejar": 5,
   "core/conversacion/estados/reto.py::manejar": 9,
   "core/conversacion/estados/seleccion_curso.py::manejar": 5
  },
  "totales": {
   "archivos_sueltos_core": 232,
-  "ciclo_mayor": 193,
+  "ciclo_mayor": 192,
   "core_importa_apps_superiores": 45,
-  "excepts_amplios": 896,
+  "excepts_amplios": 895,
   "funciones_grandes": 57,
   "lineas_en_funciones_grandes": 18077,
-  "marcadores_texto": 172,
+  "marcadores_texto": 170,
   "parches_runtime": 8,
   "parser_sep": 11,
   "variante_linea": 0

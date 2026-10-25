@@ -12,7 +12,6 @@ from core.conversacion.estados import (
     empleabilidad,
     modulo,
     pregunta_abierta_final,
-    recuperacion,
     reto,
     seleccion_curso,
 )
@@ -28,8 +27,6 @@ AGENTES = {
     'esperando_codigo_empleabilidad': empleabilidad.manejar,
     # Después del certificado: solo avisa si hay un curso nuevo.
     'curso_finalizado': curso_finalizado.manejar,
-    # Pregunta de recuperación (<70 pts) antes del certificado.
-    'esperando_respuesta_recuperacion': recuperacion.manejar,
     # Asistente (compañero): hasta 2 preguntas antes del reto.
     'esperando_respuesta_asistente': asistente.manejar,
     # Respuesta abierta final, calificada por la facilitadora.
