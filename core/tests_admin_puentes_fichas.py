@@ -227,8 +227,8 @@ class AdminOnda2MejorasTests(TestCase):
         self.client.force_login(self.user)
         r = self.client.get(reverse('admin:core_estudiante_changelist'))
         body = r.content.decode('utf-8')
-        self.assertIn('Chat', body)
-        self.assertIn(f'?estudiante={self.est.pk}', body)
+        self.assertIn('Abrir conversación', body)
+        self.assertIn(f'/admin/core/estudiante/{self.est.pk}/crm-chat/', body)
 
     def test_filtro_sin_progreso(self):
         self.client.force_login(self.user)
