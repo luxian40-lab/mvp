@@ -177,12 +177,12 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-b-c` (D3 antes que el resto de
 - D1 `core/conversacion/contexto.py`: `Contexto` (estudiante, mensaje, teléfonos, `msg_sid`, `texto_respuesta`, evidencia) y `Respuesta` (`texto`, `cortar`; `CORTAR` corta el turno).
 - D3 `core/conversacion/estados/despacho.py`: `BARRERAS` por `estado_chat` (el handler siempre corta) y `AGENTES` por `estado_onboarding` (el handler deja `texto_respuesta` para el envío común). `agente_de` devuelve `None` con la empleabilidad en pausa, y el turno cae a la rama por defecto como antes.
 - D2 Doce handlers en `core/conversacion/estados/`, uno por commit: `cedula`, `confirmando_datos` (barreras), `empleabilidad`, `curso_finalizado`, `tutor_ia`, `progreso`, `recuperacion`, `asistente`, `pregunta_abierta_final`, `reto`, `modulo`, `seleccion_curso` (agentes). Cada uno se comparó con la rama original por AST antes de borrarla. `_TEXTO_NO_ENTENDI` pasó a `core.avance_whatsapp.TEXTO_NO_ENTENDI` en un commit aparte.
-- `core/tests_contexto_motor.py` exige que lo despachado no tenga rama después del despachador. `core/tests_estados_legado.py` caracteriza recuperación antes de moverla.
+- `core/tests_contexto_motor.py` exige que lo despachado no tenga rama después del despachador. Recuperación se caracterizó antes de moverla (`core/tests_estados_legado.py`, borrado junto con el estado).
 - Ratchet: con `--aceptar-movimiento`, `ciclo_mayor` solo puede crecer por módulos `core.conversacion.estados.*`, y `lineas_en_funciones_grandes` solo por el pegamento medido de cada handler grande (`def`, las líneas `x = contexto.x` y el `return Respuesta` final).
 - D4 sin conteo: se borró `elif False and …` («Mis cursos») y los imports de módulo que quedaron sin uso en `webhook_twilio`.
 - `esperando_seleccion_curso` tiene dos copias y las dos se usan: la del bloque ACTIVO atiende a quien tiene `estado_chat` ACTIVO, y la del despachador a quien llega con un `estado_chat` legado (por ejemplo `nuevo`), porque ese bloque no entra. No se borra. Prueba: `core/tests_seleccion_curso_cadena.py`.
-- [MANUAL] Correr `python manage.py contar_estados_motor` en producción. Con cero en `esperando_respuesta_tutor_ia`, `esperando_respuesta_progreso` y `esperando_respuesta_recuperacion`, borrar esos handlers y sus entradas, uno por commit.
-- Huecos vistos, sin arreglar (no es movimiento): en recuperación, responder con la letra da «No entendí»; en la línea 2, el módulo 1 termina sin instrucción.
+- D4 con conteo: el 25 de octubre de 2026 producción tenía 0 estudiantes en `esperando_respuesta_tutor_ia`, `esperando_respuesta_progreso` y `esperando_respuesta_recuperacion`, y ningún código los vuelve a poner. Se borraron los tres handlers, uno por commit, con sus casos del contrato de estados (13 → 10) y su lugar en las listas de estados de agente del cuerpo y de `pqrs_agent`. Las opciones del modelo siguen (quitarlas exige migración). Ese día `estado_chat` solo tenía `ACTIVO`, `ESPERANDO_HABEAS_DATA`, `ESPERANDO_CEDULA` y `CONFIRMANDO_DATOS`.
+- Hueco visto, sin arreglar (no es movimiento): en la línea 2, el módulo 1 termina sin instrucción.
 
 ### Fase E — Estado por persona y línea
 
