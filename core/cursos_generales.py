@@ -567,12 +567,12 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
     if item is None or curso is None:
         return {'ok': False, 'error': 'sin_curso', 'nombre': (item or {}).get('nombre', '')}
     from core.lineas.oferta import cursos_de_la_linea
-    from core.lineas.variante import es_solo_cursos
+    from core.lineas.variante import perfil_de
 
     visibles = cursos_de_la_linea(telefono)
     if visibles is not None and not visibles.filter(pk=curso.id).exists():
         return {'ok': False, 'error': 'otra_empresa', 'nombre': curso.nombre}
-    if not es_solo_cursos():
+    if perfil_de().planes:
         plan = resolver_plan(tel)
         if not plan.incluye_cursos:
             return {'ok': False, 'error': 'sin_plan_cursos', 'nombre': curso.nombre}
