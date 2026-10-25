@@ -1,4 +1,5 @@
 """Estado esperando_seleccion_curso. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
+from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 
 
@@ -9,7 +10,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     msg_sel = msg_body.strip().lower()
     if msg_sel in ['menu', 'menú']:
         estudiante.estado_onboarding = 'completado'
-        estudiante.contexto_temporal = None
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
         estudiante.save()
         from core.response_templates import get_response_for_intent
         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
@@ -30,7 +31,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         else:
             # Si no es número/tomar ni menú, resetear estado y procesar normalmente
             estudiante.estado_onboarding = 'completado'
-            estudiante.contexto_temporal = None
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
             from core.eventos_ia import detectar_intent_con_evento
             from core.response_templates import get_response_for_intent

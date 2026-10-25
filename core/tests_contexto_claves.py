@@ -169,6 +169,23 @@ class IaEmpaticaTests(ConCursoTestCase):
             {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
         )
 
+    def test_salir_de_la_seleccion_de_curso_conserva_las_claves(self):
+        from core.conversacion.contexto import Contexto
+        from core.conversacion.estados import seleccion_curso
+
+        for texto in ('menu', 'quiero ver el clima'):
+            with self.subTest(texto=texto):
+                self._con_contexto(curso_activo_id=self.curso.id, tipo='seleccion_curso')
+                self.est.estado_onboarding = 'esperando_seleccion_curso'
+                self.est.save()
+                with patch('core.response_templates.get_response_for_intent', return_value='hola'), \
+                        patch('core.eventos_ia.detectar_intent_con_evento', return_value='desconocido'):
+                    seleccion_curso.manejar(Contexto(self.est, texto, self.est.telefono, self.est.telefono))
+                self.assertEqual(
+                    self._contexto(),
+                    {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+                )
+
     def test_tras_la_ia_empatica_escalar_conserva_las_claves(self):
         self.assertEqual(
             self._pedir_ayuda_y_seguir('quiero hablar con alguien de soporte humano'),
