@@ -1283,12 +1283,12 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
 
 def abrir_tras_confirmar(est, telefono: str, from_number: str) -> None:
     """El sí de los datos abre el menú; en la línea de curso lineal, el curso que no ha empezado."""
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
 
     sesion = _get_or_create_sesion(telefono)
     sesion.habeas_aceptado = True
     sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
-    if es_modo_twilio():
+    if perfil_de().curso_directo:
         from core.inicio_curso import primera_entrega_al_confirmar
 
         texto = primera_entrega_al_confirmar(est)
