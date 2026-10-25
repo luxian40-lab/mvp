@@ -9,8 +9,8 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
 
 --aceptar-movimiento deja entrar funciones grandes nuevas solo si el total de
 líneas en funciones grandes no sube (una función que se movió de archivo).
-Para la fase D, cada función grande nueva en core/conversacion/estados/ puede
-sumar hasta HOLGURA_MOVIMIENTO líneas, y ciclo_mayor solo crece con esos módulos.
+Para la fase D, un handler grande nuevo en core/conversacion/estados/ puede sumar
+su pegamento (ver `pegamento`), y ciclo_mayor solo crece con esos módulos.
 """
 from __future__ import annotations
 
@@ -30,8 +30,6 @@ VARIANTE_PERMITIDA = 'core/lineas/'
 MARCADORES = ('[MULTI_MSG]', '[MEDIA:', '[DELAY:', '[SEND_TEMPLATE:', '[SEP]')
 MODULOS_ESTADOS = 'core.conversacion.estados.'
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
-# Una rama movida a un handler suma def, encabezado desde el contexto y return.
-HOLGURA_MOVIMIENTO = 6
 
 POR_ARCHIVO = (
     'excepts_amplios',
@@ -239,6 +237,43 @@ def miembros_ciclo_mayor(grafo: dict[str, set[str]]) -> list[str]:
     return sorted(mayor) if len(mayor) > 1 else []
 
 
+def _lee_del_parametro(valor: ast.AST, parametro: str) -> bool:
+    if isinstance(valor, ast.Subscript):
+        valor = valor.value
+    return (
+        isinstance(valor, ast.Attribute)
+        and isinstance(valor.value, ast.Name)
+        and valor.value.id == parametro
+    )
+
+
+def pegamento(func: ast.FunctionDef) -> int:
+    """Líneas que suma mover una rama a un handler: def, return y `x = contexto.y` iniciales."""
+    if not func.args.args:
+        return 0
+    parametro = func.args.args[0].arg
+    encabezado = 0
+    for sentencia in func.body:
+        if not (
+            isinstance(sentencia, ast.Assign)
+            and len(sentencia.targets) == 1
+            and isinstance(sentencia.targets[0], ast.Name)
+            and _lee_del_parametro(sentencia.value, parametro)
+        ):
+            break
+        encabezado += 1
+    if not encabezado:
+        return 0
+    ultima = func.body[-1]
+    cierre = (
+        isinstance(ultima, ast.Return)
+        and isinstance(ultima.value, ast.Call)
+        and isinstance(ultima.value.func, ast.Name)
+        and ultima.value.func.id == 'Respuesta'
+    )
+    return 1 + encabezado + int(cierre)
+
+
 def _parsear(raiz: Path, rel: str) -> ast.AST | None:
     try:
         return ast.parse((raiz / rel).read_text(encoding='utf-8-sig', errors='replace'))
@@ -254,6 +289,7 @@ def medir(raiz: Path = RAIZ) -> dict:
         'funciones_grandes': {},
         **{k: {} for k in POR_ARCHIVO},
         'no_parseables': [],
+        'pegamento_estados': {},
     }
     grafo: dict[str, set[str]] = {}
     for rel in rels:
@@ -264,6 +300,10 @@ def medir(raiz: Path = RAIZ) -> dict:
         for nombre, lineas in funciones(arbol).items():
             if lineas > UMBRAL_FUNCION:
                 resultado['funciones_grandes'][f'{rel}::{nombre}'] = lineas
+        if rel.startswith(ARCHIVOS_ESTADOS):
+            for nodo in arbol.body:
+                if isinstance(nodo, ast.FunctionDef) and pegamento(nodo):
+                    resultado['pegamento_estados'][f'{rel}::{nodo.name}'] = pegamento(nodo)
         for clave, valor in medir_archivo(rel, arbol).items():
             if valor:
                 resultado[clave][rel] = valor
@@ -309,11 +349,10 @@ def comparar(base: dict, actual: dict, *, aceptar_movimiento: bool = False) -> l
             problemas.append(f'función nueva de más de {UMBRAL_FUNCION} líneas: {clave} ({lineas})')
     t_base, t_actual = totales(base), totales(actual)
     if aceptar_movimiento:
-        nuevas_en_estados = [
-            c for c in actual.get('funciones_grandes', {})
-            if c not in base_f and c.startswith(ARCHIVOS_ESTADOS)
-        ]
-        t_base['lineas_en_funciones_grandes'] += HOLGURA_MOVIMIENTO * len(nuevas_en_estados)
+        pegamento = actual.get('pegamento_estados', {})
+        t_base['lineas_en_funciones_grandes'] += sum(
+            pegamento.get(c, 0) for c in actual.get('funciones_grandes', {}) if c not in base_f
+        )
     for clave in (*POR_ARCHIVO, *ESCALARES):
         if t_actual[clave] > t_base[clave]:
             if clave == 'ciclo_mayor' and aceptar_movimiento and _ciclo_crece_solo_por_estados(base, actual):

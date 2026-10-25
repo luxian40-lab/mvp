@@ -61,23 +61,40 @@ def test_movimiento_que_duplica_codigo_no_se_acepta(tmp_path):
     assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
 
 
-def test_estado_movido_puede_sumar_su_pegamento(tmp_path):
+def _handler(rama):
+    """def + 2 líneas de encabezado + la rama + return Respuesta: pegamento 4."""
+    cuerpo = ''.join(f'    x{i} = {i}\n' for i in range(rama))
+    return (
+        'def manejar(contexto):\n'
+        '    estudiante = contexto.estudiante\n'
+        "    previo = contexto.locales['previo']\n"
+        f'{cuerpo}'
+        '    return Respuesta(texto=None)\n'
+    )
+
+
+def test_pegamento_cuenta_def_encabezado_y_return():
+    import ast
+
+    func = ast.parse(_handler(3)).body[0]
+    assert ratchet.pegamento(func) == 4
+    assert ratchet.pegamento(ast.parse(_funcion('suelta', 5)).body[0]) == 0
+
+
+def test_estado_movido_puede_sumar_solo_su_pegamento(tmp_path):
     raiz = _arbol(tmp_path, {'core/views/w.py': _funcion('cuerpo', 400)})
     base = ratchet.medir(raiz)
-    _arbol(raiz, {
-        'core/views/w.py': _funcion('cuerpo', 200),
-        'core/conversacion/estados/x.py': _funcion('manejar', 200 + ratchet.HOLGURA_MOVIMIENTO),
-    })
+    _arbol(raiz, {'core/views/w.py': _funcion('cuerpo', 200), 'core/conversacion/estados/x.py': _handler(200)})
     assert not ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
-    _arbol(raiz, {'core/conversacion/estados/x.py': _funcion('manejar', 201 + ratchet.HOLGURA_MOVIMIENTO)})
+    _arbol(raiz, {'core/conversacion/estados/x.py': _handler(201)})
     problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
     assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
 
 
-def test_holgura_solo_para_estados(tmp_path):
+def test_pegamento_solo_para_estados(tmp_path):
     raiz = _arbol(tmp_path, {'core/views/w.py': _funcion('cuerpo', 400)})
     base = ratchet.medir(raiz)
-    _arbol(raiz, {'core/views/w.py': _funcion('cuerpo', 200), 'core/otro.py': _funcion('manejar', 202)})
+    _arbol(raiz, {'core/views/w.py': _funcion('cuerpo', 200), 'core/otro.py': _handler(200)})
     problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
     assert any('lineas_en_funciones_grandes subió' in p for p in problemas)
 
