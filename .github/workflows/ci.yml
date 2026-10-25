@@ -65,6 +65,15 @@ jobs:
             core/tests_contrato_linea_2.py \
             core/tests_contrato_dos_lineas.py \
             core/tests_contrato_estados_motor.py \
+            core/tests_contexto_motor.py \
+            core/tests_estados_legado.py \
+            core/tests_marcas.py \
+            core/tests_envio_meta_marcas.py \
+            core/tests_linea2_curso_directo.py \
+            core/tests_confirmando_datos_webhook.py \
+            core/tests_examen_modulo_vacio.py \
+            core/tests_empleabilidad_pausa.py \
+            core/tests_empleabilidad_prueba.py \
             core/tests_medicion_turno.py \
             core/tests_cliente_canal.py \
             core/tests_sender.py \
