@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from ..avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from ..avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
 from ..intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from ..models import Estudiante, ModuloCompletado, WhatsappLog
 from ..response_templates import parte_mensaje_con_media
@@ -29,12 +30,6 @@ from core.lineas.identidad import (
 )
 from core.conversacion.contexto import Contexto
 from .ventana_drip import _pregunta_abierta_final_pendiente
-
-# La respuesta por defecto del cuerpo; la rama del examen la compara para saber si debe pisarla.
-_TEXTO_NO_ENTENDI = (
-    "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
-    "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
-)
 
 def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""

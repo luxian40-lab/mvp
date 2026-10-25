@@ -40,6 +40,12 @@ TEXTO_DRIP_BLOQUEO_BOTON = (
 
 TEXTO_DRIP_BLOQUEO_TEXTO = TEXTO_DRIP_BLOQUEO_BOTON
 
+# La respuesta por defecto del cuerpo del webhook; la rama del examen la compara para saber si debe pisarla.
+TEXTO_NO_ENTENDI = (
+    "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
+    "Si necesitas ayuda, escribe *ayuda*.\n\n" + MARCADOR_BOTON_CONTINUEMOS
+)
+
 # Misma plantilla que core.whatsapp_service (evita import circular en tests).
 SID_BOTON_LISTO_DEFAULT = 'HX33af3a0f2bb63715e03965c2bd642285'
 
