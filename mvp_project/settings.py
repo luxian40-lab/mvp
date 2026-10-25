@@ -374,6 +374,11 @@ EKI_ESTADO_LINEA_ESCRITURA = os.environ.get('EKI_ESTADO_LINEA_ESCRITURA', 'false
 EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
+# Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
+EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates

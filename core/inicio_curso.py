@@ -71,12 +71,14 @@ def primera_entrega_al_confirmar(estudiante) -> str | None:
     Inscrito desde el admin no tiene la marca de pendiente; sin esto el primer
     *continuar* cerraba el módulo 1 sin mostrarlo.
     """
+    from core.lineas.cursos_linea import solo_de_la_linea
     from core.models import ProgresoEstudiante
+    from core.sandbox_canal import phone_id_de_salida
 
     abiertos = list(
-        ProgresoEstudiante.objects.filter(
+        solo_de_la_linea(ProgresoEstudiante.objects.filter(
             estudiante=estudiante, completado=False, curso__activo=True,
-        ).select_related('curso', 'modulo_actual')[:2]
+        ), phone_id_de_salida()).select_related('curso', 'modulo_actual')[:2]
     )
     if len(abiertos) != 1:
         return None

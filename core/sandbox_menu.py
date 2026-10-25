@@ -713,6 +713,11 @@ def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str
         except Exception:
             logger.exception('sandbox_linea_twilio_fail tel=%s', decision.telefono_usuario)
         return 'handled'
+    from core.lineas.cursos_linea import fijar_curso_de_la_linea
+    from core.sandbox_canal import phone_id_de_salida
+    from core.utils_telefono import estudiante_por_telefono
+
+    fijar_curso_de_la_linea(phone_id_de_salida(), lambda: estudiante_por_telefono(decision.telefono_usuario))
     return 'cursos'
 
 

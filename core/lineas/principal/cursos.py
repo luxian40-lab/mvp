@@ -17,10 +17,13 @@ def _menu():
 
 
 def _abiertos_del_mes(telefono: str):
+    from core.lineas.cursos_linea import solo_de_la_linea
     from core.planes_linea import cursos_iniciados_en_el_mes
+    from core.sandbox_canal import phone_id_de_salida
 
     return list(
-        cursos_iniciados_en_el_mes(telefono).filter(completado=False).select_related('estudiante', 'curso')[:6]
+        solo_de_la_linea(cursos_iniciados_en_el_mes(telefono).filter(completado=False), phone_id_de_salida())
+        .select_related('estudiante', 'curso')[:6]
     )
 
 
@@ -88,14 +91,16 @@ def _tiene_curso_abierto(telefono: str) -> bool:
 
 
 def _progresos_del_telefono(telefono: str):
+    from core.lineas.cursos_linea import solo_de_la_linea
     from core.models import Estudiante, ProgresoEstudiante
+    from core.sandbox_canal import phone_id_de_salida
 
     tel = _menu().normalizar_telefono_whatsapp(telefono)
     est = Estudiante.objects.filter(telefono=tel).first()
     if est is None:
         return None, []
     progresos = list(
-        ProgresoEstudiante.objects.filter(estudiante=est, curso__activo=True)
+        solo_de_la_linea(ProgresoEstudiante.objects.filter(estudiante=est, curso__activo=True), phone_id_de_salida())
         .select_related('curso')
         .order_by('curso__orden', 'curso__nombre', 'id')
     )

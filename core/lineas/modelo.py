@@ -11,7 +11,7 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from django.db import DatabaseError, models
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from core.lineas.perfil import USO_COMPLETA, USO_SOLO_CURSOS
@@ -19,6 +19,7 @@ from core.lineas.perfil import USO_COMPLETA, USO_SOLO_CURSOS
 logger = logging.getLogger(__name__)
 
 CLAVE_CACHE = 'eki:lineas_bd:v1'
+CLAVE_CACHE_CURSOS = 'eki:cursos_linea:v1'
 
 USOS_LINEA = [
     (USO_COMPLETA, 'Completa: menú, carrusel, planes y asesores'),
@@ -81,7 +82,30 @@ def filas_activas() -> tuple[tuple, ...]:
     return filas
 
 
+def cursos_por_phone_id() -> dict[str, frozenset[int]]:
+    """{phone_id: ids de curso} de las líneas activas con lista. Vacío si la tabla falla."""
+    mapa = cache.get(CLAVE_CACHE_CURSOS)
+    if mapa is not None:
+        return mapa
+    try:
+        filas = list(
+            LineaWhatsapp.cursos.through.objects.filter(lineawhatsapp__activo=True).values_list(
+                'lineawhatsapp__phone_id', 'curso_id',
+            )
+        )
+    except DatabaseError:
+        logger.warning('cursos_linea_no_leidos', exc_info=True)
+        return {}
+    juntos: dict[str, set[int]] = {}
+    for phone_id, curso_id in filas:
+        juntos.setdefault(phone_id, set()).add(curso_id)
+    mapa = {phone_id: frozenset(ids) for phone_id, ids in juntos.items()}
+    cache.set(CLAVE_CACHE_CURSOS, mapa, int(getattr(settings, 'EKI_LINEAS_BD_CACHE_SEG', 60)))
+    return mapa
+
+
 @receiver(post_save, sender=LineaWhatsapp)
 @receiver(post_delete, sender=LineaWhatsapp)
+@receiver(m2m_changed, sender=LineaWhatsapp.cursos.through)
 def _olvidar_cache(**_kwargs):
-    cache.delete(CLAVE_CACHE)
+    cache.delete_many([CLAVE_CACHE, CLAVE_CACHE_CURSOS])
