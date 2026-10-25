@@ -68,13 +68,42 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     return True
 
 
+def _entrada_para_medir(post_data, canal):
+    """Estado y línea al llegar el mensaje. None en callbacks de estado o con la medición apagada."""
+    from django.db import DatabaseError
+
+    from core.conversacion.medicion import EntradaTurno
+    from core.lineas.meta import nombre_de_linea
+    from core.utils_telefono import estudiante_por_telefono
+    from core.wa_canal import CANAL_TWILIO
+
+    if not getattr(settings, 'EKI_MEDIR_TURNO', True):
+        return None
+    if (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip():
+        return None
+    try:
+        est = estudiante_por_telefono(str(post_data.get('From', '') or '').replace('whatsapp:', ''))
+        estado = 'sin_estudiante' if est is None else (est.estado_onboarding or '')
+        chat = '' if est is None else (est.estado_chat or '')
+    except DatabaseError:
+        logger.warning('motor_turno_estado_no_leido', exc_info=True)
+        estado, chat = '', ''
+    if canal == CANAL_TWILIO:
+        linea = 'twilio'
+    else:
+        linea = nombre_de_linea(str(post_data.get('_eki_phone_number_id') or '').strip())
+    return EntradaTurno(estado=estado, chat=chat, linea=linea, canal=canal)
+
+
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
+    from core.conversacion.medicion import medir_turno
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
     from core.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
-    with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data):
+    entrada = _entrada_para_medir(post_data, canal)
+    with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data), medir_turno(entrada):
         if canal == CANAL_TWILIO and _es_status_callback_twilio(post_data):
             _registrar_estado_twilio_callback(post_data)
             return None

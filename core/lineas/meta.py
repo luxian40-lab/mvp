@@ -40,6 +40,14 @@ def phone_ids() -> tuple[str, ...]:
     return tuple(vistos)
 
 
+def nombre_de_linea(phone_id: str) -> str:
+    """Nombre de la línea de ese phone number id; el id si no está en el registro."""
+    for linea in lineas_producto():
+        if linea.phone_id == phone_id:
+            return linea.nombre
+    return phone_id or 'desconocida'
+
+
 def numeros_e164() -> tuple[str, ...]:
     vistos: list[str] = []
     for linea in lineas_producto():
