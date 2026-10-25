@@ -663,10 +663,10 @@ def _entrar_en_progreso(telefono: str, from_number: str, progreso) -> None:
     est.contexto_temporal = ctx
     est.save(update_fields=['contexto_temporal'])
     _set_modo(_get_or_create_sesion(telefono), MODO_CURSOS)
-    from core.lineas.variante import es_solo_cursos
+    from core.lineas.variante import perfil_de
 
     extra = ''
-    if not es_solo_cursos() and resolver_plan(telefono).incluye_asesor:
+    if perfil_de().asesores and resolver_plan(telefono).incluye_asesor:
         extra = "\nEscriba *asesoria* si quiere hablar con el asesor.\n"
     enviar_texto_sandbox(
         telefono,
@@ -714,10 +714,10 @@ def ofrecer_cursos_en_curso(telefono: str, from_number: str) -> bool:
 
 
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
-    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, es_modo_twilio
+    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, perfil_de
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
-    if es_modo_twilio():
+    if not perfil_de().menu:
         # Sin carrusel ni menú Meta: el curso sigue en el camino lineal.
         return enviar_texto_sandbox(
             telefono_usuario, from_number, TEXTO_LINEA_MODO_TWILIO, agente='sandbox_cursos',
@@ -1351,9 +1351,9 @@ def _avisar_aula_es_twilio(telefono: str, from_number: str, body: str) -> bool:
 
     if not mensaje_pide_acceso_aula(body):
         return False
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
 
-    if es_modo_twilio():
+    if not perfil_de().menu:
         aviso = (
             'El *aula* se pide por la otra línea. Escriba *aula* allá para recibir el código. '
             'Esta línea es solo del curso (Formador y Compañero). '
@@ -1438,9 +1438,9 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     _, _, body = _extract_from_body(payload)
     body = _body_o_audio_transcrito(payload, body)
 
-    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, es_modo_twilio
+    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, perfil_de
 
-    if es_modo_twilio():
+    if perfil_de().curso_directo:
         # Modo Twilio: sin carrusel ni agentes. Todo el cuerpo va al curso.
         if decision.action in _ACCIONES_ASESOR or decision.action in (
             'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
