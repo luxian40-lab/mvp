@@ -891,10 +891,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 logger.info(f"🤖 Agente activo ({estudiante.estado_onboarding}) — bypassing gate listo")
                 # No interceptar — caerá al flujo EXISTENTE más abajo (handlers de agente)
 
-            # Detectar "Mis cursos" → rama legacy deshabilitada (curso sin menú)
-            elif False and msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
-                pass
-
             else:
                 from core.lineas.pqrs_linea import respuesta_en_puerta
                 if respuesta_en_puerta(estudiante, msg_body, msg_from, telefono_limpio):
