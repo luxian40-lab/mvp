@@ -45,6 +45,28 @@ def ultimo_entrante(estudiante):
     )
 
 
+# Reacciones y Twilio hacia la línea Meta no abren la ventana del cliente.
+_EVENTOS_SIN_VENTANA = ('ignorado', 'ignorado_twilio')
+
+
+def ultimo_evento_meta(estudiante):
+    """Hora del último entrante autenticado de Meta, aunque no haya pasado por el curso."""
+    from core.models_meta_webhook import MetaWebhookEvento
+    from core.utils_telefono import normalizar_e164_co
+
+    telefono = normalizar_e164_co(getattr(estudiante, 'telefono', ''))
+    if not telefono:
+        return None
+    return (
+        MetaWebhookEvento.objects.filter(telefono=telefono)
+        .exclude(resultado__in=_EVENTOS_SIN_VENTANA)
+        .exclude(wamid__startswith='noid-')
+        .order_by('-recibido_en')
+        .values_list('recibido_en', flat=True)
+        .first()
+    )
+
+
 def ventana_abierta(estudiante, ahora: datetime | None = None) -> bool:
     ahora = ahora or timezone.now()
     try:
@@ -52,9 +74,10 @@ def ventana_abierta(estudiante, ahora: datetime | None = None) -> bool:
     except (TypeError, ValueError):
         horas = 23
     log = ultimo_entrante(estudiante)
-    if log is None or not log.fecha:
+    fechas = [f for f in (getattr(log, 'fecha', None), ultimo_evento_meta(estudiante)) if f]
+    if not fechas:
         return False
-    return log.fecha >= ahora - timedelta(hours=horas)
+    return max(fechas) >= ahora - timedelta(hours=horas)
 
 
 def _plantilla() -> str:
