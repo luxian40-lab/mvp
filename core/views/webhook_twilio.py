@@ -2432,34 +2432,12 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
             # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
             elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
-                ctx = estudiante.contexto_temporal or {}
-                pregunta_data = ctx.get('pregunta_data', {})
-                correcta = pregunta_data.get('correcta', 'A')
-                explicacion = pregunta_data.get('explicacion', '')
-                
-                from ..tutor_ia_modulo import evaluar_respuesta_recuperacion
-                es_correcta, msg_evaluacion = evaluar_respuesta_recuperacion(msg_body, correcta, explicacion)
-                
-                # Si acertó, dar puntos bonus
-                if es_correcta:
-                    try:
-                        from ..gamificacion import PerfilGamificacion
-                        perfil_rec = PerfilGamificacion.objects.get(estudiante=estudiante)
-                        perfil_rec.agregar_puntos(15, "🏆 Pregunta de recuperación correcta")
-                    except Exception:
-                        pass
-                
-                # Limpiar estado y continuar al certificado
-                curso_id = ctx.get('curso_id')
-                estudiante.estado_onboarding = 'completado'
-                estudiante.contexto_temporal = None
-                estudiante.save()
-                
-                # Generar certificado y resumen
-                from ..response_templates import _generar_completado_final
-                msg_final = _generar_completado_final(estudiante, curso_id)
-                
-                texto_respuesta = f"[MULTI_MSG]{msg_evaluacion}[SEP]{msg_final}"
+                from core.conversacion.contexto import Contexto
+                from core.conversacion.estados import recuperacion as _estado_recuperacion
+
+                texto_respuesta = _estado_recuperacion.manejar(Contexto(
+                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
+                )).texto
 
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
