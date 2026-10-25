@@ -236,3 +236,27 @@ class RetoTests(ConCursoTestCase):
         self.assertEqual(ctx['pregunta_abierta_final_id'], pregunta.id)
         self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
         self.assertNotIn('reto_texto', ctx)
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class RetoDespuesDeMariaTests(ConCursoTestCase):
+    def test_abrir_el_reto_conserva_las_claves(self):
+        from core.lineas.reto import activar_reto_despues_de_maria
+
+        self._con_contexto(tipo='asistente_maria', modulo_id=self.mod.id, curso_activo_id=self.curso.id)
+        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+            activar_reto_despues_de_maria(self.est, 'Bien.', self.progreso.id, [self.mod.id], False)
+        ctx = self._contexto()
+        self.assertEqual((ctx['tipo'], ctx['reto_texto']), ('reto_facilitador', 'Riegue la huerta.'))
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['curso_activo_id']), (CERT, self.curso.id))
+        self.assertNotIn('modulo_id', ctx)
+
+    def test_reto_vacio_deja_solo_las_claves(self):
+        from core.lineas.reto import activar_reto_despues_de_maria
+
+        self._con_contexto(tipo='asistente_maria', curso_activo_id=self.curso.id)
+        activar_reto_despues_de_maria(self.est, 'Bien.', None, [], False)
+        self.assertEqual(
+            self._contexto(),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )

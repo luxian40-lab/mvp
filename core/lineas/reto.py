@@ -1,6 +1,8 @@
 """Reto de la facilitadora después de la revisión de María."""
 import logging
 
+from core.conversacion.claves_contexto import contexto_limpio
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,7 +53,7 @@ def activar_reto_despues_de_maria(
             (estudiante.contexto_temporal or {}).get('modulo_id'),
             modulos_reto_ids,
         )
-        estudiante.contexto_temporal = None
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
         estudiante.estado_onboarding = 'completado'
         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
         if progreso_r and progreso_r.completado:
@@ -75,14 +77,14 @@ def activar_reto_despues_de_maria(
         modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
     )
     prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-    estudiante.contexto_temporal = {
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
         'tipo': 'reto_facilitador',
         'modulos_reto_ids': mids,
         'reto_texto': reto,
         'progreso_id': progreso_id,
         'es_final': es_reto_final,
         '_ts_leccion': prev_ts,
-    }
+    })
     estudiante.estado_onboarding = 'esperando_respuesta_reto'
     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
     bloque = bloque_reto_whatsapp(nombre_tutor, reto)
