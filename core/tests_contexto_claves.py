@@ -1,7 +1,10 @@
 """contexto_temporal conserva las claves de la persona al cambiar de estado (EKI_CONTEXTO_CONSERVA_CLAVES)."""
-from django.test import SimpleTestCase, override_settings
+from unittest.mock import patch
+
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.conversacion.claves_contexto import contexto_limpio
+from core.models import Cliente, Curso, Estudiante, Modulo, PreguntaModulo, ProgresoEstudiante
 
 CERT = {'certificado_id': 7, 'curso_id': 3, 'ts': '2026-10-25T00:00:00', 'cerrar_avance': False}
 ANTES = {
@@ -51,3 +54,78 @@ class ContextoLimpioTests(SimpleTestCase):
         antes = dict(ANTES)
         contexto_limpio(antes, {'tipo': 'y'})
         self.assertEqual(antes, ANTES)
+
+
+class ConCursoTestCase(TestCase):
+    """Una persona en el módulo 1 con certificado por enviar y empleabilidad en el contexto."""
+
+    def setUp(self):
+        self.cli = Cliente.objects.create(nombre='Org Claves', activo=True)
+        self.curso = Curso.objects.create(nombre='Claves', cliente=self.cli, activo=True, dias_espera_entre_modulos=0)
+        self.mod = Modulo.objects.create(
+            curso=self.curso, numero=1, titulo='M1', descripcion='d', contenido='c', publicado_wa=True,
+        )
+        Modulo.objects.create(curso=self.curso, numero=2, titulo='M2', descripcion='d', contenido='c', publicado_wa=True)
+        self.est = Estudiante.objects.create(
+            cedula='CC-CLAVES', nombre='Lu', telefono='573009991212', cliente=self.cli, activo=True,
+            acepto_terminos=True, estado_chat='ACTIVO',
+        )
+        self.progreso = ProgresoEstudiante.objects.create(estudiante=self.est, curso=self.curso, modulo_actual=self.mod)
+
+    def _con_contexto(self, **estado):
+        self.est.contexto_temporal = {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, **estado}
+        self.est.save()
+
+    def _contexto(self):
+        self.est.refresh_from_db()
+        return self.est.contexto_temporal
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class PreguntaHandlerTests(ConCursoTestCase):
+    def setUp(self):
+        super().setUp()
+        self.pregunta = PreguntaModulo.objects.create(
+            modulo=self.mod, pregunta='¿?', opcion_a='a', opcion_b='b', respuesta_correcta='A',
+        )
+
+    def test_abrir_la_pregunta_conserva_el_certificado(self):
+        from core.pregunta_handler import guardar_contexto_pregunta, guardar_contexto_pregunta_rag
+
+        self._con_contexto(tipo='reto_facilitador', reto_texto='x')
+        guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
+        ctx = self._contexto()
+        self.assertEqual(ctx['tipo'], 'pregunta_modulo')
+        self.assertEqual(ctx['cert_envio_pendiente'], CERT)
+        self.assertNotIn('reto_texto', ctx)
+        guardar_contexto_pregunta_rag(self.est, self.mod, '¿qué aprendió?', self.progreso)
+        ctx = self._contexto()
+        self.assertEqual((ctx['tipo'], ctx['cert_envio_pendiente']), ('pregunta_rag_ia', CERT))
+        self.assertNotIn('pregunta_id', ctx)
+
+    def test_responder_la_pregunta_deja_solo_las_claves_de_la_persona(self):
+        from core.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
+
+        self._con_contexto()
+        guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
+        validar_respuesta(self.est, 'A')
+        self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
+
+    def test_respuesta_abierta_deja_solo_las_claves_de_la_persona(self):
+        from core.pregunta_handler import guardar_contexto_pregunta_rag, procesar_respuesta_abierta_ia
+
+        self._con_contexto()
+        guardar_contexto_pregunta_rag(self.est, self.mod, '¿qué aprendió?', self.progreso)
+        with patch('core.tutor_ia_modulo.evaluar_respuesta_modulo', return_value=(True, 'bien')):
+            procesar_respuesta_abierta_ia(self.est, 'aprendí a regar')
+        self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
+
+    @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=False)
+    def test_apagado_se_pisa_como_siempre(self):
+        from core.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
+
+        self._con_contexto()
+        guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
+        self.assertNotIn('cert_envio_pendiente', self._contexto())
+        validar_respuesta(self.est, 'A')
+        self.assertIsNone(self._contexto())

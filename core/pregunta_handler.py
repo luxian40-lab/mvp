@@ -1,3 +1,6 @@
+from .conversacion.claves_contexto import contexto_limpio
+
+
 def procesar_respuesta_abierta_ia(estudiante, respuesta_usuario):
     """
     Procesa una respuesta abierta generada por IA usando el Evaluador IA.
@@ -23,7 +26,7 @@ def procesar_respuesta_abierta_ia(estudiante, respuesta_usuario):
                 estudiante_nombre=estudiante.nombre or "Estudiante"
             )
             estudiante.estado_onboarding = 'completado'
-            estudiante.contexto_temporal = None
+            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
             return aprobado, feedback
     except Exception as e:
@@ -148,12 +151,12 @@ def guardar_contexto_pregunta_rag(estudiante, modulo, pregunta_texto, progreso):
         pregunta_texto: Texto de la pregunta
         progreso: Instancia de ProgresoEstudiante
     """
-    estudiante.contexto_temporal = {
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
         'modulo_id': modulo.id,
         'progreso_id': progreso.id,
         'pregunta_tutor': pregunta_texto,
         'tipo': 'pregunta_rag_ia'
-    }
+    })
     estudiante.estado_onboarding = 'esperando_respuesta_modulo'
     estudiante.save()
 
@@ -263,7 +266,7 @@ def validar_respuesta(estudiante, respuesta_letra):
         from .gamificacion import PerfilGamificacion
         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
         perfil.refresh_from_db()
-        estudiante.contexto_temporal = None
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
         estudiante.estado_onboarding = 'completado'
         estudiante.save()
         mensaje = f"""✅ *¡CORRECTO!* 🎉
@@ -333,7 +336,7 @@ def validar_respuesta(estudiante, respuesta_letra):
     subio_nivel = perfil.nivel > nivel_antes
     
     # Limpiar contexto temporal
-    estudiante.contexto_temporal = None
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
     estudiante.estado_onboarding = 'completado'
     estudiante.save()
     
@@ -388,12 +391,12 @@ def guardar_contexto_pregunta(estudiante, modulo, pregunta, progreso):
         pregunta: instancia de PreguntaModulo
         progreso: instancia de ProgresoEstudiante
     """
-    estudiante.contexto_temporal = {
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
         'modulo_id': modulo.id,
         'pregunta_id': pregunta.id,
         'progreso_id': progreso.id,
         'tipo': 'pregunta_modulo'
-    }
+    })
     estudiante.estado_onboarding = 'esperando_respuesta_modulo'
     estudiante.save()
 
