@@ -209,6 +209,16 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (E1 a E3; el cuerpo no se
 - F2 Menú, carrusel y asesores de la línea principal en su paquete.
 - F3 `dispatch_sandbox_menu` queda como despachador por perfil.
 
+Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (solo movimiento; cada función movida se comparó por AST con la original):
+
+- F0 Ratchet: con `--aceptar-movimiento`, `ciclo_mayor` puede crecer por `core.conversacion.estados.*`, `core.conversacion.puertas` y `core.lineas.principal.*` (código movido de un miembro del ciclo hereda sus imports). Otro módulo que entre al ciclo sigue fallando.
+- F1 `core/conversacion/puertas.py`: opt-out (sacado del despachador a `_responder_optout`), habeas, cédula, confirmación y aviso de *aula*, en `correr_puertas` y en el mismo orden.
+- F2 `core/lineas/principal/`: `menu.py` (menú y carrusel de formación), `cursos.py` (cursos empezados, elegir cuál, entrar) y `asesores.py` (lista de agentes y turno de Coach, Profe IA, Ventas, Finanzas).
+- F3 `dispatch_sandbox_menu`: puertas, racha y ruta; después `_despachar_curso_directo` (línea 2) o `core/lineas/principal/despacho.py`. La rama principal quedó en pasos (plan y permisos, identidad, menú, asesores, cursos) que devuelven `None` si la acción no es suya; cada rama original termina en `return` con valor, así que el orden y el resultado son los de antes. El despachador dejó de ser función grande (57 → 56; 238 líneas menos en funciones grandes).
+- Los módulos movidos buscan en `core.sandbox_menu` todo lo que antes era global de ese archivo (`_menu().enviar_texto_sandbox`, `_menu().MODO_MENU`…), y `sandbox_menu` reexporta lo movido con `noqa: F401` por nombre. Los `patch('core.sandbox_menu.X')` de los tests siguen interceptando sin cambiar de objetivo, y `core/lineas/menu.py`, `identidad.py` y `cursos_generales.py` importan igual. El logger de lo movido lleva el nombre de su módulo nuevo; la clave del mensaje no cambió.
+- Ciclo 192 → 197 (puertas, tres módulos de la principal y su despacho).
+- Visto, sin arreglar (no es movimiento): un audio de Meta llega con `Body` vacío y se transcribe tres veces por turno (puertas, `resolver_ruta_sandbox` y despachador), cada vez con una llamada nueva a la transcripción.
+
 ### Fase G — Protocolo de respuesta
 
 - G1 Un solo parser de marcadores (las 12 copias llaman a uno).
