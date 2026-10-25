@@ -4,10 +4,9 @@ Handoff para la siguiente sesión. `main` es lo que está en producción.
 
 ## Dónde quedó el código
 
-- Producción `eki-prod-final`: versión `main-lineas-meta-20261024-142853`, commit `3c317d73` (rama `deploy/lineas-meta`).
-- `main` local (`010424b2`) tiene el mismo árbol que producción. Registra como incluidos los 5 commits de `origin/main`, que ya estaban en producción por cherry-pick, así que se empuja sin `--force`.
-- Rollback: `main-formador-continuar-20261014-212000`.
-- Trabajo en curso: `chore/guardianes-motor`, encima de `main` (plan `docs/PLAN_MODULARIDAD_EKI.md`).
+- Producción `eki-prod-final`: versión `main-examen-formulario-20261024-185556`, commit `d086c681` = `main` (local y `origin`). Lleva el arreglo del examen de módulo y el del formulario GEI por cliente.
+- Rollback: `main-lineas-meta-20261024-142853` (commit `010424b2`).
+- Trabajo en curso: `chore/contratos-linea`, encima de `main` (incluye `chore/guardianes-motor`; plan `docs/PLAN_MODULARIDAD_EKI.md`).
 - `slice/escalabilidad-base` quedó atrás de producción. Desplegarla sería un rollback de dos semanas.
 - `.ebignore` existe, así que `eb deploy` comprime la carpeta tal como está en disco, no `git archive`. Desde una carpeta sucia subirían archivos sin commit; desde un worktree limpio, lo que no tiene commit no existe y el web arranca con `ImportError`.
 
