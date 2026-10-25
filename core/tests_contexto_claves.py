@@ -191,3 +191,48 @@ class IaEmpaticaTests(ConCursoTestCase):
             self._pedir_ayuda_y_seguir('quiero hablar con alguien de soporte humano'),
             {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
         )
+
+
+@override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
+class RetoTests(ConCursoTestCase):
+    def _responder_reto(self, es_final):
+        from core.conversacion.contexto import Contexto
+        from core.conversacion.estados import reto
+
+        self._con_contexto(
+            tipo='reto_facilitador', reto_texto='riegue', modulos_reto_ids=[], progreso_id=self.progreso.id,
+            es_final=es_final, ultimo_push_curso_id=self.curso.id,
+        )
+        self.est.estado_onboarding = 'esperando_respuesta_reto'
+        self.est.save()
+        with patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
+                patch('core.sandbox_canal.poner_reaccion_espera'), \
+                patch('core.certificado_service.crear_certificado_automatico', return_value=None), \
+                patch('core.conversacion.estados.reto._radar_msg_si_aplica', return_value=''):
+            reto.manejar(Contexto(self.est, 'regué la huerta', self.est.telefono, self.est.telefono))
+        return self._contexto()
+
+    def test_reto_intermedio_conserva_las_claves(self):
+        ctx = self._responder_reto(es_final=False)
+        self.assertEqual(
+            (ctx['cert_envio_pendiente'], ctx['radar_empleabilidad_activo'], ctx['ultimo_push_curso_id']),
+            (CERT, True, self.curso.id),
+        )
+        self.assertEqual(ctx['curso_activo_id'], self.curso.id)
+        self.assertNotIn('reto_texto', ctx)
+
+    def test_reto_final_sin_pregunta_abierta_deja_solo_las_claves(self):
+        self.assertEqual(
+            self._responder_reto(es_final=True),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'ultimo_push_curso_id': self.curso.id},
+        )
+
+    def test_reto_final_con_pregunta_abierta_conserva_las_claves(self):
+        from core.models import PreguntaAbiertaFinalCurso
+
+        pregunta = PreguntaAbiertaFinalCurso.objects.create(curso=self.curso, pregunta='¿Qué cambiaría?', activa=True)
+        ctx = self._responder_reto(es_final=True)
+        self.assertEqual(ctx['tipo'], 'pregunta_abierta_final')
+        self.assertEqual(ctx['pregunta_abierta_final_id'], pregunta.id)
+        self.assertEqual((ctx['cert_envio_pendiente'], ctx['ultimo_push_curso_id']), (CERT, self.curso.id))
+        self.assertNotIn('reto_texto', ctx)

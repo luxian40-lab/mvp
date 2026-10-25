@@ -2,6 +2,7 @@
 import logging
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.views.empleabilidad import _radar_msg_si_aplica
@@ -190,12 +191,12 @@ def manejar(contexto: Contexto) -> Respuesta:
                     getattr(pregunta_abierta, 'orden', None),
                     (pregunta_abierta.pregunta or '')[:180],
                 )
-                estudiante.contexto_temporal = {
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                     'tipo': 'pregunta_abierta_final',
                     'curso_id': progreso.curso.id,
                     'progreso_id': progreso.id,
                     'pregunta_abierta_final_id': pregunta_abierta.id,
-                }
+                })
                 estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                 texto_respuesta = (
@@ -213,7 +214,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                 )
                 # v1.9.8h: Final reto — issue certificate
                 estudiante.estado_onboarding = 'curso_finalizado'
-                estudiante.contexto_temporal = None
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
                 estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
 
                 msg_cert_img = ""
@@ -254,7 +255,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             from core.helpers_examenes import contexto_temporal_tras_cerrar_agente
             from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
-            _base_ctx = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx) or {}
+            _base_ctx = contexto_limpio(_prev_ctx, contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx)) or {}
             estudiante.estado_onboarding = 'completado'
             # Tras Darío + facilitadora: el drip/calendario aplica igual que sin agentes.
             # No adelantar modulo_actual hasta que desbloquee el siguiente módulo.
