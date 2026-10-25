@@ -13,54 +13,57 @@ from typing import Any
 from django.conf import settings
 from django.utils import timezone
 
-from core.conversacion.puertas import (  # noqa: F401
-    _NO_CONFIRMA_DATOS,
-    _SI_CONFIRMA_DATOS,
-    _aceptar_habeas_y_abrir_menu,
-    _aceptar_habeas_y_pedir_cedula,
-    _avisar_aula_es_twilio,
-    _enviar_confirma_numero,
-    _habeas_listo,
-    _responder_cedula,
-    _responder_confirmacion,
-    _responder_habeas,
-    _responder_optout,
-    abrir_tras_confirmar,
-    alinear_ficha_con_sesion_habeas,
+# Lo importado con noqa: F401 se lee como `core.sandbox_menu.X`: los módulos movidos
+# (puertas, línea principal) y los patch() de los tests lo buscan aquí.
+from core.conversacion.puertas import (
+    _NO_CONFIRMA_DATOS,  # noqa: F401
+    _SI_CONFIRMA_DATOS,  # noqa: F401
+    _aceptar_habeas_y_abrir_menu,  # noqa: F401
+    _aceptar_habeas_y_pedir_cedula,  # noqa: F401
+    _avisar_aula_es_twilio,  # noqa: F401
+    _enviar_confirma_numero,  # noqa: F401
+    _habeas_listo,  # noqa: F401
+    _responder_cedula,  # noqa: F401
+    _responder_confirmacion,  # noqa: F401
+    _responder_habeas,  # noqa: F401
+    _responder_optout,  # noqa: F401
+    abrir_tras_confirmar,  # noqa: F401
+    alinear_ficha_con_sesion_habeas,  # noqa: F401
     correr_puertas,
 )
-from core.lineas.principal.asesores import (  # noqa: F401
-    FILAS_AGENTES,
-    _guardar_pregunta_en_memoria,
-    _manejar_agente_extra,
-    _reaccion_espera,
-    enviar_menu_agentes,
-    texto_lista_agentes,
+from core.lineas.principal.asesores import (
+    FILAS_AGENTES,  # noqa: F401
+    _guardar_pregunta_en_memoria,  # noqa: F401
+    _manejar_agente_extra,  # noqa: F401
+    _reaccion_espera,  # noqa: F401
+    enviar_menu_agentes,  # noqa: F401
+    texto_lista_agentes,  # noqa: F401
 )
-from core.lineas.principal.cursos import (  # noqa: F401
+from core.lineas.principal.cursos import (
     _abiertos_del_mes,
-    _entrar_en_progreso,
-    _preguntar_cual_curso,
-    _progresos_del_telefono,
-    _sticky_cursos_solo_si_inscrito_demo,
-    _tiene_curso_abierto,
-    bootstrap_cursos_sandbox,
-    entrar_cursos_inscrito,
-    ofrecer_cursos_en_curso,
+    _entrar_en_progreso,  # noqa: F401
+    _preguntar_cual_curso,  # noqa: F401
+    _progresos_del_telefono,  # noqa: F401
+    _sticky_cursos_solo_si_inscrito_demo,  # noqa: F401
+    _tiene_curso_abierto,  # noqa: F401
+    bootstrap_cursos_sandbox,  # noqa: F401
+    entrar_cursos_inscrito,  # noqa: F401
+    ofrecer_cursos_en_curso,  # noqa: F401
 )
-from core.lineas.principal.menu import (  # noqa: F401
-    enviar_catalogo_formacion,
-    enviar_menu_sandbox,
-    responder_catalogo_general,
+from core.lineas.principal.despacho import despachar as despachar_linea_principal
+from core.lineas.principal.menu import (
+    enviar_catalogo_formacion,  # noqa: F401
+    enviar_menu_sandbox,  # noqa: F401
+    responder_catalogo_general,  # noqa: F401
 )
 from core.nati import normalizar_telefono_whatsapp
 from core.planes_linea import (
     PLAN_CURSO_ASESOR,
     TEXTO_PLAN_SIN_ASESOR,
-    TEXTO_PLAN_SIN_CURSOS,
-    TEXTO_SIN_PLAN,
+    TEXTO_PLAN_SIN_CURSOS,  # noqa: F401
+    TEXTO_SIN_PLAN,  # noqa: F401
     plan_por_clave,
-    resolver_plan,
+    resolver_plan,  # noqa: F401
     texto_menu_plan,
 )
 
@@ -689,6 +692,27 @@ def _message_id(payload: Any) -> str:
         return ''
 
 
+def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str:
+    """Línea de curso lineal: sin carrusel ni agentes. Todo el cuerpo va al curso."""
+    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO
+
+    if decision.action in _ACCIONES_ASESOR or decision.action in (
+        'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
+    ):
+        _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
+        try:
+            enviar_texto_sandbox(
+                decision.telefono_usuario,
+                from_n,
+                TEXTO_LINEA_MODO_TWILIO,
+                agente='sandbox_cursos',
+            )
+        except Exception:
+            logger.exception('sandbox_linea_twilio_fail tel=%s', decision.telefono_usuario)
+        return 'handled'
+    return 'cursos'
+
+
 def dispatch_sandbox_menu(payload: Any) -> str | None:
     """
     Intercepta el sandbox (Meta) cuando SANDBOX_MENU_ENABLED.
@@ -717,213 +741,8 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     _, _, body = _extract_from_body(payload)
     body = _body_o_audio_transcrito(payload, body)
 
-    from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, perfil_de
+    from core.lineas.variante import perfil_de
 
     if perfil_de().curso_directo:
-        # Modo Twilio: sin carrusel ni agentes. Todo el cuerpo va al curso.
-        if decision.action in _ACCIONES_ASESOR or decision.action in (
-            'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
-        ):
-            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
-            try:
-                enviar_texto_sandbox(
-                    decision.telefono_usuario,
-                    from_n,
-                    TEXTO_LINEA_MODO_TWILIO,
-                    agente='sandbox_cursos',
-                )
-            except Exception:
-                logger.exception('sandbox_linea_twilio_fail tel=%s', decision.telefono_usuario)
-            return 'handled'
-        return 'cursos'
-
-    if decision.action in ('nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe'):
-        from core.lineas.oferta import agente_permitido
-
-        if not agente_permitido(decision.telefono_usuario, decision.action):
-            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
-            try:
-                enviar_menu_agentes(decision.telefono_usuario, from_n)
-            except Exception:
-                logger.exception('sandbox_agente_no_permitido tel=%s', decision.telefono_usuario)
-            return 'handled'
-
-    if (
-        decision.action in _ACCIONES_ASESOR or decision.action == 'show_formacion'
-    ):
-        plan = resolver_plan(decision.telefono_usuario)
-        bloqueo = ''
-        if not plan.activo:
-            bloqueo = TEXTO_SIN_PLAN
-        elif decision.action == 'show_formacion' and not plan.incluye_cursos:
-            bloqueo = TEXTO_PLAN_SIN_CURSOS
-        elif decision.action in _ACCIONES_ASESOR and not plan.incluye_asesor:
-            bloqueo = TEXTO_PLAN_SIN_ASESOR
-        if bloqueo:
-            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
-            try:
-                enviar_texto_sandbox(decision.telefono_usuario, from_n, bloqueo, agente='sandbox_plan')
-            except Exception:
-                logger.exception('sandbox_plan_send_failed tel=%s', decision.telefono_usuario)
-            return 'handled'
-
-    if decision.action == 'pedir_habeas':
-        try:
-            from core.sandbox_canal import enviar_sandbox_habeas
-
-            enviar_sandbox_habeas(decision.telefono_usuario)
-        except Exception:
-            logger.exception('sandbox_pedir_habeas_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'pedir_cedula':
-        from core.habeas_respuestas import MSG_ACEPTO_CEDULA
-
-        try:
-            enviar_texto_sandbox(
-                decision.telefono_usuario, from_n, MSG_ACEPTO_CEDULA, agente='habeas_meta',
-            )
-        except Exception:
-            logger.exception('sandbox_pedir_cedula_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'confirmar_datos':
-        from core.utils_telefono import estudiante_por_telefono
-
-        est = estudiante_por_telefono(decision.telefono_usuario)
-        if est is not None:
-            try:
-                _enviar_confirma_numero(decision.telefono_usuario, from_n, est)
-            except Exception:
-                logger.exception('sandbox_confirmar_datos_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'show_menu':
-        try:
-            enviar_menu_sandbox(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_menu_send_failed tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'show_agentes':
-        try:
-            enviar_menu_agentes(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_agentes_send_failed tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'continuar_curso':
-        try:
-            curso_id = int(decision.texto_menu)
-            progreso = next(p for p in _abiertos_del_mes(decision.telefono_usuario) if p.curso_id == curso_id)
-            _entrar_en_progreso(decision.telefono_usuario, from_n, progreso)
-        except StopIteration:
-            enviar_menu_sandbox(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_continuar_curso_fail')
-        return 'handled'
-
-    if decision.action == 'seguir_curso':
-        try:
-            entrar_cursos_inscrito(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_seguir_curso_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'show_formacion':
-        try:
-            enviar_catalogo_formacion(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_formacion_send_failed')
-        return 'handled'
-
-    if decision.action == 'catalogo_general':
-        try:
-            responder_catalogo_general(decision.telefono_usuario, from_n, decision.texto_menu)
-        except Exception:
-            logger.exception('sandbox_catalogo_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'show_asesoria':
-        try:
-            enviar_menu_agentes(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_asesoria_send_failed')
-        return 'handled'
-
-    if decision.action == 'nat':
-        if decision.reset_nat:
-            marcar_corte_memoria_nat(decision.telefono_usuario)
-            try:
-                from core.sandbox_agentes import presentacion_agente
-
-                enviar_texto_sandbox(
-                    decision.telefono_usuario,
-                    from_n,
-                    presentacion_agente('nat', reinicio=True),
-                    agente='sandbox_nat',
-                )
-            except Exception:
-                logger.exception('sandbox_nat_saludo_fail')
-            return 'handled'
-        if decision.saludo_entrada:
-            try:
-                from core.sandbox_agentes import presentacion_agente
-
-                enviar_texto_sandbox(
-                    decision.telefono_usuario,
-                    from_n,
-                    presentacion_agente('nat'),
-                    agente='sandbox_nat',
-                )
-            except Exception:
-                logger.exception('sandbox_nat_saludo_entrada_fail')
-            return 'handled'
-        from core.planes_linea import registrar_pregunta_asesor
-        from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
-
-        if decision.es_toque:
-            try:
-                enviar_texto_sandbox(
-                    decision.telefono_usuario,
-                    from_n,
-                    TEXTO_TOQUE_NO_PREGUNTA,
-                    agente='sandbox_plan',
-                )
-            except Exception:
-                logger.exception('sandbox_nat_toque_fail')
-            return 'handled'
-        if excedio_cupo_ia_linea(decision.telefono_usuario):
-            try:
-                enviar_texto_sandbox(
-                    decision.telefono_usuario,
-                    from_n,
-                    texto_cupo_ia(_tope_asesor_mes(decision.telefono_usuario)),
-                    agente='sandbox_plan',
-                )
-            except Exception:
-                logger.exception('sandbox_nat_cupo_fail')
-            return 'handled'
-        registrar_pregunta_asesor(decision.telefono_usuario)
-        _reaccion_espera(decision.telefono_usuario, _message_id(payload))
-        return 'nat'
-
-    if decision.action in ('coach', 'ia_campo', 'ventas', 'finanzas', 'cafe'):
-        return _manejar_agente_extra(decision, body, _message_id(payload))
-
-    if decision.action == 'cursos_bootstrap':
-        try:
-            bootstrap_cursos_sandbox(decision.telefono_usuario, from_n)
-        except Exception:
-            logger.exception('sandbox_cursos_bootstrap_fail tel=%s', decision.telefono_usuario)
-        return 'handled'
-
-    if decision.action == 'cursos':
-        _reaccion_espera(decision.telefono_usuario, _message_id(payload))
-        return 'cursos'
-
-    try:
-        enviar_menu_sandbox(decision.telefono_usuario, from_n)
-    except Exception:
-        logger.exception('sandbox_menu_send_failed tel=%s', decision.telefono_usuario)
-    return 'handled'
+        return _despachar_curso_directo(decision, from_n)
+    return despachar_linea_principal(decision, payload, body, from_n)
