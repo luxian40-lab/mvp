@@ -1,0 +1,39 @@
+"""Qué handler atiende cada estado del motor de curso.
+
+BARRERAS se busca por `estado_chat` durante el onboarding: el handler siempre
+corta el turno. AGENTES se busca por `estado_onboarding` en la cadena de
+agentes: el handler deja `texto_respuesta` para el envío común del cuerpo.
+"""
+from core.conversacion.estados import (
+    cedula,
+    curso_finalizado,
+    empleabilidad,
+    progreso,
+    recuperacion,
+    tutor_ia,
+)
+
+BARRERAS = {
+    'ESPERANDO_CEDULA': cedula.manejar,
+}
+
+AGENTES = {
+    # Radar: código secreto del aliado. Con la empleabilidad en pausa, agente_de no lo despacha.
+    'esperando_codigo_empleabilidad': empleabilidad.manejar,
+    # Después del certificado: solo avisa si hay un curso nuevo.
+    'curso_finalizado': curso_finalizado.manejar,
+    'esperando_respuesta_tutor_ia': tutor_ia.manejar,
+    'esperando_respuesta_progreso': progreso.manejar,
+    # Pregunta de recuperación (<70 pts) antes del certificado.
+    'esperando_respuesta_recuperacion': recuperacion.manejar,
+}
+
+
+def agente_de(estado_onboarding):
+    """Handler de la cadena de agentes, o None para la rama por defecto del cuerpo."""
+    if estado_onboarding == 'esperando_codigo_empleabilidad':
+        from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+        if empleabilidad_en_pausa():
+            return None
+    return AGENTES.get(estado_onboarding)

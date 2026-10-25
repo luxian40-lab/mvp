@@ -65,6 +65,46 @@ def test_rama_que_asigna_sin_condicion_no_pide_el_texto(tmp_path):
     assert r['salidas'] == ['texto_respuesta']
 
 
-def test_el_cuerpo_real_tiene_las_ramas_del_plan():
-    for estado in ('ESPERANDO_CEDULA', 'curso_finalizado', 'esperando_respuesta_modulo'):
-        assert rama.analizar(estado)['if_linea'] > 0
+BARRERAS_PENDIENTES = ('CONFIRMANDO_DATOS',)
+AGENTES_PENDIENTES = (
+    'esperando_respuesta_pregunta_abierta_final',
+    'esperando_respuesta_asistente',
+    'esperando_respuesta_reto',
+    'esperando_respuesta_modulo',
+    'esperando_seleccion_curso',
+)
+
+
+def _ramas(estado):
+    try:
+        return rama.analizar(estado)['candidatas']
+    except SystemExit:
+        return []
+
+
+def test_lo_despachado_ya_no_tiene_rama_en_el_cuerpo():
+    from core.conversacion.estados.despacho import AGENTES, BARRERAS
+
+    lineas = rama.ARCHIVO.read_text(encoding='utf-8').splitlines()
+    despacho = next(i for i, texto in enumerate(lineas, 1) if 'agente_de(estudiante.estado_onboarding)' in texto)
+    for estado in BARRERAS:
+        assert _ramas(estado) == [], estado
+    for estado in AGENTES:
+        assert all(linea < despacho for linea in _ramas(estado)), estado
+    for estado in BARRERAS_PENDIENTES:
+        assert estado not in BARRERAS and _ramas(estado), estado
+    for estado in AGENTES_PENDIENTES:
+        assert estado not in AGENTES, estado
+        assert any(linea > despacho for linea in _ramas(estado)), estado
+
+
+def test_empleabilidad_en_pausa_cae_a_la_rama_por_defecto():
+    from unittest.mock import patch
+
+    from core.conversacion.estados import despacho, empleabilidad
+
+    with patch('core.empleabilidad_pausa.empleabilidad_en_pausa', return_value=True):
+        assert despacho.agente_de('esperando_codigo_empleabilidad') is None
+    with patch('core.empleabilidad_pausa.empleabilidad_en_pausa', return_value=False):
+        assert despacho.agente_de('esperando_codigo_empleabilidad') is empleabilidad.manejar
+    assert despacho.agente_de('completado') is None

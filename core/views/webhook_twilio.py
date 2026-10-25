@@ -27,6 +27,7 @@ from core.lineas.identidad import (
     cortar_habeas_meta as _cortar_habeas_meta,
     menu_tras_confirmar_datos_meta as _menu_tras_confirmar_datos_meta,
 )
+from core.conversacion.contexto import Contexto
 from .ventana_drip import _pregunta_abierta_final_pendiente
 
 # La respuesta por defecto del cuerpo; la rama del examen la compara para saber si debe pisarla.
@@ -705,11 +706,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 2: VALIDACIÓN 2FA (Cédula) ---
-        if estado_chat == 'ESPERANDO_CEDULA':
-            from core.conversacion.contexto import Contexto
-            from core.conversacion.estados import cedula as _estado_cedula
+        from core.conversacion.estados.despacho import BARRERAS
 
-            _estado_cedula.manejar(Contexto(estudiante, msg_body, msg_from, telefono_limpio))
+        _barrera = BARRERAS.get(estado_chat)
+        if _barrera is not None:
+            _barrera(Contexto(estudiante, msg_body, msg_from, telefono_limpio))
             return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 3: CONFIRMACIÓN DE DATOS ---
@@ -1500,16 +1501,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             except Exception as e:
                 logger.warning("⚠️ Sync agente pedagógico omitido: %s", e)
 
-            from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_codigo
+            from core.conversacion.estados.despacho import agente_de
 
-            if (
-                estudiante.estado_onboarding == 'esperando_codigo_empleabilidad'
-                and not _emp_pausa_codigo()
-            ):
-                from core.conversacion.contexto import Contexto
-                from core.conversacion.estados import empleabilidad as _estado_empleabilidad
-
-                texto_respuesta = _estado_empleabilidad.manejar(Contexto(
+            _agente = agente_de(estudiante.estado_onboarding)
+            if _agente is not None:
+                texto_respuesta = _agente(Contexto(
                     estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
                 )).texto
 
@@ -1726,15 +1722,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             "No encuentro una pregunta abierta final activa para tu curso en este momento. "
                             "Escribe *ayuda* para soporte."
                         )
-
-            # v1.9.8g: Post-certificate cutoff — no more interaction
-            elif estudiante.estado_onboarding == 'curso_finalizado':
-                from core.conversacion.contexto import Contexto
-                from core.conversacion.estados import curso_finalizado as _estado_curso_finalizado
-
-                texto_respuesta = _estado_curso_finalizado.manejar(Contexto(
-                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
-                )).texto
             
             # v1.9.8g: Asistente (compañero) — hasta 2 preguntas antes del reto
             elif estudiante.estado_onboarding == 'esperando_respuesta_asistente':
@@ -2221,33 +2208,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                                 + _MARCADOR_CONTINUEMOS
                             )
                     print(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}", flush=True)
-            
-            # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
-            elif estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':
-                from core.conversacion.contexto import Contexto
-                from core.conversacion.estados import tutor_ia as _estado_tutor_ia
-
-                texto_respuesta = _estado_tutor_ia.manejar(Contexto(
-                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
-                )).texto
-            
-            # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
-            elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
-                from core.conversacion.contexto import Contexto
-                from core.conversacion.estados import progreso as _estado_progreso
-
-                texto_respuesta = _estado_progreso.manejar(Contexto(
-                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
-                )).texto
-
-            # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
-            elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
-                from core.conversacion.contexto import Contexto
-                from core.conversacion.estados import recuperacion as _estado_recuperacion
-
-                texto_respuesta = _estado_recuperacion.manejar(Contexto(
-                    estudiante, msg_body, msg_from, telefono_limpio, texto_respuesta=texto_respuesta,
-                )).texto
 
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':

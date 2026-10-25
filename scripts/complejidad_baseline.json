@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 232,
- "ciclo_mayor": 189,
+ "ciclo_mayor": 190,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -56,6 +56,7 @@
   "core.contexto_agro",
   "core.conversacion.estados.cedula",
   "core.conversacion.estados.curso_finalizado",
+  "core.conversacion.estados.despacho",
   "core.conversacion.estados.empleabilidad",
   "core.conversacion.estados.progreso",
   "core.conversacion.estados.recuperacion",
@@ -479,7 +480,7 @@
   "core/tutor_ia_modulo.py::generar_reto_facilitador": 155,
   "core/utils.py::enviar_whatsapp_twilio": 232,
   "core/views/admin_panel.py::_construir_dashboard_unificado_contexto": 592,
-  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 2920,
+  "core/views/webhook_twilio.py::_procesar_twilio_webhook_cuerpo": 2879,
   "core/views_admin_panel.py::_build_ecosistema": 313,
   "core/views_admin_panel.py::_build_panel_snapshot_uncached": 583,
   "core/views_analytics.py::api_metricas_json": 193,
@@ -493,7 +494,7 @@
   "portal/impacto.py::impacto_nucleo": 194,
   "portal/retencion_service.py::_analitica_retencion_portal_uncached": 192
  },
- "lineas_en_funciones_grandes": 18150,
+ "lineas_en_funciones_grandes": 18109,
  "marcadores_texto": {
   "core/avance_whatsapp.py": 2,
   "core/bot_comercial/webhook.py": 3,
@@ -533,11 +534,11 @@
  },
  "totales": {
   "archivos_sueltos_core": 232,
-  "ciclo_mayor": 189,
+  "ciclo_mayor": 190,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 896,
   "funciones_grandes": 52,
-  "lineas_en_funciones_grandes": 18150,
+  "lineas_en_funciones_grandes": 18109,
   "marcadores_texto": 172,
   "parches_runtime": 8,
   "parser_sep": 11,
