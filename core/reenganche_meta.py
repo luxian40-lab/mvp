@@ -47,6 +47,8 @@ def ultimo_entrante(estudiante):
 
 # Reacciones y Twilio hacia la línea Meta no abren la ventana del cliente.
 _EVENTOS_SIN_VENTANA = ('ignorado', 'ignorado_twilio')
+# La traza también guarda los entrantes de Twilio (MessageSid SM…/MM…); solo los ids de Meta abren ventana.
+_PREFIJO_WAMID_META = 'wamid.'
 
 
 def ultimo_evento_meta(estudiante):
@@ -58,9 +60,8 @@ def ultimo_evento_meta(estudiante):
     if not telefono:
         return None
     return (
-        MetaWebhookEvento.objects.filter(telefono=telefono)
+        MetaWebhookEvento.objects.filter(telefono=telefono, wamid__startswith=_PREFIJO_WAMID_META)
         .exclude(resultado__in=_EVENTOS_SIN_VENTANA)
-        .exclude(wamid__startswith='noid-')
         .order_by('-recibido_en')
         .values_list('recibido_en', flat=True)
         .first()

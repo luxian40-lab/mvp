@@ -45,6 +45,11 @@ class VentanaPorEventoMetaTests(TestCase):
         _evento('wamid.ev4', resultado='ignorado_twilio')
         self.assertFalse(ventana_abierta(self.estudiante))
 
+    def test_entrante_twilio_trazado_no_abre_ventana(self):
+        _evento('SMventana2', resultado='sin_plan')
+        _evento('SMaula3', resultado='aula')
+        self.assertFalse(ventana_abierta(self.estudiante))
+
     def test_evento_sin_wamid_no_abre_ventana(self):
         _evento('noid-abc123')
         self.assertFalse(ventana_abierta(self.estudiante))
