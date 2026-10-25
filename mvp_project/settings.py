@@ -369,6 +369,11 @@ EKI_CLIENTE_CANAL_PERMANENTE = os.environ.get('EKI_CLIENTE_CANAL_PERMANENTE', 'f
 EKI_ESTADO_LINEA_ESCRITURA = os.environ.get('EKI_ESTADO_LINEA_ESCRITURA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: al empezar un turno de Meta, el estudiante toma el estado de la fila de esa línea (si la tiene).
+# Cada línea sigue su propio curso. Prende también la escritura. Correr antes backfill_estado_linea --aplicar.
+EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates

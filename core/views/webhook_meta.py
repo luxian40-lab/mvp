@@ -55,7 +55,7 @@ def _aplicar_sandbox_menu(data):
         if candidato in phone_ids_meta():
             pnid = candidato
     with salida_por_phone_id(pnid):
-        with traza_inbound(data), _estado_de_la_linea(data):
+        with _estado_de_la_linea(data), traza_inbound(data):
             return _aplicar_sandbox_menu_cuerpo(data)
     return HttpResponse('OK')
 

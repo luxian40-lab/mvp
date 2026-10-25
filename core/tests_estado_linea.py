@@ -8,6 +8,7 @@ from core import tests_contrato_dos_lineas as dos_lineas
 from core import tests_contrato_estados_motor as estados_motor
 from core import tests_contrato_linea_2 as linea_2
 from core import tests_contrato_linea_principal as principal
+from core import tests_seleccion_curso_cadena as seleccion
 from core.conversacion.estado_linea import EstadoLinea
 from core.models import Cliente, Estudiante
 from core.planes_linea import PLAN_CURSO_ASESOR
@@ -186,6 +187,146 @@ class BackfillEstadoLineaTests(TestCase):
         self.assertEqual(_fila(self.est, LINEA_2).estado_chat, 'CONFIRMANDO_DATOS')
         self.assertIn('filas creadas: 0', self._correr('--aplicar'))
         self.assertEqual(EstadoLinea.objects.count(), 2)
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class EnLineaLecturaTests(TestCase):
+    def setUp(self):
+        self.est = Estudiante.objects.create(
+            cedula='CC5550023', nombre='Eva', telefono=TEL, estado_chat='ACTIVO',
+            estado_onboarding='completado', contexto_temporal={'curso_activo_id': 1},
+        )
+        EstadoLinea.objects.create(
+            estudiante=self.est, phone_id=LINEA_PRINCIPAL.phone_id, estado_chat='ACTIVO',
+            estado_onboarding='esperando_respuesta_reto', contexto_temporal={'curso_activo_id': 1},
+        )
+        EstadoLinea.objects.create(
+            estudiante=self.est, phone_id=LINEA_2.phone_id, estado_chat='ACTIVO',
+            estado_onboarding='esperando_respuesta_modulo', contexto_temporal={'curso_activo_id': 2},
+        )
+
+    def _columna(self):
+        return Estudiante.objects.filter(pk=self.est.pk).values(
+            'estado_chat', 'estado_onboarding', 'contexto_temporal',
+        ).first()
+
+    def test_la_lectura_prende_la_escritura(self):
+        from core.conversacion.estado_linea import escritura_activa
+
+        self.assertTrue(escritura_activa())
+
+    def test_el_turno_entra_con_el_estado_de_su_linea_y_lo_deja_en_su_fila(self):
+        from core.conversacion.estado_linea import en_linea
+
+        with en_linea(LINEA_2.phone_id, lambda: Estudiante.objects.get(pk=self.est.pk)):
+            dentro = self._columna()
+            est = Estudiante.objects.get(pk=self.est.pk)
+            est.estado_onboarding = 'esperando_respuesta_asistente'
+            est.save(update_fields=['estado_onboarding'])
+        self.assertEqual(dentro['estado_onboarding'], 'esperando_respuesta_modulo')
+        self.assertEqual(dentro['contexto_temporal'], {'curso_activo_id': 2})
+        self.assertEqual(_fila(self.est, LINEA_2).estado_onboarding, 'esperando_respuesta_asistente')
+        self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
+        self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).contexto_temporal, {'curso_activo_id': 1})
+
+    def test_linea_sin_fila_sigue_con_el_compartido_y_la_crea_al_salir(self):
+        from core.conversacion.estado_linea import en_linea
+
+        otra = '100000000000003'
+        with en_linea(otra, lambda: Estudiante.objects.get(pk=self.est.pk)):
+            dentro = self._columna()
+        self.assertEqual(dentro['estado_onboarding'], 'completado')
+        fila = EstadoLinea.objects.get(estudiante=self.est, phone_id=otra)
+        self.assertEqual((fila.estado_onboarding, fila.contexto_temporal), ('completado', {'curso_activo_id': 1}))
+
+    def test_sin_cargar_no_toca_la_columna(self):
+        from core.conversacion.estado_linea import en_linea
+
+        with en_linea(LINEA_2.phone_id, lambda: self.est, cargar=False, copiar_al_salir=False):
+            dentro = self._columna()
+        self.assertEqual(dentro['estado_onboarding'], 'completado')
+        self.assertEqual(_fila(self.est, LINEA_2).estado_onboarding, 'esperando_respuesta_modulo')
+
+    def test_campana_nueva_en_una_linea_nace_sin_el_contexto_de_otra(self):
+        from core.campana_audiencia import poner_en_inicio_de_flujo
+
+        otra = '100000000000003'
+        poner_en_inicio_de_flujo(self.est, otra)
+        fila = EstadoLinea.objects.get(estudiante=self.est, phone_id=otra)
+        self.assertEqual(
+            (fila.estado_chat, fila.estado_onboarding, fila.contexto_temporal),
+            ('ESPERANDO_HABEAS_DATA', 'nuevo', None),
+        )
+        self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class DosLineasConLecturaTests(dos_lineas.ContratoDosLineasTests):
+    """Contrato A4 con la lectura prendida: cada línea sigue su propio estado.
+
+    El habeas sigue siendo de la persona (decisión del 25 de octubre de 2026): una
+    campaña de cualquier línea lo vuelve a pedir en todas. Lo que no se cruza es el
+    estado del curso. Hueco que queda: el avance (ProgresoEstudiante) no tiene línea,
+    así que sin curso activo en su contexto la línea 2 ofrece todos los cursos abiertos.
+    """
+
+    def test_hoy_la_campana_de_la_linea_2_vuelve_a_pedir_habeas_en_la_principal(self):
+        self._principal_en_modulo_1()
+        self.lanzar_campana([self.est], linea=LINEA_2, nombre='linea2')
+        envios = self.escribir(dos_lineas.TEL, 'listo')
+        self.assertEqual(envios[0].phone_id, LINEA_PRINCIPAL.phone_id)
+        self.assertEqual(envios[0].ids, ['acepto', 'no_acepto'])
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_chat, 'ACTIVO')
+        self.assertEqual(_fila(self.est, LINEA_2).estado_chat, 'ESPERANDO_HABEAS_DATA')
+
+    def test_hoy_continuar_en_la_linea_2_sigue_el_curso_de_la_principal(self):
+        self._principal_en_modulo_1()
+        self._identidad(LINEA_2, 'linea2')
+        envios = self.escribir(dos_lineas.TEL, 'continuemos', linea=LINEA_2)
+        self.assertEqual(envios[0].phone_id, LINEA_2.phone_id)
+        self.assertNotIn('General1 M2', envios[0].texto)
+        self.assertEqual(self._progreso(self.general).modulo_actual.numero, 1)
+        principal = self.tocar(dos_lineas.TEL, 'continuemos', 'Continuar')
+        self.assertIn('*Módulo 2: General1 M2*', principal[0].texto)
+
+    def test_hoy_listo_en_la_linea_2_responde_el_reto_de_la_principal(self):
+        self.salida.llm_responde(dos_lineas.RESPUESTA_LLM)
+        self._principal_en_modulo_1()
+        self._identidad(LINEA_2, 'linea2')
+        self.escribir(dos_lineas.TEL, 'listo')
+        reto = self.escribir(dos_lineas.TEL, 'listo')
+        self.assertIn('reto final', reto[0].texto)
+        antes = _fila(self.est, LINEA_PRINCIPAL)
+        envios = self.escribir(dos_lineas.TEL, 'listo', linea=LINEA_2)
+        self.assertEqual(envios[0].phone_id, LINEA_2.phone_id)
+        self.assertNotIn(dos_lineas.RESPUESTA_LLM, envios[0].texto)
+        despues = _fila(self.est, LINEA_PRINCIPAL)
+        self.assertEqual(
+            (despues.estado_onboarding, despues.contexto_temporal),
+            (antes.estado_onboarding, antes.contexto_temporal),
+        )
+        self.assertEqual(despues.contexto_temporal['progreso_id'], self._progreso(self.general).id)
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class PrincipalConLecturaTests(principal.ContratoLineaPrincipalTests):
+    """Quien usa una sola línea no nota la lectura por línea."""
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class Linea2ConLecturaTests(linea_2.ContratoLinea2Tests):
+    """Quien usa una sola línea no nota la lectura por línea."""
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class EstadosMotorConLecturaTests(estados_motor.ContratoEstadosMotorTests):
+    """Los 10 estados del motor responden igual con la lectura por línea."""
+
+
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True)
+class SeleccionCursoConLecturaTests(seleccion.SeleccionCursoDosCopiasTests):
+    """Las dos copias de la selección de curso siguen atendiendo lo mismo."""
 
 
 @override_settings(EKI_ESTADO_LINEA_ESCRITURA=True)

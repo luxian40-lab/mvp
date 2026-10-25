@@ -51,12 +51,16 @@ class EstadoLinea(models.Model):
         return f'{self.estudiante_id} @ {self.phone_id}: {self.estado_chat} / {self.estado_onboarding}'
 
 
-# (estudiante_id, phone_id) de la línea que está escribiendo: un turno o una campaña.
-_linea: ContextVar[tuple[int | None, str] | None] = ContextVar('eki_estado_linea', default=None)
+# (estudiante_id, phone_id, nace_sin_contexto) de la línea que está escribiendo: un turno o una campaña.
+_linea: ContextVar[tuple[int | None, str, bool] | None] = ContextVar('eki_estado_linea', default=None)
+
+
+def lectura_activa() -> bool:
+    return bool(getattr(settings, 'EKI_ESTADO_LINEA_LECTURA', False))
 
 
 def escritura_activa() -> bool:
-    return bool(getattr(settings, 'EKI_ESTADO_LINEA_ESCRITURA', False))
+    return bool(getattr(settings, 'EKI_ESTADO_LINEA_ESCRITURA', False)) or lectura_activa()
 
 
 def _valores_de(estudiante_id) -> dict | None:
@@ -100,19 +104,49 @@ def _copiar_a_linea(estudiante, phone_id: str) -> None:
         logger.warning('estado_linea_no_copiado phone_id=%s', phone_id, exc_info=True)
 
 
+def _cargar_de_linea(estudiante, phone_id: str) -> None:
+    """El estudiante toma el estado de la fila de esta línea. Sin fila, sigue con el compartido."""
+    pk = getattr(estudiante, 'pk', None)
+    if not pk:
+        return
+    try:
+        with transaction.atomic():
+            fila = EstadoLinea.objects.filter(estudiante_id=pk, phone_id=phone_id).values(*CAMPOS).first()
+            if fila is None:
+                return
+            apps.get_model('core', 'Estudiante').objects.filter(pk=pk).update(**fila)
+    except DatabaseError:
+        logger.warning('estado_linea_no_cargado phone_id=%s', phone_id, exc_info=True)
+        return
+    for campo, valor in fila.items():
+        setattr(estudiante, campo, valor)
+
+
 @contextmanager
-def en_linea(phone_id: str, buscar: Callable[[], object | None], *, copiar_al_salir: bool = True):
+def en_linea(
+    phone_id: str,
+    buscar: Callable[[], object | None],
+    *,
+    cargar: bool = True,
+    copiar_al_salir: bool = True,
+    nace_sin_contexto: bool = False,
+):
     """Lo que el estudiante cambie aquí dentro va a la fila de esta línea.
 
+    cargar: con la lectura prendida, entra con el estado de la fila (turnos).
     copiar_al_salir: al terminar, la fila queda igual al estudiante (turnos).
-    Una campaña no copia: solo escribe lo que cambia.
+    nace_sin_contexto: si la fila no existe, nace sin el contexto_temporal compartido
+    (curso activo, reto de otra línea). Una campaña empieza el flujo de su línea.
+    Una campaña no carga ni copia: solo escribe lo que cambia.
     """
     phone_id = (phone_id or '').strip()
     if not escritura_activa() or not phone_id:
         yield
         return
     estudiante = buscar()
-    token = _linea.set((getattr(estudiante, 'pk', None), phone_id))
+    if cargar and lectura_activa():
+        _cargar_de_linea(estudiante, phone_id)
+    token = _linea.set((getattr(estudiante, 'pk', None), phone_id, nace_sin_contexto))
     try:
         yield
     finally:
@@ -151,7 +185,8 @@ def _copiar_estado(sender, instance, created, update_fields=None, **kwargs):
     try:
         with transaction.atomic():
             if linea and linea[0] == instance.pk:
-                guardar_en_linea(instance.pk, linea[1], cambios, base=antes)
+                base = dict(antes, contexto_temporal=None) if linea[2] else antes
+                guardar_en_linea(instance.pk, linea[1], cambios, base=base)
             else:
                 EstadoLinea.objects.filter(estudiante_id=instance.pk).update(
                     **_para_fila(cambios), actualizado_en=timezone.now(),

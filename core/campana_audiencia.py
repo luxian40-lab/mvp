@@ -692,7 +692,10 @@ def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
     from core.conversacion.estado_linea import en_linea
     from core.sandbox_canal import sandbox_phone_id
 
-    with en_linea(linea or sandbox_phone_id(), lambda: estudiante, copiar_al_salir=False):
+    with en_linea(
+        linea or sandbox_phone_id(), lambda: estudiante,
+        cargar=False, copiar_al_salir=False, nace_sin_contexto=True,
+    ):
         estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
         estudiante.acepto_terminos = False
         estudiante.estado_onboarding = 'nuevo'
