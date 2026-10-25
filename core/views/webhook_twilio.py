@@ -68,42 +68,59 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     return True
 
 
-def _entrada_para_medir(post_data, canal):
+def _turno_desde_post(post_data, canal):
+    """Turno del mensaje: teléfono, línea, perfil y canal. Sin consultas a la base."""
+    from core.conversacion.turno import Turno
+    from core.lineas.meta import nombre_de_linea
+    from core.lineas.variante import perfil_de
+    from core.wa_canal import CANAL_TWILIO
+
+    telefono = str(post_data.get('From', '') or '').replace('whatsapp:', '')
+    if canal == CANAL_TWILIO:
+        phone_id, linea = '', 'twilio'
+    else:
+        phone_id = str(post_data.get('_eki_phone_number_id') or '').strip()
+        linea = nombre_de_linea(phone_id)
+    return Turno(telefono=telefono, phone_id=phone_id, linea=linea, perfil=perfil_de(phone_id), canal=canal)
+
+
+def _entrada_para_medir(post_data, turno):
     """Estado y línea al llegar el mensaje. None en callbacks de estado o con la medición apagada."""
     from django.db import DatabaseError
 
     from core.conversacion.medicion import EntradaTurno
-    from core.lineas.meta import nombre_de_linea
     from core.utils_telefono import estudiante_por_telefono
-    from core.wa_canal import CANAL_TWILIO
 
     if not getattr(settings, 'EKI_MEDIR_TURNO', True):
         return None
     if (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip():
         return None
     try:
-        est = estudiante_por_telefono(str(post_data.get('From', '') or '').replace('whatsapp:', ''))
+        est = estudiante_por_telefono(turno.telefono)
         estado = 'sin_estudiante' if est is None else (est.estado_onboarding or '')
         chat = '' if est is None else (est.estado_chat or '')
     except DatabaseError:
         logger.warning('motor_turno_estado_no_leido', exc_info=True)
         estado, chat = '', ''
-    if canal == CANAL_TWILIO:
-        linea = 'twilio'
-    else:
-        linea = nombre_de_linea(str(post_data.get('_eki_phone_number_id') or '').strip())
-    return EntradaTurno(estado=estado, chat=chat, linea=linea, canal=canal)
+    return EntradaTurno(estado=estado, chat=chat, linea=turno.linea, canal=turno.canal)
 
 
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
     from core.conversacion.medicion import medir_turno
+    from core.conversacion.turno import turno_activo
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
     from core.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
-    entrada = _entrada_para_medir(post_data, canal)
-    with canal_webhook(canal), activar_sandbox_meta_si_inbound(post_data), medir_turno(entrada):
+    turno = _turno_desde_post(post_data, canal)
+    entrada = _entrada_para_medir(post_data, turno)
+    with (
+        turno_activo(turno),
+        canal_webhook(canal),
+        activar_sandbox_meta_si_inbound(post_data),
+        medir_turno(entrada),
+    ):
         if canal == CANAL_TWILIO and _es_status_callback_twilio(post_data):
             _registrar_estado_twilio_callback(post_data)
             return None
