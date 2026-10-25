@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 from core.admin.clientes import ClienteAdmin
 from core.admin.cursos import CursoAdmin, ModuloAdmin
 from core.admin.estudiantes import (
+    EstadoCrmEstudianteFilter,
     EstudianteAdmin,
     SinAvanzarEstudianteFilter,
 )
@@ -36,14 +37,15 @@ class AdminListadosOrdenTests(SimpleTestCase):
         for title in (
             'Portal y acceso',
             'Aula Aprende',
-            'WhatsApp y legal',
+            'WhatsApp',
+            'WhatsApp avanzado',
             'Certificados y drip',
             'Ventanas por fechas',
             'Nat e IA',
         ):
             self.assertIn('tab', by_title[title].get('classes', ()))
         self.assertNotIn('twilio_auth_token', by_title['Datos y logo']['fields'])
-        self.assertIn('twilio_auth_token', by_title['WhatsApp y legal']['fields'])
+        self.assertIn('twilio_auth_token', by_title['WhatsApp avanzado']['fields'])
 
     def test_cliente_logo_thumb_usa_clase_css(self):
         adm = ClienteAdmin(Cliente, site)
@@ -64,6 +66,7 @@ class AdminListadosOrdenTests(SimpleTestCase):
             (
                 'crm_estudiante',
                 'crm_organizacion',
+                'crm_plan',
                 'crm_curso',
                 'crm_estado',
                 'crm_actividad',
@@ -86,6 +89,7 @@ class AdminListadosOrdenTests(SimpleTestCase):
                 CursosEstudianteFilter,
                 'cliente',
                 SinAvanzarEstudianteFilter,
+                EstadoCrmEstudianteFilter,
             ),
         )
         self.assertEqual(adm.list_select_related, ('cliente',))

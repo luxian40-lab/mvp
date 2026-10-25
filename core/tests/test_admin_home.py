@@ -271,7 +271,7 @@ class AdminHomeLineasTests(TestCase):
             puede_wh=True,
         )
         self.assertEqual(len(filas), 1)
-        self.assertEqual(filas[0]['nombre'], 'Línea principal')
+        self.assertEqual(filas[0]['nombre'], 'Línea principal · versión Meta')
         self.assertEqual(filas[0]['mensajes_hoy'], 3)
 
     @override_settings(WHATSAPP_PHONE_ID='111', WHATSAPP_PHONE_NUMBER_ID_2='222')
