@@ -9,6 +9,7 @@ from core.conversacion.estados import (
     cedula,
     curso_finalizado,
     empleabilidad,
+    modulo,
     pregunta_abierta_final,
     progreso,
     recuperacion,
@@ -35,6 +36,8 @@ AGENTES = {
     'esperando_respuesta_pregunta_abierta_final': pregunta_abierta_final.manejar,
     # Facilitadora: evalúa la respuesta al reto (texto, audio o foto de evidencia).
     'esperando_respuesta_reto': reto.manejar,
+    # Examen clásico del módulo: valida la letra, avanza o cierra el curso.
+    'esperando_respuesta_modulo': modulo.manejar,
 }
 
 
