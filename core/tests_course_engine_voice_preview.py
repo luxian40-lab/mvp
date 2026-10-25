@@ -35,7 +35,7 @@ class VoicePreviewTests(TestCase):
         self.assertEqual(out.voice_id, 'abc123')
         mock_tts.assert_called_once()
 
-    @patch('core.course_engine.voice_preview.generar_muestra_voz')
+    @patch('core.admin.course_engine_voice.generar_muestra_voz')
     def test_admin_preview_curso_requiere_login(self, mock_gen):
         mock_gen.return_value = type('R', (), {'ok': True, 'voice_id': 'v', 'voice_label': 'L', 'tts': None, 'error': ''})()
         curso = Curso.objects.create(nombre='Test', descripcion='d')
@@ -45,7 +45,7 @@ class VoicePreviewTests(TestCase):
         if resp.status_code == 200:
             self.assertContains(resp, 'login', status_code=200)
 
-    @patch('core.course_engine.voice_preview.generar_muestra_voz')
+    @patch('core.admin.course_engine_voice.generar_muestra_voz')
     def test_admin_preview_curso_staff(self, mock_gen):
         mock_gen.return_value = type(
             'R',
