@@ -3,6 +3,7 @@ import logging
 
 from django.utils import timezone
 
+from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.views.empleabilidad import _radar_msg_si_aplica
 from core.views.ventana_drip import _pregunta_abierta_final_pendiente
@@ -169,12 +170,12 @@ def manejar(contexto: Contexto) -> Respuesta:
                     getattr(siguiente_pregunta, 'orden', None),
                     (siguiente_pregunta.pregunta or '')[:180],
                 )
-                estudiante.contexto_temporal = {
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                     'tipo': 'pregunta_abierta_final',
                     'curso_id': progreso.curso.id,
                     'progreso_id': progreso.id,
                     'pregunta_abierta_final_id': siguiente_pregunta.id,
-                }
+                })
                 estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
@@ -214,7 +215,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                 radar_msg = _radar_msg_si_aplica(estudiante)
 
                 estudiante.estado_onboarding = 'curso_finalizado'
-                estudiante.contexto_temporal = None
+                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
                 estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
 
                 partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
