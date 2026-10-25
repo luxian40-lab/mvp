@@ -3,6 +3,7 @@
 Solo la inscripción desde el carrusel deja el saludo pendiente. Quien ya iba
 en el curso antes no tiene la marca y su «listo» avanza como siempre.
 Confirmar los datos y pulsar continuar en el carrusel dejan la misma marca de entregado.
+En la línea de curso lineal, confirmar los datos entrega el saludo si el curso no ha empezado.
 El módulo 1 no se cierra en ese turno.
 """
 from __future__ import annotations
@@ -45,6 +46,13 @@ def falta_primera_entrega(estudiante, progreso, modulo) -> bool:
         return False
     if not inicio_pendiente(estudiante, progreso.curso_id):
         return False
+    return curso_sin_empezar(estudiante, progreso, modulo)
+
+
+def curso_sin_empezar(estudiante, progreso, modulo) -> bool:
+    """En el módulo 1, sin módulos cerrados y sin el saludo entregado."""
+    if modulo is None or progreso is None:
+        return False
     if inicio_ya_entregado(estudiante, progreso.curso_id):
         return False
     from core.models import ModuloCompletado
@@ -55,6 +63,32 @@ def falta_primera_entrega(estudiante, progreso, modulo) -> bool:
     if primero is None or modulo.numero != primero:
         return False
     return (progreso.paso_actual_modulo or 1) <= 1
+
+
+def primera_entrega_al_confirmar(estudiante) -> str | None:
+    """Línea de curso lineal: el único curso abierto, si no ha empezado, arranca con saludo y módulo 1.
+
+    Inscrito desde el admin no tiene la marca de pendiente; sin esto el primer
+    *continuar* cerraba el módulo 1 sin mostrarlo.
+    """
+    from core.models import ProgresoEstudiante
+
+    abiertos = list(
+        ProgresoEstudiante.objects.filter(
+            estudiante=estudiante, completado=False, curso__activo=True,
+        ).select_related('curso', 'modulo_actual')[:2]
+    )
+    if len(abiertos) != 1:
+        return None
+    progreso = abiertos[0]
+    if not curso_sin_empezar(estudiante, progreso, progreso.modulo_actual):
+        return None
+    estudiante.refresh_from_db(fields=['contexto_temporal'])
+    ctx = dict(estudiante.contexto_temporal or {})
+    ctx['curso_activo_id'] = progreso.curso_id
+    estudiante.contexto_temporal = ctx
+    estudiante.save(update_fields=['contexto_temporal'])
+    return mensaje_primera_entrega(estudiante, progreso, progreso.modulo_actual)
 
 
 def mensaje_primera_entrega(estudiante, progreso, modulo) -> str:
