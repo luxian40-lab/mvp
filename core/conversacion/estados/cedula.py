@@ -10,11 +10,11 @@ from core.models import WhatsappLog
 logger = logging.getLogger('core.views.webhook_twilio')
 
 
-def manejar(ctx: Contexto) -> Respuesta:
-    estudiante = ctx.estudiante
-    msg_body = ctx.msg_body
-    msg_from = ctx.msg_from
-    telefono_limpio = ctx.telefono_limpio
+def manejar(contexto: Contexto) -> Respuesta:
+    estudiante = contexto.estudiante
+    msg_body = contexto.msg_body
+    msg_from = contexto.msg_from
+    telefono_limpio = contexto.telefono_limpio
     # Limpiar input del usuario
     cedula_input = re.sub(r'[\s\.\-]', '', msg_body.strip())
     msg_lower_cedula = msg_body.strip().lower()
