@@ -88,17 +88,10 @@ def patch_twilio_rest_client_si_meta():
     if not sandbox_meta_activo():
         yield
         return
-    import twilio.rest as twilio_rest
+    from core.lineas.cliente_canal import capa_cliente
 
-    if twilio_rest.Client is MetaOutboundClient:
+    with capa_cliente('meta', lambda _base: MetaOutboundClient):
         yield
-        return
-    original = twilio_rest.Client
-    twilio_rest.Client = MetaOutboundClient
-    try:
-        yield
-    finally:
-        twilio_rest.Client = original
 
 
 @contextmanager

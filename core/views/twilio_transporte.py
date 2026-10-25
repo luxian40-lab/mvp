@@ -309,49 +309,45 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     return enviados
 
 
+class _SidBoton:
+    def __init__(self, sid: str):
+        self.sid = sid or ''
+        self.status = 'sent'
+
+
+class _ClienteConBoton:
+    """Envuelve al cliente de Twilio: el marcador Continuemos sale como plantilla con botón."""
+
+    def __init__(self, base, *args, **kwargs):
+        self._inner = base(*args, **kwargs)
+        self.messages = self
+
+    def create(self, **params):
+        from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
+
+        body = str(params.get('body') or '')
+        if MARCADOR_BOTON_CONTINUEMOS not in body:
+            return self._inner.messages.create(**params)
+        resto = body.replace(MARCADOR_BOTON_CONTINUEMOS, '').strip()
+        params_resto = dict(params)
+        if resto:
+            params_resto['body'] = resto
+            self._inner.messages.create(**params_resto)
+        elif params.get('media_url'):
+            params_resto.pop('body', None)
+            self._inner.messages.create(**params_resto)
+        from core.whatsapp_service import enviar_template_twilio
+
+        res = enviar_template_twilio(params.get('to') or '', sid_plantilla_continuemos())
+        return _SidBoton((res or {}).get('mensaje_id') or '')
+
+
 @contextmanager
 def interceptar_envio_boton_twilio():
     """Fuera de Meta, el marcador Continuemos sale como plantilla Twilio con botón."""
-    import twilio.rest as twilio_rest
+    from functools import partial
 
-    from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
+    from core.lineas.cliente_canal import capa_cliente
 
-    original = twilio_rest.Client
-    if getattr(original, '_eki_boton_continuemos', False):
+    with capa_cliente('boton_continuemos', lambda base: partial(_ClienteConBoton, base)):
         yield
-        return
-
-    class _Sid:
-        def __init__(self, sid: str):
-            self.sid = sid or ''
-            self.status = 'sent'
-
-    class ClientConBoton:
-        _eki_boton_continuemos = True
-
-        def __init__(self, *args, **kwargs):
-            self._inner = original(*args, **kwargs)
-            self.messages = self
-
-        def create(self, **params):
-            body = str(params.get('body') or '')
-            if MARCADOR_BOTON_CONTINUEMOS not in body:
-                return self._inner.messages.create(**params)
-            resto = body.replace(MARCADOR_BOTON_CONTINUEMOS, '').strip()
-            params_resto = dict(params)
-            if resto:
-                params_resto['body'] = resto
-                self._inner.messages.create(**params_resto)
-            elif params.get('media_url'):
-                params_resto.pop('body', None)
-                self._inner.messages.create(**params_resto)
-            from core.whatsapp_service import enviar_template_twilio
-
-            res = enviar_template_twilio(params.get('to') or '', sid_plantilla_continuemos())
-            return _Sid((res or {}).get('mensaje_id') or '')
-
-    twilio_rest.Client = ClientConBoton
-    try:
-        yield
-    finally:
-        twilio_rest.Client = original

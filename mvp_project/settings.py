@@ -353,6 +353,11 @@ WHATSAPP_NUMERO_2_E164 = os.environ.get('WHATSAPP_NUMERO_2_E164', '')
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre
 META_LINEAS = os.environ.get('META_LINEAS', '')
+# True: twilio.rest.Client se instala una vez y decide el canal por ContextVar (seguro con hilos).
+# False: cada turno cambia el atributo global y lo restaura, como siempre.
+EKI_CLIENTE_CANAL_PERMANENTE = os.environ.get('EKI_CLIENTE_CANAL_PERMANENTE', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
