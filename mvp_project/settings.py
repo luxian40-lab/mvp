@@ -379,6 +379,11 @@ EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').s
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: al cerrar o abrir un estado del motor, contexto_temporal conserva curso en foco, certificado
+# por enviar y empleabilidad (core.conversacion.claves_contexto). False: se pisa entero, como siempre.
+EKI_CONTEXTO_CONSERVA_CLAVES = os.environ.get('EKI_CONTEXTO_CONSERVA_CLAVES', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
