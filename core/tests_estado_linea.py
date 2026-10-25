@@ -141,6 +141,53 @@ class EstadoLineaEscrituraTests(ContratoLineaTestCase):
             self.est.save(update_fields=['nombre'])
 
 
+@override_settings(SANDBOX_WHATSAPP_PHONE_ID=LINEA_PRINCIPAL.phone_id)
+class BackfillEstadoLineaTests(TestCase):
+    def setUp(self):
+        from core.models import SandboxCanalSesion
+
+        self.est = Estudiante.objects.create(
+            cedula='CC5550022', nombre='Eva', telefono=TEL, estado_chat='ACTIVO',
+            estado_onboarding='esperando_respuesta_modulo', contexto_temporal={'curso_activo_id': 7},
+        )
+        SandboxCanalSesion.objects.create(telefono=TEL, phone_id='', modo='cursos')
+        SandboxCanalSesion.objects.create(telefono=TEL, phone_id=LINEA_2.phone_id, modo='menu')
+        SandboxCanalSesion.objects.create(telefono='573009999123', phone_id='', modo='menu')
+
+    def _correr(self, *args):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        salida = StringIO()
+        call_command('backfill_estado_linea', *args, stdout=salida)
+        return salida.getvalue()
+
+    def test_sin_aplicar_solo_cuenta(self):
+        salida = self._correr()
+        self.assertIn('sin ficha de estudiante: 1', salida)
+        self.assertIn('filas por crear (use --aplicar): 2', salida)
+        self.assertFalse(EstadoLinea.objects.exists())
+
+    def test_aplicar_crea_una_fila_por_linea_usada_con_el_estado_del_estudiante(self):
+        self._correr('--aplicar')
+        for linea in (LINEA_PRINCIPAL, LINEA_2):
+            fila = _fila(self.est, linea)
+            self.assertEqual(
+                (fila.estado_chat, fila.estado_onboarding, fila.contexto_temporal),
+                ('ACTIVO', 'esperando_respuesta_modulo', {'curso_activo_id': 7}),
+            )
+
+    def test_no_pisa_filas_y_se_puede_repetir(self):
+        EstadoLinea.objects.create(
+            estudiante=self.est, phone_id=LINEA_2.phone_id, estado_chat='CONFIRMANDO_DATOS',
+        )
+        self.assertIn('filas creadas: 1', self._correr('--aplicar'))
+        self.assertEqual(_fila(self.est, LINEA_2).estado_chat, 'CONFIRMANDO_DATOS')
+        self.assertIn('filas creadas: 0', self._correr('--aplicar'))
+        self.assertEqual(EstadoLinea.objects.count(), 2)
+
+
 @override_settings(EKI_ESTADO_LINEA_ESCRITURA=True)
 class PrincipalConEscrituraTests(principal.ContratoLineaPrincipalTests):
     """Con la escritura doble prendida la línea principal responde igual."""
