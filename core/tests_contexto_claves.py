@@ -120,6 +120,16 @@ class PreguntaHandlerTests(ConCursoTestCase):
             procesar_respuesta_abierta_ia(self.est, 'aprendí a regar')
         self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
 
+    def test_salir_del_examen_vacio_conserva_las_claves(self):
+        from core.pregunta_handler import recuperar_examen_modulo_vacio
+
+        self._con_contexto(tipo='pregunta_modulo', modulo_id=self.mod.id, curso_activo_id=self.curso.id)
+        recuperar_examen_modulo_vacio(self.est)
+        self.assertEqual(
+            self._contexto(),
+            {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True, 'curso_activo_id': self.curso.id},
+        )
+
     @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=False)
     def test_apagado_se_pisa_como_siempre(self):
         from core.pregunta_handler import guardar_contexto_pregunta, validar_respuesta

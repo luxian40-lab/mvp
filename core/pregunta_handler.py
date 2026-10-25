@@ -427,6 +427,6 @@ def recuperar_examen_modulo_vacio(estudiante) -> None:
     curso_activo = ctx.get('curso_activo_id')
     if curso_activo:
         keep['curso_activo_id'] = curso_activo
-    estudiante.contexto_temporal = keep or None
+    estudiante.contexto_temporal = contexto_limpio(ctx, keep or None)
     estudiante.estado_onboarding = 'completado'
     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
