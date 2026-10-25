@@ -274,7 +274,7 @@ class EstudiantesCrmTests(TestCase):
     def test_el_boton_de_filtros_abre_el_panel(self):
         respuesta = self.http.get(self.url, {'q': 'CRM'})
         self.assertContains(respuesta, 'id="changelist-filter"')
-        self.assertContains(respuesta, 'filter-open-button')
+        self.assertContains(respuesta, 'filterOpen = true')
         self.assertContains(respuesta, 'Curso inscrito')
         css = Path(__file__).resolve().parents[2].joinpath('static', 'admin', 'estudiantes_crm.css')
         texto = css.read_text(encoding='utf-8')
