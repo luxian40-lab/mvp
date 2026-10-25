@@ -128,7 +128,7 @@ Hecho el 24 de octubre de 2026. Producción: `main-lineas-meta-20261024-142853`,
 Tests contra PostgreSQL (Docker local: `postgres:15`, `redis:7`). Envíos capturados en el borde (Graph y Twilio), sin red.
 
 - A1 Arnés: fábrica de payloads Meta firmados por línea (phone id), captura de envíos, reloj fijo. Hecho: `core/tests_support/contrato_linea.py` (`ContratoLineaTestCase`), probado en `core/tests_contrato_arnes.py`, en el checklist de CI.
-- A2 Contrato principal: campaña, habeas, cédula, menú por plan, carrusel, curso, *listo*, asesor con cupo, fin de curso vuelve al menú.
+- A2 Contrato principal: campaña, habeas, cédula, menú por plan, carrusel, curso, *listo*, asesor con cupo, fin de curso vuelve al menú. Hecho: `core/tests_contrato_linea_principal.py`. Hoy, tras el curso, *listo* responde «ya finalizó» y el menú vuelve solo con *menu*; *aula* de un registrado entrega el código por Meta.
 - A3 Contrato línea 2: campaña, habeas, cédula, curso directo, módulos, Formador y Compañero, evaluación, certificado. Pedir asesor responde «solo curso». Una segunda campaña inscribe el siguiente curso.
 - A4 Persona en las dos líneas: las sesiones no se mezclan. Documenta el comportamiento actual del estado compartido (es el caso que corrige E).
 - A5 Caracterización de los 13 estados del motor. Cobertura de ramas del cuerpo.

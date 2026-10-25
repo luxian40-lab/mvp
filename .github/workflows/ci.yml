@@ -61,6 +61,7 @@ jobs:
             core/tests_ci_baseline.py \
             core/tests_ratchet_complejidad.py \
             core/tests_contrato_arnes.py \
+            core/tests_contrato_linea_principal.py \
             core/tests_webhook_idempotencia.py \
             core/tests_telefono_lock.py \
             core/tests_webhook_fallido.py \

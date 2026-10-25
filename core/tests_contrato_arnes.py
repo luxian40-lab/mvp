@@ -84,6 +84,32 @@ class ArnesContratoTests(ContratoLineaTestCase):
             httpx.post('https://api.openai.com/v1/chat/completions', json={})
         self.assertEqual(self.salida.bloqueados, ['https://api.openai.com/v1/chat/completions'])
 
+    def test_llm_fijo_responde_por_chat_completions(self):
+        from openai import OpenAI
+
+        self.salida.llm_responde('TEXTO_FIJO')
+        cliente = OpenAI(api_key='sk-x', max_retries=0)
+        resp = cliente.chat.completions.create(model='gpt-x', messages=[{'role': 'user', 'content': 'hola'}])
+        self.assertEqual(resp.choices[0].message.content, 'TEXTO_FIJO')
+        self.assertEqual(self.salida.llamadas_llm[0]['messages'][0]['content'], 'hola')
+
+    def test_clave_openai_falsa_en_el_entorno(self):
+        import os
+
+        from core.tests_support.contrato_linea import CLAVE_OPENAI_FALSA
+
+        self.assertEqual(os.environ.get('OPENAI_API_KEY'), CLAVE_OPENAI_FALSA)
+
+    def test_campana_de_inicio_sale_por_la_waba_de_cada_linea(self):
+        from core.models import Estudiante
+
+        uno = Estudiante.objects.create(cedula='9001', nombre='Uno', telefono='573001110101')
+        dos = Estudiante.objects.create(cedula='9002', nombre='Dos', telefono='573001110102')
+        principal = self.lanzar_campana([uno])
+        linea_2 = self.lanzar_campana([dos], linea=LINEA_2)
+        self.assertEqual([(e.tipo, e.phone_id) for e in principal], [('template', LINEA_PRINCIPAL.phone_id)])
+        self.assertEqual([(e.tipo, e.phone_id) for e in linea_2], [('template', LINEA_2.phone_id)])
+
     def test_reloj_fijo_avanza_sin_empates(self):
         primero = timezone.now()
         segundo = timezone.now()
