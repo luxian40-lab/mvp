@@ -6,23 +6,23 @@ def waba_de_linea(phone_id: str) -> str:
     """WABA de esa línea. Vacío en la 2 si el entorno no la tiene."""
     from django.conf import settings
 
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
     from core.meta_waba import _waba
 
-    if es_modo_twilio(phone_id):
+    if not perfil_de(phone_id).usa_waba_principal:
         return (getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID_2', '') or '').strip()
     return _waba()
 
 
 def plantillas_aprobadas_de_linea(phone_id: str):
     """Solo plantillas de la WABA de esa línea. Vacío = no hay nada que ofrecer."""
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
     from core.meta_waba import _waba
     from core.models_campana_meta import PlantillaMeta
 
     qs = PlantillaMeta.objects.filter(activa=True, estado='APPROVED')
     principal = _waba()
-    if es_modo_twilio(phone_id):
+    if not perfil_de(phone_id).usa_waba_principal:
         waba_2 = waba_de_linea(phone_id)
         if waba_2:
             return qs.filter(waba_id=waba_2)
@@ -38,12 +38,12 @@ def plantilla_sirve_en_linea(plantilla, phone_id: str) -> str:
     """Vacío si puede salir por esa línea. Si no, el motivo."""
     if plantilla is None:
         return ''
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.variante import perfil_de
     from core.meta_waba import _waba
 
     waba_plantilla = (getattr(plantilla, 'waba_id', '') or '').strip()
     principal = _waba()
-    if es_modo_twilio(phone_id):
+    if not perfil_de(phone_id).usa_waba_principal:
         waba_2 = waba_de_linea(phone_id)
         if waba_2:
             if waba_plantilla != waba_2:
@@ -81,12 +81,11 @@ def wabas_configuradas() -> list[str]:
 
 def fichas_admin() -> list[dict]:
     """Lo que el admin muestra. No crea filas: lee el registro de entorno."""
-    from core.lineas.meta import USO_SOLO_CURSOS, lineas_producto
-    from core.lineas.variante import es_modo_twilio
+    from core.lineas.meta import lineas_producto
 
     filas = []
     for linea in lineas_producto():
-        lineal = es_modo_twilio(linea.phone_id) or linea.uso == USO_SOLO_CURSOS
+        lineal = linea.perfil.curso_directo
         waba = waba_de_linea(linea.phone_id)
         if lineal:
             modo = 'Curso lineal'
