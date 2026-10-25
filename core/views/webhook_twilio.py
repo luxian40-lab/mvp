@@ -6,17 +6,14 @@ from django.utils import timezone
 from ..avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from ..avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
 from ..intent_detector import mensaje_indica_listo as _mensaje_indica_listo
-from ..models import Estudiante, ModuloCompletado, WhatsappLog
+from ..models import Estudiante, WhatsappLog
 from ..response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger(__name__)
 
 from .audio import _transcribir_audio_twilio
 from .certificados_wa import _intentar_responder_envio_certificado
-from .empleabilidad import (
-    _procesar_ubicacion_empleabilidad,
-    _radar_msg_si_aplica,
-)
+from .empleabilidad import _procesar_ubicacion_empleabilidad
 from .twilio_transporte import (
     _enviar_mensaje_twilio_segmentado,
     _es_status_callback_twilio,
@@ -29,7 +26,6 @@ from core.lineas.identidad import (
     menu_tras_confirmar_datos_meta as _menu_tras_confirmar_datos_meta,
 )
 from core.conversacion.contexto import Contexto
-from .ventana_drip import _pregunta_abierta_final_pendiente
 
 def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""
