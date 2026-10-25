@@ -39,6 +39,10 @@ class LineaWhatsapp(models.Model):
         related_name='lineas_whatsapp', help_text='Empresa dueña de la línea. Vacío = de eki.',
     )
     uso = models.CharField(max_length=20, choices=USOS_LINEA, default=USO_COMPLETA)
+    cursos = models.ManyToManyField(
+        'core.Curso', blank=True, related_name='lineas_whatsapp',
+        help_text='Cursos que esta línea ofrece. Vacío = todos. Solo cuenta con EKI_CURSOS_POR_LINEA.',
+    )
     activo = models.BooleanField(default=True)
     orden = models.PositiveSmallIntegerField(default=0, help_text='La primera activa es la línea principal.')
     creado_en = models.DateTimeField(auto_now_add=True)
