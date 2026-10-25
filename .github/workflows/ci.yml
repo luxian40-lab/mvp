@@ -65,6 +65,12 @@ jobs:
             core/tests_contrato_linea_2.py \
             core/tests_contrato_dos_lineas.py \
             core/tests_contrato_estados_motor.py \
+            core/tests_medicion_turno.py \
+            core/tests_cliente_canal.py \
+            core/tests_sender.py \
+            core/tests_perfil_linea.py \
+            core/tests_turno.py \
+            core/tests_linea_bd.py \
             core/tests_webhook_idempotencia.py \
             core/tests_telefono_lock.py \
             core/tests_webhook_fallido.py \

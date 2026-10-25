@@ -132,13 +132,19 @@ Tests contra PostgreSQL (Docker local: `postgres:15`, `redis:7`). Envíos captur
 - A3 Contrato línea 2: campaña, habeas, cédula, curso directo, módulos, Formador y Compañero, evaluación, certificado. Pedir asesor responde «solo curso». Una segunda campaña inscribe el siguiente curso. Hecho: `core/tests_contrato_linea_2.py`. Hueco conocido (test `expectedFailure`): al confirmar datos la línea 2 responde «escriba *continuar*» en vez de entregar saludo y módulo 1, y *continuar* salta al módulo 2. La segunda campaña vuelve a pedir habeas y cédula. Segundo hueco: *hola* retoma el módulo con `[MULTI_MSG]` y `[SEP]` crudos (el cuerpo lo manda por `enviar_whatsapp_twilio` y el paso a Meta no lo parte).
 - A4 Persona en las dos líneas: las sesiones no se mezclan. Documenta el comportamiento actual del estado compartido (es el caso que corrige E). Hecho: `core/tests_contrato_dos_lineas.py`. Solo la sesión de menú va por línea. Hoy la campaña de la 2 vuelve a pedir habeas en la principal, *continuar* en la 2 sigue el curso de la principal y *listo* en la 2 contesta el reto de la principal.
 - A5 Caracterización de los 13 estados del motor. Cobertura de ramas del cuerpo. Hecho: `core/tests_contrato_estados_motor.py` (los 11 `estado_onboarding` que despacha el cuerpo, más `nuevo` y `esperando_tipo_doc`; *listo* y pregunta libre desde el módulo 1). Cobertura del cuerpo (líneas 96–3315 de `webhook_twilio.py`, 24 de octubre de 2026): solo contratos, 28,3 % de líneas y 27,6 % de ramas; con los 24 archivos de tests que ya tocaban el webhook, 36,4 % y 35,8 %. Sin cubrir: acuse de campaña, menú web legacy, confirmación Twilio con pasos, *aula* Twilio, reenvío de video, avance de pasos tras el reto, selección de curso y el envío con `[DELAY]`/media. Medir con `coverage run --branch --include=core/views/webhook_twilio.py -m pytest …` (coverage no está en requirements; se instala aparte). B no debe bajar esa cifra.
-- A6 Duración por estado y por línea, medida desde el wrapper.
+- A6 Duración por estado y por línea, medida desde el wrapper. Hecho: `core/conversacion/medicion.py` (log `eki.motor.turno` con estado, chat, línea, canal y ms), flag `EKI_MEDIR_TURNO` (encendido), comando `contar_estados_motor`, `core/tests_medicion_turno.py`. La medición lee el estudiante con `getattr`: nunca rompe el turno.
 - [MANUAL] Contar en producción estudiantes con `estado_onboarding` en `esperando_respuesta_tutor_ia`, `esperando_respuesta_progreso`, `esperando_respuesta_recuperacion`.
 
 ### Fase B — Canal seguro
 
 - B1 `Client` permanente que decide el canal por `ContextVar`, instalado una vez. Reemplaza los dos reemplazos globales. Flag con default que no cambia el comportamiento.
 - B2 Interfaz `Sender` (`MetaSender`, `TwilioSender` legado) con phone id y WABA de la línea.
+
+Hecho el 24 de octubre de 2026 en `refactor/fases-b-c`:
+
+- B1 `core/lineas/cliente_canal.py`: `capa_cliente(clave, envolver)` es el único punto que reemplaza `twilio.rest.Client`. Con `EKI_CLIENTE_CANAL_PERMANENTE=true` el `Client` se instala una vez y cada turno apila sus capas en un `ContextVar` (Meta y botón Continuemos). Apagado (default) se comporta como antes. `parches_runtime` 11 → 8. Tests: `core/tests_cliente_canal.py` (ambos modos, anidado, hilos).
+- B2 `core/lineas/sender.py`: `MetaSender(phone_id, waba_id)` envía con las funciones `enviar_meta*` dentro de `salida_por_phone_id`; `TwilioSender` legado; `sender_de_linea(phone_id)`. Nadie lo usa todavía. Tests: `core/tests_sender.py`.
+- Para prender B1 en producción: `EKI_CLIENTE_CANAL_PERMANENTE=true` tras un deploy con contratos verdes.
 
 Desbloquea hilos y concurrencia en el worker.
 
@@ -148,6 +154,14 @@ Desbloquea hilos y concurrencia en el worker.
 - C2 `PerfilLinea` con capacidades, derivado de `LineaMeta.uso`.
 - C3 Reemplazar los 14 `es_modo_twilio()` por capacidades. Un archivo por commit.
 - C4 Modelo de línea en la base (phone id, número, WABA, cliente, perfil), admin Unfold. `META_LINEAS` y las variables actuales quedan de respaldo. Migración expand.
+
+Hecho el 24 de octubre de 2026 en `refactor/fases-b-c` (C2 antes que C1: el `Turno` lleva el perfil):
+
+- C2 `core/lineas/perfil.py`: `PerfilLinea` con `menu`, `carrusel`, `varios_cursos`, `planes`, `asesores`, `agentes_en_curso`, `certificado`, `aula`, `campanas`, `usa_waba_principal`, `curso_directo`; todas apagadas por defecto. Principal: todas menos `curso_directo`. Línea 2: `agentes_en_curso`, `certificado`, `campanas`, `curso_directo`. `perfil_de(phone_id)` en `variante.py`. Tests: `core/tests_perfil_linea.py`.
+- C1 `core/conversacion/turno.py`: `Turno` (teléfono, phone id, línea, perfil, canal) armado una vez en el wrapper, sin consultas, visible con `turno_actual()`. Tests: `core/tests_turno.py`.
+- C3 Los 11 llamados que quedaban fuera de `core/lineas/variante.py` (admin de plantillas, `cursos_generales`, `oferta`, `campana`, `sandbox_menu`) usan capacidades. `variante_linea` 6 → 0.
+- C4 `LineaWhatsapp` en `core/lineas/modelo.py`, admin en `core/admin/lineas.py`, migración `0190_linea_whatsapp` (crea tabla). Con `EKI_LINEAS_BD_ENABLED=true` las filas activas reemplazan a `META_LINEAS`; sin filas o con la tabla caída sigue el entorno. Caché de 60 s (`EKI_LINEAS_BD_CACHE_SEG`) que se borra al guardar o borrar. La WABA y el cliente de la fila ganan sobre el entorno y `Cliente.phone_id_meta`. Tests: `core/tests_linea_bd.py`.
+- [MANUAL] Cargar las dos líneas en el admin, revisar y luego prender `EKI_LINEAS_BD_ENABLED`.
 
 ### Fase D — Motor de curso
 
