@@ -1506,49 +1506,6 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     evidencia_imagen_url=evidencia_imagen_url, evidencia_imagen_type=evidencia_imagen_type,
                 )).texto
             
-            # 3.5c PRIORIDAD: Si está seleccionando un curso de la lista
-            # (B2B con 2+ cursos también elige por número aquí)
-            elif estudiante.estado_onboarding == 'esperando_seleccion_curso':
-                msg_sel = msg_body.strip().lower()
-                if msg_sel in ['menu', 'menú']:
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    from ..response_templates import get_response_for_intent
-                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
-                else:
-                    import re as re_curso_sel
-                    indice_sel = None
-                    match_tomar_sel = re_curso_sel.match(r'^tomar\s*(\d+)$', msg_sel)
-                    if match_tomar_sel:
-                        indice_sel = int(match_tomar_sel.group(1))
-                    elif msg_body.strip().isdigit():
-                        indice_sel = int(msg_body.strip())
-                    if indice_sel is not None:
-                        from ..selector_curso import continuar_curso_seleccionado
-                        estudiante.estado_onboarding = 'completado'
-                        estudiante.save(update_fields=['estado_onboarding'])
-                        texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice_sel, msg_body)
-                        print(f"✅ Curso seleccionado: {indice_sel}")
-                    else:
-                        # Si no es número/tomar ni menú, resetear estado y procesar normalmente
-                        estudiante.estado_onboarding = 'completado'
-                        estudiante.contexto_temporal = None
-                        estudiante.save()
-                        from core.eventos_ia import detectar_intent_con_evento
-                        from ..response_templates import get_response_for_intent
-                        _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
-                        intent = detectar_intent_con_evento(
-                            msg_body,
-                            estudiante=estudiante,
-                            curso=_p0.curso if _p0 else None,
-                            modulo=_p0.modulo_actual if _p0 else None,
-                        )
-                        if intent != 'desconocido':
-                            texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
-                        else:
-                            texto_respuesta = "No entendí tu selección. Escribe *menú* para ver las opciones."
-            
             # 4. Detectar intent y usar templates primero
             else:
                 from core.eventos_ia import detectar_intent_con_evento

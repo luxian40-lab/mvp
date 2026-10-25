@@ -14,6 +14,7 @@ from core.conversacion.estados import (
     progreso,
     recuperacion,
     reto,
+    seleccion_curso,
     tutor_ia,
 )
 
@@ -38,6 +39,9 @@ AGENTES = {
     'esperando_respuesta_reto': reto.manejar,
     # Examen clásico del módulo: valida la letra, avanza o cierra el curso.
     'esperando_respuesta_modulo': modulo.manejar,
+    # Lista numerada de cursos (B2B con 2+ cursos). El bloque ACTIVO ya la atiende y corta antes;
+    # esta es la copia que estaba en la cadena.
+    'esperando_seleccion_curso': seleccion_curso.manejar,
 }
 
 
