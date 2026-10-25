@@ -1,10 +1,8 @@
 """Contrato A3: lo que hace hoy la línea 2 (modo Twilio, curso lineal).
 
 La persona llega inscrita por su organización. No hay menú de planes ni agentes.
-Un test marcado expectedFailure es un hueco conocido: cuando se arregle, pasa
-a ser éxito inesperado y hay que quitar la marca.
+Al confirmar datos recibe saludo y módulo 1 (fix/linea2-curso-directo).
 """
-import unittest
 from datetime import date
 
 from core.inscripcion_curso import inscribir_estudiante_en_curso
@@ -71,29 +69,23 @@ class ContratoLinea2Tests(ContratoLineaTestCase):
         confirma = self.escribir2(CEDULA)
         self.assertEqual(confirma[0].ids, ['si', 'no'])
 
-    def test_confirmar_datos_responde_solo_curso_sin_menu(self):
-        envios = self._identidad()
-        self.assertEqual(len(envios), 1)
-        self.assertIn(SOLO_CURSO, envios[0].texto)
-        self.assertIn('*continuar*', envios[0].texto)
-        self.assertEqual(envios[0].ids, [])
-        self.est.refresh_from_db()
-        self.assertEqual(self.est.estado_chat, 'ACTIVO')
-
-    @unittest.expectedFailure
-    def test_esperado_confirmar_entrega_el_curso_directo(self):
-        """Hueco conocido: el flujo de Twilio entregaba saludo y módulo 1 al confirmar."""
+    def test_confirmar_datos_entrega_saludo_y_modulo_1_sin_menu(self):
         envios = self._identidad()
         textos = ' '.join(e.texto for e in envios)
         self.assertIn('Soy el Formador', textos)
-        self.assertIn('CONTENIDO_Lineal1_1', textos)
+        self.assertIn('Y yo soy el Compañero', textos)
+        self.assertIn('*Módulo 1: Lineal1 M1*', envios[-1].texto)
+        self.assertIn('CONTENIDO_Lineal1_1', envios[-1].texto)
+        self.assertNotIn(SOLO_CURSO, textos)
+        self.assertFalse([e for e in envios if e.ids])
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_chat, 'ACTIVO')
 
-    def test_hoy_continuar_salta_al_modulo_2_sin_mostrar_el_1(self):
+    def test_continuar_tras_el_modulo_1_entrega_el_modulo_2(self):
         self._identidad()
         envios = self.escribir2('continuemos')
         self.assertEqual(len(envios), 2)
         self.assertIn('*Módulo 2: Lineal1 M2*', envios[0].texto)
-        self.assertNotIn('CONTENIDO_Lineal1_1', ' '.join(e.texto for e in self.salida.mensajes()))
         self.assertEqual(envios[1].ids, ['continuemos'])
         self.assertEqual(self._progreso(self.curso_1).modulo_actual.numero, 2)
 
@@ -136,18 +128,12 @@ class ContratoLinea2Tests(ContratoLineaTestCase):
         self.assertTrue(progreso.esperando_respuesta_evaluacion_paso)
         self.assertEqual(progreso.modulo_actual_id, modulo.id)
 
-    def test_hoy_hola_retoma_el_modulo_con_los_marcadores_crudos(self):
+    def test_hola_retoma_el_modulo_en_mensajes_sin_marcas(self):
         self._identidad()
         envios = self.escribir2('hola')
-        self.assertEqual(len(envios), 1)
-        self.assertTrue(envios[0].texto.startswith('[MULTI_MSG]'))
-        self.assertIn('CONTENIDO_Lineal1_1[SEP]', envios[0].texto)
-
-    @unittest.expectedFailure
-    def test_esperado_hola_parte_el_modulo_en_mensajes(self):
-        """Hueco conocido: el cuerpo manda [MULTI_MSG] por enviar_whatsapp_twilio y Meta no lo parte."""
-        self._identidad()
-        envios = self.escribir2('hola')
+        self.assertEqual(len(envios), 2)
+        self.assertIn('CONTENIDO_Lineal1_1', envios[0].texto)
+        self.assertIn('*listo*', envios[1].texto)
         self.assertFalse([e for e in envios if '[MULTI_MSG]' in e.texto or '[SEP]' in e.texto])
 
     # Lo que la línea 2 no tiene
@@ -180,7 +166,8 @@ class ContratoLinea2Tests(ContratoLineaTestCase):
         self.escribir2('Primero anoto todo y reviso cada semana con mi familia')
         inscribir_estudiante_en_curso(self.est, self.curso_2)
         confirma = self._identidad(campana='segunda')
-        self.assertIn(SOLO_CURSO, confirma[0].texto)
+        self.assertIn('curso *Lineal2*', confirma[0].texto)
+        self.assertIn('CONTENIDO_Lineal2_1', confirma[-1].texto)
         envios = self.escribir2('continuemos')
         self.assertIn('*Módulo 2: Lineal2 M2*', envios[0].texto)
         self.assertTrue(self._progreso(self.curso_1).completado)
