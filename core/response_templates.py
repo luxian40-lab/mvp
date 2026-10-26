@@ -574,22 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # ========== SISTEMA DE CURSOS ==========
-    
-    # Número inválido (detectado por usuario)
-    if intent == 'numero_invalido':
-        return """❌ Número inválido.
-
-Las opciones del menú son:
-
-1️⃣ Ver mi progreso
-2️⃣ Ver cursos de café
-3️⃣ Ayuda y soporte
-
-Escribe solo el número: 1, 2 o 3
-
-O escribe "menú" para ver todas las opciones."""
-    
     # Ver cursos disponibles
     if intent == 'ver_cursos':
         from .models import Curso, Estudiante
