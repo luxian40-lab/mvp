@@ -67,6 +67,8 @@ class VentanaCanalWebhookTests(TestCase):
             cedula='CC1234592',
             nombre='Ana',
             telefono=TEL,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
         )
         from core.models import SandboxCanalSesion
 
