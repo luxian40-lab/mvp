@@ -242,7 +242,7 @@ Hecho el 25 de octubre de 2026 (G1 desplegado en `main-g1-parser-beat-20261025-2
 - H2 Archivos sueltos a paquetes por dominio, solo movimiento, con reexport en la ruta vieja: canal, conversación, curso, agentes, campañas, certificados, gamificación, analítica, vistas admin. Primero los menos acoplados.
 - H3 Cortar los imports de `core` hacia `portal`, `aprende`, `studio`, `formulario`.
 
-Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `main-g2-g7-h1-20261025-221655`; el resto sin desplegar):
+Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `main-g2-g7-h1-20261025-221655`; H1.2 y H1.3 en `main-h1-modelos-20261026-120623`):
 
 - H1.1 `core/models.py` pasa a paquete `core/models/` con `git mv`; mismo módulo `core.models`, sin migraciones.
 - H1.2 Las opciones de plan viven en `core/models/opciones.py`, sin imports de `core`; `core/planes_linea.py` las reexporta. Los modelos ya no cargan `planes_linea`.
