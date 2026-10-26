@@ -23,5 +23,21 @@
   "ESPERANDO_HABEAS_DATA": "2026-10-26",
   "ESPERANDO_AYUDA_MODIFICAR": "2026-10-26",
   "ESPERANDO_CORRECCION_DATOS": "2026-10-26"
+ },
+ "tramos_autorizados": {
+  "autorizado_el": "2026-10-26",
+  "pedido": "termina D en esta sesion",
+  "alcance": "Mover a core/conversacion/estados/ los tramos que quedan en el cuerpo, uno por commit, sin cambiar comportamiento. La seleccion de curso del bloque ACTIVO se queda (sus contexto_temporal = None esperan contexto_limpio, que es cambio de comportamiento).",
+  "tramos": [
+   "envio_comun",
+   "respaldo",
+   "activo_menu",
+   "activo_puerta",
+   "activo_entrada",
+   "prioridad_global",
+   "arranque",
+   "no_registrado",
+   "intercepciones"
+  ]
  }
 }
