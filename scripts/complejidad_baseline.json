@@ -521,7 +521,7 @@
   "core/conversacion/estados/modulo.py": 14,
   "core/conversacion/estados/pregunta_abierta_final.py": 6,
   "core/conversacion/estados/reto.py": 4,
-  "core/conversacion/marcas.py": 6,
+  "core/conversacion/marcas.py": 4,
   "core/conversacion/multimsg.py": 4,
   "core/inicio_curso.py": 2,
   "core/lineas/entrega.py": 6,
@@ -567,7 +567,7 @@
   "excepts_amplios": 895,
   "funciones_grandes": 56,
   "lineas_en_funciones_grandes": 17809,
-  "marcadores_texto": 156,
+  "marcadores_texto": 154,
   "parches_runtime": 8,
   "parser_sep": 3,
   "variante_linea": 0

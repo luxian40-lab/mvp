@@ -1,15 +1,15 @@
 """Lector único de las marcas que el curso pone en un texto armado.
 
 Solo lee. Quien envía decide cómo pausar, qué hacer con una plantilla y por
-dónde sale cada parte. Este módulo no importa nada de `core`.
+dónde sale cada parte. Solo importa `core.conversacion.multimsg`.
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-_INICIO = '[MULTI_MSG]'
-_SEPARADOR = '[SEP]'
+from core.conversacion.multimsg import MULTI_MSG, partir_sep
+
 _PREFIJO_PLANTILLA = '[SEND_TEMPLATE:'
 _PAUSA = re.compile(r'^\[DELAY:(\d+)\]$')
 _PLANTILLA = re.compile(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]')
@@ -30,7 +30,7 @@ class Parte:
 
 
 def es_marcado(texto: str | None) -> bool:
-    return str(texto or '').startswith(_INICIO)
+    return str(texto or '').startswith(MULTI_MSG)
 
 
 def separar_media(texto: str) -> tuple[str, str | None]:
@@ -44,7 +44,7 @@ def separar_media(texto: str) -> tuple[str, str | None]:
 def partes(texto: str | None) -> list[Parte]:
     """Partes en orden. Las vacías no cuentan. La plantilla conserva su texto crudo."""
     salida: list[Parte] = []
-    for trozo in str(texto or '').replace(_INICIO, '', 1).split(_SEPARADOR):
+    for trozo in partir_sep(str(texto or '').replace(MULTI_MSG, '', 1)):
         limpio = (trozo or '').strip()
         if not limpio:
             continue
