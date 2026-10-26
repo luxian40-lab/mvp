@@ -9,6 +9,7 @@ from django.test import SimpleTestCase
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / '.platform' / 'hooks' / 'prebuild' / '01_eki_procfile_role.sh'
+RUN_BEAT = RAIZ / 'scripts' / 'run_beat.sh'
 
 
 def _bash():
@@ -52,6 +53,28 @@ class _ConBash(SimpleTestCase):
             capture_output=True, text=True, timeout=30, env=base, cwd=str(cwd or self.tmp),
         )
         return proc.stdout + proc.stderr
+
+
+class RunBeatTests(_ConBash):
+    def _beat(self, **env) -> str:
+        fake = self.tmp / 'bin'
+        fake.mkdir(exist_ok=True)
+        _ejecutable(fake, 'celery', 'echo "BEAT $*"')
+        _ejecutable(fake, 'sleep', 'echo "DUERME $*"')
+        return self._correr(RUN_BEAT, env, fake=fake)
+
+    def test_web_sin_run_beat_no_corre_beat(self):
+        self.assertIn('DUERME infinity', self._beat(EKI_ROLE='web'))
+
+    def test_web_con_run_beat_corre_beat(self):
+        self.assertIn('BEAT -A mvp_project beat', self._beat(EKI_ROLE='web', RUN_BEAT='1'))
+
+    def test_all_corre_beat(self):
+        self.assertIn('BEAT -A mvp_project beat', self._beat(EKI_ROLE='all'))
+
+    def test_worker_solo_con_run_beat(self):
+        self.assertIn('DUERME infinity', self._beat(EKI_ROLE='worker'))
+        self.assertIn('BEAT -A mvp_project beat', self._beat(EKI_ROLE='worker', RUN_BEAT='1'))
 
 
 class HookProcfileTests(_ConBash):

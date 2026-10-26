@@ -116,7 +116,7 @@ Commit: `feat(celery): webhook async por defecto, lock por teléfono, acks_late`
 Hoy `Procfile` corre web, worker, worker_rag y beat en la misma instancia con Redis local.
 
 - `EKI_ROLE = web | worker | all` (default `all`). Scripts `scripts/run_web.sh`, `run_worker.sh`, `run_worker_rag.sh`, `run_beat.sh`. Si el rol no aplica: `exec sleep infinity`.
-- Beat solo si `RUN_BEAT=1`; con `EKI_ROLE=all` sigue corriendo.
+- Beat solo si `RUN_BEAT=1` (con `web` o `worker`); con `EKI_ROLE=all` sigue corriendo. Un solo beat por broker: `eki-ai-workers` usa `Procfile.ai`, que no tiene beat.
 - Colas: `wa_send`, `llm`, `audio`, `rag_index`, `campanas`, `default`. `run_worker.sh` usa `-Q $CELERY_QUEUES`.
 - `CELERY_BROKER_URL`, results y `CACHES` leen `REDIS_URL`; si no está, Redis local actual.
 - `CONN_MAX_AGE` desde env (default 60) y `conn_health_checks=True`.
