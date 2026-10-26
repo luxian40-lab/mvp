@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 232,
- "ciclo_mayor": 199,
+ "ciclo_mayor": 200,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -65,6 +65,7 @@
   "core.conversacion.estados.reto",
   "core.conversacion.estados.seleccion_curso",
   "core.conversacion.intents.despacho",
+  "core.conversacion.intents.opcion_1",
   "core.conversacion.intents.saludo",
   "core.conversacion.puertas",
   "core.conversaciones_service",
@@ -494,7 +495,7 @@
   "core/pregunta_handler.py::validar_respuesta": 171,
   "core/rag_comercial_manager.py::RAGComercialManager.obtener_contexto_varios_clientes": 230,
   "core/response_templates.py::_generar_completado_final": 176,
-  "core/response_templates.py::get_response_for_intent": 1688,
+  "core/response_templates.py::get_response_for_intent": 1616,
   "core/sandbox_menu.py::resolver_ruta_sandbox": 254,
   "core/security_handler.py::verificar_terminos": 175,
   "core/selector_curso.py::continuar_curso_seleccionado": 318,
@@ -515,7 +516,7 @@
   "portal/impacto.py::impacto_nucleo": 194,
   "portal/retencion_service.py::_analitica_retencion_portal_uncached": 192
  },
- "lineas_en_funciones_grandes": 17736,
+ "lineas_en_funciones_grandes": 17664,
  "marcadores_texto": {
   "core/avance_whatsapp.py": 2,
   "core/bot_comercial/webhook.py": 3,
@@ -565,11 +566,11 @@
  },
  "totales": {
   "archivos_sueltos_core": 232,
-  "ciclo_mayor": 199,
+  "ciclo_mayor": 200,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,
   "funciones_grandes": 56,
-  "lineas_en_funciones_grandes": 17736,
+  "lineas_en_funciones_grandes": 17664,
   "marcadores_texto": 149,
   "parches_runtime": 8,
   "parser_sep": 3,
