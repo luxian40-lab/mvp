@@ -260,6 +260,7 @@ Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `
 ### Fase I — Escalabilidad
 
 - I1 Colas por tipo: `conversacion`, `llm`, `certificados`, `masivo`, `audio`.
+  - Hecho el 26 de octubre de 2026: `llm` y `certificados` declaradas en `CELERY_TASK_QUEUES`. `generar_certificado_async` → `certificados` y `generar_curso_ia_async` → `llm` (`CELERY_RUTAS_POR_TIPO`), aplicadas solo con `EKI_COLAS_POR_TIPO` (default off: siguen en `celery`). `run_worker.sh` lee `llm,certificados` por default. `core/tests_colas_por_tipo.py`: con el flag, toda ruta tiene consumidor. Antes de prender en EB: si `CELERY_QUEUES` está fijo en el entorno, agregarle `llm,certificados`. `audio` ya estaba declarada; la transcripción sigue en el request (ver `PLAN_ESCALABILIDAD_EKI.md`).
 - I2 Tope de mensajes por segundo por línea (cada WABA tiene su límite en Meta), claim e `INCIERTO` del P4 de `PLAN_ESCALABILIDAD_EKI.md`.
 - I3 Resúmenes diarios e índices (P7).
 - I4 Carga sintética por línea: pico de las 08:00 de la línea 2 y asesores de la principal.
