@@ -8,6 +8,7 @@ from core.conversacion.estados import (
     asistente,
     cedula,
     confirmando_datos,
+    correccion_legado,
     curso_finalizado,
     empleabilidad,
     modulo,
@@ -20,6 +21,9 @@ BARRERAS = {
     'ESPERANDO_CEDULA': cedula.manejar,
     # Sí: activa y entrega el primer módulo. Modificar: ticket de soporte. Otro: reenvía la plantilla.
     'CONFIRMANDO_DATOS': confirmando_datos.manejar,
+    # Corrección legado: vuelve a ACTIVO y dice «Listo», o abre ticket si pide ayuda.
+    'ESPERANDO_AYUDA_MODIFICAR': correccion_legado.manejar,
+    'ESPERANDO_CORRECCION_DATOS': correccion_legado.manejar,
 }
 
 AGENTES = {
