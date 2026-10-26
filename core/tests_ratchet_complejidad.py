@@ -272,3 +272,50 @@ def test_archivo_suelto_para_el_hook(tmp_path):
     assert any('función creció' in p for p in problemas)
     assert any('excepts_amplios' in p for p in problemas)
     assert ratchet.comparar_archivo(base, raiz, 'core/tests_x.py') == []
+
+
+_CUERPO_CON_APPS = (
+    'def f():\n'
+    '    from aprende.acceso import emitir\n'
+    '    from formulario.agent import manejar\n'
+)
+
+
+def test_import_de_app_movido_del_cuerpo_a_estados_se_acepta(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/webhook_twilio.py': _CUERPO_CON_APPS})
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/views/webhook_twilio.py': 'def f():\n    from aprende.acceso import emitir\n',
+        'core/conversacion/estados/x.py': 'def g():\n    from aprende.acceso import emitir\n',
+        'core/conversacion/estados/y.py': 'def h():\n    from formulario.agent import manejar\n',
+    })
+    actual = ratchet.medir(raiz)
+    assert any('core_importa_apps_superiores' in p for p in ratchet.comparar(base, actual))
+    assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
+
+
+def test_import_de_app_nuevo_en_estados_sigue_bloqueando(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/webhook_twilio.py': _CUERPO_CON_APPS})
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {'core/conversacion/estados/x.py': 'def g():\n    from studio.nuevo import algo\n'})
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('core_importa_apps_superiores' in p for p in problemas)
+
+
+def test_copia_de_import_fuera_de_la_unidad_suma(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/webhook_twilio.py': _CUERPO_CON_APPS})
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {'core/otro.py': 'def g():\n    from aprende.acceso import emitir\n'})
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('core_importa_apps_superiores' in p for p in problemas)
+
+
+def test_baseline_sin_destinos_del_cuerpo_usa_la_suma(tmp_path):
+    raiz = _arbol(tmp_path, {'core/views/webhook_twilio.py': _CUERPO_CON_APPS})
+    base = ratchet.medir(raiz)
+    del base['destinos_superiores_cuerpo']
+    _arbol(raiz, {
+        'core/views/webhook_twilio.py': 'def f():\n    from aprende.acceso import emitir\n',
+        'core/conversacion/estados/y.py': 'def h():\n    from formulario.agent import manejar\n',
+    })
+    assert not ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)

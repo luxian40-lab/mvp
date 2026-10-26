@@ -14,6 +14,9 @@ su pegamento (ver `pegamento`). ciclo_mayor solo crece con módulos de
 MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F),
 intents de get_response_for_intent (fase G7) y submódulos de core.models
 (fase H1). Una entrada que termina en punto cuenta solo para sus submódulos.
+Para core_importa_apps_superiores, webhook_twilio.py y core/conversacion/estados/
+cuentan como una sola unidad (fase D7): un import a una app de arriba que el
+cuerpo no tenía sigue bloqueando.
 """
 from __future__ import annotations
 
@@ -39,6 +42,7 @@ MODULOS_MOVIDOS = (
     'core.models.',
 )
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
+ARCHIVO_CUERPO = 'core/views/webhook_twilio.py'
 
 POR_ARCHIVO = (
     'excepts_amplios',
@@ -133,7 +137,6 @@ def _base_relativa(modulo_actual: str, es_paquete: bool, nodo: ast.ImportFrom) -
 def medir_archivo(rel: str, arbol: ast.AST) -> dict:
     importados = _nombres_importados(arbol)
     datos = {k: 0 for k in POR_ARCHIVO}
-    destinos_superiores = set()
     for nodo in ast.walk(arbol):
         if isinstance(nodo, ast.ExceptHandler) and _es_amplio(nodo.type):
             datos['excepts_amplios'] += 1
@@ -161,7 +164,16 @@ def medir_archivo(rel: str, arbol: ast.AST) -> dict:
                     and objetivo.value.id in importados
                 ):
                     datos['parches_runtime'] += 1
-        elif rel.startswith('core/') and isinstance(nodo, (ast.Import, ast.ImportFrom)):
+    datos['core_importa_apps_superiores'] = len(destinos_apps_superiores(rel, arbol))
+    return datos
+
+
+def destinos_apps_superiores(rel: str, arbol: ast.AST) -> set[str]:
+    destinos_superiores = set()
+    if not rel.startswith('core/'):
+        return destinos_superiores
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, (ast.Import, ast.ImportFrom)):
             if isinstance(nodo, ast.ImportFrom):
                 destinos = [nodo.module or ''] if not nodo.level else []
             else:
@@ -169,8 +181,7 @@ def medir_archivo(rel: str, arbol: ast.AST) -> dict:
             for destino in destinos:
                 if destino.split('.')[0] in APPS_SUPERIORES:
                     destinos_superiores.add(destino)
-    datos['core_importa_apps_superiores'] = len(destinos_superiores)
-    return datos
+    return destinos_superiores
 
 
 def _aristas(rel: str, arbol: ast.AST, modulos: set[str]) -> set[str]:
@@ -301,11 +312,14 @@ def medir(raiz: Path = RAIZ) -> dict:
         'pegamento_estados': {},
     }
     grafo: dict[str, set[str]] = {}
+    destinos_cuerpo: set[str] = set()
     for rel in rels:
         arbol = _parsear(raiz, rel)
         if arbol is None:
             resultado['no_parseables'].append(rel)
             continue
+        if _es_unidad_cuerpo(rel):
+            destinos_cuerpo |= destinos_apps_superiores(rel, arbol)
         for nombre, lineas in funciones(arbol).items():
             if lineas > UMBRAL_FUNCION:
                 resultado['funciones_grandes'][f'{rel}::{nombre}'] = lineas
@@ -321,7 +335,21 @@ def medir(raiz: Path = RAIZ) -> dict:
     resultado['ciclo_mayor_miembros'] = miembros_ciclo_mayor(grafo)
     resultado['ciclo_mayor'] = max(1, len(resultado['ciclo_mayor_miembros']))
     resultado['archivos_sueltos_core'] = sum(1 for r in rels if r.count('/') == 1 and r.startswith('core/'))
+    resultado['destinos_superiores_cuerpo'] = sorted(destinos_cuerpo)
     return resultado
+
+
+def _es_unidad_cuerpo(rel: str) -> bool:
+    return rel == ARCHIVO_CUERPO or rel.startswith(ARCHIVOS_ESTADOS)
+
+
+def _apps_superiores_por_unidad(datos: dict) -> int:
+    """El cuerpo y sus estados cuentan como un archivo: mover un import entre ellos no suma."""
+    por_archivo = datos.get('core_importa_apps_superiores', {})
+    destinos = datos.get('destinos_superiores_cuerpo')
+    if destinos is None:
+        return sum(por_archivo.values())
+    return sum(v for r, v in por_archivo.items() if not _es_unidad_cuerpo(r)) + len(destinos)
 
 
 def totales(datos: dict) -> dict[str, int]:
@@ -369,6 +397,8 @@ def comparar(base: dict, actual: dict, *, aceptar_movimiento: bool = False) -> l
         t_base['lineas_en_funciones_grandes'] += sum(
             pegamento.get(c, 0) for c in actual.get('funciones_grandes', {}) if c not in base_f
         )
+        t_base['core_importa_apps_superiores'] = _apps_superiores_por_unidad(base)
+        t_actual['core_importa_apps_superiores'] = _apps_superiores_por_unidad(actual)
     for clave in (*POR_ARCHIVO, *ESCALARES):
         if t_actual[clave] > t_base[clave]:
             if clave == 'ciclo_mayor' and aceptar_movimiento and _ciclo_crece_solo_por_estados(base, actual):
