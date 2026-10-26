@@ -1,8 +1,10 @@
 """Cierres B de impacto en agentes. No se inventa el porcentaje."""
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from core.impacto_captura import anexar_cierre, capturar_si_pendiente
 from core.models import Cliente, Estudiante, SandboxCanalSesion, WhatsappLog
@@ -75,7 +77,9 @@ class ImpactoCapturaTests(TestCase):
             'E1': {'valor': 'si', 'positivo': True, 'evidencia': 'B'},
         }
         self.est.save(update_fields=['impacto_respuestas'])
-        e1 = impacto_nucleo(self.org)['por_codigo']['E1']
+        # El reloj de Windows puede dar la misma hora al log y a la consulta (fecha < ahora).
+        ahora = timezone.now() + timedelta(seconds=1)
+        e1 = impacto_nucleo(self.org, ahora=ahora)['por_codigo']['E1']
         self.assertEqual(e1['estado'], 'ok')
         self.assertEqual(e1['numerador'], 1)
         self.assertEqual(e1['denominador'], 1)
