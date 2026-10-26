@@ -477,18 +477,18 @@ def generar_reporte_actividad():
     Se ejecuta cada hora vía Celery Beat.
     """
     try:
-        from core.models import Estudiante, ProgresoEstudiante, MensajeChat
-        from django.db.models import Count
+        from core.models import ProgresoEstudiante, WhatsappLog
 
         ahora = timezone.now()
         hace_1h = ahora - timezone.timedelta(hours=1)
 
-        mensajes_hora = MensajeChat.objects.filter(fecha__gte=hace_1h).count()
-        estudiantes_activos = Estudiante.objects.filter(
-            ultima_interaccion__gte=hace_1h
-        ).count()
+        mensajes = WhatsappLog.objects.filter(fecha__gte=hace_1h)
+        mensajes_hora = mensajes.count()
+        estudiantes_activos = (
+            mensajes.filter(estudiante__isnull=False).values('estudiante').distinct().count()
+        )
         progreso_hora = ProgresoEstudiante.objects.filter(
-            ultima_actividad__gte=hace_1h
+            fecha_ultimo_avance__gte=hace_1h
         ).count()
 
         reporte = {
@@ -509,32 +509,26 @@ def generar_reporte_actividad():
 @shared_task
 def limpiar_logs_antiguos():
     """
-    Limpia logs de conversación antiguos (> 90 días).
+    Purga eventos de webhook (> 10 días), fallidos (> 10 días) y eventos Meta (> 30 días).
+    WhatsappLog no se borra: su retención es decisión aparte.
     Se ejecuta a las 2 AM vía Celery Beat.
     """
     try:
-        from core.models import MensajeChat
         from core.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
         from core.models_meta_webhook import MetaWebhookEvento
 
-        limite = timezone.now() - timezone.timedelta(days=90)
-        eliminados, _ = MensajeChat.objects.filter(fecha__lt=limite).delete()
         eventos = purgar_eventos_procesados(10)
         fallidos = purgar_webhooks_fallidos(10)
         meta_limite = timezone.now() - timezone.timedelta(days=30)
         meta_viejos, _ = MetaWebhookEvento.objects.filter(recibido_en__lt=meta_limite).delete()
 
         logger.info(
-            "[Celery] Limpieza de logs: %s mensajes (> 90 días), %s eventos webhook (> 10 días), %s fallidos (> 10 días), %s eventos Meta (> 30 días)",
-            eliminados,
+            "[Celery] Limpieza de logs: %s eventos webhook (> 10 días), %s fallidos (> 10 días), %s eventos Meta (> 30 días)",
             eventos,
             fallidos,
             meta_viejos,
         )
-        return (
-            f'{eliminados} mensajes eliminados; {eventos} eventos webhook; '
-            f'{fallidos} fallidos; {meta_viejos} eventos Meta'
-        )
+        return f'{eventos} eventos webhook; {fallidos} fallidos; {meta_viejos} eventos Meta'
 
     except Exception as e:
         logger.error(f"[Celery] Error limpiando logs: {e}")
