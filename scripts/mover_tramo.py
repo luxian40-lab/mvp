@@ -249,7 +249,8 @@ def mover(a) -> str:
     ctx = 'Contexto(' + ', '.join(argumentos) + ')'
     pegamento = [f'from core.conversacion.estados import {a.modulo}', '']
     pegamento += a.llamada.replace('\\n', '\n').format(mod=a.modulo, ctx=ctx).split('\n')
-    pegamento_txt = ''.join((' ' * sangria + p).rstrip() + '\n' for p in pegamento)
+    fin_linea = '\r\n' if lineas[a.desde - 1].endswith('\r\n') else '\n'
+    pegamento_txt = ''.join((' ' * sangria + p).rstrip() + fin_linea for p in pegamento)
     restante = lineas[:a.desde - 1] + [pegamento_txt] + lineas[a.hasta:]
     nuevo_origen = ''.join(restante)
     ast.parse(nuevo_origen)
