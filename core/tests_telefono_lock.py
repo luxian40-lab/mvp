@@ -91,14 +91,15 @@ class TelefonoLockTests(SimpleTestCase):
         soltar = threading.Event()
         dentro = threading.Event()
 
+        # Topes holgados: en Windows con Redis tras WSL cada conexión puede tardar ~2 s.
         def sostener():
-            with telefono_lock('573000000077', timeout=5, blocking_timeout=1):
+            with telefono_lock('573000000077', timeout=20, blocking_timeout=5):
                 dentro.set()
-                soltar.wait(3)
+                soltar.wait(15)
 
         hilo = threading.Thread(target=sostener)
         hilo.start()
-        self.assertTrue(dentro.wait(2))
+        self.assertTrue(dentro.wait(10))
         try:
             with patch_menu(procesado), patch_espera():
                 with self.assertRaises(Retry):
@@ -106,7 +107,7 @@ class TelefonoLockTests(SimpleTestCase):
             self.assertEqual(procesado, [])
         finally:
             soltar.set()
-            hilo.join(timeout=3)
+            hilo.join(timeout=10)
 
         with patch_menu(procesado), patch_espera():
             procesar_sandbox_meta_async.apply(args=[inbound], throw=True)
