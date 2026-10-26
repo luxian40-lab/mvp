@@ -268,107 +268,17 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
 
-            try:
-                from core.empleabilidad_pausa import liberar_estado_empleabilidad_si_pausada
+            from core.conversacion.estados import intercepciones
 
-                liberar_estado_empleabilidad_si_pausada(estudiante)
-            except Exception:
-                logger.warning("empleabilidad pausa: no se pudo liberar estado radar", exc_info=True)
-
-            # Carrusel demo: taps Content (desc_*/info_*/in_*) también si ya es Estudiante
-            # (p. ej. smoke en 3026480629). No intercepta listo ni menú LMS.
-            try:
-                from ..catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
-
-                _btn_demo = (
-                    post_data.get('ButtonPayload')
-                    or post_data.get('ButtonText')
-                    or ''
-                )
-                if intentar_flujo_prospecto_carrusel(
-                    telefono=telefono_limpio,
-                    msg_from=msg_from,
-                    msg_body=msg_body,
-                    button_payload=str(_btn_demo),
-                    solo_botones=True,
-                ):
-                    return
-            except Exception as _e_demo:
-                logger.warning('Carrusel demo (estudiante) omitido: %s', _e_demo)
-
-            # Respuesta campaña única (Sí/No, Asistiré/No asistiré) — antes del flujo del curso
-            try:
-                from ..campana_respuestas import intentar_registrar_respuesta_campana_unica
-
-                _ack_campana = intentar_registrar_respuesta_campana_unica(
-                    telefono_limpio=telefono_limpio,
-                    post_data=post_data,
-                    msg_body=msg_body,
-                    estudiante=estudiante,
-                    mensaje_sid=msg_sid,
-                )
-                if _ack_campana:
-                    from twilio.rest import Client as TwilioClient
-
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = (
-                        f'whatsapp:{msg_from}'
-                        if not str(msg_from).startswith('whatsapp:')
-                        else msg_from
-                    )
-                    client_tw.messages.create(
-                        body=_ack_campana,
-                        from_=str(twilio_number).strip(),
-                        to=str(destino).strip(),
-                    )
-                    WhatsappLog.objects.create(
-                        telefono=telefono_limpio,
-                        mensaje=_ack_campana,
-                        tipo='SENT',
-                    )
-                    logger.info(
-                        '📣 [campana] ack enviado | est=%s tel=%s',
-                        estudiante.id,
-                        telefono_limpio[-6:],
-                    )
-                    return
-            except Exception as _e_camp:
-                logger.warning('📣 [campana] error registrando respuesta: %s', _e_camp, exc_info=True)
-
-            # Ubicación de WhatsApp (Twilio): Latitude/Longitude
-            # PAUSA: radar/empleabilidad no consume el pin (no Subachoque).
-            if latitud_raw is not None and longitud_raw is not None:
-                from core.empleabilidad_pausa import empleabilidad_en_pausa
-
-                if empleabilidad_en_pausa():
-                    logger.info(
-                        "empleabilidad pausada: ubicación ignorada | estudiante_id=%s",
-                        estudiante.id,
-                    )
-                    if not (msg_body or '').strip():
-                        return
-                else:
-                    try:
-                        latitud = float(latitud_raw)
-                        longitud = float(longitud_raw)
-                        texto_geo = _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud)
-                        try:
-                            from twilio.rest import Client as TwilioClient
-                            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                            client_tw = TwilioClient(account_sid, auth_token)
-                            destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
-                            client_tw.messages.create(body=texto_geo, from_=str(twilio_number).strip(), to=str(destino).strip())
-                            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_geo, tipo='SENT')
-                        except Exception as e:
-                            logger.error(f"❌ Error enviando respuesta de ubicación: {e}")
-                        return
-                    except ValueError:
-                        logger.warning(f"⚠️ Coordenadas inválidas recibidas: lat={latitud_raw}, lon={longitud_raw}")
+            if intercepciones.manejar(Contexto(
+                estudiante,
+                msg_body,
+                msg_from,
+                telefono_limpio,
+                msg_sid=msg_sid,
+                locales={'latitud_raw': latitud_raw, 'longitud_raw': longitud_raw, 'post_data': post_data},
+            )) is not None:
+                return
 
             # Certificado presencial pendiente: ANTES de Habeas/onboarding.
             # Si el estudiante respondió OK a la plantilla inicial, "ok" no debe
