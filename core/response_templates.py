@@ -574,14 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # Confirmar cambio de nombre
-    if intent == 'confirmar_cambio_nombre':
-        nuevo_nombre = kwargs.get('nuevo_nombre', 'Usuario')
-        return f"""✅ Listo, ahora te llamaré {nuevo_nombre}.
-
-¿Quieres continuar?
-Escribe "continuar", "ver cursos" o "mi progreso"."""
-    
     # ========== OPCIONES NUMÉRICAS (SIMPLIFICADAS) ==========
     
     # Opción 1: SIEMPRE = Ver mi progreso
