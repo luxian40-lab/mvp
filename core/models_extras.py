@@ -11,7 +11,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 
-from core.planes_linea import PLAN_CHOICES as PLAN_LINEA_CHOICES
+from core.models.opciones import PLAN_CHOICES as PLAN_LINEA_CHOICES
 
 from .models import Estudiante, Curso, Modulo, Cliente
 
