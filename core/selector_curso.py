@@ -4,6 +4,8 @@ Función para continuar con un curso específico seleccionado
 
 from django.utils import timezone
 
+from .conversacion.multimsg import partes_multimsg
+
 
 def _curso_desde_campana_cliente(estudiante, org):
     """
@@ -332,8 +334,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
                 bloque = entregar_bloque_secciones_desde_paso(
                     progreso, modulo_actual, idx_ent
                 )
-                inner = bloque[len('[MULTI_MSG]') :] if bloque.startswith('[MULTI_MSG]') else bloque
-                parts = [p for p in inner.split('[SEP]') if p]
+                parts = [p for p in partes_multimsg(bloque) if p]
                 return '[MULTI_MSG]' + '[SEP]'.join(_pfx + [_hdr_sel] + parts)
 
             _rem_sel = mensaje_recordatorio_paso_actual(progreso, modulo_actual)

@@ -8,6 +8,8 @@ El módulo 1 no se cierra en ese turno.
 """
 from __future__ import annotations
 
+from core.conversacion.multimsg import partes_multimsg
+
 MARCA = 'inicio_curso_id'
 PENDIENTE = 'inicio_pendiente_curso_id'
 
@@ -132,8 +134,7 @@ def _partes_del_modulo(progreso, modulo) -> list[str]:
     if modulo_usa_pasos(modulo) and pasos_activos_qs(modulo).exists():
         reset_progreso_pasos_modulo(progreso, save=True)
         bloque = entregar_bloque_secciones_desde_paso(progreso, modulo, 1) or ''
-        bruto = bloque[len('[MULTI_MSG]'):] if bloque.startswith('[MULTI_MSG]') else bloque
-        return [p for p in bruto.split('[SEP]') if p]
+        return [p for p in partes_multimsg(bloque) if p]
     titulo = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*"
     cuerpo = (texto_legacy_whatsapp(modulo) or (modulo.descripcion or '')).strip()
     texto = f"{titulo}\n\n{cuerpo}" if cuerpo else titulo

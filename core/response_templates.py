@@ -10,6 +10,7 @@ from datetime import timedelta
 from urllib.parse import quote
 
 from .conversacion.claves_contexto import contexto_limpio
+from .conversacion.multimsg import partir_sep
 from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 
@@ -1180,7 +1181,7 @@ Te inscribiste en: *{curso.nombre}*
             reset_progreso_pasos_modulo(progreso, save=True)
             msg_pasos = entregar_bloque_secciones_desde_paso(progreso, primer_modulo, 1)
             cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
-            partes_insc = [msg_intro] + partes_bloque_mod0 + [p for p in cuerpo_p.split('[SEP]') if p]
+            partes_insc = [msg_intro] + partes_bloque_mod0 + [p for p in partir_sep(cuerpo_p) if p]
             logger.info(
                 "📚 [pasos] inscripción con pasos internos | estudiante_id=%s curso_id=%s",
                 estudiante.id,

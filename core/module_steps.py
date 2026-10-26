@@ -17,6 +17,7 @@ MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_CONTINUAR_EN_MODULO = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_FIN_PASOS_MODULO = MARCADOR_BOTON_CONTINUEMOS
 
+from .conversacion.multimsg import MULTI_MSG, partes_multimsg, partir_sep
 from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
 
 # Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
@@ -28,7 +29,7 @@ def mensaje_exito_eval_opciones_con_cta_listo(feedback_correcto_crudo: Optional[
     raw = (feedback_correcto_crudo or '').strip()
     if not raw:
         raw = '✅ ¡Muy bien! Seguimos.'
-    partes_fb = [p.strip() for p in raw.split('[SEP]') if p.strip()]
+    partes_fb = [p.strip() for p in partir_sep(raw) if p.strip()]
     cuerpo = '\n\n'.join(partes_fb) if partes_fb else raw
     return f'{cuerpo}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
 
@@ -77,8 +78,8 @@ def _respuesta_cola_tras_avanzar_eval_opc(
             head = head_override or (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'
         else:
             head = '📚 Seguimos con el curso.'
-        if tail and tail.startswith('[MULTI_MSG]'):
-            resto = tail[len('[MULTI_MSG]') :].split('[SEP]')
+        if tail and tail.startswith(MULTI_MSG):
+            resto = partes_multimsg(tail)
             bloques = [p for p in resto if p]
             # Tras intento incorrecto ya dimos el CTA *listo* junto al feedback; no repetir este head.
             if not es_acierto and bloques:

@@ -2,6 +2,7 @@
 import logging
 
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
+from core.conversacion.multimsg import partir_sep
 from core.response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger('core.views.webhook_twilio')
@@ -116,7 +117,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                             )
                             _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
                             _pieces = [
-                                p for p in _inner_conf.split('[SEP]') if p
+                                p for p in partir_sep(_inner_conf) if p
                             ]
                             texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + '[SEP]'.join(_pieces)
                     else:

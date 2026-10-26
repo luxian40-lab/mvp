@@ -7,6 +7,7 @@ from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINU
 from core.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
+from core.conversacion.multimsg import partes_multimsg
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import ModuloCompletado
 from core.response_templates import parte_mensaje_con_media
@@ -297,12 +298,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 msg_pasos_n = entregar_bloque_secciones_desde_paso(
                                     progreso, siguiente_modulo, 1
                                 )
-                                inner_n = (
-                                    msg_pasos_n[len('[MULTI_MSG]'):]
-                                    if (msg_pasos_n or '').startswith('[MULTI_MSG]')
-                                    else (msg_pasos_n or '')
-                                )
-                                partes = [msg_completado] + [p for p in inner_n.split('[SEP]') if p]
+                                partes = [msg_completado] + [
+                                    p for p in partes_multimsg(msg_pasos_n or '') if p
+                                ]
                                 texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             else:
                                 _leg = texto_legacy_whatsapp(siguiente_modulo)

@@ -10,6 +10,8 @@ import time
 
 from django.conf import settings
 
+from core.conversacion.multimsg import MULTI_MSG, partes_multimsg
+
 
 def enviar_marcado(msg_from: str, telefono_limpio: str, texto: str, *, registro: str) -> None:
     """Envía texto con [MULTI_MSG], [SEP], [DELAY], [SEND_TEMPLATE] y [MEDIA:].
@@ -31,8 +33,8 @@ def enviar_marcado(msg_from: str, telefono_limpio: str, texto: str, *, registro:
     origen = str(twilio_number).strip()
     destino = str(destino).strip()
 
-    if original.startswith('[MULTI_MSG]'):
-        partes = original.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+    if original.startswith(MULTI_MSG):
+        partes = partes_multimsg(original)
         for parte in partes:
             parte_texto = (parte or '').strip()
             if not parte_texto:
