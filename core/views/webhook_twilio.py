@@ -1183,86 +1183,19 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # 4. Detectar intent y usar templates primero
             else:
-                from core.eventos_ia import detectar_intent_con_evento
-                from ..response_templates import get_response_for_intent
+                from core.conversacion.estados import intent_ia
 
-                _prog = None
-                try:
-                    _prog = estudiante.progresos.order_by('-fecha_inicio').first()
-                except Exception:
-                    pass
-                intent = detectar_intent_con_evento(
+                _intent_ia = intent_ia.manejar(Contexto(
+                    estudiante,
                     msg_body,
-                    estudiante=estudiante,
-                    curso=_prog.curso if _prog else None,
-                    modulo=_prog.modulo_actual if _prog else None,
-                )
-                print(f"🎯 Intent detectado: {intent}")
-            
-                # Intent especial: corregir datos → redirigir al flujo de corrección
-                if intent == 'corregir_datos':
-                    estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
-                    estudiante.save()
-                    texto_respuesta = (
-                        "📝 *Corrección de Datos*\n\n"
-                        "Puedes corregir cualquiera de tus datos.\n\n"
-                        "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
-                        "1️⃣ *nombre:* Tu nombre completo\n"
-                        "2️⃣ *municipio:* Tu municipio\n"
-                        "3️⃣ *departamento:* Tu departamento\n"
-                        "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
-                        "5️⃣ *edad:* Tu edad\n"
-                        "6️⃣ *genero:* M, F, Otro, NR\n\n"
-                        "📝 _Ejemplos:_\n"
-                        "_nombre: María García López_\n"
-                        "_municipio: Bogotá_\n"
-                        "_edad: 35_\n\n"
-                        "👉 Escribe *menú* cuando termines"
-                    )
-                # Si hay un intent conocido, usar template
-                elif intent != 'desconocido':
-                    texto_respuesta = get_response_for_intent(
-                        intent, 
-                        estudiante.nombre,
-                        estudiante_id=estudiante.id,
-                        mensaje_original=msg_body
-                    )
-                    print(f"✅ Respuesta desde template: {texto_respuesta[:50]}...")
-                    if texto_respuesta == LECCION_EN_CURSO:
-                        from core.sandbox_canal import descartar_reaccion_espera
-
-                        descartar_reaccion_espera(telefono_limpio)
-                        return
-                else:
-                    # Solo si no hay intent, usar IA para preguntas sobre agricultura
-                    # 🛑 ANTI-ABUSO IA: Verificar preguntas restantes
-                    print(f"🤖 Usando IA para pregunta sobre agricultura")
-                    if estudiante.preguntas_ia_restantes <= 0:
-                        # Freno de mano: IA pausada
-                        from ..avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
-                        _prog_ia = estudiante.progresos.order_by('-fecha_inicio').first()
-                        _curso_ia = _prog_ia.curso if _prog_ia else None
-                        texto_respuesta = (
-                            "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
-                            "Para desbloquear mas preguntas, necesitas responder "
-                            "la pregunta de evaluacion del modulo actual."
-                            "[SEP]"
-                            + resolver_cta_listo(estudiante, _curso_ia, CTX_FIN_ENTREGA_MODULO)
-                        )
-                    else:
-                        try:
-                            from core.sandbox_canal import poner_reaccion_espera
-                            from ..ai_assistant import responder_con_ia
-
-                            poner_reaccion_espera(telefono_limpio, msg_sid)
-                            texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
-                            # Restar pregunta usada (anti-abuso silencioso)
-                            estudiante.preguntas_ia_restantes = max(0, estudiante.preguntas_ia_restantes - 1)
-                            estudiante.save()
-                            print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
-                        except Exception as e:
-                            print(f"❌ Error IA: {e}, usando respuesta genérica")
-                            texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
+                    None,
+                    telefono_limpio,
+                    msg_sid=msg_sid,
+                    locales={'LECCION_EN_CURSO': LECCION_EN_CURSO},
+                ))
+                if _intent_ia.cortar:
+                    return
+                texto_respuesta = _intent_ia.texto
         
         from core.conversacion.estados import envio_comun
 
