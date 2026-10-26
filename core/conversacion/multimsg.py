@@ -3,6 +3,8 @@ from __future__ import annotations
 
 MULTI_MSG = '[MULTI_MSG]'
 SEP = '[SEP]'
+MEDIA = '[MEDIA:'
+DELAY = '[DELAY:'
 
 
 def partir_sep(texto: str) -> list[str]:

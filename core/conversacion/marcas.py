@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from core.conversacion.multimsg import MULTI_MSG, partir_sep
+from core.conversacion.multimsg import DELAY, MEDIA, MULTI_MSG, SEP, partir_sep
 
 _PREFIJO_PLANTILLA = '[SEND_TEMPLATE:'
 _PAUSA = re.compile(r'^\[DELAY:(\d+)\]$')
@@ -59,3 +59,23 @@ def partes(texto: str | None) -> list[Parte]:
         cuerpo, media = separar_media(limpio)
         salida.append(Parte(TEXTO, texto=cuerpo, media=media))
     return salida
+
+
+def _trozo(parte: Parte) -> str:
+    if parte.tipo == PAUSA:
+        return f'{DELAY}{parte.segundos}]'
+    if parte.tipo == PLANTILLA:
+        return parte.texto or f'{_PREFIJO_PLANTILLA}{parte.sid}]'
+    if parte.media:
+        return f'{parte.texto}\n\n{MEDIA}{parte.media}]' if parte.texto else f'{MEDIA}{parte.media}]'
+    return parte.texto
+
+
+def componer(lista) -> str:
+    """Formato legado de unas partes, para quien todavía envía texto. Un texto solo, sin media, va sin marcas."""
+    lista = list(lista)
+    if not lista:
+        return ''
+    if len(lista) == 1 and lista[0].tipo == TEXTO and not lista[0].media:
+        return lista[0].texto
+    return MULTI_MSG + SEP.join(_trozo(p) for p in lista)

@@ -3,7 +3,7 @@
 El cuerpo del webhook arma el Contexto con lo que ya leyó y llama al handler
 del estado. El handler devuelve una Respuesta: o corta el turno (el cuerpo
 sale sin el envío común) o deja el texto que el envío común manda.
-Este módulo no importa nada de `core`.
+Solo importa los lectores hoja de `core.conversacion` (marcas, multimsg).
 """
 from __future__ import annotations
 
@@ -27,8 +27,31 @@ class Contexto:
 
 @dataclass(frozen=True)
 class Respuesta:
+    """Lo nuevo arma `partes`; `texto` queda como formato legado para el envío común del cuerpo."""
+
     texto: str | None = None
     cortar: bool = False
+    partes: tuple = ()
+
+    def __post_init__(self):
+        if self.partes and self.texto is None:
+            from core.conversacion.marcas import componer
+
+            object.__setattr__(self, 'texto', componer(self.partes))
+
+    @classmethod
+    def de_partes(cls, *partes, cortar: bool = False) -> 'Respuesta':
+        return cls(partes=tuple(partes), cortar=cortar)
+
+    def como_partes(self) -> list:
+        if self.partes:
+            return list(self.partes)
+        from core.conversacion.marcas import TEXTO, Parte, es_marcado, partes
+
+        texto = (self.texto or '').strip()
+        if es_marcado(texto):
+            return partes(texto)
+        return [Parte(TEXTO, texto=texto)] if texto else []
 
 
 CORTAR = Respuesta(cortar=True)

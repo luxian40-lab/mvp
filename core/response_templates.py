@@ -10,7 +10,7 @@ from datetime import timedelta
 from urllib.parse import quote
 
 from .conversacion.claves_contexto import contexto_limpio
-from .conversacion.multimsg import partir_sep
+from .conversacion.multimsg import MEDIA, partir_sep
 from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 
@@ -69,7 +69,7 @@ def parte_mensaje_con_media(url: str, caption: str | None = None) -> str:
     u = (url or '').strip()
     if not u:
         return cap or MENSAJE_CAPTION_SOLO_MEDIA
-    return f'{cap}\n\n[MEDIA:{u}]' if cap else f'[MEDIA:{u}]'
+    return f'{cap}\n\n{MEDIA}{u}]' if cap else f'{MEDIA}{u}]'
 
 
 def _es_mensaje_listo_avance_curso(texto: str) -> bool:
