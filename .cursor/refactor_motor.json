@@ -15,9 +15,13 @@
   "esperando_respuesta_modulo",
   "esperando_seleccion_curso",
   "esperando_codigo_empleabilidad",
-  "ESPERANDO_HABEAS_DATA"
+  "ESPERANDO_HABEAS_DATA",
+  "ESPERANDO_AYUDA_MODIFICAR",
+  "ESPERANDO_CORRECCION_DATOS"
  ],
  "ampliado_el": {
-  "ESPERANDO_HABEAS_DATA": "2026-10-26"
+  "ESPERANDO_HABEAS_DATA": "2026-10-26",
+  "ESPERANDO_AYUDA_MODIFICAR": "2026-10-26",
+  "ESPERANDO_CORRECCION_DATOS": "2026-10-26"
  }
 }
