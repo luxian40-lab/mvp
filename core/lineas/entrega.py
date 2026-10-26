@@ -5,12 +5,11 @@ Eso no se unifica: los tests de cada camino dependen de esa diferencia.
 """
 from __future__ import annotations
 
-import re
 import time
 
 from django.conf import settings
 
-from core.conversacion.multimsg import MULTI_MSG, partes_multimsg
+from core.conversacion.marcas import PAUSA, PLANTILLA, es_marcado, partes, separar_media
 
 
 def enviar_marcado(msg_from: str, telefono_limpio: str, texto: str, *, registro: str) -> None:
@@ -33,30 +32,20 @@ def enviar_marcado(msg_from: str, telefono_limpio: str, texto: str, *, registro:
     origen = str(twilio_number).strip()
     destino = str(destino).strip()
 
-    if original.startswith(MULTI_MSG):
-        partes = partes_multimsg(original)
-        for parte in partes:
-            parte_texto = (parte or '').strip()
-            if not parte_texto:
+    if es_marcado(original):
+        for parte in partes(original):
+            if parte.tipo == PAUSA:
+                time.sleep(parte.segundos)
                 continue
-            delay_m = re.match(r'^\[DELAY:(\d+)\]$', parte_texto)
-            if delay_m:
-                time.sleep(int(delay_m.group(1)))
-                continue
-            if parte_texto.startswith('[SEND_TEMPLATE:'):
-                tmpl_m = re.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto)
-                if tmpl_m:
+            if parte.tipo == PLANTILLA:
+                if parte.sid:
                     from core.whatsapp_service import enviar_template_twilio
 
                     tel_limpio_t = str(msg_from).replace('whatsapp:', '').replace('+', '')
-                    enviar_template_twilio(tel_limpio_t, tmpl_m.group(1))
+                    enviar_template_twilio(tel_limpio_t, parte.sid)
                 time.sleep(0.5)
                 continue
-            parte_media = None
-            media_m = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
-            if media_m:
-                parte_media = (media_m.group(1) or '').strip()
-                parte_texto = parte_texto.replace(media_m.group(0), '').strip()
+            parte_texto, parte_media = parte.texto, parte.media
             enviados = _enviar_mensaje_twilio_segmentado(
                 client=client_tw,
                 from_number=origen,
@@ -85,12 +74,7 @@ def enviar_marcado(msg_from: str, telefono_limpio: str, texto: str, *, registro:
         return
 
     if registro == 'cierre':
-        parte_texto = original
-        parte_media = None
-        media_m = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
-        if media_m:
-            parte_media = (media_m.group(1) or '').strip()
-            parte_texto = parte_texto.replace(media_m.group(0), '').strip()
+        parte_texto, parte_media = separar_media(original)
         _enviar_mensaje_twilio_segmentado(
             client=client_tw,
             from_number=origen,
