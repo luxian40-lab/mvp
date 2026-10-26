@@ -11,7 +11,8 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
 líneas en funciones grandes no sube (una función que se movió de archivo).
 Para la fase D, un handler grande nuevo en core/conversacion/estados/ puede sumar
 su pegamento (ver `pegamento`). ciclo_mayor solo crece con módulos de
-MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F).
+MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F) e
+intents de get_response_for_intent (fase G7).
 """
 from __future__ import annotations
 
@@ -29,7 +30,12 @@ UMBRAL_FUNCION = 150
 FUNCIONES_VARIANTE = {'es_modo_twilio', 'es_solo_cursos'}
 VARIANTE_PERMITIDA = 'core/lineas/'
 MARCADORES = ('[MULTI_MSG]', '[MEDIA:', '[DELAY:', '[SEND_TEMPLATE:', '[SEP]')
-MODULOS_MOVIDOS = ('core.conversacion.estados', 'core.conversacion.puertas', 'core.lineas.principal')
+MODULOS_MOVIDOS = (
+    'core.conversacion.estados',
+    'core.conversacion.puertas',
+    'core.lineas.principal',
+    'core.conversacion.intents',
+)
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
 
 POR_ARCHIVO = (

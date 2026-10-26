@@ -186,6 +186,19 @@ def test_puertas_y_linea_principal_movidas_al_ciclo_se_aceptan_como_movimiento(t
     assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
 
 
+def test_intents_movidos_al_ciclo_se_aceptan_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core.conversacion.intents import saludo\n',
+        'core/conversacion/intents/saludo.py': 'from core import a\n',
+    })
+    actual = ratchet.medir(raiz)
+    assert actual['ciclo_mayor'] == 3
+    assert any('ciclo_mayor subió' in p for p in ratchet.comparar(base, actual))
+    assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
+
+
 def test_un_nombre_parecido_a_puertas_no_cuenta_como_movimiento(tmp_path):
     raiz = _arbol(tmp_path, _CICLO)
     base = ratchet.medir(raiz)
