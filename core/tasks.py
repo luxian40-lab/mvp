@@ -221,6 +221,7 @@ _WEBHOOK_TASK = dict(
     reject_on_worker_lost=True,
     soft_time_limit=45,
     time_limit=60,
+    ignore_result=True,
 )
 
 
