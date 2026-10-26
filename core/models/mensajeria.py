@@ -439,9 +439,9 @@ class WhatsappLog(models.Model):
                 self.canal = marcado
         if not self.estudiante_id and self.telefono:
             try:
-                from core.utils_telefono import resolver_estudiante_por_telefono
+                from core.utils_telefono import estudiante_por_telefono
 
-                est = resolver_estudiante_por_telefono(self.telefono)
+                est = estudiante_por_telefono(self.telefono)
                 if est:
                     self.estudiante = est
             except Exception:
