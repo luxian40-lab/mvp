@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 231,
- "ciclo_mayor": 211,
+ "ciclo_mayor": 212,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -136,6 +136,7 @@
   "core.meta_templates",
   "core.meta_waba",
   "core.models",
+  "core.models.clientes",
   "core.models_agentes",
   "core.models_campana_meta",
   "core.models_extras",
@@ -584,7 +585,7 @@
  },
  "totales": {
   "archivos_sueltos_core": 231,
-  "ciclo_mayor": 211,
+  "ciclo_mayor": 212,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,
   "funciones_grandes": 57,
