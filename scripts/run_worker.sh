@@ -1,5 +1,5 @@
 #!/bin/bash
-# Worker. Sin --pool (prefork implícito). -Q default: conversacion,masivo,celery,media_encode.
+# Worker. Sin --pool (prefork implícito). -Q default: conversacion,masivo,celery,media_encode,llm,certificados.
 # EKI_ROLE=web también arranca este worker: la caja de IA no lee masivo ni conversacion.
 # CELERY_POOL=threads añade --pool=threads. CELERY_QUEUES cambia -Q.
 set -euo pipefail
@@ -20,7 +20,7 @@ CONC="${CELERY_CONCURRENCY:-1}"
 case "$CONC" in
   ''|*[!0-9]*) echo "CELERY_CONCURRENCY invalido: $CONC" >&2; exit 1 ;;
 esac
-QUEUES="${CELERY_QUEUES:-conversacion,masivo,celery,media_encode}"
+QUEUES="${CELERY_QUEUES:-conversacion,masivo,celery,media_encode,llm,certificados}"
 POOL_ARG=()
 if [ "$POOL" = "threads" ]; then
   POOL_ARG=(--pool=threads)

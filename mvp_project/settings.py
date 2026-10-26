@@ -1127,6 +1127,8 @@ CELERY_TASK_QUEUES = {
     'rag_index': {'exchange': 'rag_index', 'routing_key': 'rag_index'},
     'media_encode': {'exchange': 'media_encode', 'routing_key': 'media_encode'},
     'course_engine': {'exchange': 'course_engine', 'routing_key': 'course_engine'},
+    'llm': {'exchange': 'llm', 'routing_key': 'llm'},
+    'certificados': {'exchange': 'certificados', 'routing_key': 'certificados'},
 }
 CELERY_TASK_ROUTES = {
     'core.tasks.procesar_sandbox_meta_async': {'queue': 'conversacion'},
@@ -1143,6 +1145,15 @@ CELERY_TASK_ROUTES = {
     'core.tasks.procesar_zip_rag_comercial': {'queue': 'rag_index'},
     'core.tasks.encode_paso_modulo_media': {'queue': 'media_encode'},
 }
+# Fase I1. Off: certificados y curso IA siguen en la cola celery.
+# Antes de prender, el worker debe leer llm,certificados (si CELERY_QUEUES está fijo en EB, agregarlas).
+EKI_COLAS_POR_TIPO = os.environ.get('EKI_COLAS_POR_TIPO', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
+CELERY_RUTAS_POR_TIPO = {
+    'core.tasks.generar_certificado_async': {'queue': 'certificados'},
+    'core.tasks.generar_curso_ia_async': {'queue': 'llm'},
+}
+if EKI_COLAS_POR_TIPO:
+    CELERY_TASK_ROUTES.update(CELERY_RUTAS_POR_TIPO)
 try:
     RAG_WORKER_CONCURRENCY = int(os.environ.get('RAG_WORKER_CONCURRENCY', '1'))
 except (TypeError, ValueError):
