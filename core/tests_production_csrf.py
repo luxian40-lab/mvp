@@ -62,6 +62,13 @@ class ProductionCsrfOriginsTests(SimpleTestCase):
             origins,
         )
 
+    def test_www_entra_aunque_el_env_no_lo_liste(self):
+        with mock.patch.dict(os.environ, _ENV_OK, clear=False):
+            mod = importlib.import_module('mvp_project.settings_production')
+            importlib.reload(mod)
+        self.assertIn('www.eki.technology', mod.ALLOWED_HOSTS)
+        self.assertIn('https://www.eki.technology', mod.CSRF_TRUSTED_ORIGINS)
+
     def test_hsts_por_defecto(self):
         env = dict(_ENV_OK)
         with mock.patch.dict(os.environ, env, clear=False):
