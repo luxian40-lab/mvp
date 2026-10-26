@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 231,
- "ciclo_mayor": 219,
+ "ciclo_mayor": 220,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -137,6 +137,7 @@
   "core.meta_waba",
   "core.models",
   "core.models.aprendizaje",
+  "core.models.campanas_b2b",
   "core.models.clientes",
   "core.models.conocimiento",
   "core.models.cursos",
@@ -594,7 +595,7 @@
  },
  "totales": {
   "archivos_sueltos_core": 231,
-  "ciclo_mayor": 219,
+  "ciclo_mayor": 220,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,
   "funciones_grandes": 57,
