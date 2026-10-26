@@ -3,7 +3,7 @@
 get_response_for_intent busca aquí después del preámbulo B2B. Cada handler
 recibe (intent, nombre_usuario, kwargs) y siempre devuelve el texto.
 """
-from core.conversacion.intents import ayuda, cambiar_nombre, confirmar_cambio_nombre, numero_invalido, opcion_1, opcion_2, opcion_3, opcion_numerica, progreso, saludo, tareas, ver_ranking
+from core.conversacion.intents import ayuda, cambiar_nombre, confirmar_cambio_nombre, numero_invalido, opcion_1, opcion_2, opcion_3, opcion_numerica, progreso, saludo, tareas, ver_cursos, ver_ranking
 
 INTENTS = {
     'ayuda': ayuda.responder,
@@ -17,5 +17,6 @@ INTENTS = {
     'progreso': progreso.responder,
     'saludo': saludo.responder,
     'tareas': tareas.responder,
+    'ver_cursos': ver_cursos.responder,
     'ver_ranking': ver_ranking.responder,
 }
