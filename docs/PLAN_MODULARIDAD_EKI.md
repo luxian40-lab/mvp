@@ -187,7 +187,8 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-b-c` (D3 antes que el resto de
 Ampliación del 26 de octubre de 2026 (rama `refactor/d5-habeas`). Los doce estados autorizados ya habían salido; lo que queda en el cuerpo se autoriza tramo por tramo en `.cursor/refactor_motor.json` (`ampliado_el`):
 
 - D5 `ESPERANDO_HABEAS_DATA` a `core/conversacion/estados/habeas.py`. Devuelve `CORTAR` o `None`: con `cert_envio_pendiente` no responde y el cuerpo sigue de largo, como antes. Comparado por AST con la rama original (solo cambian los imports relativos y los `return`). Caracterización previa en `core/tests_estado_habeas_cuerpo.py` (plantilla reenviada, texto de respaldo, certificado pendiente); acepto, no acepto y botón ya los cubría `core/tests_habeas_respuestas.py`. Cuerpo 1.427 → 1.391 líneas; ciclo 223 → 224 por el handler.
-- Quedan en el cuerpo, sin autorizar: arranque sin estado y auto-corrección (~120), corrección de datos legado (~50), entrada de ACTIVO (~60), selección de curso antes del despacho (~65) y la cola de ACTIVO (~680).
+- D6 `ESPERANDO_AYUDA_MODIFICAR` y `ESPERANDO_CORRECCION_DATOS` a `core/conversacion/estados/correccion_legado.py`, registrados en `BARRERAS` (siempre cortan; no había lógica entre la tabla y la rama, el orden no cambia). Comparado por AST con la rama original. Caracterización previa en `core/tests_estado_correccion_cuerpo.py` (vuelve a ACTIVO con «Listo» en ambos estados, ticket `soporte_legacy` si pide ayuda). Cuerpo 1.391 → 1.343 líneas; ciclo 224 → 225 por el handler.
+- Quedan en el cuerpo, sin autorizar: arranque sin estado y auto-corrección (~120), entrada de ACTIVO (~60), selección de curso antes del despacho (~65) y la cola de ACTIVO (~680).
 
 ### Fase E — Estado por persona y línea
 
