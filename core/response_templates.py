@@ -574,16 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # Cambiar nombre
-    if intent == 'cambiar_nombre':
-        return """Para cambiar tu nombre, escribe:
-
-Mi nombre es [Tu Nombre]
-
-Ejemplo:
-- Mi nombre es Juan Pérez
-- Mi nombre es María González"""
-    
     # Confirmar cambio de nombre
     if intent == 'confirmar_cambio_nombre':
         nuevo_nombre = kwargs.get('nuevo_nombre', 'Usuario')
