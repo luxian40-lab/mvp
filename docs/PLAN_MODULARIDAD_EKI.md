@@ -230,6 +230,12 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (solo movimiento; cada fu
 - G6 Tabla explícita de transiciones de estado.
 - G7 `get_response_for_intent` por el mismo camino que el cuerpo.
 
+Hecho el 25 de octubre de 2026 (G1 desplegado en `main-g1-parser-beat-20261025-205229`; G2 y G7 en `refactor/g2-respuesta` y `refactor/g7-intents`):
+
+- G1 `core/conversacion/multimsg.py`: `partir_sep` es el único `.split('[SEP]')` y `partes_multimsg` quita `[MULTI_MSG]` solo si va al inicio. Ocho copias fuera del cuerpo lo llaman, cada una con el mismo resultado (donde el corte de 11 caracteres era incondicional se dejó igual). `parser_sep` 11 → 3: los tres que quedan están en `_procesar_twilio_webhook_cuerpo`. Tests: `core/tests_multimsg.py`.
+- G2 `Respuesta` (`core/conversacion/contexto.py`) lleva `partes` tipadas (`marcas.Parte`: texto con media, pausa, plantilla). `Respuesta.de_partes(...)` deja en `texto` el formato legado que el cuerpo sigue leyendo; `como_partes()` lee el texto legado. `marcas.componer` es el único escritor de marcas y usa las constantes de `multimsg` (`MEDIA`, `DELAY`). `marcas.partes` y `lineas/entrega.enviar_marcado` leen con el parser único; el bucle de entrega por Twilio dejó sus expresiones regulares propias. Ningún handler devuelve partes todavía: lo nuevo las usa, lo viejo sigue igual. `marcadores_texto` 156 → 149. Tests: `core/tests_respuesta_tipada.py`.
+- G7 `core/conversacion/intents/`: un módulo por intent (17) con `responder(intent, nombre_usuario, kwargs)`, y `despacho.INTENTS`. `get_response_for_intent` corre el preámbulo B2B, busca en `INTENTS` y cae a la respuesta por defecto: de 1.761 líneas a unas 40. Cada bloque se movió con `scripts/mover_intent.py`, que copia el texto tal cual (imports relativos a `core.`; los globales de `response_templates` se importan dentro del handler, así los `patch('core.response_templates.X')` y el logger no cambian) y compara por AST antes de escribir. `continuar_leccion` (907 líneas) e `inscribir_curso` (208) siguen siendo funciones grandes: partirlas es cambio aparte. El freno acepta `core.conversacion.intents.*` como movimiento (ciclo 197 → 211). Tests: `core/tests_intents_despacho.py` (lo despachado no tiene bloque en la función).
+
 ### Fase H — Dominios de `core`
 
 - H1 `core/models.py` pasa a paquete `core/models/` (misma app, sin migraciones). Se quitan los imports de negocio de los modelos.
