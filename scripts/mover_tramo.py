@@ -218,9 +218,6 @@ def mover(a) -> str:
         encabezado += '\n' + ''.join(f'{x}\n' for x in b)
     if otros:
         encabezado += '\n' + ''.join(f'{x}\n' for x in otros)
-    tipo = 'None' if a.sin_corte else ('Respuesta | None' if sigue and not a.devuelve else 'Respuesta')
-    if a.devuelve:
-        tipo = a.tipo or 'object'
     desempaque = []
     for e in entradas:
         if e in CAMPOS + CAMPOS_OPCIONALES:
