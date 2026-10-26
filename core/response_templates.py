@@ -574,10 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # Progreso (sin pasar por menú) - Redirigir a opcion_1
-    if intent == 'progreso':
-        return get_response_for_intent('opcion_1', nombre_usuario, kwargs)
-    
     # Tareas/Cursos (sin pasar por menú) - Redirigir a ver_cursos
     if intent == 'tareas':
         return get_response_for_intent('ver_cursos', nombre_usuario, **kwargs)
