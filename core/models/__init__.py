@@ -1,18 +1,7 @@
-from django.db import models
-from django.db.models import Q
-from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
-from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.utils import timezone
-import re
-import openpyxl # <--- Nueva librería
-import os
-from django.db import IntegrityError
+"""Modelos de core, uno o varios submódulos por dominio (fase H1).
 
-from core.documento_identidad import TIPO_DOCUMENTO_CHOICES
-from core.models.opciones import PLAN_CHOICES as PLAN_LINEA_CHOICES
+Este archivo solo reexporta, en el orden en que se cargan los modelos.
+"""
 from core.webhook_evento import WebhookEventoProcesado, WebhookFallido  # noqa: F401
 
 from core.models.clientes import (  # noqa: F401
