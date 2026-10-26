@@ -44,6 +44,8 @@ class MedicionTurnoTests(ContratoLineaTestCase):
             self.escribir(TEL, 'listo', linea=LINEA_2)
 
     def test_conteo_de_estados_lista_los_de_legado(self):
+        # El comando cuenta toda la tabla; la migración 0123 siembra una estudiante demo.
+        Estudiante.objects.exclude(pk=self.est.pk).delete()
         salida = StringIO()
         call_command('contar_estados_motor', stdout=salida)
         texto = salida.getvalue()
