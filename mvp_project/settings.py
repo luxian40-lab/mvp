@@ -1087,6 +1087,8 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE  # Usa la misma zona horaria de Django
+# autodiscover_tasks solo importa core.tasks; otro módulo con tareas de beat va aquí.
+CELERY_IMPORTS = ['core.tasks_infra']
 CELERY_TASK_TRACK_STARTED = True
 # Indexación RAG / XLSX puede superar 5 min; override por env en EB si hace falta.
 CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '3600'))

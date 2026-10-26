@@ -1,13 +1,24 @@
 """Tareas de beat: que existan en el worker y que no fallen por un modelo que no existe."""
 from datetime import timedelta
 
-from django.test import TestCase
+from django.conf import settings
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from core.models import Estudiante, WhatsappLog
 from core.models_meta_webhook import MetaWebhookEvento
 from core.tasks import generar_reporte_actividad, limpiar_logs_antiguos
 from core.webhook_evento import WebhookEventoProcesado
+
+
+class BeatRegistradoTests(SimpleTestCase):
+    def test_toda_tarea_de_beat_esta_en_un_modulo_que_el_worker_importa(self):
+        from mvp_project.celery import app
+
+        importados = {'core.tasks'} | set(getattr(settings, 'CELERY_IMPORTS', ()) or ())
+        for entrada, spec in app.conf.beat_schedule.items():
+            modulo = spec['task'].rsplit('.', 1)[0]
+            self.assertIn(modulo, importados, entrada)
 
 
 class ReporteActividadTests(TestCase):
