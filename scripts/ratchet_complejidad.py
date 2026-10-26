@@ -11,8 +11,9 @@ tests ni migraciones. No importa Django. Reglas: docs/PLAN_MODULARIDAD_EKI.md §
 líneas en funciones grandes no sube (una función que se movió de archivo).
 Para la fase D, un handler grande nuevo en core/conversacion/estados/ puede sumar
 su pegamento (ver `pegamento`). ciclo_mayor solo crece con módulos de
-MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F) e
-intents de get_response_for_intent (fase G7).
+MODULOS_MOVIDOS: estados (fase D), puertas y la línea principal (fase F),
+intents de get_response_for_intent (fase G7) y submódulos de core.models
+(fase H1). Una entrada que termina en punto cuenta solo para sus submódulos.
 """
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ MODULOS_MOVIDOS = (
     'core.conversacion.puertas',
     'core.lineas.principal',
     'core.conversacion.intents',
+    'core.models.',
 )
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
 
@@ -330,7 +332,10 @@ def totales(datos: dict) -> dict[str, int]:
 
 
 def _es_movido(modulo: str) -> bool:
-    return any(modulo == m or modulo.startswith(m + '.') for m in MODULOS_MOVIDOS)
+    return any(
+        modulo.startswith(m) if m.endswith('.') else (modulo == m or modulo.startswith(m + '.'))
+        for m in MODULOS_MOVIDOS
+    )
 
 
 def _fuera_de_estados(miembros: list[str]) -> list[str]:

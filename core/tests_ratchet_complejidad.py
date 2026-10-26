@@ -199,6 +199,30 @@ def test_intents_movidos_al_ciclo_se_aceptan_como_movimiento(tmp_path):
     assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
 
 
+def test_submodulos_de_models_movidos_al_ciclo_se_aceptan_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core.models import clientes\n',
+        'core/models/__init__.py': 'from core.models.clientes import Cliente\n',
+        'core/models/clientes.py': 'from core import a\n',
+    })
+    actual = ratchet.medir(raiz)
+    assert 'core.models.clientes' in actual['ciclo_mayor_miembros']
+    assert not ratchet.comparar(base, actual, aceptar_movimiento=True)
+
+
+def test_el_paquete_models_no_cuenta_como_movimiento(tmp_path):
+    raiz = _arbol(tmp_path, _CICLO)
+    base = ratchet.medir(raiz)
+    _arbol(raiz, {
+        'core/a.py': 'from core import b\nfrom core import models\n',
+        'core/models/__init__.py': 'from core import a\n',
+    })
+    problemas = ratchet.comparar(base, ratchet.medir(raiz), aceptar_movimiento=True)
+    assert any('ciclo_mayor subió' in p for p in problemas)
+
+
 def test_un_nombre_parecido_a_puertas_no_cuenta_como_movimiento(tmp_path):
     raiz = _arbol(tmp_path, _CICLO)
     base = ratchet.medir(raiz)
