@@ -242,6 +242,14 @@ Hecho el 25 de octubre de 2026 (G1 desplegado en `main-g1-parser-beat-20261025-2
 - H2 Archivos sueltos a paquetes por dominio, solo movimiento, con reexport en la ruta vieja: canal, conversación, curso, agentes, campañas, certificados, gamificación, analítica, vistas admin. Primero los menos acoplados.
 - H3 Cortar los imports de `core` hacia `portal`, `aprende`, `studio`, `formulario`.
 
+Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `main-g2-g7-h1-20261025-221655`; el resto sin desplegar):
+
+- H1.1 `core/models.py` pasa a paquete `core/models/` con `git mv`; mismo módulo `core.models`, sin migraciones.
+- H1.2 Las opciones de plan viven en `core/models/opciones.py`, sin imports de `core`; `core/planes_linea.py` las reexporta. Los modelos ya no cargan `planes_linea`.
+- H1.3 Los modelos se partieron en 15 submódulos por dominio: `clientes`, `estudiantes`, `mensajeria` (con el receptor `procesar_excel_campana`), `cursos`, `conocimiento`, `modulos`, `aprendizaje`, `soporte`, `campanas_b2b`, `empleabilidad`, `pregunta_final`, `configuracion`, `ia`, `canal`, `territorio`. Un commit por dominio con `scripts/mover_modelos.py`: copia el tramo tal cual, genera solo los imports que el tramo lee, deja en `__init__` un reexport en la misma posición (los modelos se cargan en el mismo orden) y compara por AST antes de escribir. `from core.models import X` sigue igual; `__init__` bajó de 4.760 a 158 líneas y solo reexporta (sus imports de cabecera salieron en un commit aparte: nadie los importaba desde `core.models`). Ningún método usaba un modelo definido más abajo, ningún test parchea `core.models.*` y ninguna migración apunta a funciones de `core.models`; `makemigrations --check` sin cambios en cada paso. Cambio visible: las clases y sus excepciones llevan el submódulo en el nombre (`core.models.mensajeria.WhatsappLog.DoesNotExist`) en tracebacks y logs.
+- El freno acepta los submódulos de `core.models` como movimiento (una entrada de `MODULOS_MOVIDOS` que termina en punto cuenta solo para submódulos; `core.models` sigue contando). Ciclo 211 → 223: doce submódulos heredan los imports dentro de métodos que ya estaban en `core.models` (`configuracion`, `canal` y `territorio` quedan fuera del ciclo).
+- Pendiente de H1: quitar los imports de negocio dentro de los métodos de los modelos (es lo que mete los submódulos en el ciclo). Es cambio de código, no movimiento: bloque aparte.
+
 ### Fase I — Escalabilidad
 
 - I1 Colas por tipo: `conversacion`, `llm`, `certificados`, `masivo`, `audio`.
