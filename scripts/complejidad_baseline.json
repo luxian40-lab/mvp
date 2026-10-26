@@ -581,10 +581,10 @@
   "core/avance_whatsapp.py": 2,
   "core/bot_comercial/webhook.py": 3,
   "core/certificado_service.py": 1,
-  "core/conversacion/estados/activo_menu.py": 8,
-  "core/conversacion/estados/activo_puerta.py": 5,
+  "core/conversacion/estados/activo_menu.py": 7,
+  "core/conversacion/estados/activo_puerta.py": 4,
   "core/conversacion/estados/confirmando_datos.py": 12,
-  "core/conversacion/estados/envio_comun.py": 13,
+  "core/conversacion/estados/envio_comun.py": 12,
   "core/conversacion/estados/intent_ia.py": 1,
   "core/conversacion/estados/modulo.py": 14,
   "core/conversacion/estados/pregunta_abierta_final.py": 6,
@@ -615,11 +615,7 @@
   "core/twilio_timeout.py": 1,
   "core/views/legacy.py": 1
  },
- "parser_sep": {
-  "core/conversacion/estados/activo_menu.py": 1,
-  "core/conversacion/estados/activo_puerta.py": 1,
-  "core/conversacion/estados/envio_comun.py": 1
- },
+ "parser_sep": {},
  "pegamento_estados": {
   "core/conversacion/estados/activo_entrada.py::manejar": 7,
   "core/conversacion/estados/activo_menu.py::manejar": 7,
@@ -650,9 +646,9 @@
   "excepts_amplios": 895,
   "funciones_grandes": 59,
   "lineas_en_funciones_grandes": 16609,
-  "marcadores_texto": 149,
+  "marcadores_texto": 146,
   "parches_runtime": 8,
-  "parser_sep": 3,
+  "parser_sep": 0,
   "variante_linea": 0
  },
  "umbral_funcion": 150,
