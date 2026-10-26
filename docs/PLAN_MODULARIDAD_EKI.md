@@ -184,6 +184,11 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-b-c` (D3 antes que el resto de
 - D4 con conteo: el 25 de octubre de 2026 producción tenía 0 estudiantes en `esperando_respuesta_tutor_ia`, `esperando_respuesta_progreso` y `esperando_respuesta_recuperacion`, y ningún código los vuelve a poner. Se borraron los tres handlers, uno por commit, con sus casos del contrato de estados (13 → 10) y su lugar en las listas de estados de agente del cuerpo y de `pqrs_agent`. Las opciones del modelo siguen (quitarlas exige migración). Ese día `estado_chat` solo tenía `ACTIVO`, `ESPERANDO_HABEAS_DATA`, `ESPERANDO_CEDULA` y `CONFIRMANDO_DATOS`.
 - Hueco visto, sin arreglar (no es movimiento): en la línea 2, el módulo 1 termina sin instrucción.
 
+Ampliación del 26 de octubre de 2026 (rama `refactor/d5-habeas`). Los doce estados autorizados ya habían salido; lo que queda en el cuerpo se autoriza tramo por tramo en `.cursor/refactor_motor.json` (`ampliado_el`):
+
+- D5 `ESPERANDO_HABEAS_DATA` a `core/conversacion/estados/habeas.py`. Devuelve `CORTAR` o `None`: con `cert_envio_pendiente` no responde y el cuerpo sigue de largo, como antes. Comparado por AST con la rama original (solo cambian los imports relativos y los `return`). Caracterización previa en `core/tests_estado_habeas_cuerpo.py` (plantilla reenviada, texto de respaldo, certificado pendiente); acepto, no acepto y botón ya los cubría `core/tests_habeas_respuestas.py`. Cuerpo 1.427 → 1.391 líneas; ciclo 223 → 224 por el handler.
+- Quedan en el cuerpo, sin autorizar: arranque sin estado y auto-corrección (~120), corrección de datos legado (~50), entrada de ACTIVO (~60), selección de curso antes del despacho (~65) y la cola de ACTIVO (~680).
+
 ### Fase E — Estado por persona y línea
 
 - E1 Expand: tabla de estado por (estudiante, línea): `estado_chat`, `estado_onboarding`, `contexto`. Nullable, sin reescribir filas.
