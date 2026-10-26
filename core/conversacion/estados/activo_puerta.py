@@ -6,6 +6,7 @@ from django.conf import settings
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
+from core.conversacion.multimsg import partir_sep
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import WhatsappLog
 
@@ -57,7 +58,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                     logger.info('🎥 Reenvío media curso | est=%s', estudiante.id)
                     raw = _resp_reenvio
                     if raw.startswith('[MULTI_MSG]'):
-                        partes = raw.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                        partes = partir_sep(raw.replace('[MULTI_MSG]', '', 1))
                     else:
                         partes = [raw]
                     for parte in partes:

@@ -5,6 +5,7 @@ import logging
 from django.conf import settings
 
 from core.conversacion.contexto import Contexto
+from core.conversacion.multimsg import partir_sep
 from core.models import WhatsappLog
 from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
 from core.views.twilio_transporte import youtube_hace_solo_enlace_en_texto
@@ -77,7 +78,7 @@ def enviar(contexto: Contexto) -> None:
         # Check if response is a multi-message (marked with [MULTI_MSG])
         if texto_respuesta.startswith('[MULTI_MSG]'):
             # Extract and send multiple messages
-            partes = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+            partes = partir_sep(texto_respuesta.replace('[MULTI_MSG]', '', 1))
             
             for idx, parte in enumerate(partes):
                 if not parte.strip():

@@ -6,6 +6,7 @@ from django.conf import settings
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
+from core.conversacion.multimsg import partir_sep
 from core.models import WhatsappLog
 from core.response_templates import parte_mensaje_con_media
 from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
@@ -182,7 +183,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
                 if texto_respuesta.startswith('[MULTI_MSG]'):
                     import re as re_menu_m
-                    partes_mm = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                    partes_mm = partir_sep(texto_respuesta.replace('[MULTI_MSG]', '', 1))
                     for parte_mm in partes_mm:
                         if not parte_mm.strip():
                             continue
