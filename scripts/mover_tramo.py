@@ -189,9 +189,13 @@ def mover(a) -> str:
                     raise SystemExit(f'return no está solo en su línea ({n.lineno})')
                 cuerpo[i] = f'{pre}return CORTAR{post}'
 
-    cabecera_imports = {'from core.conversacion.contexto import CORTAR, Contexto, Respuesta'}
-    if a.sin_corte:
-        cabecera_imports = {'from core.conversacion.contexto import Contexto'}
+    hay_returns = any(isinstance(n, ast.Return) for s in stmts for n in ast.walk(s))
+    del_contexto = ['Contexto']
+    if hay_returns and not a.sin_corte:
+        del_contexto.insert(0, 'CORTAR')
+    if not a.sin_corte and ('Respuesta' in (a.devuelve or '') or 'Respuesta' in (a.tipo or '') or (sigue and not a.devuelve)):
+        del_contexto.append('Respuesta')
+    cabecera_imports = {f"from core.conversacion.contexto import {', '.join(del_contexto)}"}
     otros = []
     for nombre in sorted(globales):
         linea = importables[nombre]
