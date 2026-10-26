@@ -1,5 +1,5 @@
 {
- "archivos_sueltos_core": 232,
+ "archivos_sueltos_core": 231,
  "ciclo_mayor": 211,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
@@ -374,7 +374,7 @@
   "core/meta_token.py": 2,
   "core/meta_waba.py": 4,
   "core/middleware.py": 1,
-  "core/models.py": 12,
+  "core/models/__init__.py": 12,
   "core/models_certificados.py": 2,
   "core/models_extras.py": 7,
   "core/module_steps.py": 6,
@@ -583,7 +583,7 @@
   "core/conversacion/estados/seleccion_curso.py::manejar": 5
  },
  "totales": {
-  "archivos_sueltos_core": 232,
+  "archivos_sueltos_core": 231,
   "ciclo_mayor": 211,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,

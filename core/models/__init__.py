@@ -2796,7 +2796,7 @@ class Modulo(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        from .module_steps import validar_contenido_modulo
+        from core.module_steps import validar_contenido_modulo
 
         super().clean()
         # Admin ModuloAdminForm ya validó con Clase/Estructura/POST; evitar doble fail.
@@ -2959,7 +2959,7 @@ class PasoModulo(models.Model):
         if self.tipo in (self.TIPO_EVAL_OPC, self.TIPO_EVAL_ABIERTA):
             return True
         if self.tipo == self.TIPO_CONTENIDO:
-            from . import module_steps as _ms
+            from core import module_steps as _ms
 
             return _ms.paso_contenido_con_mc_como_eval(self)
         return False
@@ -3054,7 +3054,7 @@ class ProgresoEstudiante(models.Model):
 
     def porcentaje_avance(self):
         """Calcula el porcentaje de avance en el curso (denominador = módulos publicados WA)."""
-        from .modulo_publicacion import modulos_publicados_wa_qs
+        from core.modulo_publicacion import modulos_publicados_wa_qs
 
         total_modulos = modulos_publicados_wa_qs(self.curso).count()
         if total_modulos == 0:
@@ -3771,7 +3771,7 @@ class SolicitudSoporte(models.Model):
 
 # ========== GAMIFICACIÓN ==========
 # Importar modelos de gamificación desde archivo separado
-from .gamificacion import (
+from core.gamificacion import (
     PerfilGamificacion,
     Badge,
     BadgeEstudiante,
@@ -3781,28 +3781,28 @@ from .gamificacion import (
 
 # ========== CERTIFICADOS ==========
 # Importar modelos de certificados desde archivo separado
-from .models_certificados import Certificado, PlantillaCertificado
-from .models_notas import NotaEstudiante
+from core.models_certificados import Certificado, PlantillaCertificado
+from core.models_notas import NotaEstudiante
 
 # ========== AUDITORÍA ==========
 # Importar modelos de auditoría desde archivo separado
-from .models_audit import AuditLog
+from core.models_audit import AuditLog
 
 # ========== NUEVAS FUNCIONALIDADES ==========
 # Importar modelos adicionales
-from .models_extras import (
+from core.models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, 
     ArchivoModulo, GrupoWhatsApp, InvitacionGrupo,
     MensajePush, EnvioMensajePush,
 )
-from .models_media_entrega import MediaPaqueteEntrega
-from .models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
-from .models_meta_webhook import MetaWebhookEvento
-from .models_video import VideoEnlace, VideoView
-from .models_agentes import ConocimientoAgente, PruebaAgente
-from .models_uso_llm import UsoLLM
-from .lineas.modelo import LineaWhatsapp
-from .conversacion.estado_linea import EstadoLinea
+from core.models_media_entrega import MediaPaqueteEntrega
+from core.models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
+from core.models_meta_webhook import MetaWebhookEvento
+from core.models_video import VideoEnlace, VideoView
+from core.models_agentes import ConocimientoAgente, PruebaAgente
+from core.models_uso_llm import UsoLLM
+from core.lineas.modelo import LineaWhatsapp
+from core.conversacion.estado_linea import EstadoLinea
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
