@@ -248,7 +248,16 @@ def mover(a) -> str:
         argumentos.append('locales={' + ', '.join(f"'{e}': {e}" for e in locales) + '}')
     ctx = 'Contexto(' + ', '.join(argumentos) + ')'
     pegamento = [f'from core.conversacion.estados import {a.modulo}', '']
-    pegamento += a.llamada.replace('\\n', '\n').format(mod=a.modulo, ctx=ctx).split('\n')
+    for linea_llamada in a.llamada.replace('\\n', '\n').split('\n'):
+        corta = linea_llamada.format(mod=a.modulo, ctx=ctx)
+        if '{ctx}' not in linea_llamada or len(corta) + sangria <= 110:
+            pegamento.append(corta)
+            continue
+        margen = linea_llamada[:len(linea_llamada) - len(linea_llamada.lstrip())]
+        antes_ctx, despues_ctx = linea_llamada.format(mod=a.modulo, ctx='\0').split('\0')
+        pegamento.append(f'{antes_ctx}Contexto(')
+        pegamento += [f'{margen}    {arg},' for arg in argumentos]
+        pegamento.append(f'{margen}){despues_ctx}')
     fin_linea = '\r\n' if lineas[a.desde - 1].endswith('\r\n') else '\n'
     pegamento_txt = ''.join((' ' * sangria + p).rstrip() + fin_linea for p in pegamento)
     restante = lineas[:a.desde - 1] + [pegamento_txt] + lineas[a.hasta:]
