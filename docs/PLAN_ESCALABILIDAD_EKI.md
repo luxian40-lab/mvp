@@ -217,7 +217,9 @@ Redis, una clave global por proveedor (`INCR` + ventana de 1 s, o bucket). No el
 
 | Setting | Default | Verificado |
 | --- | --- | --- |
-| `WA_META_MPS` | 20 | 2026-10-03. Throughput de Cloud API: 80 mps por número registrado; 20 mps si el número convive con la app de WhatsApp Business. 20 es el arranque conservador, no el tope de la cuenta. |
+| `WA_META_MPS` | 20 | 2026-10-03, reverificado el 2026-10-25 (página Throughput actualizada el 2026-06-17). Throughput de Cloud API: 80 mps por número registrado, 1000 con la mejora automática; 20 mps si el número convive con la app de WhatsApp Business. Cuenta entrantes y salientes; pasarse da 130429. 20 es el arranque conservador, no el tope de la cuenta. |
+| `WA_META_BUCKET_POR_LINEA` | `false` | Con `true`, cada phone id tiene su bucket (`eki:wa:bucket:meta:<phone_id>`). Apagado, todas las líneas comparten `eki:wa:bucket:meta`. |
+| `WA_META_MPS_POR_LINEA` | vacío | `phone_id:mps,phone_id:mps`. Solo cuenta con el flag prendido; la línea que no está usa `WA_META_MPS`. La ráfaga de la línea no pasa de su mps. |
 | `WA_TWILIO_MPS` | 3 | Tope propio de eki para el canal demo. |
 | `WA_DESTINO_GAP_SEG` | 6 | El código 131056 dice «demasiados mensajes al mismo destinatario en poco tiempo» y pide esperar. Meta no publica «6 s» en esa fila (error codes, 2026-10-03). 6 s es el hueco conservador de este diseño y vive en el setting. |
 

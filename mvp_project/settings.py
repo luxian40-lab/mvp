@@ -1192,9 +1192,23 @@ EKI_CAMPANA_META_PRUEBA_NUMEROS = [
 # Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
 META_OPAQUE_MAX = 512
 WHATSAPP_GRAPH_BASE_URL = os.environ.get('WHATSAPP_GRAPH_BASE_URL', 'https://graph.facebook.com').rstrip('/')
-# 20 msg/s es el default del plan. El tope real depende del tier del número; no verificado el 2026-10-04.
+# Throughput de Cloud API por número registrado, verificado el 2026-10-25 (página Throughput, actualizada
+# el 2026-06-17): 80 mps por defecto, 1000 con la mejora automática, 20 fijos si el número convive con la
+# app de WhatsApp Business. Cuenta entrantes y salientes. Pasarse da 130429. 20 es el arranque conservador.
 WA_META_MPS = int(os.environ.get('WA_META_MPS', '20'))
 WA_META_BURST = int(os.environ.get('WA_META_BURST', '20'))
+# Con el flag apagado todas las líneas comparten un bucket y WA_META_MPS, como antes.
+WA_META_BUCKET_POR_LINEA = os.environ.get('WA_META_BUCKET_POR_LINEA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+# Tope por línea: "phone_id:mps,phone_id:mps". La línea que no está usa WA_META_MPS.
+WA_META_MPS_POR_LINEA = {
+    phone.strip(): int(mps)
+    for phone, _, mps in (
+        par.partition(':') for par in os.environ.get('WA_META_MPS_POR_LINEA', '').split(',')
+    )
+    if phone.strip() and mps.strip().isdigit() and int(mps) > 0
+}
 WA_DESTINO_GAP_SEG = int(os.environ.get('WA_DESTINO_GAP_SEG', '6'))
 META_LIMITE_CONTACTOS_24H = int(os.environ.get('META_LIMITE_CONTACTOS_24H', '1000'))
 CAMPANA_PAUSA_TASA_FALLO = float(os.environ.get('CAMPANA_PAUSA_TASA_FALLO', '0.15'))

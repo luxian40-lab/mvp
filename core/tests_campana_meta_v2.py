@@ -51,6 +51,12 @@ class CampanaMetaV2Tests(TestCase):
         self.assertEqual(post.call_count, 1)
         self.assertEqual(EnvioCampanaMeta.objects.filter(campana=self.campana).count(), 1)
 
+    @patch('core.campana_meta_v2._post', return_value=_ok())
+    def test_pide_token_con_la_linea_de_la_campana(self, _post):
+        with patch('core.campana_meta_ritmo.pedir_token', return_value=(True, 0.0)) as pedir:
+            ejecutar_campana_meta_v2(self.campana)
+        pedir.assert_called_once_with(PHONE)
+
     def test_el_segundo_claim_no_gana(self):
         envio = EnvioCampanaMeta.objects.create(
             campana=self.campana, estudiante=self.ana, estado='PENDIENTE',

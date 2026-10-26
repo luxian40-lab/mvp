@@ -8,7 +8,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Tope real según el tier del número. 20 es el default del plan; no verificado el 2026-10-04.
+# Topes y fecha de verificación: WA_META_MPS en settings.
 LUA_BUCKET = """
 local d = redis.call('HMGET', KEYS[1], 't', 'ms')
 local t = tonumber(d[1]) or tonumber(ARGV[2])
@@ -43,12 +43,23 @@ def _redis():
     return Redis.from_url(url, socket_connect_timeout=0.4, socket_timeout=0.4)
 
 
-def pedir_token() -> tuple[bool, float]:
+def _bucket_de_linea(phone_id: str = '') -> tuple[str, float, float]:
     rate = float(getattr(settings, 'WA_META_MPS', 20) or 20)
     capacity = float(getattr(settings, 'WA_META_BURST', 20) or 20)
+    phone_id = (phone_id or '').strip()
+    if not phone_id or not getattr(settings, 'WA_META_BUCKET_POR_LINEA', False):
+        return 'eki:wa:bucket:meta', rate, capacity
+    propio = (getattr(settings, 'WA_META_MPS_POR_LINEA', None) or {}).get(phone_id)
+    if propio:
+        rate = float(propio)
+    return f'eki:wa:bucket:meta:{phone_id}', rate, min(capacity, rate)
+
+
+def pedir_token(phone_id: str = '') -> tuple[bool, float]:
+    clave, rate, capacity = _bucket_de_linea(phone_id)
     try:
         ahora = int(time.time() * 1000)
-        crudo = _redis().eval(LUA_BUCKET, 1, 'eki:wa:bucket:meta', rate, capacity, ahora, 1)
+        crudo = _redis().eval(LUA_BUCKET, 1, clave, rate, capacity, ahora, 1)
         ok = int(crudo[0]) == 1
         espera = float(crudo[1] or 0)
         return ok, espera
@@ -130,11 +141,11 @@ def espera_backoff(intento: int) -> int:
 def resumen_preflight(campana) -> list[str]:
     from core.consentimiento_wa import puede_recibir_plantilla
     from core.meta_token import token_invalido
-    from core.meta_waba import _destinatarios
+    from core.meta_waba import _destinatarios, _phone_default
 
     dest = list(_destinatarios(campana))
     con = sum(1 for est in dest if puede_recibir_plantilla(est))
-    mps = float(getattr(settings, 'WA_META_MPS', 20) or 20)
+    mps = _bucket_de_linea(campana.phone_number_id or _phone_default())[1]
     segundos = round(len(dest) / mps, 1) if mps else 0
     return [
         f"token {'invalido' if token_invalido() else 'sin_marca'}",

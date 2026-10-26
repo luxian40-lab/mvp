@@ -139,7 +139,7 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
         marca = telefono_hash(str(estudiante.telefono or ''))
         if not bajo_tope_contactos(marca):
             break
-        ok_token, espera = pedir_token()
+        ok_token, espera = pedir_token(phone_id)
         if not ok_token:
             campana.save(update_fields=['total_enviados', 'ejecutada'])
             return {
