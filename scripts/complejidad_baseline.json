@@ -1,6 +1,6 @@
 {
  "archivos_sueltos_core": 231,
- "ciclo_mayor": 216,
+ "ciclo_mayor": 217,
  "ciclo_mayor_miembros": [
   "aprende.acceso_whatsapp",
   "aprende.models",
@@ -141,6 +141,7 @@
   "core.models.cursos",
   "core.models.estudiantes",
   "core.models.mensajeria",
+  "core.models.modulos",
   "core.models_agentes",
   "core.models_campana_meta",
   "core.models_extras",
@@ -379,9 +380,9 @@
   "core/meta_token.py": 2,
   "core/meta_waba.py": 4,
   "core/middleware.py": 1,
-  "core/models/__init__.py": 2,
   "core/models/conocimiento.py": 8,
   "core/models/mensajeria.py": 2,
+  "core/models/modulos.py": 2,
   "core/models_certificados.py": 2,
   "core/models_extras.py": 7,
   "core/module_steps.py": 6,
@@ -591,7 +592,7 @@
  },
  "totales": {
   "archivos_sueltos_core": 231,
-  "ciclo_mayor": 216,
+  "ciclo_mayor": 217,
   "core_importa_apps_superiores": 45,
   "excepts_amplios": 895,
   "funciones_grandes": 57,
