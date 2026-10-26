@@ -574,18 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # Opción numérica genérica (4-9): Por defecto = Inscribir curso
-    # El contexto en message_handler determina si es curso, módulo, etc.
-    if intent == 'opcion_numerica':
-        # Curso de lista (mismo orden que opcion_2 / selector_curso por cliente)
-        from .selector_curso import continuar_curso_seleccionado
-
-        sid = kwargs.get('estudiante_id')
-        msg = (kwargs.get('mensaje_original') or '').strip()
-        if not sid or not msg.isdigit():
-            return "Escribe el número del curso o *menú* para volver."
-        return continuar_curso_seleccionado(sid, int(msg), msg)
-    
     # Progreso (sin pasar por menú) - Redirigir a opcion_1
     if intent == 'progreso':
         return get_response_for_intent('opcion_1', nombre_usuario, kwargs)
