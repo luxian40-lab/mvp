@@ -574,30 +574,6 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     
-    # Opción 3: SIEMPRE = Ayuda/Soporte
-    if intent == 'opcion_3':
-        return f"""🆘 ¿NECESITAS AYUDA, {nombre_usuario}?
-
-Estoy aquí para apoyarte con tu aprendizaje.
-
-Puedes preguntarme:
-💬 Dudas sobre cultivo de café
-📚 Información de los cursos
-📖 Cómo usar la plataforma
-
-Ejemplos:
-• "¿Cómo combato la roya del café?"
-• "¿Qué sistema de riego es mejor?"
-• "Ver mis cursos"
-• "Continuar con mi lección"
-
-También puedes:
-• Escribir "menú" para volver al inicio
-• Escribir "continuar" para seguir tu curso
-• Escribir "progreso" para ver tu avance
-
-✍️ ¿En qué te puedo ayudar?"""
-    
     # Opción numérica genérica (4-9): Por defecto = Inscribir curso
     # El contexto en message_handler determina si es curso, módulo, etc.
     if intent == 'opcion_numerica':
