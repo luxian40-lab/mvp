@@ -466,7 +466,7 @@ class ArchivoModulo(models.Model):
         import logging
         from urllib.parse import quote, unquote_plus
 
-        from core.twilio_media import normalizar_media_url_s3
+        from core.canal.media_s3 import normalizar_media_url_s3
 
         logger = logging.getLogger(__name__)
 
