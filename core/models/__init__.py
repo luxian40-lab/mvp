@@ -33,6 +33,8 @@ from core.models.cursos import (  # noqa: F401
     ConfiguracionDripCliente,
     HabilitacionModuloDripCliente,
     HabilitacionModuloEstudiante,
+    AvisoModuloDisponible,
+    AvisoModuloEnviado,
 )
 
 
@@ -158,7 +160,7 @@ __all__ = [
     'Campana', 'EnvioLog', 'WhatsappLog',
     'SesionComercial',
     'Curso', 'ConfiguracionDripCliente', 'HabilitacionModuloDripCliente',
-    'HabilitacionModuloEstudiante', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo',
+    'HabilitacionModuloEstudiante', 'AvisoModuloDisponible', 'AvisoModuloEnviado', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo',
     'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
