@@ -424,7 +424,7 @@ def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
                 paso.tipo,
             )
         parts.append(
-            "\n\n💡 Responde con la letra correcta (*A*, *B*, *C* o *D*), como en la validación del módulo."
+            "\n\n💡 Responda con la letra de la opción correcta (*A*, *B*, *C* o *D*)."
         )
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
         parts.append("\n\n✍️ Envía tu respuesta en un mensaje. La facilitadora la calificará.")
@@ -1124,7 +1124,7 @@ def procesar_respuesta_evaluacion_paso(
             )
             return (
                 'Esta pregunta sigue abierta. '
-                'Responde con una letra (*A*, *B*, *C* o *D*).'
+                'Responda con una letra (*A*, *B*, *C* o *D*).'
             )
         letra_ok = _letra_correcta_eval_opciones(paso)
         if not letra_ok:
@@ -1134,7 +1134,7 @@ def procesar_respuesta_evaluacion_paso(
             )
             return (
                 "⚠️ Esta pregunta no está bien configurada. "
-                "Escribí *ayuda* para contactar a soporte."
+                "Escriba *ayuda* para contactar a soporte."
             )
         ok = bool(letra_in_eval) and letra_in_eval == letra_ok
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
