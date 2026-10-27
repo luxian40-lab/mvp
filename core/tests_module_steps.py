@@ -225,19 +225,20 @@ class ModuleStepsModelTests(TestCase):
         self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
         self.assertEqual(self.prog.paso_actual_modulo, 1)
 
-        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'a')
-        self.assertIsNotNone(out)
-        self.assertIn('incorrecta', out.lower())
-        self.assertTrue(out.startswith('[MULTI_MSG]'))
-        self.assertIn('letra', out.lower())
-        self.assertNotIn('listo', out.lower())
-
         out_hint = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
         self.assertIsNotNone(out_hint)
         self.assertIn('letra', out_hint.lower())
         self.prog.refresh_from_db()
         self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
         self.assertEqual(self.prog.paso_actual_modulo, 1)
+
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'a')
+        self.assertIsNotNone(out)
+        self.assertTrue(out.startswith('[MULTI_MSG]'))
+        self.assertIn('*B)* Dos', out)
+        self.prog.refresh_from_db()
+        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
 
     def test_eval_correcta_feedback_y_cta_listo_en_un_solo_segmento(self):
         """Evita dos bubbles (reorden en WhatsApp): primero feedback, luego CTA *listo*."""
@@ -308,7 +309,7 @@ class ModuleStepsModelTests(TestCase):
         _mock_eval.assert_called_once()
 
     def test_eval_incorrecta_feedback_y_cta_listo_en_un_solo_segmento(self):
-        """Un bubble: feedback de error + CTA *listo* (misma UX que acierto)."""
+        """Un solo intento: feedback del admin + la correcta + CTA, en un bubble; la pregunta se cierra."""
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(
             modulo=self.mod,
@@ -337,14 +338,38 @@ class ModuleStepsModelTests(TestCase):
         self.assertEqual(len(partes), 1, partes)
         blob = partes[0].lower()
         self.assertIn('casi', blob)
-        self.assertIn('letra', blob)
-        self.assertNotIn('listo', blob)
-
-        out_listo = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
-        self.assertNotIn('siguiente bloque', out_listo.lower())
-        self.assertIn('letra', out_listo.lower())
+        self.assertIn('*b)* dos', blob)
+        self.assertIn('[send_button:continuemos]', blob)
+        self.assertLess(blob.index('casi'), blob.index('*b)* dos'))
+        self.assertLess(blob.index('*b)* dos'), blob.index('[send_button:continuemos]'))
+        self.assertNotIn('siguiente bloque', blob)
+        self.assertNotIn('otra letra', blob)
         self.prog.refresh_from_db()
-        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
+        self.assertIsNone(procesar_respuesta_evaluacion_paso(self.est, self.prog, 'b'))
+
+    def test_eval_incorrecta_queda_anotada_como_fallo(self):
+        from core.models import EstudianteEventoAprendizaje
+
+        self._quiz_b()
+        procesar_respuesta_evaluacion_paso(self.est, self.prog, 'c')
+        eventos = list(
+            EstudianteEventoAprendizaje.objects.filter(
+                estudiante=self.est,
+                tipo=EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA,
+            ).values_list('metadata', flat=True)
+        )
+        self.assertEqual(len(eventos), 1)
+        self.assertIs(eventos[0]['acierto'], False)
+        self.assertEqual(eventos[0]['letra'], 'C')
+
+    def test_eval_incorrecta_sin_feedback_admin_muestra_la_correcta(self):
+        self._quiz_b()
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'd')
+        self.assertIn('No es esa', out)
+        self.assertIn('La respuesta correcta es: *B)* Dos', out)
+        self.assertNotIn('Probá', out)
 
     def _quiz_b(self):
         s1 = _seccion(self.mod, 1)

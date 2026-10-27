@@ -34,21 +34,12 @@ def mensaje_exito_eval_opciones_con_cta_listo(feedback_correcto_crudo: Optional[
     return f'{cuerpo}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
 
 
-def mensaje_neutro_avance_eval_con_cta_listo() -> str:
-    """Tras omitir evaluación opción múltiple (p. ej. *listo* sin acertar): un solo bubble con CTA."""
-    return f'📚 Seguimos con el curso.\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
-
-
 def mensaje_incorrecto_eval_opciones_con_cta_listo(feedback_incorrecto: str) -> str:
-    """Tras fallar A–D: pide otra letra. No ofrece *listo* para saltar la pregunta."""
+    """Tras fallar A–D la pregunta ya se cerró: feedback + correcta + CTA en un bubble."""
     raw = (feedback_incorrecto or '').strip()
     if not raw:
-        raw = '❌ *Respuesta incorrecta*'
-    return (
-        f'{raw}\n\n'
-        'Esta pregunta sigue abierta. '
-        'Responde con otra letra (*A*, *B*, *C* o *D*).'
-    )
+        raw = '❌ *No es esa.*'
+    return f'{raw}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
 
 
 def _respuesta_cola_tras_avanzar_eval_opc(
@@ -77,17 +68,12 @@ def _respuesta_cola_tras_avanzar_eval_opc(
         if es_acierto:
             head = head_override or (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'
         else:
-            head = '📚 Seguimos con el curso.'
+            head = head_override or '📚 Seguimos con el curso.'
         if tail and tail.startswith(MULTI_MSG):
             resto = partes_multimsg(tail)
             bloques = [p for p in resto if p]
-            # Tras intento incorrecto ya dimos el CTA *listo* junto al feedback; no repetir este head.
-            if not es_acierto and bloques:
-                return unir_multimsg(bloques)
             return unir_multimsg([head] + bloques) if bloques else unir_multimsg([head])
-        partes = []
-        if es_acierto or not tail:
-            partes.append(head)
+        partes = [head]
         if tail:
             partes.append(tail)
         return unir_multimsg(partes)
@@ -95,13 +81,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
         if head_override:
             return unir_multimsg([head_override, _CTA_LISTO_SIGUIENTE_MATERIAL_EVAL])
         return '[MULTI_MSG]' + mensaje_exito_eval_opciones_con_cta_listo(paso.feedback_correcto)
-    # El *listo* ya se pidió junto al feedback del intento incorrecto: entregar siguiente micro(s) sin repetir «Seguimos…».
-    modulo_col = progreso.modulo_actual
-    if modulo_col:
-        return entregar_bloque_secciones_desde_paso(
-            progreso, modulo_col, progreso.paso_actual_modulo
-        )
-    return '[MULTI_MSG]' + mensaje_neutro_avance_eval_con_cta_listo()
+    return '[MULTI_MSG]' + mensaje_incorrecto_eval_opciones_con_cta_listo(head_override or '')
 
 
 # Mensaje al estudiante si modo "pasos" quedó mal configurado (sin filas PasoModulo activas).
@@ -473,24 +453,18 @@ def letra_respuesta_eval(texto_crudo: str) -> str:
 
 
 def _feedback_incorrecto_paso_estilo_mini(paso: PasoModulo, letra_usuario: str) -> str:
-    """Mensaje al fallar (estilo mini examen); respeta feedback_incorrecto del admin si existe."""
-    custom = (paso.feedback_incorrecto or '').strip()
-    if custom:
-        return custom
+    """Mensaje al fallar: feedback del admin (o uno corto) y siempre la respuesta correcta."""
     letra_ok = _letra_correcta_eval_opciones(paso)
     opts = _opciones_dict(paso)
     texto_ok = opts.get(letra_ok, '') if letra_ok else ''
     if letra_ok and texto_ok:
-        correcto = f"✅ La respuesta correcta era: *{letra_ok})* {texto_ok}\n\n"
+        correcto = f"✅ La respuesta correcta es: *{letra_ok})* {texto_ok}"
     elif letra_ok:
-        correcto = f"✅ La respuesta correcta era la opción *{letra_ok}*.\n\n"
+        correcto = f"✅ La respuesta correcta es la *{letra_ok}*."
     else:
-        correcto = ""
-    return (
-        f"❌ *Respuesta incorrecta*\n\n"
-        f"{correcto}"
-        f"🔄 Probá de nuevo: revisá las opciones y enviá solo una letra (*A*, *B*, *C* o *D*)."
-    )
+        correcto = ''
+    cabeza = (paso.feedback_incorrecto or '').strip() or '❌ *No es esa.*'
+    return '\n\n'.join(p for p in (cabeza, correcto) if p)
 
 
 def formatear_texto_paso(paso: PasoModulo, curso) -> str:
@@ -1178,15 +1152,11 @@ def procesar_respuesta_evaluacion_paso(
     else:
         ok = bool(texto)
 
-    if not ok:
-        if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
-            fb = _feedback_incorrecto_paso_estilo_mini(paso, letra_in_eval)
-            logger.info(
-                "📚 [pasos] eval incorrecta | est=%s paso_id=%s",
-                estudiante.id,
-                paso.id,
-            )
-            return '[MULTI_MSG]' + mensaje_incorrecto_eval_opciones_con_cta_listo(fb)
+    head = head_facilitadora
+    if not ok and letra_in_eval:
+        # Un solo intento: la letra equivocada cierra la pregunta y queda como fallo.
+        head = _feedback_incorrecto_paso_estilo_mini(paso, letra_in_eval)
+    elif not ok:
         fb = (paso.feedback_incorrecto or '').strip() or (
             "❌ Escriba su respuesta para que la facilitadora pueda calificarla."
         )
@@ -1208,9 +1178,10 @@ def procesar_respuesta_evaluacion_paso(
         ]
     )
     logger.info(
-        "📚 [pasos] eval correcta | est=%s paso_id=%s nuevo_idx=%s n_pasos=%s",
+        "📚 [pasos] eval cerrada | est=%s paso_id=%s acierto=%s nuevo_idx=%s n_pasos=%s",
         estudiante.id,
         paso.id,
+        ok,
         progreso.paso_actual_modulo,
         n,
     )
@@ -1226,14 +1197,14 @@ def procesar_respuesta_evaluacion_paso(
             modulo=modulo,
             paso=paso,
             metadata={
-                'acierto': True,
+                'acierto': ok,
                 'paso_tipo': paso.tipo,
                 'letra': letra_in_eval or '',
             },
         )
     except Exception as exc:
-        logger.warning('telemetria eval correcta: %s', exc)
+        logger.warning('telemetria eval cerrada: %s', exc)
 
     return _respuesta_cola_tras_avanzar_eval_opc(
-        estudiante, progreso, paso, n, es_acierto=True, head_override=head_facilitadora,
+        estudiante, progreso, paso, n, es_acierto=ok, head_override=head,
     )
