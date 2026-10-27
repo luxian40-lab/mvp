@@ -237,6 +237,19 @@ class AvisoModuloTests(TestCase):
         self.assertEqual(args.args[2]['3'], 'Crea y Vende')
         self.assertFalse(AvisoModuloEnviado.objects.exists())
 
+    def test_tarea_y_beat(self):
+        from django.conf import settings
+
+        from core.tasks import aviso_modulo_disponible
+        from mvp_project.celery import app
+
+        entrada = app.conf.beat_schedule['aviso-modulo-disponible']
+        self.assertEqual(entrada['task'], 'core.tasks.aviso_modulo_disponible')
+        self.assertEqual(settings.CELERY_TASK_ROUTES['core.tasks.aviso_modulo_disponible']['queue'], 'masivo')
+        with patch('core.aviso_modulo.ejecutar', return_value={'enviados': 0}) as ejecutar:
+            self.assertEqual(aviso_modulo_disponible(), {'enviados': 0})
+        ejecutar.assert_called_once_with()
+
     def test_motivo_plantilla_con_variables_de_mas(self):
         from core.aviso_modulo import motivo_plantilla
 

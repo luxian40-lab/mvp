@@ -63,6 +63,11 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.reenganche_drip_content_diario',
         'schedule': crontab(hour=8, minute=0),
     },
+    'aviso-modulo-disponible': {
+        'task': 'core.tasks.aviso_modulo_disponible',
+        'schedule': crontab(minute='*/15'),
+        'options': {'expires': 14 * 60},
+    },
     # Advisor de infra (reglas): snapshot + email si overall → ACTUAR.
     'revisar-infra-advisor': {
         'task': 'core.tasks_infra.revisar_infra_advisor',
