@@ -123,6 +123,11 @@ def filas_agentes(telefono: str) -> list[tuple[str, str, str]]:
     return [fila for fila in AGENTES if _FILA_MODO[fila[0]] in permitidos]
 
 
+def modos_agente(telefono: str) -> list[str]:
+    """Modos de los agentes que esta línea abre, en el orden de la lista."""
+    return [_FILA_MODO[fila[0]] for fila in filas_agentes(telefono)]
+
+
 def cursos_de_la_linea(telefono: str | None):
     """Cursos que esta persona puede ver. None = catálogo general de eki.
 

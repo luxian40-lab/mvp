@@ -386,6 +386,11 @@ EKI_CONTEXTO_CONSERVA_CLAVES = os.environ.get('EKI_CONTEXTO_CONSERVA_CLAVES', 'f
 )
 # Log eki.motor.turno con la duración de cada turno por estado y línea. Solo mide.
 EKI_MEDIR_TURNO = os.environ.get('EKI_MEDIR_TURNO', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
+# Asesoría de la línea principal: una pregunta abierta y el modelo elige el agente. Off = lista de agentes.
+EKI_ASESORIA_PREGUNTA = os.environ.get('EKI_ASESORIA_PREGUNTA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+EKI_ASESORIA_MODELO = os.environ.get('EKI_ASESORIA_MODELO', 'gpt-5-mini')
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
 # Segunda cuenta de WhatsApp (línea 2). Vacío = no se listan plantillas de la principal en esa línea.
 WHATSAPP_BUSINESS_ACCOUNT_ID_2 = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID_2', '')
