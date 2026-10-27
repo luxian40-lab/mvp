@@ -314,6 +314,12 @@ UNFOLD = {
                         "link": reverse_lazy("admin:core_avisomodulodisponible_changelist"),
                         "permission": _puede_modelo("core.view_avisomodulodisponible"),
                     },
+                    {
+                        "title": _("Recordatorios de curso"),
+                        "icon": "alarm",
+                        "link": reverse_lazy("admin:core_recordatoriocurso_changelist"),
+                        "permission": _puede_modelo("core.view_recordatoriocurso"),
+                    },
                 ],
             },
             {
