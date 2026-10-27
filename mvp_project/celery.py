@@ -68,6 +68,11 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute='*/15'),
         'options': {'expires': 14 * 60},
     },
+    'recordatorio-curso': {
+        'task': 'core.avisos.tareas.recordatorio_curso',
+        'schedule': crontab(minute=0),
+        'options': {'expires': 50 * 60},
+    },
     # Advisor de infra (reglas): snapshot + email si overall → ACTUAR.
     'revisar-infra-advisor': {
         'task': 'core.tasks_infra.revisar_infra_advisor',

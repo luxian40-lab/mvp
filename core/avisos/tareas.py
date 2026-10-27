@@ -7,3 +7,11 @@ def aviso_modulo_disponible():
     from core.avisos.modulo_disponible import ejecutar
 
     return ejecutar()
+
+
+@shared_task
+def recordatorio_curso():
+    """Recordatorio a quien no avanza. Con EKI_RECORDATORIO_CURSO_ENABLED en false no envía."""
+    from core.avisos.recordatorio_curso import ejecutar
+
+    return ejecutar()
