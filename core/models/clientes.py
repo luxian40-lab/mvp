@@ -495,7 +495,7 @@ class Cliente(models.Model):
         return '\n'.join(partes) if partes else ''
 
     def save(self, *args, **kwargs):
-        from core.gamificacion_modo import sincronizar_usar_gamificacion
+        from core.models.opciones import sincronizar_usar_gamificacion
 
         sincronizar_usar_gamificacion(self)
         super().save(*args, **kwargs)

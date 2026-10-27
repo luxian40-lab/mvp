@@ -4,30 +4,15 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
-MODO_DESACTIVADO = 'desactivado'
-MODO_PUNTOS = 'puntos'
-MODO_CALIFICACION = 'calificacion'
-
-MODO_GAMIFICACION_CHOICES = [
-    (MODO_DESACTIVADO, 'Desactivada'),
-    (MODO_PUNTOS, 'Puntos (ranking por puntos)'),
-    (MODO_CALIFICACION, 'Calificación 1–5 (ranking por promedio)'),
-]
-
-
-def get_modo_gamificacion(cliente) -> str:
-    if not cliente:
-        return MODO_PUNTOS
-    modo = (getattr(cliente, 'modo_gamificacion', None) or '').strip()
-    if modo in {MODO_DESACTIVADO, MODO_PUNTOS, MODO_CALIFICACION}:
-        return modo
-    if getattr(cliente, 'usar_gamificacion', True):
-        return MODO_PUNTOS
-    return MODO_DESACTIVADO
-
-
-def gamificacion_activa(cliente) -> bool:
-    return get_modo_gamificacion(cliente) != MODO_DESACTIVADO
+from core.models.opciones import (  # noqa: F401
+    MODO_CALIFICACION,
+    MODO_DESACTIVADO,
+    MODO_GAMIFICACION_CHOICES,
+    MODO_PUNTOS,
+    gamificacion_activa,
+    get_modo_gamificacion,
+    sincronizar_usar_gamificacion,
+)
 
 
 def modo_usa_puntos(cliente) -> bool:
@@ -55,12 +40,6 @@ def curso_usa_puntos(cliente, curso=None) -> bool:
     if curso is not None and getattr(curso, 'es_modo_clases', lambda: False)():
         return False
     return modo_usa_puntos(cliente)
-
-
-def sincronizar_usar_gamificacion(cliente) -> None:
-    if cliente is None:
-        return
-    cliente.usar_gamificacion = gamificacion_activa(cliente)
 
 
 def formatear_nota(nota: float | Decimal) -> str:
