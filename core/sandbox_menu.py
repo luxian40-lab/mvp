@@ -420,6 +420,23 @@ def memoria_corte_nat(telefono: str):
         return None
 
 
+def _ruta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
+    eleccion_ag = _normalizar_eleccion_agentes(body)
+    if eleccion_ag == 'menu':
+        _set_modo(sesion, MODO_MENU)
+        decision.action = 'show_menu'
+        return decision
+    agente = eleccion_ag or clasificar_asesoria(body)
+    if agente:
+        _set_modo(sesion, agente)
+        decision.action = agente
+        decision.saludo_entrada = True
+        return decision
+    _set_modo(sesion, MODO_AGENTES)
+    decision.action = 'show_agentes'
+    return decision
+
+
 def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
     from_tel, to_tel, body = _extract_from_body(payload)
     body = _body_o_audio_transcrito(payload, body)
@@ -511,20 +528,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     if sesion.modo == MODO_ASESORIA:
-        eleccion_ag = _normalizar_eleccion_agentes(body)
-        if eleccion_ag == 'menu':
-            _set_modo(sesion, MODO_MENU)
-            decision.action = 'show_menu'
-            return decision
-        agente = eleccion_ag or clasificar_asesoria(body)
-        if agente:
-            _set_modo(sesion, agente)
-            decision.action = agente
-            decision.saludo_entrada = True
-            return decision
-        _set_modo(sesion, MODO_AGENTES)
-        decision.action = 'show_agentes'
-        return decision
+        return _ruta_asesoria(decision, sesion, body)
 
     import re
 
