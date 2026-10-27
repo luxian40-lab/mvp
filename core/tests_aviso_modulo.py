@@ -90,7 +90,7 @@ class AvisoModuloTests(TestCase):
         return estudiante
 
     def _ejecutar(self, sender=None):
-        from core.aviso_modulo import ejecutar
+        from core.avisos.modulo_disponible import ejecutar
 
         sender = sender or _sender_ok()
         with patch('core.meta_token.token_invalido', return_value=False), \
@@ -190,7 +190,7 @@ class AvisoModuloTests(TestCase):
         sender.plantilla.assert_not_called()
 
     def test_token_invalido_no_envia(self):
-        from core.aviso_modulo import ejecutar
+        from core.avisos.modulo_disponible import ejecutar
 
         self._estudiante('573001110014')
         sender = _sender_ok()
@@ -214,7 +214,7 @@ class AvisoModuloTests(TestCase):
         sender_2.plantilla.assert_not_called()
 
     def test_vista_previa_cuenta_sin_enviar(self):
-        from core.aviso_modulo import vista_previa
+        from core.avisos.modulo_disponible import vista_previa
 
         self._estudiante('573001110016')
         self._estudiante('573001110017', termino_m1=False)
@@ -226,7 +226,7 @@ class AvisoModuloTests(TestCase):
         self.assertEqual(filas[0]['personas'], 1)
 
     def test_prueba_al_numero_interno(self):
-        from core.aviso_modulo import enviar_prueba
+        from core.avisos.modulo_disponible import enviar_prueba
 
         sender = _sender_ok()
         with patch('core.lineas.sender.sender_de_linea', return_value=sender):
@@ -240,25 +240,26 @@ class AvisoModuloTests(TestCase):
     def test_tarea_y_beat(self):
         from django.conf import settings
 
-        from core.tasks import aviso_modulo_disponible
+        from core.avisos.tareas import aviso_modulo_disponible
         from mvp_project.celery import app
 
         entrada = app.conf.beat_schedule['aviso-modulo-disponible']
-        self.assertEqual(entrada['task'], 'core.tasks.aviso_modulo_disponible')
-        self.assertEqual(settings.CELERY_TASK_ROUTES['core.tasks.aviso_modulo_disponible']['queue'], 'masivo')
-        with patch('core.aviso_modulo.ejecutar', return_value={'enviados': 0}) as ejecutar:
+        self.assertEqual(entrada['task'], 'core.avisos.tareas.aviso_modulo_disponible')
+        self.assertIn('core.avisos.tareas.aviso_modulo_disponible', app.tasks)
+        self.assertEqual(settings.CELERY_TASK_ROUTES['core.avisos.tareas.aviso_modulo_disponible']['queue'], 'masivo')
+        with patch('core.avisos.modulo_disponible.ejecutar', return_value={'enviados': 0}) as ejecutar:
             self.assertEqual(aviso_modulo_disponible(), {'enviados': 0})
         ejecutar.assert_called_once_with()
 
     def test_motivo_plantilla_con_variables_de_mas(self):
-        from core.aviso_modulo import motivo_plantilla
+        from core.avisos.modulo_disponible import motivo_plantilla
 
         self.plantilla.cuerpo = 'Hola {{1}} {{2}} {{3}} {{4}}'
         self.plantilla.save()
         self.assertIn('variables', motivo_plantilla(self.aviso.plantilla, LINEA_2))
 
     def test_formulario_rechaza_plantilla_de_otra_cuenta(self):
-        from core.admin.aviso_modulo import AvisoModuloForm
+        from core.avisos.admin import AvisoModuloForm
 
         self.plantilla.waba_id = WABA
         self.plantilla.save()

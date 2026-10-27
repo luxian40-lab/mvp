@@ -1151,7 +1151,7 @@ CELERY_TASK_ROUTES = {
     'core.tasks.ejecutar_campana_async': {'queue': 'masivo'},
     'core.tasks.ejecutar_campana_meta_async': {'queue': 'masivo'},
     'core.tasks.reenganche_drip_content_diario': {'queue': 'masivo'},
-    'core.tasks.aviso_modulo_disponible': {'queue': 'masivo'},
+    'core.avisos.tareas.aviso_modulo_disponible': {'queue': 'masivo'},
     'core.tasks.generar_reporte_actividad': {'queue': 'masivo'},
     'core.tasks.indexar_biblioteca_nat_por_id': {'queue': 'rag_index'},
     'core.tasks.indexar_documento_rag_por_id': {'queue': 'rag_index'},

@@ -143,19 +143,16 @@ def vista_previa(aviso, ahora: datetime | None = None) -> list[dict]:
 
 
 def _registrar_telemetria(estudiante, curso, modulo) -> None:
-    try:
-        from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+    from core.models import EstudianteEventoAprendizaje
+    from core.telemetria import registrar_evento
 
-        registrar_evento(
-            tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,
-            estudiante=estudiante,
-            curso=curso,
-            modulo=modulo,
-            metadata={'origen': 'aviso_modulo', 'template': True, 'modulo_desbloqueado_id': modulo.pk},
-        )
-    except Exception:
-        logger.exception('aviso_modulo telemetria')
+    registrar_evento(
+        tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,
+        estudiante=estudiante,
+        curso=curso,
+        modulo=modulo,
+        metadata={'origen': 'aviso_modulo', 'template': True, 'modulo_desbloqueado_id': modulo.pk},
+    )
 
 
 def _enviar_uno(aviso, sender, progreso, modulo) -> str:
@@ -168,11 +165,7 @@ def _enviar_uno(aviso, sender, progreso, modulo) -> str:
     except IntegrityError:
         return 'repetido'
     variables = variables_aviso(aviso.plantilla, estudiante.nombre, modulo.titulo, aviso.curso.nombre)
-    try:
-        resultado = sender.plantilla(estudiante.telefono, aviso.plantilla.meta_name, variables, agente='aviso_modulo')
-    except Exception as exc:
-        logger.exception('aviso_modulo envio est=%s modulo=%s', estudiante.pk, modulo.pk)
-        resultado = {'success': False, 'mensaje_id': None, 'response': type(exc).__name__}
+    resultado = sender.plantilla(estudiante.telefono, aviso.plantilla.meta_name, variables, agente='aviso_modulo')
     ok = bool(resultado.get('success'))
     envio.estado = 'ENVIADO' if ok else 'FALLIDO'
     envio.wamid = str(resultado.get('mensaje_id') or '')[:200]

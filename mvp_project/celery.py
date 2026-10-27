@@ -64,7 +64,7 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=0),
     },
     'aviso-modulo-disponible': {
-        'task': 'core.tasks.aviso_modulo_disponible',
+        'task': 'core.avisos.tareas.aviso_modulo_disponible',
         'schedule': crontab(minute='*/15'),
         'options': {'expires': 14 * 60},
     },

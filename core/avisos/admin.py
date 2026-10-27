@@ -8,9 +8,9 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
 
-from core.aviso_modulo import aviso_habilitado, enviar_prueba, motivo_plantilla, vista_previa
+from core.avisos.modulo_disponible import aviso_habilitado, enviar_prueba, motivo_plantilla, vista_previa
 from core.campana_audiencia import numero_de_prueba_permitido, numeros_de_prueba
-from core.models import AvisoModuloDisponible, AvisoModuloEnviado
+from core.models.avisos import AvisoModuloDisponible, AvisoModuloEnviado
 from core.models_campana_meta import PlantillaMeta
 from core.plantilla_meta_editor import lineas_disponibles
 
