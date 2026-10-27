@@ -37,7 +37,13 @@ def _pausa() -> float:
         return 0.35
 
 
-def motivo_plantilla(plantilla, phone_id: str) -> str:
+def motivo_plantilla(
+    plantilla,
+    phone_id: str,
+    *,
+    max_variables: int = MAX_VARIABLES,
+    texto_variables: str = '{{1}} nombre, {{2}} módulo, {{3}} curso',
+) -> str:
     """Vacío si la plantilla sirve para el aviso en esa línea. Si no, el motivo."""
     from core.lineas.campana import plantilla_sirve_en_linea
     from core.models_campana_meta import variables_en
@@ -53,8 +59,8 @@ def motivo_plantilla(plantilla, phone_id: str) -> str:
     for url in (plantilla.boton_1_url, plantilla.boton_2_url):
         if '{{' in (url or ''):
             return 'Los botones no pueden llevar variables.'
-    if len(set(variables_en(plantilla.cuerpo))) > MAX_VARIABLES:
-        return 'El cuerpo admite hasta 3 variables: {{1}} nombre, {{2}} módulo, {{3}} curso.'
+    if len(set(variables_en(plantilla.cuerpo))) > max_variables:
+        return f'El cuerpo admite hasta {max_variables} variables: {texto_variables}.'
     return plantilla_sirve_en_linea(plantilla, phone_id)
 
 

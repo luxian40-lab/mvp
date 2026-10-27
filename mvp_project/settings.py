@@ -460,6 +460,10 @@ META_TEMPLATE_DRIP_IDIOMA = os.environ.get('META_TEMPLATE_DRIP_IDIOMA', 'es')
 EKI_AVISO_MODULO_DISPONIBLE_ENABLED = os.environ.get('EKI_AVISO_MODULO_DISPONIBLE_ENABLED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Recordatorio a quien no avanza (admin → Recordatorios de curso). Apagado por defecto.
+EKI_RECORDATORIO_CURSO_ENABLED = os.environ.get('EKI_RECORDATORIO_CURSO_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 EKI_AVISO_MODULO_VENTANA_HORAS = float(os.environ.get('EKI_AVISO_MODULO_VENTANA_HORAS', '24') or '24')
 # Pausa entre plantillas, muy por debajo de WA_META_MPS (throughput verificado el 2026-10-25).
 EKI_AVISO_MODULO_PAUSA_SEG = float(os.environ.get('EKI_AVISO_MODULO_PAUSA_SEG', '0.35') or '0.35')
