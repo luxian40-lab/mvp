@@ -8,26 +8,20 @@ import re
 from django.conf import settings
 from django.core.cache import cache
 
+from core.models_agentes import (  # noqa: F401
+    _CACHE_KEY,
+    AGENTES,
+    limpiar_cache_conocimiento,
+)
+
 logger = logging.getLogger(__name__)
 
-AGENTES = ('coach', 'ia_campo', 'ventas', 'finanzas', 'cafe')
-_CACHE_KEY = 'conocimiento_agente:v2:{agente}:{cliente}'
 _CACHE_SEGUNDOS = 300
 _MAX_CHARS_PROMPT = 2500
 _MIN_CHARS_PREGUNTA = 30
 
 _RE_CORREO = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _RE_NUMERO = re.compile(r'\+?\d[\d\s-]{6,}\d')
-
-
-def limpiar_cache_conocimiento(cliente_id=None) -> None:
-    claves = [_CACHE_KEY.format(agente=a, cliente='0') for a in AGENTES]
-    if cliente_id:
-        claves.extend(_CACHE_KEY.format(agente=a, cliente=cliente_id) for a in AGENTES)
-    try:
-        cache.delete_many(claves)
-    except Exception:
-        logger.exception('conocimiento_cache_clear_fail')
 
 
 def cliente_id_para_conocimiento(telefono: str):

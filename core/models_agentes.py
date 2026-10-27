@@ -3,8 +3,26 @@
 Nat tiene su propia biblioteca (Knowledge Studio). Aquí solo entra lo que el
 equipo aprueba; lo capturado de conversaciones queda «sugerido» hasta revisión.
 """
+import logging
+
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
+
+logger = logging.getLogger(__name__)
+
+AGENTES = ('coach', 'ia_campo', 'ventas', 'finanzas', 'cafe')
+_CACHE_KEY = 'conocimiento_agente:v2:{agente}:{cliente}'
+
+
+def limpiar_cache_conocimiento(cliente_id=None) -> None:
+    claves = [_CACHE_KEY.format(agente=a, cliente='0') for a in AGENTES]
+    if cliente_id:
+        claves.extend(_CACHE_KEY.format(agente=a, cliente=cliente_id) for a in AGENTES)
+    try:
+        cache.delete_many(claves)
+    except Exception:
+        logger.exception('conocimiento_cache_clear_fail')
 
 
 class ConocimientoAgente(models.Model):
@@ -92,14 +110,10 @@ class ConocimientoAgente(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        from core.conocimiento_agentes import limpiar_cache_conocimiento
-
         limpiar_cache_conocimiento(self.cliente_id)
 
     def delete(self, *args, **kwargs):
         resultado = super().delete(*args, **kwargs)
-        from core.conocimiento_agentes import limpiar_cache_conocimiento
-
         limpiar_cache_conocimiento(self.cliente_id)
         return resultado
 
