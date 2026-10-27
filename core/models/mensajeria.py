@@ -439,7 +439,7 @@ class WhatsappLog(models.Model):
                 self.canal = marcado
         if not self.estudiante_id and self.telefono:
             try:
-                from core.utils_telefono import estudiante_por_telefono
+                from core.models.estudiantes import estudiante_por_telefono
 
                 est = estudiante_por_telefono(self.telefono)
                 if est:
@@ -500,7 +500,7 @@ def procesar_excel_campana(sender, instance, created, **kwargs):
     if instance.archivo_excel and instance.destinatarios.count() == 0:
         try:
             from core.excel_celdas import celda_excel_a_texto
-            from core.utils_telefono import validar_telefono_whatsapp
+            from core.canal.telefono import validar_telefono_whatsapp
 
             file_path = instance.archivo_excel.path
             if os.path.exists(file_path):

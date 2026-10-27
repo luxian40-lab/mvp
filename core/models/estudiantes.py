@@ -245,7 +245,7 @@ class Estudiante(models.Model):
             normalizar_numero_documento,
             normalizar_tipo_documento,
         )
-        from core.utils_telefono import normalizar_telefono
+        from core.canal.telefono import normalizar_telefono
 
         # Teléfono: solo dígitos; 57 automático solo si parece móvil CO (10 dígitos que empiezan en 3).
         self.telefono = normalizar_telefono(self.telefono)
@@ -284,3 +284,13 @@ class Estudiante(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.tipo_documento}: {self.cedula})"
+
+
+def estudiante_por_telefono(telefono: str):
+    """Ficha más reciente cuyo teléfono coincida en E.164 o en 10 dígitos locales."""
+    from core.canal.telefono import variantes_telefono
+
+    vars_tel = variantes_telefono(telefono)
+    if not vars_tel:
+        return None
+    return Estudiante.objects.filter(telefono__in=vars_tel).order_by('-id').first()
