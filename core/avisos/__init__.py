@@ -1,4 +1,4 @@
 """Avisos automáticos por WhatsApp. Dependen del núcleo; el núcleo no los importa.
 
-Se cargan desde CoreConfig.ready(): el admin y la tarea de Celery.
+El admin se carga desde CoreConfig.ready(); la tarea, desde CELERY_IMPORTS.
 """

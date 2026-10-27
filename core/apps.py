@@ -31,4 +31,3 @@ class CoreConfig(AppConfig):
         aplicar_timeout_twilio()
 
         import core.avisos.admin  # noqa: F401
-        import core.avisos.tareas  # noqa: F401
