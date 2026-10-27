@@ -456,6 +456,13 @@ META_REENGANCHE_ENABLED = os.environ.get('META_REENGANCHE_ENABLED', 'false').str
 )
 META_TEMPLATE_DRIP_REENGANCHE = os.environ.get('META_TEMPLATE_DRIP_REENGANCHE', '')
 META_TEMPLATE_DRIP_IDIOMA = os.environ.get('META_TEMPLATE_DRIP_IDIOMA', 'es')
+# Aviso «Módulo disponible» por calendario del cliente (admin → Avisos de módulo). Apagado por defecto.
+EKI_AVISO_MODULO_DISPONIBLE_ENABLED = os.environ.get('EKI_AVISO_MODULO_DISPONIBLE_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+EKI_AVISO_MODULO_VENTANA_HORAS = float(os.environ.get('EKI_AVISO_MODULO_VENTANA_HORAS', '24') or '24')
+# Pausa entre plantillas, muy por debajo de WA_META_MPS (throughput verificado el 2026-10-25).
+EKI_AVISO_MODULO_PAUSA_SEG = float(os.environ.get('EKI_AVISO_MODULO_PAUSA_SEG', '0.35') or '0.35')
 # Vacío = diploma por imagen de sesión (ventana de 24 h). El nombre que se llena
 # en Configuración Global manda si esta variable está vacía.
 # Verificado 2026-10-08: header image + body {{1}} {{2}} {{3}} es el contrato de Graph.
