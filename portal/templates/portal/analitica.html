@@ -355,6 +355,45 @@
             <p class="muted" style="margin:0;">El ranking aparece cuando la organización tiene puntos o calificación activos.</p>
         </article>
         {% endif %}
+
+        {% if uso_ia %}
+        <h2 id="ana-ia-title" style="margin-top:40px;">Uso de IA por persona</h2>
+        <p class="muted">Preguntas a los asesores y a Nat, últimos {{ uso_ia.periodo_dias }} días.{% if uso_ia.usan_pct is not None %} Los usaron {{ uso_ia.usan }} de {{ uso_ia.registrados }} registrados ({{ uso_ia.usan_pct|stringformat:".1f" }}%).{% endif %}</p>
+        {% if uso_ia.personas %}
+        <div class="panel" style="padding: 8px 12px; overflow-x: auto;">
+            <table class="ana-rank" aria-labelledby="ana-ia-title">
+                <thead>
+                    <tr>
+                        <th>Persona</th>
+                        <th>Preguntas</th>
+                        {% for agente in uso_ia.agentes %}<th>{{ agente }}</th>{% endfor %}
+                        <th>Última</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in uso_ia.personas %}
+                    <tr>
+                        <td>{{ p.nombre }}</td>
+                        <td>{{ p.total }}</td>
+                        {% for n in p.por_agente %}<td>{{ n }}</td>{% endfor %}
+                        <td>{{ p.ultima|date:"j M Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td><strong>{{ uso_ia.total }}</strong></td>
+                        {% for n in uso_ia.totales_agente %}<td><strong>{{ n }}</strong></td>{% endfor %}
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <article class="panel" style="padding: 18px;">
+            <p class="muted" style="margin:0;">Nadie de la organización ha preguntado a los asesores en este periodo.</p>
+        </article>
+        {% endif %}
+        {% endif %}
         <p class="ana-links">También:
             <a href="/portal/certificados/">Certificados</a>
             <a href="/portal/gamificacion/">Gamificación</a>

@@ -44,6 +44,7 @@ from .retencion_service import analitica_retencion_portal
 from .agente_retencion import responder_agente_retencion
 from .metricas_curso import metricas_cursos
 from .ranking_portal import ranking_portal
+from .uso_ia_agentes import uso_ia_por_persona
 from .uso_plataforma import uso_plataforma
 from .exports import (
     filas_reenganche_sin_modulo,
@@ -1126,6 +1127,7 @@ def portal_analitica(request):
         from .impacto import impacto_nucleo
 
         impacto = impacto_nucleo(org)
+    uso_ia = uso_ia_por_persona(org) if seccion == 'habilidades' else None
     return render(request, 'portal/analitica.html', {
         'org': org,
         'mods': mods,
@@ -1134,6 +1136,7 @@ def portal_analitica(request):
         'ranking': ranking_portal(org),
         'ce_data': ce_data,
         'impacto': impacto,
+        'uso_ia': uso_ia,
         'seccion': seccion,
     })
 
