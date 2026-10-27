@@ -3,7 +3,7 @@
 El tablero muestra tres ejes: Económico, Social y Ambiental.
 G1 y G2 siguen en ``por_codigo`` y no se publican en la vista.
 
-S1 y S2 salen del sistema (A). El resto se muestra pendiente hasta que exista
+S1 y S2 salen del sistema (A). El resto se muestra sin valor hasta que exista
 captura. No se inventa un porcentaje. Un corte con n < 10 no publica %.
 """
 from __future__ import annotations

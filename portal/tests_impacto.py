@@ -203,3 +203,9 @@ class ImpactoPortalTests(TestCase):
         self.assertLess(bloque.find('imp-name--soc'), bloque.find('imp-name--amb'))
         self.assertNotIn('G1', bloque)
         self.assertNotIn('G2', bloque)
+
+    def test_impacto_no_dice_pendiente(self):
+        html = self.http.get('/portal/analitica/?s=impacto').content.decode()
+        bloque = html.split('id="ana-impacto"', 1)[1]
+        self.assertIn('Ganancia de aprendizaje', bloque)
+        self.assertNotIn('endiente', bloque)

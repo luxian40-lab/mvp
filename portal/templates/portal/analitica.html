@@ -362,7 +362,7 @@
                     <span class="imp-ev">{{ ind.codigo }} · evidencia {{ ind.evidencia }}{% if ind.rotulo %} · {{ ind.rotulo }}{% endif %}</span>
                     <h3>{{ ind.nombre }}</h3>
                     {% if ind.estado == 'pendiente_captura' %}
-                    <p>Pendiente de captura. {{ ind.nota }}</p>
+                    <p>{{ ind.nota }}</p>
                     {% else %}
                     <p class="imp-val">
                         {% if ind.codigo == 'S1' %}{{ ind.numerador }} personas
