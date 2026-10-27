@@ -42,6 +42,7 @@ from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
 from .retencion_service import analitica_retencion_portal
 from .agente_retencion import responder_agente_retencion
+from .metricas_curso import metricas_cursos
 from .ranking_portal import ranking_portal
 from .uso_plataforma import uso_plataforma
 from .exports import (
@@ -1129,10 +1130,23 @@ def portal_analitica(request):
         'org': org,
         'mods': mods,
         'uso': uso_plataforma(org),
+        'cursos_total': metricas_cursos(org)['total'],
         'ranking': ranking_portal(org),
         'ce_data': ce_data,
         'impacto': impacto,
         'seccion': seccion,
+    })
+
+
+@portal_login_required
+def portal_analitica_cursos(request):
+    """Analítica → métricas por curso, agrupadas por línea de WhatsApp."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    return render(request, 'portal/analitica_cursos.html', {
+        'org': org,
+        'metricas': metricas_cursos(org),
     })
 
 

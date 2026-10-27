@@ -197,6 +197,9 @@
                 {% else %}Uso de plataforma de {{ org.nombre }}.{% endif %}
             </p>
         </div>
+        {% if seccion == 'uso' %}
+        <a class="btn btn-outline" href="{% url 'portal_analitica_cursos' %}">Ver métricas por curso</a>
+        {% endif %}
     </div>
 
     <section id="ana-uso" aria-labelledby="ana-uso-title" {% if seccion != 'uso' %}hidden{% endif %}>
@@ -246,6 +249,26 @@
                 <h3>Uso del producto</h3>
                 <p class="metric-number">{% if uso.uso_pct is None %}Sin dato{% else %}{{ uso.uso_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que este mes avanzaron o escribieron{% if uso.uso_pct is not None %}: {{ uso.uso_n }} de {{ uso.registrados }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Tasa de inicio</h3>
+                <p class="metric-number">{% if cursos_total.inicio_pct is None %}Sin dato{% else %}{{ cursos_total.inicio_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Inscripciones que comenzaron un módulo{% if cursos_total.inicio_pct is not None %}: {{ cursos_total.iniciaron }} de {{ cursos_total.inscritos }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Culminación de quienes iniciaron</h3>
+                <p class="metric-number">{% if cursos_total.culminacion_iniciados_pct is None %}Sin dato{% else %}{{ cursos_total.culminacion_iniciados_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Terminaron el curso sobre los que lo iniciaron{% if cursos_total.culminacion_iniciados_pct is not None %}: {{ cursos_total.terminaron }} de {{ cursos_total.iniciaron }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Culminación de inscritos</h3>
+                <p class="metric-number">{% if cursos_total.culminacion_inscritos_pct is None %}Sin dato{% else %}{{ cursos_total.culminacion_inscritos_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Terminaron el curso sobre los que lo aceptaron{% if cursos_total.culminacion_inscritos_pct is not None %}: {{ cursos_total.terminaron }} de {{ cursos_total.inscritos }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Avance promedio</h3>
+                <p class="metric-number">{% if cursos_total.avance_pct is None %}Sin dato{% else %}{{ cursos_total.avance_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Módulos cerrados sobre módulos del curso, promedio de las {{ cursos_total.inscritos }} inscripciones.</p>
             </article>
         </div>
 

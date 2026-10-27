@@ -1,0 +1,83 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Métricas por curso | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+    .mc-linea { margin-bottom: 40px; }
+    .mc-linea h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--texto); }
+    .mc-tabla-wrap {
+        background: var(--surface);
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        padding: 8px 16px;
+        overflow-x: auto;
+    }
+    html[data-theme="dark"] .mc-tabla-wrap { background: var(--blanco); }
+    .mc-tabla { width: 100%; border-collapse: collapse; }
+    .mc-tabla th, .mc-tabla td {
+        text-align: right;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--borde);
+        color: var(--texto);
+        white-space: nowrap;
+    }
+    .mc-tabla th:first-child, .mc-tabla td:first-child { text-align: left; white-space: normal; }
+    .mc-tabla th { color: var(--texto-muted); font-size: 12px; font-weight: 600; }
+    .mc-tabla tr:last-child td { border-bottom: 0; }
+    .mc-tabla small { display: block; color: var(--texto-muted); font-size: 11.5px; }
+    .mc-nota { color: var(--texto-muted); font-size: 13px; line-height: 1.45; max-width: 52rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Métricas por curso</h1>
+        <p class="muted">Inicio, culminación y avance de {{ org.nombre }}, por línea de WhatsApp.</p>
+    </div>
+    <a class="btn btn-outline" href="{% url 'portal_analitica' %}">← Analítica</a>
+</div>
+
+{% for linea in metricas.lineas %}
+<section class="mc-linea">
+    <h2>{{ linea.nombre }}</h2>
+    <div class="mc-tabla-wrap">
+        <table class="mc-tabla">
+            <thead>
+                <tr>
+                    <th>Curso</th>
+                    <th>Inscritos</th>
+                    <th>Tasa de inicio</th>
+                    <th>Culminación de quienes iniciaron</th>
+                    <th>Culminación de inscritos</th>
+                    <th>Avance promedio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in linea.cursos %}
+                <tr>
+                    <td>{{ c.nombre }}{% if c.general %}<small>Curso general de eki</small>{% endif %}</td>
+                    <td>{{ c.inscritos }}</td>
+                    <td>{% if c.inicio_pct is None %}Sin dato{% else %}{{ c.inicio_pct|stringformat:".1f" }}%<small>{{ c.iniciaron }} de {{ c.inscritos }}</small>{% endif %}</td>
+                    <td>{% if c.culminacion_iniciados_pct is None %}Sin dato{% else %}{{ c.culminacion_iniciados_pct|stringformat:".1f" }}%<small>{{ c.terminaron }} de {{ c.iniciaron }}</small>{% endif %}</td>
+                    <td>{% if c.culminacion_inscritos_pct is None %}Sin dato{% else %}{{ c.culminacion_inscritos_pct|stringformat:".1f" }}%<small>{{ c.terminaron }} de {{ c.inscritos }}</small>{% endif %}</td>
+                    <td>{% if c.avance_pct is None %}Sin dato{% else %}{{ c.avance_pct|stringformat:".1f" }}%{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% empty %}
+<article class="panel" style="padding: 18px;">
+    <p class="muted" style="margin:0;">Todavía no hay cursos con inscritos en esta organización.</p>
+</article>
+{% endfor %}
+
+<p class="mc-nota">
+    Inscrito: aceptó el curso. Inició: recibió al menos un paso o cerró un módulo.
+    Avance: módulos cerrados sobre módulos del curso; un curso terminado cuenta 100 %.
+    Un curso puede aparecer en más de una línea si ambas lo ofrecen.
+</p>
+{% endblock %}
