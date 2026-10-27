@@ -34,7 +34,12 @@ from core.models.cursos import (  # noqa: F401
     HabilitacionModuloDripCliente,
     HabilitacionModuloEstudiante,
 )
-from core.models.avisos import AvisoModuloDisponible, AvisoModuloEnviado  # noqa: F401
+from core.models.avisos import (  # noqa: F401
+    AvisoModuloDisponible,
+    AvisoModuloEnviado,
+    RecordatorioCurso,
+    RecordatorioCursoEnviado,
+)
 
 
 from core.models.conocimiento import (  # noqa: F401
@@ -159,7 +164,8 @@ __all__ = [
     'Campana', 'EnvioLog', 'WhatsappLog',
     'SesionComercial',
     'Curso', 'ConfiguracionDripCliente', 'HabilitacionModuloDripCliente',
-    'HabilitacionModuloEstudiante', 'AvisoModuloDisponible', 'AvisoModuloEnviado', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo',
+    'HabilitacionModuloEstudiante', 'AvisoModuloDisponible', 'AvisoModuloEnviado',
+    'RecordatorioCurso', 'RecordatorioCursoEnviado', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo',
     'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',

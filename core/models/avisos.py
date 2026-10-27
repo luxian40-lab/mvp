@@ -78,3 +78,89 @@ class AvisoModuloEnviado(models.Model):
 
     def __str__(self):
         return f'{self.estudiante_id} M{self.modulo_id} {self.estado}'
+
+
+class RecordatorioCurso(models.Model):
+    """Plantilla para quien tiene contenido disponible y no avanza."""
+
+    HORAS = [(h, f'{h:02d}:00') for h in range(6, 21)]
+
+    cliente = models.ForeignKey(
+        'core.Cliente',
+        on_delete=models.CASCADE,
+        related_name='recordatorios_curso',
+        verbose_name='Cliente',
+    )
+    curso = models.ForeignKey(
+        'core.Curso',
+        on_delete=models.CASCADE,
+        related_name='recordatorios_curso',
+        verbose_name='Curso',
+    )
+    grupo = models.ForeignKey(
+        'core.GrupoEstudiantes',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recordatorios_curso',
+        verbose_name='Grupo',
+        help_text='Vacío = todos los estudiantes del cliente inscritos en el curso.',
+    )
+    phone_number_id = models.CharField(max_length=32, verbose_name='Línea')
+    plantilla = models.ForeignKey(
+        'core.PlantillaMeta',
+        on_delete=models.PROTECT,
+        related_name='recordatorios_curso',
+        verbose_name='Plantilla Meta',
+        help_text='Aprobada y de la cuenta de esa línea. Variables: {{1}} nombre, {{2}} curso.',
+    )
+    dias_sin_avanzar = models.PositiveSmallIntegerField(
+        default=2,
+        verbose_name='Días sin avanzar',
+        help_text='Primer recordatorio después de estos días sin escribir, con contenido disponible.',
+    )
+    repetir_cada_dias = models.PositiveSmallIntegerField(
+        default=7,
+        verbose_name='Repetir cada (días)',
+        help_text='Si sigue sin avanzar, otro recordatorio cada tantos días hasta que termine.',
+    )
+    hora = models.PositiveSmallIntegerField(default=9, choices=HORAS, verbose_name='Hora (Bogotá)')
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Recordatorio de curso'
+        verbose_name_plural = 'Recordatorios de curso'
+        constraints = [
+            models.UniqueConstraint(fields=['cliente', 'curso'], name='uniq_recordatorio_curso_cliente_curso'),
+        ]
+
+    def __str__(self):
+        return f'{self.cliente} → {self.curso}'
+
+
+class RecordatorioCursoEnviado(models.Model):
+    """Como mucho uno por persona y día. La fila se crea antes de enviar."""
+
+    ESTADOS = AvisoModuloEnviado.ESTADOS
+
+    recordatorio = models.ForeignKey(RecordatorioCurso, on_delete=models.CASCADE, related_name='envios')
+    estudiante = models.ForeignKey('core.Estudiante', on_delete=models.CASCADE, related_name='recordatorios_curso')
+    dia = models.DateField()
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='ENVIANDO')
+    wamid = models.CharField(max_length=200, blank=True, default='')
+    respuesta = models.TextField(blank=True, default='')
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Recordatorio de curso enviado'
+        verbose_name_plural = 'Recordatorios de curso enviados'
+        ordering = ['-fecha']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recordatorio', 'estudiante', 'dia'], name='uniq_recordatorio_curso_estudiante_dia',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.estudiante_id} {self.dia} {self.estado}'
