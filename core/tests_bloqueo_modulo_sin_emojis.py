@@ -35,7 +35,7 @@ class BloqueoModuloSinEmojisTests(TestCase):
             with self.subTest(mensaje=nombre):
                 mensaje = self._mensajes()[nombre]
                 self.assertTrue(mensaje.startswith('*¡Excelente energía!*'))
-                self.assertIn('repasa el material del módulo', mensaje)
+                self.assertIn('repase el material del módulo', mensaje)
 
     def test_modulo_pausado_cierra_sin_prometer_fecha(self):
         """Sin módulo publicado no hay fecha que dar: cerrar corto y sin pedir *listo*."""

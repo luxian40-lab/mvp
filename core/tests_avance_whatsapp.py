@@ -86,7 +86,7 @@ class AvanceWhatsappTests(TestCase):
         self.assertTrue(es_mensaje_drip_bloqueo(msg))
         adaptado = adaptar_mensaje_drip_bloqueo(msg, self.est)
         self.assertNotIn('responde *listo*', adaptado.lower())
-        self.assertIn('no hace falta', adaptado.lower())
+        self.assertIn('escriba *continuar* para recibirlo', adaptado.lower())
 
     def test_drip_cierre_texto_vs_boton(self):
         self.assertNotIn('listo', texto_bloqueo_drip_cierre(self.cliente_texto).lower())

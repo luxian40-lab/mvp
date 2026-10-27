@@ -96,7 +96,7 @@ class DripGeoGamificacionTests(TestCase):
 			mensaje_original='listo',
 		)
 		self.assertIn('se desbloquea el', respuesta)
-		self.assertIn('preparando tu siguiente sesión', respuesta)
+		self.assertIn('preparando su siguiente sesión', respuesta)
 
 	def test_drip_override_por_cliente(self):
 		cliente = Cliente.objects.create(
@@ -252,7 +252,7 @@ class DripGeoGamificacionTests(TestCase):
 		cursos_list = list(cursos_visibles_para_estudiante(estudiante))
 		indice = next(i for i, c in enumerate(cursos_list, 1) if c.id == curso.id)
 		respuesta = continuar_curso_seleccionado(estudiante.id, indice, str(indice))
-		self.assertIn('preparando tu siguiente sesión', respuesta)
+		self.assertIn('preparando su siguiente sesión', respuesta)
 		self.assertIn('se desbloquea el', respuesta)
 
 	def test_post_reto_primer_listo_muestra_siguiente_modulo_sin_saltar(self):

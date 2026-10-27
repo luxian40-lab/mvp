@@ -1368,7 +1368,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
             estudiante_id=self.est.id,
             mensaje_original='listo',
         )
-        self.assertNotIn('Tu próxima lección se desbloquea el', r)
+        self.assertNotIn('próxima lección se desbloquea el', r)
         self.assertIn('pausa para repasar', r.lower())
         self.assertIn('Compañero', r)
         self.assertIn('Formador', r)
@@ -1404,7 +1404,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
             estudiante_id=self.est.id,
             mensaje_original='listo',
         )
-        self.assertIn('Tu próxima lección se desbloquea el', r)
+        self.assertIn('Su próxima lección se desbloquea el', r)
 
 
 @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='')

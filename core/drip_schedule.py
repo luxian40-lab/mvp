@@ -126,6 +126,16 @@ def calendario_bloquea_modulo(estudiante: Estudiante | None, modulo: Modulo | No
     return timezone.now() < dt
 
 
+def _texto_bloqueo(f_txt: str, cierre: str) -> str:
+    return (
+        '*¡Excelente energía!*\n\n'
+        'Estamos preparando su siguiente sesión; aún no enviamos el siguiente módulo para que pueda asimilar lo aprendido.\n\n'
+        f'Su próxima lección se desbloquea el *{f_txt}*.\n'
+        'Mientras tanto, repase el material del módulo que acaba de completar.\n\n'
+        f'{cierre}'
+    )
+
+
 def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
     """Mensaje WhatsApp: espera por días entre módulos (mismo tono que el drip histórico)."""
     from .avance_whatsapp import texto_bloqueo_drip_cierre
@@ -134,27 +144,41 @@ def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
         f_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
     else:
         f_txt = fecha_desbloqueo.strftime('%d/%m/%Y')
-    return (
-        '*¡Excelente energía!*\n\n'
-        'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
-        f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
-        'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
-        f'{texto_bloqueo_drip_cierre(cliente)}'
-    )
+    return _texto_bloqueo(f_txt, texto_bloqueo_drip_cierre(cliente))
 
 
-def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None) -> str:
+def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None, *, con_aviso: bool = False) -> str:
     """Mismo tono que el drip por días; la fecha incluye hora (calendario programado)."""
     from .avance_whatsapp import texto_bloqueo_drip_cierre
 
     f_txt = timezone.localtime(habilitado_desde).strftime('%d/%m/%Y a las %H:%M')
-    return (
-        '*¡Excelente energía!*\n\n'
-        'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
-        f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
-        'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
-        f'{texto_bloqueo_drip_cierre(cliente)}'
-    )
+    return _texto_bloqueo(f_txt, texto_bloqueo_drip_cierre(cliente, con_aviso=con_aviso))
+
+
+def aviso_modulo_cubre(estudiante: Estudiante | None, modulo: Modulo | None, habilitado_desde) -> bool:
+    """True si el aviso automático le escribirá cuando el calendario del cliente abra `modulo`."""
+    from django.conf import settings
+
+    if not getattr(settings, 'EKI_AVISO_MODULO_DISPONIBLE_ENABLED', False):
+        return False
+    if estudiante is None or modulo is None or not getattr(estudiante, 'cliente_id', None):
+        return False
+    if not estudiante.activo or estudiante.wa_optout_fecha:
+        return False
+    from django.db.models import Q
+    from .models import AvisoModuloDisponible, HabilitacionModuloDripCliente
+
+    if not HabilitacionModuloDripCliente.objects.filter(
+        cliente_id=estudiante.cliente_id,
+        curso_id=modulo.curso_id,
+        modulo_id=modulo.id,
+        activo=True,
+        habilitado_desde=habilitado_desde,
+    ).exists():
+        return False
+    return AvisoModuloDisponible.objects.filter(
+        cliente_id=estudiante.cliente_id, curso_id=modulo.curso_id, activo=True,
+    ).filter(Q(grupo__isnull=True) | Q(grupo__estudiantes=estudiante)).exists()
 
 
 def mensaje_bloqueo_avance_siguiente_modulo(
@@ -189,7 +213,9 @@ def mensaje_bloqueo_avance_siguiente_modulo(
 
     cal_dt = habilitado_desde_efectivo(estudiante, siguiente)
     if cal_dt and timezone.now() < cal_dt:
-        partes.append(format_mensaje_bloqueo_calendario_modulo(cal_dt, cliente))
+        partes.append(format_mensaje_bloqueo_calendario_modulo(
+            cal_dt, cliente, con_aviso=aviso_modulo_cubre(estudiante, siguiente, cal_dt),
+        ))
 
     if not partes:
         return None

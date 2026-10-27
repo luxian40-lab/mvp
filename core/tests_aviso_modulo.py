@@ -299,3 +299,75 @@ class AvisoModuloTests(TestCase):
         sender.plantilla.assert_called_once()
         self.assertEqual(sender.plantilla.call_args.args[0], '573026480629')
         self.assertFalse(AvisoModuloEnviado.objects.exists())
+
+
+@override_settings(**AJUSTES)
+class PausaDiceSiHayAvisoTests(TestCase):
+    """La pausa promete el aviso solo a quien el aviso le va a escribir."""
+
+    def setUp(self):
+        self.cliente = Cliente.objects.create(
+            nombre='Alitic', contacto_principal='A', email='a@test.com', telefono='573001110000', activo=True,
+        )
+        self.curso = Curso.objects.create(nombre='Crea y Vende', descripcion='d', cliente=self.cliente, activo=True)
+        self.m1 = Modulo.objects.create(curso=self.curso, numero=1, titulo='Su idea', descripcion='d', contenido='c')
+        self.m2 = Modulo.objects.create(curso=self.curso, numero=2, titulo='Su cliente', descripcion='d', contenido='c')
+        plantilla = PlantillaMeta.objects.create(
+            nombre_interno='Módulo disponible', meta_name='modulo_disponible', idioma='es', categoria='UTILITY',
+            tipo='TEXTO', cuerpo='Hola {{1}}', estado='APPROVED', activa=True, waba_id=WABA_2,
+        )
+        self.aviso = AvisoModuloDisponible.objects.create(
+            cliente=self.cliente, curso=self.curso, plantilla=plantilla, phone_number_id=LINEA_2,
+        )
+        self.abre = timezone.now() + timedelta(days=3)
+        HabilitacionModuloDripCliente.objects.create(
+            cliente=self.cliente, curso=self.curso, modulo=self.m2, habilitado_desde=self.abre, activo=True,
+        )
+        self.ana = Estudiante.objects.create(
+            cedula='CC110101', nombre='Ana', telefono='573001110101', cliente=self.cliente, activo=True,
+        )
+        self.progreso = ProgresoEstudiante.objects.create(
+            estudiante=self.ana, curso=self.curso, modulo_actual=self.m1,
+        )
+        ModuloCompletado.objects.create(progreso=self.progreso, modulo=self.m1)
+
+    def _mensaje(self):
+        from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+
+        self.ana.refresh_from_db()
+        return mensaje_bloqueo_avance_siguiente_modulo(self.ana, self.progreso, self.m1)
+
+    def test_con_aviso_dice_que_le_avisamos(self):
+        mensaje = self._mensaje()
+        self.assertIn('Su próxima lección se desbloquea el', mensaje)
+        self.assertIn('le avisamos por aquí; toque *Continuar*', mensaje)
+        self.assertNotIn('te enviaremos', mensaje)
+
+    def test_fuera_del_grupo_le_pide_escribir(self):
+        self.aviso.grupo = GrupoEstudiantes.objects.create(nombre='Cohorte', cliente=self.cliente)
+        self.aviso.save(update_fields=['grupo'])
+        self.assertIn('escriba *continuar*', self._mensaje())
+        self.aviso.grupo.estudiantes.add(self.ana)
+        self.assertIn('le avisamos por aquí', self._mensaje())
+
+    def test_sin_aviso_activo_le_pide_escribir(self):
+        self.aviso.activo = False
+        self.aviso.save(update_fields=['activo'])
+        mensaje = self._mensaje()
+        self.assertIn('Ese día escriba *continuar* para recibirlo.', mensaje)
+        self.assertNotIn('le avisamos', mensaje)
+
+    def test_flag_apagado_le_pide_escribir(self):
+        with self.settings(EKI_AVISO_MODULO_DISPONIBLE_ENABLED=False):
+            self.assertIn('escriba *continuar*', self._mensaje())
+
+    def test_fecha_propia_distinta_le_pide_escribir(self):
+        HabilitacionModuloEstudiante.objects.create(
+            estudiante=self.ana, curso=self.curso, modulo=self.m2,
+            habilitado_desde=self.abre + timedelta(days=1), activo=True,
+        )
+        self.assertIn('escriba *continuar*', self._mensaje())
+
+    def test_dado_de_baja_le_pide_escribir(self):
+        Estudiante.objects.filter(pk=self.ana.pk).update(wa_optout_fecha=timezone.now())
+        self.assertIn('escriba *continuar*', self._mensaje())

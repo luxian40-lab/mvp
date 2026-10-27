@@ -33,10 +33,9 @@ CTX_DRIP_BLOQUEO = 'drip_bloqueo'
 
 TEXTO_CTA_LISTO_DEFAULT = CUERPO_BOTON_CONTINUEMOS
 
-TEXTO_DRIP_BLOQUEO_BOTON = (
-    'Cuando llegue esa fecha, te enviaremos el siguiente módulo. '
-    'No hace falta responder antes.'
-)
+TEXTO_DRIP_BLOQUEO_BOTON = 'Ese día escriba *continuar* para recibirlo.'
+# Solo si el aviso automático de módulo le va a escribir ese día.
+TEXTO_DRIP_BLOQUEO_CON_AVISO = 'Ese día le avisamos por aquí; toque *Continuar* para recibirlo.'
 
 TEXTO_DRIP_BLOQUEO_TEXTO = TEXTO_DRIP_BLOQUEO_BOTON
 
@@ -118,7 +117,11 @@ def es_mensaje_drip_bloqueo(texto: str) -> bool:
     if not texto:
         return False
     t = texto.lower()
-    return 'estamos preparando tu siguiente sesión' in t or 'próxima lección se desbloquea' in t
+    return (
+        'estamos preparando tu siguiente sesión' in t
+        or 'estamos preparando su siguiente sesión' in t
+        or 'próxima lección se desbloquea' in t
+    )
 
 
 def sid_plantilla_continuemos(cliente: Cliente | None = None) -> str:
@@ -148,6 +151,6 @@ def adaptar_mensaje_drip_bloqueo(texto: str, estudiante: Estudiante | None) -> s
     return texto
 
 
-def texto_bloqueo_drip_cierre(cliente: Cliente | None) -> str:
+def texto_bloqueo_drip_cierre(cliente: Cliente | None, *, con_aviso: bool = False) -> str:
     del cliente
-    return TEXTO_DRIP_BLOQUEO_BOTON
+    return TEXTO_DRIP_BLOQUEO_CON_AVISO if con_aviso else TEXTO_DRIP_BLOQUEO_BOTON
