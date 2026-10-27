@@ -6,8 +6,6 @@ No usa Content SID de Twilio.
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 import threading
 import time
@@ -16,6 +14,7 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
+from core.canal.firma_meta import firma_meta_ok
 from core.models_campana_meta import (
     CampanaMeta,
     EnvioCampanaMeta,
@@ -63,20 +62,6 @@ def _headers() -> dict[str, str] | None:
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
     }
-
-
-def firma_meta_ok(raw_body: bytes, signature_header: str, secret: str) -> bool:
-    """HMAC-SHA256 del body crudo. compare_digest, nunca ==."""
-    secret = (secret or '').strip()
-    header = (signature_header or '').strip()
-    if not secret or not header or raw_body is None:
-        return False
-    if header.lower().startswith('sha256='):
-        header = header.split('=', 1)[1].strip()
-    digest = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha256).hexdigest()
-    if len(digest) != len(header):
-        return False
-    return hmac.compare_digest(digest, header)
 
 
 def _error_meta(data: dict) -> dict:

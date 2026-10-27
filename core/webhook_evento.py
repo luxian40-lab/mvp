@@ -113,7 +113,7 @@ def firma_meta_invalida(raw_body: bytes, signature_header: str) -> bool:
     exigir = bool(getattr(settings, 'WHATSAPP_REQUIRE_SIGNATURE', False))
     if not secret:
         return exigir
-    from core.meta_waba import firma_meta_ok
+    from core.canal.firma_meta import firma_meta_ok
 
     return not firma_meta_ok(raw_body or b'', signature_header or '', secret)
 
