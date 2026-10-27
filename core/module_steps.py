@@ -456,21 +456,20 @@ def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
     return ''.join(parts)
 
 
-def _mensaje_es_solo_avance_listo(texto_crudo: str) -> bool:
-    """True si el usuario solo pide avanzar (listo/ok…) sin enviar una letra A–D."""
-    raw = (texto_crudo or '').strip().lower().replace('*', '').strip()
-    if not raw:
-        return False
-    if re.fullmatch(r'[a-d]', raw):
-        return False
-    tokens = [t for t in re.sub(r'[^a-záéíóúüñ\s]', ' ', raw).split() if t]
-    if not tokens:
-        return False
-    gate = {
-        'listo', 'lista', 'ok', 'dale', 'siguiente', 'continuar', 'continuemos',
-        'sigue', 'si', 'sí', 'ya',
-    }
-    return set(tokens) <= gate
+_RE_LETRA_EVAL = re.compile(
+    r'^(?:(?:la|el|es|opcion|letra|respuesta)\s+){0,4}([abcd])\s*(?:$|[).:\-])'
+)
+
+
+def letra_respuesta_eval(texto_crudo: str) -> str:
+    """Letra A–D si el mensaje es una respuesta clara («b», «B) Dos», «la b»). Si no, vacío."""
+    import unicodedata
+
+    raw = unicodedata.normalize('NFKD', (texto_crudo or '').lower())
+    raw = ''.join(c for c in raw if not unicodedata.combining(c))
+    raw = raw.replace('*', '').replace('_', '').strip()
+    m = _RE_LETRA_EVAL.match(raw)
+    return m.group(1).upper() if m else ''
 
 
 def _feedback_incorrecto_paso_estilo_mini(paso: PasoModulo, letra_usuario: str) -> str:
@@ -1142,11 +1141,10 @@ def procesar_respuesta_evaluacion_paso(
     letra_in_eval = ''
     head_facilitadora = None
     if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
-        letra_in_eval = re.sub(r'[^a-dA-D]', '', texto)
-        letra_in_eval = (letra_in_eval[:1] or '').upper()
-        if not letra_in_eval and _mensaje_es_solo_avance_listo(texto_crudo):
+        letra_in_eval = letra_respuesta_eval(texto)
+        if not letra_in_eval:
             logger.info(
-                'pasos eval abierta no avanza con listo est=%s paso_id=%s',
+                'pasos eval abierta sin letra clara est=%s paso_id=%s',
                 estudiante.id,
                 paso.id,
             )

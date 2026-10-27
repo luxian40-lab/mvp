@@ -346,6 +346,50 @@ class ModuleStepsModelTests(TestCase):
         self.prog.refresh_from_db()
         self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
 
+    def _quiz_b(self):
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Quiz',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Elige bien',
+            opciones_json={'A': 'Uno', 'B': 'Dos', 'C': 'Tres', 'D': 'Cuatro', 'correcta': 'B'},
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=2,
+            titulo='P2',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Siguiente bloque',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+
+    def test_eval_texto_libre_no_cuenta_como_letra(self):
+        """«no entiendo» tiene una d, pero no es una respuesta: pide letra y no revela la correcta."""
+        self._quiz_b()
+        for texto in ('no entiendo', 'a ver', 'b dos', 'hola'):
+            out = procesar_respuesta_evaluacion_paso(self.est, self.prog, texto)
+            self.assertIn('letra', out.lower(), texto)
+            self.assertNotIn('correcta', out.lower(), texto)
+            self.prog.refresh_from_db()
+            self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso, texto)
+            self.assertEqual(self.prog.paso_actual_modulo, 1, texto)
+
+    def test_eval_acepta_formas_claras_de_la_letra(self):
+        for texto in ('b', 'B', '*B*', 'b)', 'B) Dos', 'b.', 'la b', 'Opción B', 'la respuesta es la b'):
+            PasoModulo.objects.filter(modulo=self.mod).delete()
+            SeccionModulo.objects.filter(modulo=self.mod).delete()
+            self._quiz_b()
+            procesar_respuesta_evaluacion_paso(self.est, self.prog, texto)
+            self.prog.refresh_from_db()
+            self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso, texto)
+            self.assertEqual(self.prog.paso_actual_modulo, 2, texto)
+
     def test_eval_letra_correcta_usa_campo_admin_si_no_hay_textos_de_opciones(self):
         """Si solo hay correcta en JSON / campo admin, igual se valida la letra."""
         from core.module_steps import _letra_correcta_eval_opciones
