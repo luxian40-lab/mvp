@@ -83,7 +83,8 @@ MODO_ASESORIA = 'asesoria'
 
 MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS, MODO_FINANZAS, MODO_CAFE)
 _ACCIONES_ASESOR = frozenset({
-    'show_agentes', 'show_asesoria', 'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
+    'show_agentes', 'show_asesoria', 'repreguntar_asesoria',
+    'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
 })
 
 TEXTO_MENU = texto_menu_plan(plan_por_clave(PLAN_CURSO_ASESOR))
@@ -420,12 +421,60 @@ def memoria_corte_nat(telefono: str):
         return None
 
 
+def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
+    """La respuesta a «¿Qué quiere mejorar hoy?» va directo al agente que la atiende.
+
+    Sin claridad: una repregunta con los temas; a la segunda, la lista de agentes.
+    Sin cupo no se gasta modelo: el agente elegido solo avisa que se acabó.
+    """
+    from core.lineas.oferta import modos_agente
+    from core.lineas.principal.derivar_asesoria import (
+        derivar,
+        marcar_repregunta,
+        olvidar_repregunta,
+    )
+    from core.sandbox_agentes import excedio_cupo_ia_linea
+
+    tel = decision.telefono_usuario
+    texto = (body or '').strip()
+    permitidos = modos_agente(tel)
+    agente = None
+    por_nombre = False
+    if permitidos and texto and not texto.isdigit():
+        agente = _normalizar_eleccion_agentes(texto)
+        por_nombre = agente is not None
+        if agente is None and excedio_cupo_ia_linea(tel):
+            agente = clasificar_asesoria(texto) or permitidos[0]
+        elif agente is None:
+            agente, fuente = derivar(texto, telefono=tel, permitidos=permitidos)
+            if fuente == 'sin_llm':
+                agente = clasificar_asesoria(texto)
+        if agente not in permitidos:
+            agente = None
+    if permitidos and agente is None and marcar_repregunta(tel):
+        decision.action = 'repreguntar_asesoria'
+        return decision
+    olvidar_repregunta(tel)
+    if agente is None:
+        _set_modo(sesion, MODO_AGENTES)
+        decision.action = 'show_agentes'
+        return decision
+    _set_modo(sesion, agente)
+    decision.action = agente
+    decision.saludo_entrada = por_nombre
+    return decision
+
+
 def _ruta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
     eleccion_ag = _normalizar_eleccion_agentes(body)
     if eleccion_ag == 'menu':
         _set_modo(sesion, MODO_MENU)
         decision.action = 'show_menu'
         return decision
+    from core.lineas.variante import perfil_de
+
+    if getattr(settings, 'EKI_ASESORIA_PREGUNTA', False) and not perfil_de().curso_directo:
+        return _derivar_pregunta_asesoria(decision, sesion, body)
     agente = eleccion_ag or clasificar_asesoria(body)
     if agente:
         _set_modo(sesion, agente)

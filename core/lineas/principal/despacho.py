@@ -156,9 +156,21 @@ def _responder_menu(decision: SandboxRouteDecision, payload: Any, body: str, fro
             logger.exception('sandbox_catalogo_fail tel=%s', decision.telefono_usuario)
         return 'handled'
 
-    if decision.action == 'show_asesoria':
+    if decision.action in ('show_asesoria', 'repreguntar_asesoria'):
+        from django.conf import settings
+
+        from core.lineas.principal.asesores import (
+            enviar_pregunta_asesoria,
+            enviar_repregunta_asesoria,
+        )
+
         try:
-            _menu().enviar_menu_agentes(decision.telefono_usuario, from_n)
+            if decision.action == 'repreguntar_asesoria':
+                enviar_repregunta_asesoria(decision.telefono_usuario, from_n)
+            elif getattr(settings, 'EKI_ASESORIA_PREGUNTA', False):
+                enviar_pregunta_asesoria(decision.telefono_usuario, from_n)
+            else:
+                _menu().enviar_menu_agentes(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_asesoria_send_failed')
         return 'handled'

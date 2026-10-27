@@ -1,4 +1,4 @@
-"""Asesoría de la línea principal: lista de agentes y turno de Coach, Profe IA, Ventas, Finanzas.
+"""Asesoría de la línea principal: pregunta o lista de agentes y turno de Coach, Profe IA, Ventas, Finanzas.
 
 Los envíos y la sesión se buscan en `core.sandbox_menu` al momento de llamar:
 los tests parchean ahí.
@@ -62,6 +62,43 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
         filas,
         texto_respaldo=_menu().TEXTO_AGENTES,
         agente_evento='sandbox_agentes',
+    )
+
+
+def enviar_pregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
+    """«¿Qué quiere mejorar hoy?» con los temas de los agentes que la línea abre."""
+    from core.lineas.oferta import modos_agente
+    from core.lineas.principal.derivar_asesoria import (
+        AGENTE_PREGUNTA,
+        olvidar_repregunta,
+        texto_pregunta,
+    )
+    from core.sandbox_agentes import _tope_asesor_mes
+
+    permitidos = modos_agente(telefono_usuario)
+    if not permitidos:
+        return _menu().enviar_menu_agentes(telefono_usuario, from_number)
+    olvidar_repregunta(telefono_usuario)
+    return _menu().enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        texto_pregunta(permitidos, _tope_asesor_mes(telefono_usuario)),
+        agente=AGENTE_PREGUNTA,
+    )
+
+
+def enviar_repregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
+    from core.lineas.oferta import modos_agente
+    from core.lineas.principal.derivar_asesoria import (
+        AGENTE_REPREGUNTA,
+        texto_repregunta,
+    )
+
+    return _menu().enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        texto_repregunta(modos_agente(telefono_usuario)),
+        agente=AGENTE_REPREGUNTA,
     )
 
 
