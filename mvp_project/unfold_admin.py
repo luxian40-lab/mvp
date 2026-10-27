@@ -308,6 +308,12 @@ UNFOLD = {
                         "permission": _puede_modelo("core.view_plantillameta"),
                         "badge": "mvp_project.unfold_admin.badge_plantillas_meta",
                     },
+                    {
+                        "title": _("Avisos de módulo"),
+                        "icon": "notifications_active",
+                        "link": reverse_lazy("admin:core_avisomodulodisponible_changelist"),
+                        "permission": _puede_modelo("core.view_avisomodulodisponible"),
+                    },
                 ],
             },
             {

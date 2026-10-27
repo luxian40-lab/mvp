@@ -256,3 +256,45 @@ class AvisoModuloTests(TestCase):
         self.plantilla.cuerpo = 'Hola {{1}} {{2}} {{3}} {{4}}'
         self.plantilla.save()
         self.assertIn('variables', motivo_plantilla(self.aviso.plantilla, LINEA_2))
+
+    def test_formulario_rechaza_plantilla_de_otra_cuenta(self):
+        from core.admin.aviso_modulo import AvisoModuloForm
+
+        self.plantilla.waba_id = WABA
+        self.plantilla.save()
+        otro = Curso.objects.create(nombre='Otro', descripcion='d', cliente=self.cliente, activo=True)
+        form = AvisoModuloForm(data={
+            'cliente': self.cliente.pk,
+            'curso': otro.pk,
+            'phone_number_id': LINEA_2,
+            'plantilla': self.plantilla.pk,
+            'activo': 'on',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('plantilla', form.errors)
+
+    def test_admin_muestra_calendario_y_prueba_solo_al_numero_interno(self):
+        from django.contrib.auth.models import User
+        from django.urls import reverse
+
+        self._estudiante('573001110018')
+        admin_user = User.objects.create_superuser('aviso_admin', 'a@test.com', 'x')
+        self.client.force_login(admin_user)
+        cambio = reverse('admin:core_avisomodulodisponible_change', args=[self.aviso.pk])
+        respuesta = self.client.get(cambio)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'Su cliente')
+        self.assertContains(respuesta, '1 esperan')
+        self.assertEqual(
+            self.client.get(reverse('admin:core_avisomodulodisponible_changelist')).status_code, 200,
+        )
+        url = reverse('admin:core_avisomodulodisponible_enviar_prueba_aviso', args=[self.aviso.pk])
+        sender = _sender_ok()
+        with self.settings(EKI_CAMPANA_META_PRUEBA_NUMEROS=['573026480629']), \
+                patch('core.lineas.sender.sender_de_linea', return_value=sender):
+            self.client.post(url, {'telefono': '573001110018', '_form_submitted': 'True'})
+            sender.plantilla.assert_not_called()
+            self.client.post(url, {'telefono': '573026480629', '_form_submitted': 'True'})
+        sender.plantilla.assert_called_once()
+        self.assertEqual(sender.plantilla.call_args.args[0], '573026480629')
+        self.assertFalse(AvisoModuloEnviado.objects.exists())
