@@ -166,6 +166,17 @@ class AsistenteDominioCursoTests(TestCase):
         self.assertIn('PROHIBIDO usar emojis', p)
         self.assertIn('dominio del curso', p.lower())
 
+    def test_respuestas_caben_en_un_mensaje_con_boton(self):
+        from core.tutor_ia_modulo import (
+            PROMPT_FACILITADOR_EVALUACION,
+            PROMPT_FACILITADOR_EVALUACION_NOTAS,
+            _prompt_sistema_asistente,
+        )
+
+        self.assertIn('Máximo 120 palabras', _prompt_sistema_asistente('Carlos'))
+        self.assertIn('Máximo 90 palabras de retroalimentación', PROMPT_FACILITADOR_EVALUACION)
+        self.assertIn('Máximo 90 palabras', PROMPT_FACILITADOR_EVALUACION_NOTAS)
+
     @patch('core.tutor_ia_modulo._get_client')
     def test_pregunta_de_abejas_usa_el_curso_aunque_el_modulo_sea_bienvenida(self, mock_client):
         from core.prompts_tecnicoagro import PERFIL_TECNICOAGRO
