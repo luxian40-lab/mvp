@@ -16,11 +16,16 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 
+from core.curso.reglas_modulo import (  # noqa: F401
+    _HOSTS_REDIRECT,
+    _VIDEO_EXT,
+    es_video_rastreable,
+)
+
 logger = logging.getLogger(__name__)
 
 _MEDIA_RE = re.compile(r'\[MEDIA:(.+?)\]', re.DOTALL)
 _TOKEN_RE = re.compile(r'^[A-Za-z0-9]{16,40}$')
-_VIDEO_EXT = ('.mp4', '.m4v', '.mov', '.webm', '.3gp')
 _PREVIEW_BOTS = (
     'facebookexternalhit',
     'facebot',
@@ -29,12 +34,6 @@ _PREVIEW_BOTS = (
     'slackbot',
     'discordbot',
     'linkedinbot',
-)
-_HOSTS_REDIRECT = (
-    'youtube.com',
-    'youtu.be',
-    'youtube-nocookie.com',
-    'vimeo.com',
 )
 HITOS = {
     25: 'progreso_25',
@@ -65,22 +64,6 @@ def token_valido(token: str) -> bool:
 def es_prefetch(user_agent: str) -> bool:
     ua = (user_agent or '').lower()
     return any(bot in ua for bot in _PREVIEW_BOTS)
-
-
-def es_video_rastreable(url: str) -> bool:
-    """True solo para video. Imagen, PDF y audio siguen como adjunto de WhatsApp."""
-    raw = (url or '').strip()
-    if not raw:
-        return False
-    path = raw.split('?', 1)[0].lower()
-    if any(path.endswith(ext) for ext in _VIDEO_EXT):
-        return True
-    host = (urlparse(raw).hostname or '').lower()
-    if host.endswith(_HOSTS_REDIRECT) or host in _HOSTS_REDIRECT:
-        return True
-    if '/videos/' in path:
-        return True
-    return False
 
 
 def _es_youtube_o_vimeo(url: str) -> bool:

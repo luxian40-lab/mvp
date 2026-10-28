@@ -259,7 +259,7 @@ class Modulo(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.reglas_modulo import validar_contenido_modulo
 
         super().clean()
         # Admin ModuloAdminForm ya validó con Clase/Estructura/POST; evitar doble fail.
@@ -410,7 +410,7 @@ class PasoModulo(models.Model):
 
     @property
     def media_es_video(self) -> bool:
-        from core.video_links import es_video_rastreable
+        from core.curso.reglas_modulo import es_video_rastreable
 
         return es_video_rastreable(self.media_url or '')
 
@@ -422,9 +422,9 @@ class PasoModulo(models.Model):
         if self.tipo in (self.TIPO_EVAL_OPC, self.TIPO_EVAL_ABIERTA):
             return True
         if self.tipo == self.TIPO_CONTENIDO:
-            from core import module_steps as _ms
+            from core.curso.reglas_modulo import paso_contenido_con_mc_como_eval
 
-            return _ms.paso_contenido_con_mc_como_eval(self)
+            return paso_contenido_con_mc_como_eval(self)
         return False
 
     def save(self, *args, **kwargs):
@@ -517,8 +517,6 @@ class ProgresoEstudiante(models.Model):
 
     def porcentaje_avance(self):
         """Calcula el porcentaje de avance en el curso (denominador = módulos publicados WA)."""
-        from core.modulo_publicacion import modulos_publicados_wa_qs
-
         total_modulos = modulos_publicados_wa_qs(self.curso).count()
         if total_modulos == 0:
             return 0
@@ -594,3 +592,17 @@ class ModuloCompletado(models.Model):
 
     def __str__(self):
         return f"{self.progreso.estudiante.nombre} completó {self.modulo.titulo}"
+
+
+def curso_usa_gate_publicacion_wa(curso: Curso | None) -> bool:
+    if curso is None:
+        return False
+    return not curso.es_modo_clases()
+
+
+def modulos_publicados_wa_qs(curso: Curso | None):
+    if curso is None:
+        return Modulo.objects.none()
+    if not curso_usa_gate_publicacion_wa(curso):
+        return curso.modulos.all()
+    return curso.modulos.filter(publicado_wa=True)

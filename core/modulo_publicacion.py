@@ -8,24 +8,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from .models.modulos import (  # noqa: F401
+    curso_usa_gate_publicacion_wa,
+    modulos_publicados_wa_qs,
+)
+
 if TYPE_CHECKING:
     from .models import Curso, Estudiante, Modulo, ProgresoEstudiante
-
-
-def curso_usa_gate_publicacion_wa(curso: Curso | None) -> bool:
-    if curso is None:
-        return False
-    return not curso.es_modo_clases()
-
-
-def modulos_publicados_wa_qs(curso: Curso | None):
-    from .models import Modulo
-
-    if curso is None:
-        return Modulo.objects.none()
-    if not curso_usa_gate_publicacion_wa(curso):
-        return curso.modulos.all()
-    return curso.modulos.filter(publicado_wa=True)
 
 
 def modulos_publicados_wa(curso: Curso | None) -> list:
