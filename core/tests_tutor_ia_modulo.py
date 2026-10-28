@@ -181,6 +181,34 @@ class GuiaRetoIaTests(TestCase):
     def test_reto_de_un_solo_modulo_no_agrega_foco(self):
         self.assertNotIn('Centre la situación', self._prompt_reto([self.m3], self.m3))
 
+    def test_reto_no_repite_los_que_ya_recibio(self):
+        from core.models import Estudiante
+        from core.telemetria import registrar_reto_planteado
+
+        est = Estudiante.objects.create(nombre='Ana', telefono='573001110098', cedula='9001110098', cliente=self.cli)
+        otro = Estudiante.objects.create(nombre='Luis', telefono='573001110097', cedula='9001110097', cliente=self.cli)
+        registrar_reto_planteado(est, curso=self.curso, modulo=self.m3, reto_texto='Reto viejo de la feria.')
+        registrar_reto_planteado(otro, curso=self.curso, modulo=self.m3, reto_texto='Reto de otra persona.')
+        user_msg = self._prompt_reto([self.m3], self.m3, estudiante=est)
+        self.assertIn('RETOS QUE YA RECIBIÓ', user_msg)
+        self.assertIn('Reto viejo de la feria.', user_msg)
+        self.assertNotIn('Reto de otra persona.', user_msg)
+
+    def test_reto_respondido_cuenta_y_no_se_repite_en_la_lista(self):
+        from core.models import Estudiante
+        from core.telemetria import registrar_reto_planteado, registrar_reto_respondido
+
+        est = Estudiante.objects.create(nombre='Ana', telefono='573001110096', cedula='9001110096', cliente=self.cli)
+        registrar_reto_planteado(est, curso=self.curso, modulo=self.m3, reto_texto='Reto de la tienda.')
+        registrar_reto_respondido(est, curso=self.curso, modulo=self.m3, reto_texto='Reto de la tienda.')
+        registrar_reto_respondido(est, curso=self.curso, modulo=self.m3, reto_texto='Reto del mercado.')
+        user_msg = self._prompt_reto([self.m3], self.m3, estudiante=est)
+        self.assertEqual(user_msg.count('Reto de la tienda.'), 1)
+        self.assertIn('Reto del mercado.', user_msg)
+
+    def test_sin_estudiante_no_hay_bloque_de_retos_previos(self):
+        self.assertNotIn('RETOS QUE YA RECIBIÓ', self._prompt_reto([self.m3], self.m3))
+
 
 class AsistenteDominioCursoTests(TestCase):
     """Carlos no debe recortar el tema al título del módulo (ej. Bienvenida)."""

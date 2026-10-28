@@ -75,6 +75,7 @@ def activar_reto_despues_de_maria(
         estudiante_nombre=estudiante.nombre or 'Estudiante',
         curso=progreso_r.curso,
         modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
+        estudiante=estudiante,
     )
     prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
     estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {

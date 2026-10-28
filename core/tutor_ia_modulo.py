@@ -398,6 +398,53 @@ def armar_guia_reto_para_prompt(curso=None, modulo_checkpoint=None) -> tuple[str
     return '\n\n'.join(partes), tipo
 
 
+def _retos_previos_estudiante(estudiante, curso, limite: int = 4) -> list[str]:
+    """Últimos retos planteados a esta persona en este curso, del más reciente al más viejo."""
+    if estudiante is None or curso is None:
+        return []
+    from core.models import EstudianteEventoAprendizaje
+
+    metas = (
+        EstudianteEventoAprendizaje.objects.filter(
+            estudiante=estudiante,
+            curso=curso,
+            tipo__in=(
+                EstudianteEventoAprendizaje.TIPO_RETO_PLANTEADO,
+                EstudianteEventoAprendizaje.TIPO_RETO_RESPONDIDO,
+            ),
+        )
+        .order_by('-id')
+        .values_list('metadata', flat=True)[: limite * 2]
+    )
+    retos: list[str] = []
+    for m in metas:
+        texto = ((m or {}).get('reto_texto') or '').strip()[:400]
+        if texto and texto not in retos:
+            retos.append(texto)
+    return retos[:limite]
+
+
+def _bloque_ejemplo_y_retos_previos(preguntas_ejemplo: str, estudiante, curso) -> str:
+    texto = f"\n{preguntas_ejemplo}\n" if preguntas_ejemplo else ""
+    previos = _retos_previos_estudiante(estudiante, curso)
+    if previos:
+        texto += (
+            "\nRETOS QUE YA RECIBIÓ ESTE PARTICIPANTE (no repita la situación, el ejemplo ni la forma de la pregunta):\n"
+            + "\n".join(f"- {t}" for t in previos)
+            + "\n"
+        )
+    return texto
+
+
+def _foco_modulo_checkpoint(modulos_cubiertos, modulo_checkpoint) -> str:
+    if modulo_checkpoint is None or len(modulos_cubiertos or []) <= 1:
+        return ""
+    return (
+        f"\nCentre la situación en el módulo {modulo_checkpoint.numero} ({modulo_checkpoint.titulo}); "
+        "los módulos anteriores solo sirven de apoyo."
+    )
+
+
 def generar_reto_facilitador(
     modulos_cubiertos,
     curso_nombre,
@@ -407,6 +454,7 @@ def generar_reto_facilitador(
     curso=None,
     modulo_checkpoint=None,
     tipo_reto="",
+    estudiante=None,
 ) -> str:
     """
     Facilitadora Claudia genera un RETO ABR que cubre los módulos indicados.
@@ -497,9 +545,7 @@ def generar_reto_facilitador(
         except Exception as e:
             logger.warning(f"[reto] Agrosavia live falló: {e}")
 
-    ejemplo_txt = ""
-    if preguntas_ejemplo:
-        ejemplo_txt = f"\n{preguntas_ejemplo}\n"
+    ejemplo_txt = _bloque_ejemplo_y_retos_previos(preguntas_ejemplo, estudiante, curso)
 
     max_modulo = max((getattr(m, "numero", 0) or 0) for m in modulos_cubiertos) if modulos_cubiertos else 0
     if max_modulo <= 3:
@@ -518,11 +564,7 @@ def generar_reto_facilitador(
     tipo_txt = _INSTRUCCION_TIPO_RETO.get(tipo_reto, '')
     if tipo_txt:
         instruccion_pregunta = f"{tipo_txt}\n{instruccion_pregunta}"
-    if modulo_checkpoint is not None and len(modulos_cubiertos or []) > 1:
-        instruccion_pregunta += (
-            f"\nCentre la situación en el módulo {modulo_checkpoint.numero} ({modulo_checkpoint.titulo}); "
-            "los módulos anteriores solo sirven de apoyo."
-        )
+    instruccion_pregunta += _foco_modulo_checkpoint(modulos_cubiertos, modulo_checkpoint)
 
     prompt_usuario = f"""OBLIGATORIO:
 - Curso actual (no mezclar con otros): *{curso_nombre}*
