@@ -74,6 +74,7 @@ Dirección de dependencias: modelos abajo, servicios en el medio, puertas, menú
 5. Nada de `enviar_*` nuevos fuera del Sender. Nada de reemplazar atributos de módulos en runtime.
 6. Ninguna función nueva de más de 150 líneas. `except Exception` solo con `logger.exception` y motivo.
 7. Flags y umbrales por línea en settings o en la base, con la fecha de verificación (regla 14).
+8. Un turno de Meta corre entero dentro de `_aplicar_sandbox_menu`: línea, número de salida, transcripción y candado. No se reencola a `procesar_twilio_webhook_async` ni a `procesar_bot_comercial_webhook_async`, que son del canal Twilio (puerta del aula). `WEBHOOK_CELERY_ASYNC` y `NAT_WEBHOOK_CELERY_ASYNC` solo aplican a Twilio y van en `false` en los dos entornos; el default de `settings_production` es `true`, así que un entorno sin la variable la tiene prendida. Lo aprendimos el 28 de octubre de 2026: un botón de Meta cayó en `eki-ai-workers` y recibió «Este número solo entrega el código del aula».
 
 El freno de CI (`scripts/ratchet_complejidad.py`) mide las reglas 1, 4, 5 y 6. Sus números solo pueden bajar.
 
