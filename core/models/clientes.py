@@ -305,6 +305,21 @@ class Cliente(models.Model):
             'Los cursos pueden sobreescribir este valor.'
         ),
     )
+    CONTEXTO_PARTICIPANTES_CHOICES = [
+        ('', 'Sin definir (mixto)'),
+        ('rural', 'Rural (finca, vereda, cosecha)'),
+        ('urbano', 'Urbano (negocio, tienda, redes)'),
+        ('mixto', 'Mixto (sin asumir campo ni ciudad)'),
+    ]
+    contexto_participantes = models.CharField(
+        max_length=10,
+        choices=CONTEXTO_PARTICIPANTES_CHOICES,
+        blank=True,
+        default='',
+        db_default='',
+        verbose_name='A quién van dirigidos sus cursos',
+        help_text='Ejemplos del Formador y el Compañero. Cada curso puede sobreescribirlo.',
+    )
     numero_whatsapp_nat = models.CharField(
         max_length=20,
         blank=True,

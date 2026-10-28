@@ -85,6 +85,29 @@ class Curso(models.Model):
         ),
     )
 
+    CONTEXTO_HEREDAR = ''
+    CONTEXTO_RURAL = 'rural'
+    CONTEXTO_URBANO = 'urbano'
+    CONTEXTO_MIXTO = 'mixto'
+    CONTEXTO_PARTICIPANTES_CHOICES = [
+        (CONTEXTO_HEREDAR, 'Heredar del cliente'),
+        (CONTEXTO_RURAL, 'Rural (finca, vereda, cosecha)'),
+        (CONTEXTO_URBANO, 'Urbano (negocio, tienda, redes)'),
+        (CONTEXTO_MIXTO, 'Mixto (sin asumir campo ni ciudad)'),
+    ]
+    contexto_participantes = models.CharField(
+        max_length=10,
+        choices=CONTEXTO_PARTICIPANTES_CHOICES,
+        blank=True,
+        default=CONTEXTO_HEREDAR,
+        db_default=CONTEXTO_HEREDAR,
+        verbose_name='A quién va dirigido',
+        help_text=(
+            'Vacío = usa el del Cliente. Define los ejemplos que usan el Formador y el Compañero: '
+            'rural habla de finca y cosecha; urbano, de negocio y redes; mixto no asume ninguno.'
+        ),
+    )
+
     # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin (reto facilitador + recuperación)
     preguntas_ejemplo_ia = models.TextField(
         blank=True,

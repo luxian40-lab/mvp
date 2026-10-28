@@ -400,6 +400,7 @@ class CursoAdmin(admin.ModelAdmin):
             'fields': (
                 'usar_agentes_ia',
                 'perfil_facilitador',
+                'contexto_participantes',
                 'nombre_agente_tutor',
                 'nombre_agente_asistente',
                 'preguntas_ejemplo_ia',

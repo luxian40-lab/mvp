@@ -280,6 +280,7 @@ class ClienteAdmin(admin.ModelAdmin):
                 'nombre_agente_tutor',
                 'nombre_agente_asistente',
                 'perfil_facilitador',
+                'contexto_participantes',
                 'nombre_bot',
                 'system_prompt_extra',
                 'desactivar_llm_comercial',
