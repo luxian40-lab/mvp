@@ -173,6 +173,14 @@ class GuiaRetoIaTests(TestCase):
         self.assertIn('negocio', texto)
         self.assertIn('según el curso', texto)
 
+    def test_reto_se_centra_en_el_modulo_que_cierra(self):
+        m2 = Modulo.objects.create(curso=self.curso, numero=2, titulo='Ahorro semanal', contenido='Guardar.')
+        user_msg = self._prompt_reto([m2, self.m3], self.m3)
+        self.assertIn('Centre la situación en el módulo 3 (Presupuesto semanal)', user_msg)
+
+    def test_reto_de_un_solo_modulo_no_agrega_foco(self):
+        self.assertNotIn('Centre la situación', self._prompt_reto([self.m3], self.m3))
+
 
 class AsistenteDominioCursoTests(TestCase):
     """Carlos no debe recortar el tema al título del módulo (ej. Bienvenida)."""

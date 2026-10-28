@@ -518,6 +518,11 @@ def generar_reto_facilitador(
     tipo_txt = _INSTRUCCION_TIPO_RETO.get(tipo_reto, '')
     if tipo_txt:
         instruccion_pregunta = f"{tipo_txt}\n{instruccion_pregunta}"
+    if modulo_checkpoint is not None and len(modulos_cubiertos or []) > 1:
+        instruccion_pregunta += (
+            f"\nCentre la situación en el módulo {modulo_checkpoint.numero} ({modulo_checkpoint.titulo}); "
+            "los módulos anteriores solo sirven de apoyo."
+        )
 
     prompt_usuario = f"""OBLIGATORIO:
 - Curso actual (no mezclar con otros): *{curso_nombre}*
