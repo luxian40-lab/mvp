@@ -354,6 +354,12 @@ UNFOLD = {
                         "permission": _puede_modelo("core.view_fichanegocio"),
                     },
                     {
+                        "title": _("Derivaciones de asesoría"),
+                        "icon": "alt_route",
+                        "link": reverse_lazy("admin:core_derivacionasesoria_changelist"),
+                        "permission": _puede_modelo("core.view_derivacionasesoria"),
+                    },
+                    {
                         "title": _("Bandeja de revisión"),
                         "icon": "inbox",
                         "link": reverse_lazy(

@@ -306,12 +306,24 @@ def _get_or_create_sesion(telefono: str):
 
 
 def _set_modo(sesion, modo: str, *, reset_nat: bool = False) -> None:
+    anterior = sesion.modo
     sesion.modo = modo
     fields = ['modo', 'actualizado_en']
     if reset_nat:
         sesion.memoria_corte_en = timezone.now()
         fields.append('memoria_corte_en')
     sesion.save(update_fields=fields)
+    if anterior != modo and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        _marcar_correccion(sesion.telefono, anterior, modo)
+
+
+def _marcar_correccion(telefono: str, anterior: str, nuevo: str) -> None:
+    from core.lineas.principal.derivaciones import marcar_si_corrige
+
+    try:
+        marcar_si_corrige(telefono, anterior, nuevo)
+    except DatabaseError:
+        logger.exception('derivacion_correccion_fail')
 
 
 def clasificar_asesoria(texto: str) -> str | None:
@@ -424,18 +436,20 @@ def memoria_corte_nat(telefono: str):
         return None
 
 
-def _derivar_con_contexto(texto: str, tel: str, permitidos) -> tuple[str | None, str, str]:
-    """(agente, fuente, segundo). Sin el flag, la derivación de siempre y sin segundo asesor."""
+def _derivar_con_contexto(texto: str, tel: str, permitidos) -> tuple[str | None, str, str, bool]:
+    """(agente, fuente, segundo, usó contexto). Sin el flag, la derivación de siempre y sin segundo."""
     from core.lineas.principal.derivar_asesoria import derivar, derivar_detalle
 
     if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
         agente, fuente = derivar(texto, telefono=tel, permitidos=permitidos)
-        return agente, fuente, ''
+        return agente, fuente, '', False
     from core.lineas.principal.contexto_asesoria import contexto_persona
 
-    return derivar_detalle(
-        texto, telefono=tel, permitidos=permitidos, contexto=contexto_persona(tel), con_segundo=True,
+    contexto = contexto_persona(tel)
+    agente, fuente, segundo = derivar_detalle(
+        texto, telefono=tel, permitidos=permitidos, contexto=contexto, con_segundo=True,
     )
+    return agente, fuente, segundo, bool(contexto)
 
 
 def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
@@ -456,6 +470,8 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     permitidos = modos_agente(tel)
     agente = None
     segundo = ''
+    fuente = ''
+    con_contexto = False
     por_nombre = False
     if permitidos and texto and not texto.isdigit():
         agente = _normalizar_eleccion_agentes(texto)
@@ -463,7 +479,7 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
         if agente is None and excedio_cupo_ia_linea(tel):
             agente = clasificar_asesoria(texto) or permitidos[0]
         elif agente is None:
-            agente, fuente, segundo = _derivar_con_contexto(texto, tel, permitidos)
+            agente, fuente, segundo, con_contexto = _derivar_con_contexto(texto, tel, permitidos)
             if fuente == 'sin_llm':
                 agente = clasificar_asesoria(texto)
         if agente not in permitidos:
@@ -482,6 +498,12 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     decision.derivado = not por_nombre
     if segundo in permitidos and segundo != agente:
         decision.agente_secundario = segundo
+    if fuente and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        from core.lineas.principal.derivaciones import registrar
+
+        registrar(
+            tel, texto, agente, secundario=decision.agente_secundario, fuente=fuente, con_contexto=con_contexto,
+        )
     return decision
 
 

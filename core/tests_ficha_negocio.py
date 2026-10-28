@@ -14,7 +14,7 @@ from core.lineas.principal.ficha_negocio import (
     SALTADA,
     siguiente_pregunta,
 )
-from core.models import FichaNegocio, SandboxCanalSesion, WhatsappLog
+from core.models import DerivacionAsesoria, FichaNegocio, SandboxCanalSesion, WhatsappLog
 from core.planes_linea import PLAN_CURSO_ASESOR
 from core.sandbox_menu import dispatch_sandbox_menu
 from core.tests_asesoria_pregunta import PREGUNTA
@@ -372,6 +372,97 @@ class FlujoFichaTests(TestCase):
         self.assertIsNone(self._ficha())
 
 
+@override_settings(**CONTEXTO)
+class DerivacionesTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.tel = '573005558500'
+        SandboxCanalSesion.objects.create(
+            telefono=self.tel, habeas_aceptado=True, plan=PLAN_CURSO_ASESOR, modo='asesoria',
+        )
+
+    def _mandar(self, texto, derivacion=('ventas', 'llm', '')):
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=derivacion), \
+                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            dispatch_sandbox_menu(_payload(self.tel, texto))
+
+    def _derivar(self, derivacion=('ventas', 'llm', '')):
+        self._mandar('quiero vender más, escríbame al 3001234567', derivacion)
+        return DerivacionAsesoria.objects.get()
+
+    def test_se_anota_sin_telefono_ni_numeros(self):
+        d = self._derivar(('ventas', 'llm', 'finanzas'))
+        self.assertEqual((d.agente, d.agente_secundario, d.fuente), ('ventas', 'finanzas', 'llm'))
+        self.assertNotIn('3001234567', d.frase)
+        self.assertNotEqual(d.telefono_hash, self.tel)
+        self.assertEqual(len(d.telefono_hash), 16)
+        self.assertFalse(d.con_contexto)
+        self.assertFalse(d.corregida)
+
+    def test_anota_si_uso_lo_que_se_sabia(self):
+        FichaNegocio.objects.create(telefono=self.tel, dedica='arepas', preguntadas='dedica')
+        self.assertTrue(self._derivar().con_contexto)
+
+    def test_por_nombre_no_es_derivacion(self):
+        self._mandar('ventas')
+        self.assertFalse(DerivacionAsesoria.objects.exists())
+
+    def test_volver_al_menu_justo_despues_la_corrige(self):
+        self._derivar()
+        self._mandar('menu')
+        d = DerivacionAsesoria.objects.get()
+        self.assertEqual((d.corregida, d.corregida_a), (True, 'menu'))
+
+    def test_cambiar_de_asesor_justo_despues_la_corrige(self):
+        self._derivar()
+        self._mandar('coach')
+        d = DerivacionAsesoria.objects.get()
+        self.assertEqual((d.corregida, d.corregida_a), (True, 'coach'))
+
+    def test_ir_al_segundo_asesor_ofrecido_no_es_error(self):
+        self._derivar(('ventas', 'llm', 'finanzas'))
+        self._mandar('finanzas')
+        self.assertFalse(DerivacionAsesoria.objects.get().corregida)
+
+    def test_si_siguio_preguntando_ya_no_es_correccion(self):
+        self._derivar()
+        self._mandar('y a quién le vendo')
+        self._mandar('menu')
+        self.assertFalse(DerivacionAsesoria.objects.get().corregida)
+
+    def test_pasados_10_minutos_ya_no_es_correccion(self):
+        d = self._derivar()
+        DerivacionAsesoria.objects.filter(pk=d.pk).update(creada_en=timezone.now() - timedelta(minutes=11))
+        self._mandar('menu')
+        self.assertFalse(DerivacionAsesoria.objects.get().corregida)
+
+    def test_resumen_de_la_semana(self):
+        from core.lineas.principal.derivaciones import resumen_semana
+
+        self._derivar()
+        self._mandar('menu')
+        self._mandar('asesoria')
+        self._mandar('necesito ánimo', ('coach', 'llm', ''))
+        vieja = DerivacionAsesoria.objects.create(telefono_hash='x', frase='f', agente='nat', fuente='llm')
+        DerivacionAsesoria.objects.filter(pk=vieja.pk).update(creada_en=timezone.now() - timedelta(days=8))
+        self.assertEqual(resumen_semana(), (2, 1))
+
+    def test_admin_de_solo_lectura_con_la_tasa(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+
+        self._derivar()
+        self._mandar('menu')
+        admin = get_user_model().objects.create_superuser('revisor', 'revisor@eki.co', 'x')
+        self.client.force_login(admin)
+        resp = self.client.get(reverse('admin:core_derivacionasesoria_changelist'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '7 días: 1, corregidas 1 (100 %)')
+        resp = self.client.get(reverse('admin:core_derivacionasesoria_add'))
+        self.assertEqual(resp.status_code, 403)
+
+
 @override_settings(**PREGUNTA)
 class FichaApagadaTests(TestCase):
     def setUp(self):
@@ -391,3 +482,13 @@ class FichaApagadaTests(TestCase):
         self.assertNotIn(SALTADA, textos)
         self.assertFalse([t for t in textos if '¿a qué se dedica?' in t])
         self.assertFalse(FichaNegocio.objects.exists())
+
+    def test_sin_flag_no_se_anotan_derivaciones_ni_hay_cierre(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('ventas', 'llm')), \
+                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'quiero vender más'))
+            dispatch_sandbox_menu(_payload(self.tel, 'menu'))
+        self.assertFalse(DerivacionAsesoria.objects.exists())
+        self.assertNotIn(CIERRE, ' '.join(_textos(send)))

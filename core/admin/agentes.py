@@ -4,7 +4,7 @@ from django.utils.safestring import mark_safe
 
 from core.admin._common import *  # noqa: F401,F403
 from core.conocimiento_agentes import limpiar_cache_conocimiento
-from core.models import FichaNegocio
+from core.models import DerivacionAsesoria, FichaNegocio
 from core.models_agentes import ConocimientoAgente
 
 
@@ -75,3 +75,40 @@ class FichaNegocioAdmin(admin.ModelAdmin):
             'fields': ('preguntadas', 'pendiente', 'pendiente_desde', 'saltadas', 'creada_en', 'actualizada_en'),
         }),
     )
+
+
+@admin.register(DerivacionAsesoria)
+class DerivacionAsesoriaAdmin(admin.ModelAdmin):
+    """Revisión semanal: las últimas 20, y cuántas se corrigieron en 7 días."""
+    list_display = ('creada_en', 'frase', 'agente', 'agente_secundario', 'corregida', 'corregida_a', 'fuente')
+    list_filter = ('corregida', 'agente', 'fuente', 'con_contexto', 'creada_en')
+    search_fields = ('frase',)
+    list_per_page = 20
+    ordering = ('-creada_en',)
+    readonly_fields = (
+        'creada_en', 'frase', 'agente', 'agente_secundario', 'fuente', 'con_contexto',
+        'corregida', 'corregida_a', 'telefono_hash',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from core.lineas.principal.derivaciones import resumen_semana
+
+        total, corregidas = resumen_semana()
+        if total:
+            titulo = (
+                f'Derivaciones de asesoría · 7 días: {total}, corregidas {corregidas} '
+                f'({round(100 * corregidas / total)} %)'
+            )
+        else:
+            titulo = 'Derivaciones de asesoría · 7 días: sin derivaciones'
+        extra_context = {**(extra_context or {}), 'title': titulo}
+        return super().changelist_view(request, extra_context=extra_context)
