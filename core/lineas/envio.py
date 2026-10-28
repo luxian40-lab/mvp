@@ -480,6 +480,20 @@ def enviar_meta_plantilla_imagen(
     }, agente=agente_evento)
 
 
+TEXTO_CUERPO_BOTONES_BREVE = 'Toque el botón para seguir.'
+
+
+def _partir_cuerpo_botones(texto: str, limite: int) -> tuple[str, str]:
+    """(texto que va antes, cuerpo del botón). Lo que no cabe en el botón sale antes completo."""
+    if len(texto) <= limite:
+        return '', texto
+    antes, _, cola = texto.rpartition('\n\n')
+    antes, cola = antes.strip(), cola.strip()
+    if antes and cola and len(cola) <= limite:
+        return antes, cola
+    return texto, TEXTO_CUERPO_BOTONES_BREVE
+
+
 def enviar_meta_botones(
     telefono: str,
     texto: str,
@@ -493,7 +507,7 @@ def enviar_meta_botones(
     if not to:
         return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
     completo = _con_aviso_del_dia(to, (texto or '').strip())
-    cuerpo = completo[:1024]
+    antes, cuerpo = _partir_cuerpo_botones(completo, settings.WA_META_INTERACTIVO_CUERPO_MAX)
     acciones = []
     for bid, title in botones[:3]:
         acciones.append({
@@ -505,6 +519,10 @@ def enviar_meta_botones(
         })
     if not acciones or not cuerpo:
         return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
+    if antes:
+        previo = enviar_meta(to, antes, canal_evento=canal_evento, agente_evento=agente_evento)
+        if not previo.get('success'):
+            return previo
     result = _post_graph({
         'messaging_product': 'whatsapp',
         'to': to,
@@ -518,7 +536,11 @@ def enviar_meta_botones(
     if result.get('success'):
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
         return result
-    return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
+    if not antes:
+        return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
+    if cuerpo == TEXTO_CUERPO_BOTONES_BREVE:
+        return result
+    return enviar_meta(telefono, cuerpo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
 def enviar_meta_lista(

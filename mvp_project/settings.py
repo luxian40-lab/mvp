@@ -1226,6 +1226,9 @@ EKI_CAMPANA_META_PRUEBA_NUMEROS = [
 ]
 # Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
 META_OPAQUE_MAX = 512
+# Cuerpo de un mensaje interactivo con botones: máximo 1024 caracteres. Verificado el 2026-10-27 en la página
+# "Interactive reply buttons messages" de Cloud API (actualizada el 2026-05-21).
+WA_META_INTERACTIVO_CUERPO_MAX = int(os.environ.get('WA_META_INTERACTIVO_CUERPO_MAX', '1024'))
 WHATSAPP_GRAPH_BASE_URL = os.environ.get('WHATSAPP_GRAPH_BASE_URL', 'https://graph.facebook.com').rstrip('/')
 # Throughput de Cloud API por número registrado, verificado el 2026-10-25 (página Throughput, actualizada
 # el 2026-06-17): 80 mps por defecto, 1000 con la mejora automática, 20 fijos si el número convive con la
