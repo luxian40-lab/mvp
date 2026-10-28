@@ -1338,6 +1338,19 @@ class ModuloAdminForm(forms.ModelForm):
                 f'Opcional: este módulo ya tiene {n_micro} microcontenido(s). '
                 'Use pestaña Clase o Avanzado · Microcontenidos.'
             )
+            if n_micro > 1:
+                aviso_estructura = (
+                    f'Este módulo tiene {n_micro} mensajes. La edición rápida está bloqueada '
+                    'para no modificar solo el primero; use Configuración avanzada → Materiales.'
+                )
+                for nombre in (
+                    'clase_texto',
+                    'clase_archivo',
+                    'clase_url',
+                    'clase_activo',
+                ):
+                    self.fields[nombre].disabled = True
+                    self.fields[nombre].help_text = aviso_estructura
         else:
             self.fields['contenido'].help_text = (
                 'Obligatorio solo si aún no hay microcontenidos. Use la pestaña Clase.'
@@ -1544,34 +1557,42 @@ class PasoModuloInlineFormSet(BaseInlineFormSet):
                     'Elija una sección. Si no hay opciones: pestaña Estructura → crear bloque → Guardar.',
                 )
 
-        # Anti-intercalado (Module Builder WA): simular orden final de filas no borradas.
-        from types import SimpleNamespace
-
-        from core.module_structure import (
-            detectar_secciones_intercaladas,
-            mensaje_error_intercalado,
+        # Estructuras heredadas intercaladas siguen funcionando en el motor. No bloquear
+        # cambios ajenos al inline (reto, drip, etc.); sí impedir que una edición de pasos
+        # conserve o introduzca intercalado.
+        pasos_editados = any(
+            form.has_changed()
+            for form in self.forms
+            if hasattr(form, 'cleaned_data') and form.cleaned_data is not None
         )
+        if pasos_editados:
+            from types import SimpleNamespace
 
-        simulados = []
-        for form in self.forms:
-            if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
-                continue
-            if form.cleaned_data.get('DELETE'):
-                continue
-            sec = form.cleaned_data.get('seccion')
-            if not sec:
-                continue
-            simulados.append(
-                SimpleNamespace(
-                    seccion_id=getattr(sec, 'pk', sec),
-                    orden=form.cleaned_data.get('orden') or 0,
-                    pk=getattr(form.instance, 'pk', None),
-                )
+            from core.module_structure import (
+                detectar_secciones_intercaladas,
+                mensaje_error_intercalado,
             )
-        simulados.sort(key=lambda x: (x.orden, x.pk or 0))
-        hall = detectar_secciones_intercaladas(simulados)
-        if hall:
-            raise ValidationError(mensaje_error_intercalado(hall))
+
+            simulados = []
+            for form in self.forms:
+                if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
+                    continue
+                if form.cleaned_data.get('DELETE'):
+                    continue
+                sec = form.cleaned_data.get('seccion')
+                if not sec:
+                    continue
+                simulados.append(
+                    SimpleNamespace(
+                        seccion_id=getattr(sec, 'pk', sec),
+                        orden=form.cleaned_data.get('orden') or 0,
+                        pk=getattr(form.instance, 'pk', None),
+                    )
+                )
+            simulados.sort(key=lambda x: (x.orden, x.pk or 0))
+            hall = detectar_secciones_intercaladas(simulados)
+            if hall:
+                raise ValidationError(mensaje_error_intercalado(hall))
 
         summaries = []
         contenido = (self.data.get('contenido') or '').strip()

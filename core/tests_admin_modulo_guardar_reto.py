@@ -128,6 +128,46 @@ class GuardarRetoDesdeAdminTests(TestCase):
         self.modulo.refresh_from_db()
         self.assertEqual(self.modulo.tipo_reto_ia, Modulo.TIPO_RETO_PLAN)
 
+    def test_editar_paso_intercalado_sigue_bloqueado(self):
+        """La excepción es solo para cambios ajenos: editar pasos exige corregir la estructura."""
+        sec_a = self.modulo.secciones.first()
+        sec_b = SeccionModulo.objects.create(modulo=self.modulo, orden=2, titulo='S2')
+        PasoModulo.objects.create(
+            modulo=self.modulo,
+            seccion=sec_b,
+            orden=2,
+            titulo='P2',
+            contenido='Micro 2',
+            activo=True,
+        )
+        PasoModulo.objects.create(
+            modulo=self.modulo,
+            seccion=sec_a,
+            orden=3,
+            titulo='P3',
+            contenido='Micro 3',
+            activo=True,
+        )
+        get = self.client.get(self.url)
+        data = payload_desde_changeform(get)
+        pasos_inline = next(
+            inline.formset
+            for inline in get.context['inline_admin_formsets']
+            if inline.formset.model is PasoModulo
+        )
+        data[f'{pasos_inline.prefix}-0-contenido'] = 'Micro 1 editado'
+
+        post = self.client.post(self.url, data, follow=False)
+
+        self.assertEqual(post.status_code, 200)
+        errores = [
+            str(error)
+            for inline in post.context['inline_admin_formsets']
+            if inline.formset.model is PasoModulo
+            for error in inline.formset.non_form_errors()
+        ]
+        self.assertTrue(any('intercalada' in error.lower() for error in errores))
+
     def test_error_oculto_se_explica_arriba(self):
         """El campo culpable puede estar en otra pestaña: hay que nombrarlo."""
         get = self.client.get(self.url)

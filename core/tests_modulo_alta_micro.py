@@ -9,6 +9,7 @@ from django.urls import reverse
 from core.admin.cursos import (
     MODULO_ALTA_PASOS_PLANTILLA,
     ModuloAdmin,
+    ModuloAdminForm,
     sembrar_plantilla_modulo,
 )
 from core.models import Cliente, Curso, Modulo, PasoModulo, SeccionModulo
@@ -188,6 +189,33 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         set_modulo_modo(req, mod.pk, MODO_CLASE)
         names = [type(i).__name__ for i in self.admin.get_inline_instances(req, mod)]
         self.assertEqual(names, [])
+
+    def test_clase_rapida_se_bloquea_si_hay_varios_mensajes(self):
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=7,
+            titulo='Módulo estructurado',
+            descripcion='d',
+            contenido='',
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        sec = SeccionModulo.objects.create(modulo=mod, orden=1, titulo='Bloque')
+        for orden in (1, 2):
+            PasoModulo.objects.create(
+                modulo=mod,
+                seccion=sec,
+                orden=orden,
+                titulo=f'Mensaje {orden}',
+                contenido=f'Texto {orden}',
+                activo=True,
+            )
+
+        form = ModuloAdminForm(instance=mod)
+
+        for nombre in ('clase_texto', 'clase_archivo', 'clase_url', 'clase_activo'):
+            self.assertTrue(form.fields[nombre].disabled)
+            self.assertIn('2 mensajes', form.fields[nombre].help_text)
+            self.assertIn('Configuración avanzada', form.fields[nombre].help_text)
 
     def test_fieldsets_alta_incluye_modo_creacion(self):
         req = self.rf.get('/admin/core/modulo/add/')
