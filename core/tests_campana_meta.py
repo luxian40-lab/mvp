@@ -21,9 +21,9 @@ from core.models_campana_meta import (
     EnvioCampanaMeta,
     PlantillaMeta,
     TarjetaPlantillaMeta,
-    guardar_borrador_carrusel,
 )
 from core.models import Estudiante
+from core.plantilla_builder import guardar_borrador_carrusel
 
 
 SECRET = 'meta-app-secret-test'

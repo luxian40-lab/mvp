@@ -431,3 +431,41 @@ def duplicar_plantilla(origen: PlantillaMeta) -> PlantillaMeta:
                 info_url=tarjeta.info_url,
             )
     return copia
+
+
+def guardar_borrador_carrusel(nombre: str, claves: list[str]) -> PlantillaMeta:
+    """Guarda el carrusel del día. No llama a Meta."""
+    from core.cursos_generales import item_catalogo, texto_tarjeta, url_imagen_catalogo
+
+    nombre = (nombre or '').strip()
+    if not nombre:
+        raise ValidationError('Escriba el nombre de la campaña.')
+    items = []
+    for clave in claves:
+        item = item_catalogo(clave)
+        if item is not None:
+            items.append(item)
+    if len(items) < 2:
+        raise ValidationError('Elija al menos dos cursos.')
+    plantilla = PlantillaMeta.objects.create(
+        nombre_interno=nombre[:120],
+        categoria='MARKETING',
+        idioma='es',
+        tipo='CARRUSEL',
+        cuerpo='Deslice los cursos de eki. Ver curso inscribe. Más información manda la ficha.',
+        estado='BORRADOR',
+    )
+    for orden, item in enumerate(items):
+        TarjetaPlantillaMeta.objects.create(
+            plantilla=plantilla,
+            orden=orden,
+            titulo=(item['nombre'] or '')[:200],
+            cuerpo=texto_tarjeta(item)[:160],
+            imagen_url=url_imagen_catalogo(item['imagen'])[:1000],
+            boton_ver_id=f"ver_{item['clave']}"[:64],
+            boton_ver_texto='Ver curso',
+            boton_info_id=f"info_{item['clave']}"[:64],
+            boton_info_texto='Más información',
+            info_url=(item.get('url') or '')[:2000],
+        )
+    return plantilla
