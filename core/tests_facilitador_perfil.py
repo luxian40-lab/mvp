@@ -156,3 +156,74 @@ class TopeWhatsappResumenTests(TestCase):
     def test_etiqueta_publicado_wa_es_activo(self):
         field = Modulo._meta.get_field('publicado_wa')
         self.assertEqual(field.verbose_name, 'Activo en WhatsApp')
+
+
+class ContextoParticipantesTests(TestCase):
+    """A quién va dirigido el curso: curso > cliente > mixto; solo cambia textos con el flag."""
+
+    def setUp(self):
+        self.cliente = Cliente.objects.create(nombre='Org Contexto', activo=True)
+        self.curso = Curso.objects.create(nombre='Crea y vende', cliente=self.cliente, activo=True)
+
+    def test_sin_definir_es_mixto(self):
+        from core.facilitador_perfil import resolver_contexto_participantes
+
+        self.assertEqual(resolver_contexto_participantes(self.curso), 'mixto')
+        self.assertEqual(resolver_contexto_participantes(None), 'mixto')
+
+    def test_curso_hereda_del_cliente_y_puede_sobreescribirlo(self):
+        from core.facilitador_perfil import resolver_contexto_participantes
+
+        self.cliente.contexto_participantes = 'rural'
+        self.cliente.save(update_fields=['contexto_participantes'])
+        self.assertEqual(resolver_contexto_participantes(self.curso), 'rural')
+        self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
+        self.curso.save(update_fields=['contexto_participantes'])
+        self.assertEqual(resolver_contexto_participantes(self.curso), 'urbano')
+
+    def test_flag_apagado_no_cambia_el_texto(self):
+        from core.facilitador_perfil import ajustar_prompt_contexto
+
+        with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=False):
+            self.assertEqual(ajustar_prompt_contexto(PROMPT_FACILITADOR_RETO, self.curso), PROMPT_FACILITADOR_RETO)
+
+    def test_urbano_quita_lo_rural_fijo_y_dice_a_quien_va(self):
+        from core.facilitador_perfil import ajustar_prompt_contexto
+
+        self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
+        self.curso.save(update_fields=['contexto_participantes'])
+        with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
+            texto = ajustar_prompt_contexto(PROMPT_FACILITADOR_RETO, self.curso)
+        self.assertNotIn('emprendimiento rural', texto)
+        self.assertNotIn('rural/urbano', texto)
+        self.assertIn('CONTEXTO DE LOS PARTICIPANTES', texto)
+        self.assertIn('No hable de fincas', texto)
+
+    def test_rural_pide_ejemplos_de_finca(self):
+        from core.facilitador_perfil import ajustar_prompt_contexto
+
+        self.cliente.contexto_participantes = 'rural'
+        self.cliente.save(update_fields=['contexto_participantes'])
+        with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
+            texto = ajustar_prompt_contexto(PROMPT_FACILITADOR_RETO, self.curso)
+        self.assertIn('finca', texto.split('CONTEXTO DE LOS PARTICIPANTES')[1])
+
+    def test_tecnicoagro_no_se_toca(self):
+        from core.facilitador_perfil import ajustar_prompt_contexto
+
+        self.curso.perfil_facilitador = Curso.PERFIL_FACILITADOR_TECNICOAGRO
+        self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
+        self.curso.save(update_fields=['perfil_facilitador', 'contexto_participantes'])
+        with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
+            self.assertEqual(ajustar_prompt_contexto('Texto agro', self.curso), 'Texto agro')
+
+    def test_cada_frase_rural_fija_existe_en_los_textos(self):
+        """Si alguien cambia un texto general, la frase deja de reemplazarse sin avisar."""
+        import inspect
+
+        import core.tutor_ia_modulo as tutor
+        from core.facilitador_perfil import _RURAL_FIJO
+
+        fuente = inspect.getsource(tutor)
+        for fijo, _ in _RURAL_FIJO:
+            self.assertIn(fijo, fuente)
