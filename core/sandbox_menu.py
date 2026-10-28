@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.utils import timezone
 
 # Lo importado con noqa: F401 se lee como `core.sandbox_menu.X`: los módulos movidos
@@ -187,6 +188,7 @@ class SandboxRouteDecision:
     reset_nat: bool = False  # True = comando *reiniciar* (corte de memoria)
     saludo_entrada: bool = False  # Entró por menú; no pasar "1"/"2" al LLM
     es_toque: bool = False  # Botón o lista: no es una pregunta escrita
+    derivado: bool = False  # El agente lo eligió la derivación, no la persona
 
 
 def sandbox_menu_enabled() -> bool:
@@ -472,6 +474,7 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     _set_modo(sesion, agente)
     decision.action = agente
     decision.saludo_entrada = por_nombre
+    decision.derivado = not por_nombre
     return decision
 
 
@@ -784,6 +787,23 @@ def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str
     return 'cursos'
 
 
+def _respuesta_ficha(payload: Any, from_tel: str, body: str) -> str | None:
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return None
+    from core.lineas.variante import perfil_de
+
+    if perfil_de().curso_directo:
+        return None
+    from core.lineas.principal.asesores import responder_ficha
+
+    _, to_tel, _ = _extract_from_body(payload)
+    try:
+        return responder_ficha(from_tel, to_tel or sandbox_number(), body)
+    except DatabaseError:
+        logger.exception('ficha_respuesta_fail tel=%s', from_tel)
+        return None
+
+
 def dispatch_sandbox_menu(payload: Any) -> str | None:
     """
     Intercepta el sandbox (Meta) cuando SANDBOX_MENU_ENABLED.
@@ -807,6 +827,8 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             registrar_actividad_linea(from_tel)
         except Exception:
             logger.exception('sandbox_racha_fail tel=%s', from_tel)
+        if _respuesta_ficha(payload, from_tel, body_habeas) == 'handled':
+            return 'handled'
     decision = resolver_ruta_sandbox(payload)
     from_n = decision.from_number or sandbox_number()
     _, _, body = _extract_from_body(payload)

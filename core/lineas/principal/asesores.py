@@ -8,6 +8,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.conf import settings
+from django.db import DatabaseError
+
 if TYPE_CHECKING:
     from core.sandbox_menu import SandboxRouteDecision
 
@@ -102,6 +105,39 @@ def enviar_repregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
     )
 
 
+def preguntar_ficha_si_toca(telefono_usuario: str, from_number: str) -> None:
+    """Después de una respuesta útil del agente: una pregunta de la ficha, si toca."""
+    from core.lineas.principal.ficha_negocio import AGENTE_FICHA, marcar_preguntada, siguiente_pregunta
+    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+
+    try:
+        pregunta = siguiente_pregunta(telefono_usuario)
+        if pregunta is None:
+            return
+        if pregunta.botones and sandbox_via_meta():
+            enviar_meta_botones(
+                telefono_usuario, pregunta.mensaje, list(pregunta.botones), agente_evento=AGENTE_FICHA,
+            )
+        else:
+            _menu().enviar_texto_sandbox(
+                telefono_usuario, from_number, pregunta.mensaje_sin_botones, agente=AGENTE_FICHA,
+            )
+        marcar_preguntada(telefono_usuario, pregunta.campo)
+    except DatabaseError:
+        logger.exception('ficha_pregunta_fail')
+
+
+def responder_ficha(telefono_usuario: str, from_number: str, body: str) -> str | None:
+    """'handled' si el mensaje era la respuesta a una pregunta de la ficha."""
+    from core.lineas.principal.ficha_negocio import AGENTE_FICHA, responder
+
+    texto = responder(telefono_usuario, body)
+    if texto is None:
+        return None
+    _menu().enviar_texto_sandbox(telefono_usuario, from_number, texto, agente=AGENTE_FICHA)
+    return 'handled'
+
+
 def _guardar_pregunta_en_memoria(telefono: str, agente: str, body: str) -> None:
     """INCOMING con la etiqueta del agente; se guarda tras responder para no duplicar la pregunta en el prompt."""
     try:
@@ -144,6 +180,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
     else:
         agente = 'ia_campo'
     from_n = decision.from_number or _menu().sandbox_number()
+    respuesta_util = False
 
     if decision.reset_nat:
         _menu().marcar_corte_memoria_nat(decision.telefono_usuario)
@@ -172,6 +209,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         else:
             _menu()._reaccion_espera(decision.telefono_usuario, message_id)
             texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
+            respuesta_util = True
             registrar_pregunta_asesor(decision.telefono_usuario)
             _guardar_pregunta_en_memoria(decision.telefono_usuario, agente, body)
             try:
@@ -192,4 +230,6 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         )
     except Exception:
         logger.exception('sandbox_agente_send_failed agente=%s', agente)
+    if respuesta_util and not decision.derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        preguntar_ficha_si_toca(decision.telefono_usuario, from_n)
     return 'handled'
