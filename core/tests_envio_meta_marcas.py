@@ -94,6 +94,18 @@ class BotonConTextoLargoTests(TestCase):
         self.assertEqual(self._cuerpo(self.enviados[0]), respuesta)
         self.assertEqual(self._cuerpo(self.enviados[1]), cierre)
 
+    def test_evaluacion_larga_de_la_facilitadora_llega_con_su_nota(self):
+        evaluacion = (
+            '*Formadora:*\n' + 'Su respuesta muestra comprensión del cliente ideal. ' * 18
+            + '\n\nPuntaje: 7/10\nEnfoque 2/3 | Fundamentación 3/4 | Claridad 2/3'
+            + '\n\n📊 Avance: ▓▓▓▓░░░░ 50%'
+        )
+        enviar_meta(TEL, f'{evaluacion}\n\nPulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]')
+        self.assertGreater(len(evaluacion), 1024)
+        self.assertEqual([p['type'] for p in self.enviados], ['text', 'interactive'])
+        self.assertEqual(self._cuerpo(self.enviados[0]), evaluacion)
+        self.assertEqual(self._cuerpo(self.enviados[1]), 'Pulse continuar, para seguir aprendiendo.')
+
     def test_ultimo_parrafo_largo_el_boton_lleva_texto_breve(self):
         largo = 'B' * 1500
         enviar_meta(TEL, f'{largo}[SEND_BUTTON:continuemos]')
