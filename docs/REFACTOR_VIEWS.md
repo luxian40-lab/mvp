@@ -83,7 +83,6 @@ líneas 50 y 55 están dentro de funciones, así que no hay ciclo al cargar el w
 Lista permanente del entorno completo (`.venv-full`, 2026-10-01): `scripts/baseline_failures_before.txt`.
 `pytest.ini` solo recoge `tests.py` / `test_*.py` (no `tests_*.py`); esa corrida dio 54 passed y cero `FAILED` en ambos árboles. La lista de pytest del archivo se obtuvo con `--override-ini python_files=tests_*.py test_*.py`.
 - core.tests_admin_mejoras_onda3.CommandSearchTests.test_admin_search_endpoint_ok
-- core.tests_admin_modulo_guardar_reto.GuardarRetoDesdeAdminTests.test_guardar_el_reto_con_secciones_intercaladas
 - core.tests_agentes_whatsapp.CheckpointSinTitularTests.test_pausa_no_abre_con_carlos
 - core.tests_host_isolation.AdminNoStudentsTests.test_estudiante_whatsapp_no_es_staff_ni_entra_admin
 - core.tests_module_builder_ui.ModuleBuilderViewTests.test_add_micro_form_accepts_pdf
