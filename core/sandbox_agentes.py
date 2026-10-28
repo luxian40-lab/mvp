@@ -669,13 +669,16 @@ def responder_agente_sandbox(
         from core.openai_compat import completar_chat, contexto_uso_llm
         from core.presupuesto_llm import modelo_segun_presupuesto
 
-        contexto_uso_llm(telefono=telefono, agente=agente)
-        texto = completar_chat(
-            OpenAI(api_key=api_key),
-            modelo_segun_presupuesto(_modelo()),
-            messages,
-            _max_tokens(),
-        )
+        token_uso = contexto_uso_llm(telefono=telefono, agente=agente)
+        try:
+            texto = completar_chat(
+                OpenAI(api_key=api_key),
+                modelo_segun_presupuesto(_modelo()),
+                messages,
+                _max_tokens(),
+            )
+        finally:
+            token_uso.var.reset(token_uso)
         if texto:
             return texto
     except Exception:

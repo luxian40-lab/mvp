@@ -498,6 +498,19 @@ def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> Non
         pass
 
 
+def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
+    """Llama al modelo anotando el costo a la org; el contexto de cobro no sobrevive a la llamada."""
+    from core.openai_compat import completar_chat, contexto_uso_llm
+    from core.presupuesto_llm import modelo_segun_presupuesto
+
+    token_uso = contexto_uso_llm(cliente_id=cliente_id, agente='nati')
+    try:
+        modelo = modelo_segun_presupuesto(modelo, cliente_id)
+        return modelo, completar_chat(client, modelo, messages, max_out, temperatura)
+    finally:
+        token_uso.var.reset(token_uso)
+
+
 def _bot_comercial_respuesta_catalogo(
     pregunta: str,
     contexto_rag: str,
@@ -619,8 +632,7 @@ def _bot_comercial_respuesta_catalogo(
                 max_out = min(max_out, max_tokens_linea_meta())
         except Exception:
             pass
-        from core.openai_compat import completar_chat, contexto_uso_llm
-        from core.presupuesto_llm import debe_degradar, modelo_segun_presupuesto
+        from core.presupuesto_llm import debe_degradar
 
         cliente_id = getattr(cliente, 'pk', None)
         if debe_degradar(cliente_id):
@@ -628,9 +640,7 @@ def _bot_comercial_respuesta_catalogo(
                 pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,
             )
         else:
-            contexto_uso_llm(cliente_id=cliente_id, agente='nati')
-            modelo = modelo_segun_presupuesto(modelo, cliente_id)
-            texto = completar_chat(client, modelo, messages, max_out, temperatura)
+            modelo, texto = _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id)
         if not texto:
             texto = _bot_comercial_respuesta_sin_llm(
                 pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,

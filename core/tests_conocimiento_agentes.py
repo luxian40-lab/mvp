@@ -79,6 +79,27 @@ class ConocimientoAgenteTests(TestCase):
         sistema = falso.chat.completions.create.call_args.kwargs['messages'][0]['content']
         self.assertIn('Precio justo', sistema)
 
+    def test_el_costo_no_queda_pegado_a_la_siguiente_llamada(self):
+        from core.openai_compat import _uso
+
+        falso = MagicMock()
+        falso.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='ok'))]
+        with override_settings(OPENAI_API_KEY='sk-test'), patch('openai.OpenAI', return_value=falso):
+            from core.sandbox_agentes import responder_agente_sandbox
+
+            responder_agente_sandbox('ventas', '¿cómo subo el precio?', telefono='573001')
+        self.assertIsNone(_uso.get())
+
+    def test_nat_no_deja_el_costo_pegado(self):
+        from core.bot_comercial.webhook import _completar_nat
+        from core.openai_compat import _uso
+
+        with patch('core.openai_compat.completar_chat', return_value='ok'), \
+                patch('core.presupuesto_llm.modelo_segun_presupuesto', side_effect=lambda m, c=None: m):
+            modelo, texto = _completar_nat(object(), 'gpt-x', [], 100, 0.1, None)
+        self.assertEqual((modelo, texto), ('gpt-x', 'ok'))
+        self.assertIsNone(_uso.get())
+
     @override_settings(AGENTES_CAPTURA_PORCENTAJE=100)
     def test_captura_sugerencia_sin_datos_personales_y_sin_duplicar(self):
         pregunta = 'Me llamo Ana, mi cel es 3001234567 y correo ana@finca.co, ¿cómo cobro más por el café?'
