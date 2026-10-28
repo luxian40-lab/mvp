@@ -60,7 +60,7 @@ def texto_repregunta(permitidos) -> str:
     )
 
 
-def _mensajes(texto: str, opciones: list[str]) -> list[dict]:
+def _mensajes(texto: str, opciones: list[str], contexto: str = '') -> list[dict]:
     perfiles = '\n'.join(f'- {modo}: {_PERFILES[modo]}' for modo in opciones)
     sistema = (
         "Usted lee el mensaje de una persona del campo en Colombia y elige el asesor que la puede ayudar.\n\n"
@@ -68,6 +68,11 @@ def _mensajes(texto: str, opciones: list[str]) -> list[dict]:
         f"Responda solo una palabra: {', '.join(opciones)} o ninguno. "
         "ninguno si el mensaje no dice qué necesita (un saludo, «no sé», «sí», un número suelto)."
     )
+    if contexto:
+        sistema += (
+            "\n\nLo que ya sabemos de la persona. Úselo solo para desempatar cuando el mensaje "
+            f"sirve para dos asesores; manda lo que la persona escribe:\n{contexto}"
+        )
     return [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': texto[:600]}]
 
 
@@ -78,7 +83,7 @@ def _etiqueta(respuesta: str, opciones: list[str]) -> str | None:
     return None
 
 
-def derivar(texto: str, *, telefono: str, permitidos) -> tuple[str | None, str]:
+def derivar(texto: str, *, telefono: str, permitidos, contexto: str = '') -> tuple[str | None, str]:
     """(agente o None, 'llm' | 'sin_llm'). None con 'llm': el mensaje no dice qué necesita."""
     pregunta = (texto or '').strip()
     opciones = [modo for modo, _ in _TEMAS if modo in permitidos]
@@ -98,7 +103,7 @@ def derivar(texto: str, *, telefono: str, permitidos) -> tuple[str | None, str]:
         respuesta = completar_chat(
             cliente_openai(api_key),
             getattr(settings, 'EKI_ASESORIA_MODELO', 'gpt-5-mini'),
-            _mensajes(pregunta, opciones),
+            _mensajes(pregunta, opciones, contexto),
             20,
         )
     finally:

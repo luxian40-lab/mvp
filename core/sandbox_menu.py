@@ -421,6 +421,14 @@ def memoria_corte_nat(telefono: str):
         return None
 
 
+def _contexto_para_derivar(telefono: str) -> str:
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return ''
+    from core.lineas.principal.contexto_asesoria import contexto_persona
+
+    return contexto_persona(telefono)
+
+
 def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
     """La respuesta a «¿Qué quiere mejorar hoy?» va directo al agente que la atiende.
 
@@ -446,7 +454,9 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
         if agente is None and excedio_cupo_ia_linea(tel):
             agente = clasificar_asesoria(texto) or permitidos[0]
         elif agente is None:
-            agente, fuente = derivar(texto, telefono=tel, permitidos=permitidos)
+            agente, fuente = derivar(
+                texto, telefono=tel, permitidos=permitidos, contexto=_contexto_para_derivar(tel),
+            )
             if fuente == 'sin_llm':
                 agente = clasificar_asesoria(texto)
         if agente not in permitidos:
