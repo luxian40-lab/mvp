@@ -659,6 +659,11 @@ def responder_agente_sandbox(
             logger.exception('sandbox_cafe_fuentes_fail agente=%s', agente)
     if extra:
         sistema = f"{sistema}\n\n{extra}"
+    from core.lineas.principal.contexto_asesoria import bloque_perfil
+
+    perfil = bloque_perfil(telefono)
+    if perfil:
+        sistema = f"{sistema}\n\n{perfil}"
     messages = [{'role': 'system', 'content': sistema}]
     messages.extend(_historial_sandbox(telefono, agente))
     messages.append({'role': 'user', 'content': q[:1500]})

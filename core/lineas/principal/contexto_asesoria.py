@@ -5,9 +5,14 @@ y el último asesor. Fuera del ciclo de imports: lee modelos y nada de la línea
 """
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
+from django.conf import settings
+from django.db import DatabaseError
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 DIAS_ULTIMO_AGENTE = 30
 
@@ -116,3 +121,21 @@ def contexto_persona(telefono: str) -> str:
         modo, tema = ultimo
         lineas.append(f'Último asesor: {nombre_agente(modo)}. Le preguntó: «{tema}»')
     return '\n'.join(f'- {linea}' for linea in lineas)
+
+
+def bloque_perfil(telefono: str) -> str:
+    """Para el prompt de cualquier agente. Vacío con el flag apagado o si no se sabe nada."""
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return ''
+    try:
+        contexto = contexto_persona(telefono)
+    except DatabaseError:
+        logger.exception('asesoria_perfil_fail')
+        return ''
+    if not contexto:
+        return ''
+    return (
+        'LO QUE SABEMOS DE LA PERSONA (úselo para adaptar la respuesta a su caso; '
+        'no lo recite ni le diga que ya lo sabe):\n'
+        f'{contexto}'
+    )

@@ -69,6 +69,55 @@ class ContextoPersonaTests(TestCase):
         self.assertIsNone(ultimo_agente(self.tel))
 
 
+class PerfilEnElPromptTests(TestCase):
+    tel = '573005558401'
+
+    def setUp(self):
+        cache.clear()
+        FichaNegocio.objects.create(telefono=self.tel, dedica='cacao', equipo='trabajadores')
+
+    def _sistema(self):
+        from core.sandbox_agentes import responder_agente_sandbox
+
+        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+                patch('openai.OpenAI'), \
+                patch('core.openai_compat.completar_chat', return_value='R') as llm:
+            responder_agente_sandbox('ventas', 'cómo vendo más', telefono=self.tel)
+        return llm.call_args.args[2][0]['content']
+
+    @override_settings(EKI_ASESORIA_CONTEXTO=False)
+    def test_sin_flag_no_hay_bloque(self):
+        from core.lineas.principal.contexto_asesoria import bloque_perfil
+
+        self.assertEqual(bloque_perfil(self.tel), '')
+
+    @override_settings(EKI_ASESORIA_CONTEXTO=True)
+    def test_con_flag_el_bloque_dice_que_no_lo_recite(self):
+        from core.lineas.principal.contexto_asesoria import bloque_perfil
+
+        bloque = bloque_perfil(self.tel)
+        self.assertTrue(bloque.startswith('LO QUE SABEMOS DE LA PERSONA'))
+        self.assertIn('no lo recite', bloque)
+        self.assertIn('- Se dedica a: cacao', bloque)
+        self.assertEqual(bloque_perfil('573009999999'), '')
+
+    @override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_CONTEXTO=True)
+    def test_los_agentes_leen_el_perfil(self):
+        sistema = self._sistema()
+        self.assertIn('LO QUE SABEMOS DE LA PERSONA', sistema)
+        self.assertIn('- Trabaja: con trabajadores', sistema)
+
+    @override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_CONTEXTO=False)
+    def test_sin_flag_el_prompt_de_los_agentes_no_cambia(self):
+        self.assertNotIn('LO QUE SABEMOS DE LA PERSONA', self._sistema())
+
+    @override_settings(EKI_ASESORIA_CONTEXTO=True)
+    def test_nat_tambien_lo_recibe(self):
+        from core.bot_comercial.webhook import _perfil_para_nat
+
+        self.assertIn('- Se dedica a: cacao', _perfil_para_nat(self.tel))
+
+
 @override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_MODELO='gpt-5-mini')
 class DerivarDetalleTests(TestCase):
     TODOS = ['nat', 'coach', 'ia_campo', 'ventas', 'finanzas']

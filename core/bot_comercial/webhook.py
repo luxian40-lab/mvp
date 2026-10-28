@@ -498,6 +498,12 @@ def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> Non
         pass
 
 
+def _perfil_para_nat(telefono: str) -> str:
+    from core.lineas.principal.contexto_asesoria import bloque_perfil
+
+    return bloque_perfil(telefono)
+
+
 def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
     """Llama al modelo anotando el costo a la org; el contexto de cobro no sobrevive a la llamada."""
     from core.openai_compat import completar_chat, contexto_uso_llm
@@ -978,14 +984,14 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     rag_chunks = []
 
     ctx_agro = None
-    bloque_contexto_agro = ''
+    bloque_contexto_agro = _perfil_para_nat(telefono_limpio)
     try:
         from core.ai_capabilities import resolver_ai_capability
         from core.contexto_agro import actualizar_contexto_desde_mensaje, formatear_bloque_contexto_para_prompt
 
         if resolver_ai_capability('nati_structured_context', cliente=cliente_nati):
             ctx_agro = actualizar_contexto_desde_mensaje(sesion_comercial, msg_body)
-            bloque_contexto_agro = formatear_bloque_contexto_para_prompt(ctx_agro)
+            bloque_contexto_agro = '\n\n'.join(x for x in (bloque_contexto_agro, formatear_bloque_contexto_para_prompt(ctx_agro)) if x)
     except Exception:
         pass
 
