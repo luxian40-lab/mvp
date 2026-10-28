@@ -60,7 +60,29 @@ def texto_repregunta(permitidos) -> str:
     )
 
 
-def _mensajes(texto: str, opciones: list[str], contexto: str = '') -> list[dict]:
+_COMANDOS = {
+    'nat': ('Agrónomo', 'agronomo'),
+    'ventas': ('Ventas', 'ventas'),
+    'finanzas': ('Finanzas', 'finanzas'),
+    'coach': ('Coach', 'coach'),
+    'ia_campo': ('Innovación e IA', 'innovacion'),
+}
+CIERRE = '¿Era esto lo que necesitaba? Si no, escriba *menu*.'
+
+
+def cierre_derivacion(secundario: str = '') -> str:
+    """Pie de la primera respuesta tras derivar: el otro asesor que también sirve y la salida."""
+    tema = dict(_TEMAS).get(secundario)
+    if not tema or secundario not in _COMANDOS:
+        return CIERRE
+    nombre, comando = _COMANDOS[secundario]
+    return (
+        f"Esto también tiene que ver con {tema}; si quiere, lo vemos con {nombre}: escriba *{comando}*.\n\n"
+        f"{CIERRE}"
+    )
+
+
+def _mensajes(texto: str, opciones: list[str], contexto: str = '', con_segundo: bool = False) -> list[dict]:
     perfiles = '\n'.join(f'- {modo}: {_PERFILES[modo]}' for modo in opciones)
     sistema = (
         "Usted lee el mensaje de una persona del campo en Colombia y elige el asesor que la puede ayudar.\n\n"
@@ -68,6 +90,11 @@ def _mensajes(texto: str, opciones: list[str], contexto: str = '') -> list[dict]
         f"Responda solo una palabra: {', '.join(opciones)} o ninguno. "
         "ninguno si el mensaje no dice qué necesita (un saludo, «no sé», «sí», un número suelto)."
     )
+    if con_segundo:
+        sistema += (
+            " Si el mensaje también toca de lleno el tema de otro asesor, escriba ese otro como segunda "
+            "palabra (por ejemplo: ventas finanzas). Si no, una sola palabra."
+        )
     if contexto:
         sistema += (
             "\n\nLo que ya sabemos de la persona. Úselo solo para desempatar cuando el mensaje "
@@ -76,26 +103,29 @@ def _mensajes(texto: str, opciones: list[str], contexto: str = '') -> list[dict]
     return [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': texto[:600]}]
 
 
-def _etiqueta(respuesta: str, opciones: list[str]) -> str | None:
+def _etiquetas(respuesta: str, opciones: list[str]) -> list[str]:
+    salida: list[str] = []
     for palabra in re.findall(r'[a-z_]+', (respuesta or '').lower()):
-        if palabra in opciones:
-            return palabra
-    return None
+        if palabra in opciones and palabra not in salida:
+            salida.append(palabra)
+    return salida[:2]
 
 
-def derivar(texto: str, *, telefono: str, permitidos, contexto: str = '') -> tuple[str | None, str]:
-    """(agente o None, 'llm' | 'sin_llm'). None con 'llm': el mensaje no dice qué necesita."""
+def derivar_detalle(
+    texto: str, *, telefono: str, permitidos, contexto: str = '', con_segundo: bool = False,
+) -> tuple[str | None, str, str]:
+    """(agente o None, 'llm' | 'sin_llm', segundo agente o ''). None con 'llm': no dice qué necesita."""
     pregunta = (texto or '').strip()
     opciones = [modo for modo, _ in _TEMAS if modo in permitidos]
     if not pregunta or not opciones:
-        return None, 'llm'
+        return None, 'llm', ''
     if len(opciones) == 1:
-        return opciones[0], 'llm'
+        return opciones[0], 'llm', ''
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
     from core.presupuesto_llm import debe_degradar
 
     if not api_key or debe_degradar():
-        return None, 'sin_llm'
+        return None, 'sin_llm', ''
     from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
     token = contexto_uso_llm(telefono=telefono, agente='derivar_asesoria')
@@ -103,16 +133,24 @@ def derivar(texto: str, *, telefono: str, permitidos, contexto: str = '') -> tup
         respuesta = completar_chat(
             cliente_openai(api_key),
             getattr(settings, 'EKI_ASESORIA_MODELO', 'gpt-5-mini'),
-            _mensajes(pregunta, opciones, contexto),
+            _mensajes(pregunta, opciones, contexto, con_segundo),
             20,
         )
     finally:
         token.var.reset(token)
     if not respuesta:
-        return None, 'sin_llm'
-    agente = _etiqueta(respuesta, opciones)
-    logger.info('derivar_asesoria agente=%s', agente or 'ninguno')
-    return agente, 'llm'
+        return None, 'sin_llm', ''
+    elegidos = _etiquetas(respuesta, opciones)
+    agente = elegidos[0] if elegidos else None
+    segundo = elegidos[1] if con_segundo and len(elegidos) > 1 else ''
+    logger.info('derivar_asesoria agente=%s segundo=%s', agente or 'ninguno', segundo or '-')
+    return agente, 'llm', segundo
+
+
+def derivar(texto: str, *, telefono: str, permitidos, contexto: str = '') -> tuple[str | None, str]:
+    """(agente o None, 'llm' | 'sin_llm'). None con 'llm': el mensaje no dice qué necesita."""
+    agente, fuente, _ = derivar_detalle(texto, telefono=telefono, permitidos=permitidos, contexto=contexto)
+    return agente, fuente
 
 
 def _clave_repregunta(telefono: str) -> str:

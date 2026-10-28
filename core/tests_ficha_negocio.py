@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from core.lineas.principal.contexto_asesoria import contexto_persona, ultimo_agente
+from core.lineas.principal.derivar_asesoria import CIERRE, derivar_detalle
 from core.lineas.principal.ficha_negocio import (
     AGENTE_FICHA,
     GRACIAS,
@@ -66,6 +67,34 @@ class ContextoPersonaTests(TestCase):
             telefono=self.tel, tipo='OUTGOING', agente_usado='sandbox_ventas', mensaje='respuesta',
         )
         self.assertIsNone(ultimo_agente(self.tel))
+
+
+@override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_MODELO='gpt-5-mini')
+class DerivarDetalleTests(TestCase):
+    TODOS = ['nat', 'coach', 'ia_campo', 'ventas', 'finanzas']
+
+    def _derivar(self, respuesta, **kwargs):
+        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+                patch('core.openai_compat.cliente_openai', return_value='cli'), \
+                patch('core.openai_compat.completar_chat', return_value=respuesta) as llm:
+            salida = derivar_detalle('debo plata y no vendo', telefono='5730', permitidos=self.TODOS, **kwargs)
+        return salida, llm.call_args.args[2][0]['content']
+
+    def test_con_segundo_pide_y_lee_la_segunda_palabra(self):
+        salida, sistema = self._derivar('ventas finanzas', con_segundo=True)
+        self.assertEqual(salida, ('ventas', 'llm', 'finanzas'))
+        self.assertIn('segunda palabra', sistema)
+
+    def test_sin_segundo_el_prompt_y_la_salida_son_los_de_siempre(self):
+        salida, sistema = self._derivar('ventas finanzas')
+        self.assertEqual(salida, ('ventas', 'llm', ''))
+        self.assertNotIn('segunda palabra', sistema)
+        self.assertNotIn('Lo que ya sabemos', sistema)
+
+    def test_el_contexto_va_para_desempatar(self):
+        _, sistema = self._derivar('finanzas', contexto='- Se dedica a: tienda')
+        self.assertIn('desempatar', sistema)
+        self.assertIn('- Se dedica a: tienda', sistema)
 
 
 class SiguientePreguntaTests(TestCase):
@@ -238,14 +267,53 @@ class FlujoFichaTests(TestCase):
         ag.assert_called_once()
         self.assertEqual(self._ficha().dedica, '')
 
-    def test_no_pregunta_en_el_turno_de_la_derivacion(self):
+    def _derivar(self, salida, texto='quiero vender mi café a mejor precio'):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
-        with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('ventas', 'llm')), \
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=salida) as der, \
                 patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
-            dispatch_sandbox_menu(_payload(self.tel, 'quiero vender mi café a mejor precio'))
-        self.assertEqual(len(_textos(send)), 1)
+            dispatch_sandbox_menu(_payload(self.tel, texto))
+        return der, _textos(send)
+
+    def test_no_pregunta_en_el_turno_de_la_derivacion(self):
+        _, textos = self._derivar(('ventas', 'llm', ''))
+        self.assertEqual(len(textos), 1)
         self.assertIsNone(self._ficha())
+
+    def test_la_primera_respuesta_tras_derivar_cierra_con_la_salida(self):
+        _, textos = self._derivar(('ventas', 'llm', ''))
+        self.assertTrue(textos[0].startswith('Respuesta ventas'))
+        self.assertIn(CIERRE, textos[0])
+        self.assertNotIn('Esto también tiene que ver', textos[0])
+        _, _, send = self._turno_agente('y a quién le vendo')
+        self.assertNotIn(CIERRE, ' '.join(_textos(send)))
+
+    def test_necesidad_mixta_menciona_al_otro_asesor(self):
+        _, textos = self._derivar(('ventas', 'llm', 'finanzas'))
+        self.assertIn(
+            'Esto también tiene que ver con sus cuentas; si quiere, lo vemos con Finanzas: escriba *finanzas*.',
+            textos[0],
+        )
+        self.assertIn(CIERRE, textos[0])
+
+    def test_el_segundo_debe_ser_otro_y_de_la_linea(self):
+        _, textos = self._derivar(('ventas', 'llm', 'ventas'))
+        self.assertNotIn('Esto también tiene que ver', textos[0])
+
+    def test_el_que_deriva_recibe_lo_que_se_sabe(self):
+        FichaNegocio.objects.create(telefono=self.tel, dedica='tienda de abarrotes', preguntadas='dedica')
+        der, _ = self._derivar(('finanzas', 'llm', ''), texto='no me alcanza la plata del negocio')
+        kwargs = der.call_args.kwargs
+        self.assertIn('Se dedica a: tienda de abarrotes', kwargs['contexto'])
+        self.assertTrue(kwargs['con_segundo'])
+
+    def test_elegido_por_nombre_no_lleva_cierre(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle') as der, \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'ventas'))
+        der.assert_not_called()
+        self.assertNotIn(CIERRE, ' '.join(_textos(send)))
 
     def test_sin_cupo_no_pregunta(self):
         with patch('core.sandbox_agentes.excedio_cupo_ia_linea', return_value=True):

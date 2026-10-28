@@ -189,6 +189,7 @@ class SandboxRouteDecision:
     saludo_entrada: bool = False  # Entró por menú; no pasar "1"/"2" al LLM
     es_toque: bool = False  # Botón o lista: no es una pregunta escrita
     derivado: bool = False  # El agente lo eligió la derivación, no la persona
+    agente_secundario: str = ''  # Otro asesor que también sirve para lo que pidió
 
 
 def sandbox_menu_enabled() -> bool:
@@ -423,12 +424,18 @@ def memoria_corte_nat(telefono: str):
         return None
 
 
-def _contexto_para_derivar(telefono: str) -> str:
+def _derivar_con_contexto(texto: str, tel: str, permitidos) -> tuple[str | None, str, str]:
+    """(agente, fuente, segundo). Sin el flag, la derivación de siempre y sin segundo asesor."""
+    from core.lineas.principal.derivar_asesoria import derivar, derivar_detalle
+
     if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
-        return ''
+        agente, fuente = derivar(texto, telefono=tel, permitidos=permitidos)
+        return agente, fuente, ''
     from core.lineas.principal.contexto_asesoria import contexto_persona
 
-    return contexto_persona(telefono)
+    return derivar_detalle(
+        texto, telefono=tel, permitidos=permitidos, contexto=contexto_persona(tel), con_segundo=True,
+    )
 
 
 def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> SandboxRouteDecision:
@@ -439,7 +446,6 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     """
     from core.lineas.oferta import modos_agente
     from core.lineas.principal.derivar_asesoria import (
-        derivar,
         marcar_repregunta,
         olvidar_repregunta,
     )
@@ -449,6 +455,7 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     texto = (body or '').strip()
     permitidos = modos_agente(tel)
     agente = None
+    segundo = ''
     por_nombre = False
     if permitidos and texto and not texto.isdigit():
         agente = _normalizar_eleccion_agentes(texto)
@@ -456,9 +463,7 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
         if agente is None and excedio_cupo_ia_linea(tel):
             agente = clasificar_asesoria(texto) or permitidos[0]
         elif agente is None:
-            agente, fuente = derivar(
-                texto, telefono=tel, permitidos=permitidos, contexto=_contexto_para_derivar(tel),
-            )
+            agente, fuente, segundo = _derivar_con_contexto(texto, tel, permitidos)
             if fuente == 'sin_llm':
                 agente = clasificar_asesoria(texto)
         if agente not in permitidos:
@@ -475,6 +480,8 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
     decision.action = agente
     decision.saludo_entrada = por_nombre
     decision.derivado = not por_nombre
+    if segundo in permitidos and segundo != agente:
+        decision.agente_secundario = segundo
     return decision
 
 
