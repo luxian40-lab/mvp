@@ -316,8 +316,8 @@ _INSTRUCCION_TIPO_RETO = {
         "para esta semana (qué, cuándo, con qué recursos)."
     ),
     'aplicacion_practica': (
-        "FORMATO OBLIGATORIO DEL RETO: invite a aplicar lo aprendido a su finca, hogar o trabajo "
-        "con UNA sola pregunta (qué cambiaría mañana y cómo lo mediría)."
+        "FORMATO OBLIGATORIO DEL RETO: invite a aplicar lo aprendido a su negocio, trabajo, hogar o "
+        "comunidad, según el curso, con UNA sola pregunta (qué cambiaría mañana y cómo lo mediría)."
     ),
     'reflexion': (
         "FORMATO OBLIGATORIO DEL RETO: UNA pregunta de reflexión breve (qué aprendió y cómo lo "

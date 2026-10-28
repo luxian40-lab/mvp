@@ -152,6 +152,27 @@ class GuiaRetoIaTests(TestCase):
         self.assertIn('plan de 7 días', user_msg)
         self.assertIn('Finanzas del hogar', user_msg)
 
+    def _prompt_reto(self, modulos, checkpoint, **kwargs):
+        choice = MagicMock()
+        choice.message.content = 'Situación. ¿Qué haría?'
+        client = MagicMock()
+        client.chat.completions.create.return_value = MagicMock(choices=[choice])
+        with patch('core.tutor_ia_modulo._get_client', return_value=client), \
+                patch('core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
+            generar_reto_facilitador(
+                modulos, self.curso.nombre, estudiante_nombre='Ana',
+                curso=self.curso, modulo_checkpoint=checkpoint, **kwargs,
+            )
+        return client.chat.completions.create.call_args.kwargs['messages'][1]['content']
+
+    def test_plantilla_aplicacion_no_asume_finca(self):
+        from core.tutor_ia_modulo import _INSTRUCCION_TIPO_RETO
+
+        texto = _INSTRUCCION_TIPO_RETO[Modulo.TIPO_RETO_APLICACION]
+        self.assertNotIn('finca', texto.lower())
+        self.assertIn('negocio', texto)
+        self.assertIn('según el curso', texto)
+
 
 class AsistenteDominioCursoTests(TestCase):
     """Carlos no debe recortar el tema al título del módulo (ej. Bienvenida)."""
