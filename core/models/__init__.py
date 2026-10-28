@@ -159,6 +159,11 @@ from core.models.territorio import (  # noqa: F401
 )
 
 
+from core.models.negocio import (  # noqa: F401
+    FichaNegocio,
+)
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -190,6 +195,7 @@ __all__ = [
     'EventOutbox',
     'SenalTerritorial',
     'AlertaTerritorial',
+    'FichaNegocio',
     'VideoEnlace', 'VideoView',
     'PlantillaMeta',
     'TarjetaPlantillaMeta',

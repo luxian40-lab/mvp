@@ -348,6 +348,12 @@ UNFOLD = {
                         "permission": _puede_modelo("core.view_conocimientoagente"),
                     },
                     {
+                        "title": _("Fichas del negocio"),
+                        "icon": "storefront",
+                        "link": reverse_lazy("admin:core_fichanegocio_changelist"),
+                        "permission": _puede_modelo("core.view_fichanegocio"),
+                    },
+                    {
                         "title": _("Bandeja de revisión"),
                         "icon": "inbox",
                         "link": reverse_lazy(

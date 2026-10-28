@@ -4,6 +4,7 @@ from django.utils.safestring import mark_safe
 
 from core.admin._common import *  # noqa: F401,F403
 from core.conocimiento_agentes import limpiar_cache_conocimiento
+from core.models import FichaNegocio
 from core.models_agentes import ConocimientoAgente
 
 
@@ -51,3 +52,26 @@ class ConocimientoAgenteAdmin(admin.ModelAdmin):
         n = queryset.update(estado=ConocimientoAgente.ESTADO_DESCARTADO, revisado_por=request.user)
         limpiar_cache_conocimiento()
         self.message_user(request, f'{n} descartado(s).', level=messages.SUCCESS)
+
+
+@admin.register(FichaNegocio)
+class FichaNegocioAdmin(admin.ModelAdmin):
+    list_display = ('telefono', 'dedica', 'etapa', 'equipo', 'actualizada_en')
+    list_filter = ('etapa', 'equipo')
+    search_fields = ('telefono', 'dedica')
+    list_per_page = 50
+    ordering = ('-actualizada_en',)
+    readonly_fields = ('preguntadas', 'pendiente', 'pendiente_desde', 'saltadas', 'creada_en', 'actualizada_en')
+    fieldsets = (
+        ('Lo que contó la persona', {
+            'fields': ('telefono', 'dedica', 'etapa', 'equipo'),
+            'description': (
+                'Lo leen el que deriva la pregunta y los agentes. '
+                'Se corrige aquí; la persona no vuelve a ver una pregunta ya hecha.'
+            ),
+        }),
+        ('Preguntas', {
+            'classes': ['collapse'],
+            'fields': ('preguntadas', 'pendiente', 'pendiente_desde', 'saltadas', 'creada_en', 'actualizada_en'),
+        }),
+    )
