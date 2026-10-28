@@ -82,11 +82,11 @@ def manejar(contexto: Contexto) -> Respuesta:
 
             nombre_tutor = nombre_display_facilitador(progreso.curso)
             reto = generar_reto_facilitador(
-                modulos_reto,
-                progreso.curso.nombre,
+                modulos_reto, progreso.curso.nombre,
                 estudiante_nombre=estudiante.nombre or "Estudiante",
                 curso=progreso.curso,
                 modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
+                estudiante=estudiante,
             )
             _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
             estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {

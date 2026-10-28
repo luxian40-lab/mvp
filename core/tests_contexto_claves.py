@@ -339,6 +339,20 @@ class AsistenteTests(ConCursoTestCase):
         self.assertEqual((ctx['cert_envio_pendiente'], ctx['curso_activo_id']), (CERT, self.curso.id))
         self.assertNotIn('preguntas_hechas', ctx)
 
+    def test_reto_recibe_al_estudiante_para_no_repetir_retos(self):
+        from core.conversacion.contexto import Contexto
+        from core.conversacion.estados import asistente
+
+        self._con_contexto(
+            tipo='asistente_dario', preguntas_hechas=1, modulos_reto_ids=[self.mod.id],
+            progreso_id=self.progreso.id, curso_activo_id=self.curso.id,
+        )
+        self.est.estado_onboarding = 'esperando_respuesta_asistente'
+        self.est.save()
+        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.') as gen:
+            asistente.manejar(Contexto(self.est, 'listo', self.est.telefono, self.est.telefono))
+        self.assertEqual(gen.call_args.kwargs.get('estudiante'), self.est)
+
     def test_reto_vacio_deja_solo_las_claves(self):
         self.assertEqual(
             self._listo([]),
