@@ -70,6 +70,9 @@ _VALORES = {
 _SALTAR = frozenset({'seguir', 'saltar', 'omitir'})
 _SALIDAS = frozenset({
     'menu', 'menú', 'inicio', 'start', 'hola', 'hi', 'hey', 'buenas', 'buen día', 'buenos días', 'reiniciar',
+    'nat', 'nati', 'agronomo', 'agrónomo', 'coach', 'entrenador', 'profe', 'innovacion', 'innovación',
+    'ventas', 'finanzas', 'agentes', 'asesoria', 'asesoría', 'formacion', 'formación', 'curso', 'cursos',
+    'continuar', 'continuemos',
 })
 _INICIOS_DE_PREGUNTA = (
     'como ', 'cómo ', 'que ', 'qué ', 'por que', 'por qué', 'porque ', 'cual', 'cuál', 'cuanto', 'cuánto',
@@ -181,7 +184,7 @@ def responder(telefono: str, texto: str) -> str | None:
     if t in _SALTAR:
         _cerrar(ficha, saltada=True)
         return SALTADA
-    if t in _SALIDAS:
+    if t in _SALIDAS or t.isdigit():
         _cerrar(ficha, saltada=True)
         return None
     if campo == 'dedica':

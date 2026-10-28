@@ -217,6 +217,19 @@ class FlujoFichaTests(TestCase):
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'menu')
         self.assertEqual(self._ficha().pendiente, '')
 
+    def test_el_nombre_de_otro_asesor_cambia_de_asesor(self):
+        self._turno_agente()
+        self._mandar('finanzas')
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'finanzas')
+        ficha = self._ficha()
+        self.assertEqual((ficha.dedica, ficha.pendiente), ('', ''))
+
+    def test_cafe_si_es_respuesta(self):
+        self._turno_agente()
+        ruta, ag, _ = self._mandar('Café')
+        ag.assert_not_called()
+        self.assertEqual(self._ficha().dedica, 'Café')
+
     def test_pasadas_24_horas_la_respuesta_ya_no_es_de_la_ficha(self):
         self._turno_agente()
         self._pasar_horas(25)
