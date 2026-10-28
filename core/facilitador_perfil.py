@@ -135,7 +135,7 @@ def system_prompt_reto_para_curso(curso: Curso | None) -> str:
 
     if es_perfil_tecnicoagro(curso):
         return system_prompt_reto_tecnicoagro()
-    return PROMPT_FACILITADOR_RETO
+    return ajustar_prompt_contexto(PROMPT_FACILITADOR_RETO, curso)
 
 
 def system_prompt_evaluacion_para_curso(curso: Curso | None, *, usar_notas: bool) -> str:
@@ -146,10 +146,11 @@ def system_prompt_evaluacion_para_curso(curso: Curso | None, *, usar_notas: bool
 
     if es_perfil_tecnicoagro(curso):
         return system_prompt_evaluacion_tecnicoagro(usar_notas=usar_notas)
-    return (
+    return ajustar_prompt_contexto(
         PROMPT_FACILITADOR_EVALUACION_NOTAS
         if usar_notas
-        else PROMPT_FACILITADOR_EVALUACION
+        else PROMPT_FACILITADOR_EVALUACION,
+        curso,
     )
 
 

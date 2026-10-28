@@ -227,3 +227,50 @@ class ContextoParticipantesTests(TestCase):
         fuente = inspect.getsource(tutor)
         for fijo, _ in _RURAL_FIJO:
             self.assertIn(fijo, fuente)
+
+    def _urbano(self):
+        self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
+        self.curso.save(update_fields=['contexto_participantes'])
+
+    def test_reto_y_evaluacion_llevan_el_contexto(self):
+        from core.facilitador_perfil import system_prompt_evaluacion_para_curso
+
+        self._urbano()
+        with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
+            reto = system_prompt_reto_para_curso(self.curso)
+            evaluacion = system_prompt_evaluacion_para_curso(self.curso, usar_notas=False)
+            notas = system_prompt_evaluacion_para_curso(self.curso, usar_notas=True)
+        for texto in (reto, evaluacion, notas):
+            self.assertIn('No hable de fincas', texto)
+
+    def _mensajes_ia(self, llamar):
+        choice = MagicMock()
+        choice.message.content = 'PREGUNTA: x\nA) a\nB) b\nC) c\nD) d\nCORRECTA: A\nEXPLICACION: e'
+        client = MagicMock()
+        client.chat.completions.create.return_value = MagicMock(choices=[choice])
+        with patch('core.tutor_ia_modulo._get_client', return_value=client), \
+                patch('core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''), \
+                self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
+            llamar()
+        return client.chat.completions.create.call_args.kwargs['messages']
+
+    def test_companero_lleva_el_contexto_y_no_menciona_agrosavia(self):
+        from core.tutor_ia_modulo import generar_respuesta_asistente
+
+        self._urbano()
+        m = Modulo.objects.create(curso=self.curso, numero=1, titulo='Marca', contenido='Identidad.')
+        mensajes = self._mensajes_ia(lambda: generar_respuesta_asistente([m], '¿Qué es un CTA?'))
+        sistema = mensajes[0]['content']
+        self.assertIn('No hable de fincas', sistema)
+        self.assertNotIn('AGROSAVIA', sistema)
+        self.assertNotIn('ejemplo de campo', sistema)
+
+    def test_recuperacion_no_habla_de_ruralidad_en_curso_urbano(self):
+        from core.tutor_ia_modulo import generar_pregunta_recuperacion
+
+        self._urbano()
+        m = Modulo.objects.create(curso=self.curso, numero=4, titulo='Plan', contenido='Plan de mercadeo.')
+        mensajes = self._mensajes_ia(lambda: generar_pregunta_recuperacion(self.curso, [m]))
+        self.assertNotIn('campesinos', mensajes[0]['content'])
+        self.assertIn('No hable de fincas', mensajes[0]['content'])
+        self.assertNotIn('ruralidad', mensajes[1]['content'])

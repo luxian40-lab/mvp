@@ -8,7 +8,9 @@ import re
 from django.conf import settings
 
 from core.facilitador_perfil import (
+    ajustar_prompt_contexto,
     es_perfil_tecnicoagro,
+    sin_rural_fijo,
     system_prompt_evaluacion_para_curso,
     system_prompt_reto_para_curso,
 )
@@ -820,7 +822,7 @@ u otros temas ajenos al curso."""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": _prompt_sistema_asistente(na)},
+                {"role": "system", "content": ajustar_prompt_contexto(_prompt_sistema_asistente(na), curso)},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.5,
@@ -1265,8 +1267,8 @@ Genera UNA pregunta de recuperación de dificultad media-baja para ruralidad col
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": PROMPT_PREGUNTA_RECUPERACION},
-                {"role": "user", "content": prompt_usuario}
+                {"role": "system", "content": ajustar_prompt_contexto(PROMPT_PREGUNTA_RECUPERACION, curso)},
+                {"role": "user", "content": sin_rural_fijo(prompt_usuario, curso)}
             ],
             temperature=0.7,
             max_tokens=300,
