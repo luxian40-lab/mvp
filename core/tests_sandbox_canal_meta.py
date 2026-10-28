@@ -327,6 +327,42 @@ class SandboxCanalMetaWebhookTests(TestCase):
         self.assertIn('tomate', (inbound.get('Body') or '').lower())
         legacy.assert_not_called()
 
+    @override_settings(WEBHOOK_CELERY_ASYNC=True)
+    def test_meta_cursos_no_se_reencola_al_canal_twilio(self):
+        from core.models import SandboxCanalSesion
+        from core.sandbox_menu import MODO_CURSOS
+
+        SandboxCanalSesion.objects.create(
+            telefono='573001234595', modo=MODO_CURSOS, habeas_aceptado=True,
+        )
+        payload = _meta_envelope(
+            {'from': '573001234595', 'id': 'wamid.in5', 'type': 'text', 'text': {'body': 'continuemos'}},
+        )
+        with patch('core.tasks.procesar_twilio_webhook_async') as tarea_twilio, \
+                patch('core.views.webhook_meta._procesar_twilio_webhook', return_value=None) as edu:
+            resp = self._post(payload)
+        self.assertEqual(resp.status_code, 200)
+        tarea_twilio.delay.assert_not_called()
+        self.assertEqual(edu.call_args[0][0].get('_eki_proveedor'), 'meta')
+
+    @override_settings(NAT_WEBHOOK_CELERY_ASYNC=True)
+    def test_meta_nat_no_se_reencola_al_canal_twilio(self):
+        from core.models import SandboxCanalSesion
+        from core.sandbox_menu import MODO_NAT
+
+        SandboxCanalSesion.objects.create(
+            telefono='573001234596', modo=MODO_NAT, habeas_aceptado=True,
+        )
+        payload = _meta_envelope(
+            {'from': '573001234596', 'id': 'wamid.in6', 'type': 'text', 'text': {'body': 'mancha en tomate'}},
+        )
+        with patch('core.tasks.procesar_bot_comercial_webhook_async') as tarea_nat, \
+                patch('core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook') as nat:
+            resp = self._post(payload)
+        self.assertEqual(resp.status_code, 200)
+        tarea_nat.delay.assert_not_called()
+        self.assertEqual(nat.call_args[0][0].get('_eki_proveedor'), 'meta')
+
     def _post(self, payload):
         return self.client.post(
             '/webhook/whatsapp/',

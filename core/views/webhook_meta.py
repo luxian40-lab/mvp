@@ -45,6 +45,9 @@ def _aplicar_sandbox_menu(data):
 
     Graph responde por el phone number id al que escribieron. Si no es una
     línea configurada, sigue la principal.
+
+    Un turno de Meta corre entero aquí, dentro de su línea: no se reencola a
+    las tareas del canal Twilio, que aplican la puerta del aula y pierden la línea.
     """
     from core.conversacion.transcripcion_turno import un_turno
     from core.meta_inbound import traza_inbound
@@ -121,7 +124,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
             from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
             try:
-                if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
+                if inbound_es_meta(data) or not _encolar_bot_comercial_si_async(data, forzar_canal=True):
                     _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
             except Exception:
                 logger.exception('sandbox_nat_proceso_fail')
@@ -146,7 +149,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
         if ruta == 'cursos':
             sb = sandbox_number()
             with reply_from(sb):
-                if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
+                if not inbound_es_meta(data) and _encolar_twilio_edu_si_async(data, reply_from_number=sb):
                     return HttpResponse('OK')
                 tw = _procesar_twilio_webhook(data)
                 if isinstance(tw, HttpResponse):
