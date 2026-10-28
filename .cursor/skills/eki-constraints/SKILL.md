@@ -21,7 +21,8 @@ Define la barra de calidad **antes** de implementar. PM escribe; Dev/QA ejecutan
 1. **Listar constraints** observables (comando, URL, smoke, screenshot).
 2. **Clasificar por costo**: barato (pytest) → medio (smoke script) → caro (manual browser prod).
 3. **Ordenar gates**: todos los baratos verdes antes del deploy; caros post-deploy con plazo.
-4. **Documentar** en CA del PM o `docs/MODULE_BUILDER_QA_S4_CHECKLIST.md` si aplica.
+4. **Documentar** en CA del PM o en la fase correspondiente de
+   `docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md`.
 5. **QA_FAIL** si falta un gate P0, aunque el resto esté verde.
 
 ## Constraints estándar eki (plantilla)

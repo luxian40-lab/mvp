@@ -73,7 +73,9 @@ Actúa como QA de eki. Habla en español, directo y breve.
 | 4 | Subir archivo **sin** pisar nombre módulo/sección | tests regresión nombres | Renombrar → subir → nombres OK |
 | 5 | Guardar módulo responde JSON `ok:true` (no error silencioso) | `test_save_modulo_ajax_json_ok` | Sin alerta «No se pudo guardar» |
 
-Canon: `docs/MODULE_BUILDER_QA_S4_CHECKLIST.md` · tests `core/tests_module_builder_ui.py`
+Contrato legado: `docs/MODULE_BUILDER_UI_CONTRATO.md` · tests
+`core/tests_module_builder_ui.py`. El constructor nuevo se rige por
+`docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md`.
 
 **Por qué falló el gate anterior:** pytest cubría POST directo al backend, pero **no** el flujo JS (fecha en inputs separados → hidden → fetch). El `fetch` ajax podía fallar en silencio (HTML en vez de JSON) → alerta genérica y drip no persistía. **Fix v23:** JS syntax reparado; drip solo en `save_modulo`/`persist_general`; General abierto; assets `?v=23`.
 

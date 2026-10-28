@@ -38,7 +38,8 @@ Si tocas `module_builder.js` o inputs que alimentan POST:
 - Test ajax: `ajax=1`, assert `ok`, campos clave (`habilitado_desde`, etc.).
 - Si el bug es sync UI→hidden, añadir test que simule POST con el valor que **debería** enviar el JS, o test DOM si hay harness.
 
-Canon: `core/tests_module_builder_ui.py` · `docs/MODULE_BUILDER_QA_S4_CHECKLIST.md`
+Legado: `core/tests_module_builder_ui.py` · `docs/MODULE_BUILDER_UI_CONTRATO.md`.
+Producto nuevo: `docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md`.
 
 ## Código legado: caracterización y contratos de línea
 

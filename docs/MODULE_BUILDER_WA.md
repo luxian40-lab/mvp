@@ -1,4 +1,8 @@
-# Module Builder WA — contrato (Fase 0)
+# Module Builder WA — contrato técnico legado
+
+> Este documento conserva el comportamiento que hay que proteger mientras se retira la
+> interfaz actual. No define el producto futuro. El plan vigente es
+> `docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md`.
 
 **Scope:** solo admin módulos (`SeccionModulo` / `PasoModulo`).  
 **Fuera:** Studio, portal, Aprende, certificados, envíos WhatsApp de prueba.

@@ -1224,6 +1224,10 @@ Chat flotante en el header (no es una pestaña, no es Nat, no es eki.ia del aula
 
 ### 11.8 Module Builder y Course Engine
 
+**Dirección de producto:** el Builder actual es legado temporal. El constructor oficial de
+cursos, sus fases y la futura autoría en portal se definen en
+`docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md`.
+
 **Module Builder WA** — `/admin/module-builder/<id>/` para armar **secciones + microcontenidos** (miniaturas, drag por rieles, anti-intercalado en servidor).
 
 - Flag `EKI_MODULE_BUILDER_BETA`: **local ON**, **prod OFF** salvo env `=1` (o `?builder=1` como superusuario). Allowlist `EKI_MODULE_BUILDER_CURSOS` default `*` (puede abrir Builder por curso aunque el flag global esté OFF).
