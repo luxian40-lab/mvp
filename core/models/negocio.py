@@ -58,3 +58,28 @@ class FichaNegocio(models.Model):
 
     def __str__(self):
         return f'{self.telefono} · {self.dedica[:40] or "sin datos"}'
+
+
+class DerivacionAsesoria(models.Model):
+    """Cada vez que la pregunta libre se lleva a un asesor. Para revisar si se acierta.
+
+    Corregida: justo después la persona cambió de asesor o volvió al menú.
+    """
+    telefono_hash = models.CharField(max_length=16, help_text='HMAC del teléfono; no es reversible.')
+    frase = models.CharField(max_length=300, help_text='Lo que escribió, sin correos ni números.')
+    agente = models.CharField(max_length=20)
+    agente_secundario = models.CharField(max_length=20, blank=True, default='')
+    fuente = models.CharField(max_length=10, help_text='llm o sin_llm (palabras clave).')
+    con_contexto = models.BooleanField(default=False, help_text='Se usó lo que ya se sabía de la persona.')
+    corregida = models.BooleanField(default=False)
+    corregida_a = models.CharField(max_length=20, blank=True, default='', help_text='A dónde se fue.')
+    creada_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Derivación de asesoría'
+        verbose_name_plural = 'Derivaciones de asesoría'
+        ordering = ('-creada_en',)
+        indexes = [models.Index(fields=['telefono_hash', '-creada_en'], name='deriv_tel_fecha_idx')]
+
+    def __str__(self):
+        return f'{self.agente} · {self.frase[:40]}'
