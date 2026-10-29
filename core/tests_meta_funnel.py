@@ -254,6 +254,34 @@ class MetaFunnelTests(TestCase):
                 titulos = [b['reply']['title'] for b in inter['action']['buttons']]
         self.assertEqual(titulos, ['Formación', 'Asesoría'])
 
+    def test_comenzar_de_la_plantilla_inicio_crea_y_vende_pide_habeas_y_cedula(self):
+        from core.campana_audiencia import poner_en_inicio_de_flujo
+
+        tel = '573009991021'
+        est = Estudiante.objects.create(
+            nombre='Ana', cedula='1021', telefono=tel, tipo_documento='CC',
+            acepto_terminos=False, estado_chat='ACTIVO', estado_onboarding='nuevo',
+        )
+        poner_en_inicio_de_flujo(est)
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            ruta = dispatch_sandbox_menu(_payload(tel, 'Comenzar'))
+        self.assertEqual(ruta, 'handled')
+        habeas.assert_called_once()
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
+            dispatch_sandbox_menu(_payload(tel, 'acepto'))
+        self.assertIn('cédula', texto.call_args.args[2].lower())
+
+        from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
+            dispatch_sandbox_menu(_payload(tel, 'Comenzar'))
+        self.assertEqual(texto.call_args.args[2], MSG_ACEPTO_CEDULA)
+        est.refresh_from_db()
+        self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
+
     def test_inscrito_con_telefono_local_toma_plan_de_la_org(self):
         org = Cliente.objects.create(
             nombre='OrgVar',

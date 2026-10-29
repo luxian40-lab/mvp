@@ -166,7 +166,7 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
     if est is None or (est.estado_chat or '') != 'ESPERANDO_CEDULA':
         return None
     t = (body or '').strip().lower()
-    if _menu()._es_boton_inicio_flujo(body) or t in ('continuemos', 'continuar'):
+    if _menu()._es_boton_inicio_flujo(body) or t in ('continuemos', 'continuar', 'comenzar'):
         _menu().enviar_texto_sandbox(telefono, from_number, MSG_ACEPTO_CEDULA, agente='habeas_meta')
         return 'handled'
     cedula_input = re.sub(r'[\s.\-]', '', (body or '').strip())
