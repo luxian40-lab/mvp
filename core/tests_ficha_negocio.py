@@ -216,6 +216,16 @@ class FlujoFichaTests(TestCase):
         ficha = self._ficha()
         self.assertEqual((ficha.preguntadas, ficha.pendiente), ('dedica', 'dedica'))
 
+    def test_si_el_asesor_deja_una_pregunta_la_ficha_espera(self):
+        with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Suba poco a poco.\n\n¿A cuánto vende hoy?'), \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'cómo subo el precio'))
+        self.assertEqual(len(_textos(send)), 1)
+        self.assertIsNone(self._ficha())
+        _, ag, send = self._mandar('a 8000 la libra')
+        ag.assert_called_once()
+        self.assertIn('¿a qué se dedica?', ' '.join(_textos(send)))
+
     def test_la_respuesta_se_guarda_sin_datos_personales_y_no_va_al_agente(self):
         self._turno_agente()
         ruta, ag, send = self._mandar('cultivo café, escríbame a pepe@correo.co o al 3001234567')

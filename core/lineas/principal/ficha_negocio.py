@@ -84,6 +84,12 @@ def _parece_pregunta(t: str) -> bool:
     return '?' in t or '¿' in t or t.startswith(_INICIOS_DE_PREGUNTA)
 
 
+def deja_pregunta_abierta(respuesta: str) -> bool:
+    """El asesor cerró preguntando algo: lo que la persona conteste es para él, no para la ficha."""
+    lineas = [linea for linea in (respuesta or '').strip().splitlines() if linea.strip()]
+    return bool(lineas) and '?' in lineas[-1]
+
+
 @dataclass(frozen=True)
 class Pregunta:
     campo: str

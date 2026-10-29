@@ -209,7 +209,9 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         else:
             _menu()._reaccion_espera(decision.telefono_usuario, message_id)
             texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
-            respuesta_util = True
+            from core.lineas.principal.ficha_negocio import deja_pregunta_abierta
+
+            respuesta_util = not deja_pregunta_abierta(texto)
             registrar_pregunta_asesor(decision.telefono_usuario)
             _guardar_pregunta_en_memoria(decision.telefono_usuario, agente, body)
             try:
