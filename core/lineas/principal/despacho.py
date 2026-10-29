@@ -234,11 +234,25 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
             return 'handled'
         registrar_pregunta_asesor(decision.telefono_usuario)
         _menu()._reaccion_espera(decision.telefono_usuario, _menu()._message_id(payload))
+        _marcar_turno_nat(payload, decision)
         return 'nat'
 
     if decision.action in ('coach', 'ia_campo', 'ventas', 'finanzas', 'cafe'):
         return _menu()._manejar_agente_extra(decision, body, _menu()._message_id(payload))
     return None
+
+
+def _marcar_turno_nat(payload: Any, decision: SandboxRouteDecision) -> None:
+    """Nat responde en el bot comercial: el payload le lleva lo que la línea sabe del turno."""
+    from django.conf import settings
+
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return
+    if not isinstance(payload, dict) or getattr(payload, '_mutable', True) is False:
+        return
+    payload['_eki_linea_principal'] = '1'
+    payload['_eki_derivado'] = '1' if decision.derivado else ''
+    payload['_eki_secundario'] = decision.agente_secundario
 
 
 def _responder_cursos(decision: SandboxRouteDecision, payload: Any, body: str, from_n: str) -> str | None:

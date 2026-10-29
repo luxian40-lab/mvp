@@ -9,12 +9,16 @@ import logging
 import os
 import re
 import tempfile
+from contextvars import ContextVar
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+_NAT_RESPUESTA: ContextVar[str] = ContextVar('nat_respuesta', default='')
 
 
 def _call_with_timeout(func, timeout_sec: int, label: str = 'op'):
@@ -512,7 +516,9 @@ def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
     token_uso = contexto_uso_llm(cliente_id=cliente_id, agente='nati')
     try:
         modelo = modelo_segun_presupuesto(modelo, cliente_id)
-        return modelo, completar_chat(client, modelo, messages, max_out, temperatura)
+        texto = completar_chat(client, modelo, messages, max_out, temperatura)
+        _NAT_RESPUESTA.set(texto or '')
+        return modelo, texto
     finally:
         token_uso.var.reset(token_uso)
 
@@ -834,8 +840,42 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     from core.sandbox_canal import activar_sandbox_meta_si_inbound
 
     identidad = identidad_agronomo_eki() if forzar_canal else nullcontext()
-    with activar_sandbox_meta_si_inbound(post_data), identidad:
-        return _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=forzar_canal)
+    token = _NAT_RESPUESTA.set('')
+    try:
+        with activar_sandbox_meta_si_inbound(post_data), identidad:
+            resultado = _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=forzar_canal)
+            if forzar_canal:
+                _despues_de_nat(post_data, _NAT_RESPUESTA.get())
+            return resultado
+    finally:
+        _NAT_RESPUESTA.reset(token)
+
+
+def _despues_de_nat(post_data, respuesta: str) -> None:
+    """Línea principal: tras responder Nat, el cierre si se derivó o una pregunta de la ficha.
+
+    Nat ya respondió: un fallo aquí no puede subir, o el webhook avisa error o Celery repite la respuesta.
+    """
+    if not respuesta or post_data.get('_eki_linea_principal') != '1':
+        return
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return
+    from core.lineas.principal.asesores import despues_de_nat
+    from core.nati import normalizar_telefono_whatsapp
+
+    telefono = normalizar_telefono_whatsapp(str(post_data.get('From') or ''))
+    if not telefono:
+        return
+    try:
+        despues_de_nat(
+            telefono,
+            str(post_data.get('To') or ''),
+            respuesta,
+            derivado=post_data.get('_eki_derivado') == '1',
+            secundario=str(post_data.get('_eki_secundario') or ''),
+        )
+    except (DatabaseError, OSError, RuntimeError, TypeError, ValueError):
+        logger.exception('nat_despues_fail')
 
 
 def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False):

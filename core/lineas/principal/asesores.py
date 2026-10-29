@@ -127,6 +127,23 @@ def preguntar_ficha_si_toca(telefono_usuario: str, from_number: str) -> None:
         logger.exception('ficha_pregunta_fail')
 
 
+def despues_de_nat(
+    telefono_usuario: str, from_number: str, respuesta: str, *, derivado: bool, secundario: str = '',
+) -> None:
+    """Lo que los demás asesores mandan con su respuesta; Nat responde por el bot comercial y va aparte."""
+    from core.lineas.principal.ficha_negocio import deja_pregunta_abierta
+
+    from_n = from_number or _menu().sandbox_number()
+    if derivado:
+        from core.lineas.principal.derivar_asesoria import cierre_derivacion
+
+        _menu().enviar_texto_sandbox(
+            telefono_usuario, from_n, cierre_derivacion(secundario), agente='sandbox_asesoria_cierre',
+        )
+    elif not deja_pregunta_abierta(respuesta):
+        preguntar_ficha_si_toca(telefono_usuario, from_n)
+
+
 def responder_ficha(telefono_usuario: str, from_number: str, body: str) -> str | None:
     """'handled' si el mensaje era la respuesta a una pregunta de la ficha."""
     from core.lineas.principal.ficha_negocio import AGENTE_FICHA, responder

@@ -383,6 +383,91 @@ class FlujoFichaTests(TestCase):
 
 
 @override_settings(**CONTEXTO)
+class NatFichaTests(TestCase):
+    """Nat responde por el bot comercial; la pregunta de la ficha y el cierre salen después, aparte."""
+
+    def setUp(self):
+        cache.clear()
+        self.tel = '573005558300'
+        SandboxCanalSesion.objects.create(
+            telefono=self.tel, habeas_aceptado=True, plan=PLAN_CURSO_ASESOR, modo='nat',
+        )
+
+    def _ficha(self):
+        return FichaNegocio.objects.filter(telefono=self.tel).first()
+
+    def _turno(self, texto='tengo roya en el café'):
+        payload = _payload(self.tel, texto)
+        with patch('core.lineas.envio._post_graph', return_value=OK):
+            self.assertEqual(dispatch_sandbox_menu(payload), 'nat')
+        return payload
+
+    def _nat(self, payload, respuesta='Para la roya, aplique cobre.', llama_modelo=True):
+        from core.bot_comercial import webhook
+
+        def cuerpo(post_data, forzar_canal=False):
+            if llama_modelo:
+                webhook._completar_nat(None, 'gpt-5-mini', [], 100, 0.2, None)
+
+        with patch('core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook_cuerpo', side_effect=cuerpo), \
+                patch('core.openai_compat.completar_chat', return_value=respuesta), \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            webhook._procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
+        return _textos(send)
+
+    def test_tras_responder_nat_pregunta_a_que_se_dedica(self):
+        textos = self._nat(self._turno())
+        self.assertEqual(len(textos), 1)
+        self.assertIn('¿a qué se dedica?', textos[0])
+        self.assertEqual(self._ficha().pendiente, 'dedica')
+
+    def test_la_respuesta_a_la_ficha_no_va_a_nat(self):
+        self._nat(self._turno())
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            ruta = dispatch_sandbox_menu(_payload(self.tel, 'cultivo café'))
+        self.assertEqual(ruta, 'handled')
+        self.assertEqual(_textos(send), [GRACIAS])
+        self.assertEqual(self._ficha().dedica, 'cultivo café')
+
+    def test_si_nat_termina_preguntando_la_ficha_espera(self):
+        textos = self._nat(self._turno(), respuesta='Puede ser roya.\n\n¿Qué variedad tiene sembrada?')
+        self.assertEqual(textos, [])
+        self.assertIsNone(self._ficha())
+
+    def test_derivado_a_nat_cierra_en_un_mensaje_aparte(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        payload = _payload(self.tel, 'las hojas del café tienen manchas amarillas')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('nat', 'llm', 'ventas')), \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            self.assertEqual(dispatch_sandbox_menu(payload), 'nat')
+        textos = self._nat(payload)
+        self.assertEqual(len(textos), 1)
+        self.assertIn('Ventas', textos[0])
+        self.assertTrue(textos[0].endswith(CIERRE))
+        self.assertIsNone(self._ficha())
+
+    def test_el_numero_comercial_no_pregunta(self):
+        self.assertEqual(self._nat(_payload(self.tel, 'tengo roya en el café')), [])
+        self.assertIsNone(self._ficha())
+
+    def test_sin_respuesta_del_modelo_no_pregunta(self):
+        self.assertEqual(self._nat(self._turno(), llama_modelo=False), [])
+        self.assertIsNone(self._ficha())
+
+    def test_un_fallo_despues_de_nat_no_sube(self):
+        with patch('core.lineas.principal.asesores.despues_de_nat', side_effect=OSError('graph')):
+            self.assertEqual(self._nat(self._turno()), [])
+
+    @override_settings(EKI_ASESORIA_CONTEXTO=False)
+    def test_apagado_no_marca_ni_pregunta(self):
+        payload = self._turno()
+        self.assertNotIn('_eki_linea_principal', payload)
+        payload['_eki_linea_principal'] = '1'
+        self.assertEqual(self._nat(payload), [])
+        self.assertIsNone(self._ficha())
+
+
+@override_settings(**CONTEXTO)
 class DerivacionesTests(TestCase):
     def setUp(self):
         cache.clear()
