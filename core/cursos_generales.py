@@ -16,6 +16,10 @@ NOMBRE_TIEMPO = 'Gestión de tiempo y productividad personal en el campo'
 URL_RIENDAS = 'https://www.eki.com.co/programas/tome-las-riendas'
 URL_INNOVACION = 'https://www.eki.com.co/programas/emprendimiento-agro-rural'
 URL_TIEMPO = 'https://www.eki.com.co/programas/comercializacion-ventas'
+URL_COMERCIALIZACION = 'https://eki.com.co/programas/comercializacion-y-ventas'
+URL_COSTOS = 'https://eki.com.co/programas/gestion-costos-agropecuarios'
+URL_MAQUINARIA = 'https://www.eki.com.co/programas/maquinaria-herramientas-agro'
+URL_MODELO_RURAL = 'https://eki.com.co/programas/modelo-negocio-rural-sostenible'
 
 CATALOGO = (
     {
@@ -140,6 +144,12 @@ def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> di
 
 _IMAGEN_POR_NOMBRE = {item['nombre']: item['imagen'] for item in CATALOGO}
 _URL_POR_NOMBRE = {item['nombre']: item['url'] for item in CATALOGO}
+_URL_POR_NOMBRE.update({
+    'Comercialización y ventas': URL_COMERCIALIZACION,
+    'Gestión de costos agropecuarios': URL_COSTOS,
+    'Maquinaria y Herramientas para el Agro': URL_MAQUINARIA,
+    'Introducción a un modelo de negocios Rural Sostenible': URL_MODELO_RURAL,
+})
 MAX_TARJETAS_CARRUSEL = 10
 
 

@@ -423,6 +423,29 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(payload['interactive']['body']['text'], NOMBRE_TIEMPO)
         self.assertNotIn('menu para volver', payload['interactive']['body']['text'])
 
+    def test_mas_informacion_de_los_programas_nuevos(self):
+        from core.cursos_generales import _url_de_curso, tarjetas_catalogo
+
+        esperadas = {
+            'Comercialización y ventas': 'https://eki.com.co/programas/comercializacion-y-ventas',
+            'Gestión de costos agropecuarios': 'https://eki.com.co/programas/gestion-costos-agropecuarios',
+            'Maquinaria y Herramientas para el Agro':
+                'https://www.eki.com.co/programas/maquinaria-herramientas-agro',
+            'Introducción a un modelo de negocios Rural Sostenible':
+                'https://eki.com.co/programas/modelo-negocio-rural-sostenible',
+        }
+        for nombre, url in esperadas.items():
+            self.assertEqual(_url_de_curso(nombre), url)
+            Curso.objects.create(
+                nombre=nombre, descripcion='d', cliente=None, activo=True, catalogo_menu=True,
+            )
+        tarjetas = {t['titulo']: t for t in tarjetas_catalogo()}
+        for nombre, url in esperadas.items():
+            self.assertEqual(tarjetas[nombre]['url'], url)
+            self.assertIn(url, tarjetas[nombre]['body'])
+            self.assertLessEqual(len(tarjetas[nombre]['body']), 160)
+        self.assertEqual(_url_de_curso('Gestión de tiempo y productividad personal'), URL_TIEMPO)
+
     def test_ver_curso_no_borra_otro_progreso(self):
         org = Cliente.objects.get(nit='900222')
         propio = Curso.objects.create(nombre='Curso de la finca', descripcion='d', cliente=org, activo=True)
