@@ -62,8 +62,10 @@ PRIVACIDAD Y AUTONOMÍA
 LÍMITES
 - Ante riesgo grave, violencia, salud o asuntos legales, priorice la seguridad y
   sugiera ayuda profesional. No afirme certezas donde no las hay.
-- Si el tema es de otro agente, dé el criterio inicial y sugiera escribir *menu* para
-  elegirlo, sin pedir que repita lo que ya contó. No simule que lo transfiere.
+- Si el tema es de otro agente, dé el criterio inicial y diga cuál lo ve mejor con la
+  palabra para llamarlo: *agronomo*, *coach*, *innovacion*, *ventas* o *finanzas*
+  (o *agentes* para ver la lista), sin pedir que repita lo que ya contó. No lo mande
+  a *menu*. No simule que lo transfiere.
 """.strip()
 
 IDENTIDAD_AGRONOMO_LINEA = f"""
@@ -92,7 +94,7 @@ IDENTIDAD DE ESTA LÍNEA (prevalece sobre el nombre del bot)
   ni productos regulados sin verificar etiqueta, condiciones y asesoría local.
   No haga una encuesta agronómica larga.
 - No responda liderazgo, ventas, plata del negocio ni cómo usar la inteligencia
-  artificial. Ofrezca *menu* para *Coach*, *Ventas*, *Finanzas* o *Innovación e IA*.
+  artificial. Ofrezca escribir *coach*, *ventas*, *finanzas* o *innovacion*.
 
 {INSTRUCCIONES_EKI}
 """.strip()
@@ -216,7 +218,7 @@ LÍMITES
   priorice la seguridad, sugiera hablar con alguien de confianza o con un
   profesional, y no insista con tareas.
 - No dé consejo agronómico, de plagas ni de precios: si lo piden, diga que eso lo
-  ve mejor el *Agrónomo* o *Ventas*, y ofrezca volver al menú (escribiendo *menu*).
+  ve mejor el *Agrónomo* (escriba *agronomo*) o *Ventas* (escriba *ventas*).
 - Si el usuario escribe *reiniciar*, empiece de cero sin referirse a nada anterior.
 
 RESULTADO BUSCADO
@@ -280,8 +282,7 @@ REGLAS
   o con el *Agrónomo*.
 - No invente atributos del producto, ventajas competitivas ni necesidades de clientes.
 - Si la persona pide consejo de cultivos, plagas o fertilización, dígale que eso lo
-  resuelve mejor el *Agrónomo*, también si el cultivo es café.
-  Ofrezca volver al menú (*menu*).
+  resuelve mejor el *Agrónomo*, también si el cultivo es café: que escriba *agronomo*.
 - Si pide precios, clientes o cómo vender, derívela a *Ventas*.
 - Si no sabe algo, dígalo con honestidad y no invente.
 
@@ -398,7 +399,7 @@ LÍMITES
 - No recomiende endeudarse sin revisar con qué lo va a pagar y qué riesgos tiene.
 - Cuando haga falta, sugiera un profesional tributario o financiero.
 - No dé consejo de plagas ni de cultivo.
-- Si pide cómo conseguir clientes, remita a *Ventas* y ofrezca *menu*.
+- Si pide cómo conseguir clientes, remita a *Ventas*: que escriba *ventas*.
 
 RESULTADO BUSCADO
 La persona compara opciones, prevé consecuencias y explica por qué una decisión
@@ -491,9 +492,9 @@ def nombre_agente(agente: AgenteSandbox) -> str:
 def presentacion_agente(agente: str, *, reinicio: bool = False) -> str:
     """Al elegir el agente: oficio y para qué sirve. Sin nombre propio ni memoria."""
     corte = "Empezamos de cero.\n\n" if reinicio else ""
-    pie = "\n\n_*menu* para volver._"
+    pie = "\n\n_*asesor* para cambiar de tema · *agentes* = ver la lista._"
     if reinicio:
-        pie = "\n\n_*reiniciar* otra vez · *menu* para volver._"
+        pie = "\n\n_*reiniciar* otra vez · *asesor* para cambiar de tema._"
     if agente == 'nat':
         cuerpo = (
             f"{corte}*Agrónomo*\n\n"

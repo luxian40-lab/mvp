@@ -42,8 +42,18 @@ class TextosTests(TestCase):
             'o el uso de la tecnología? Escríbalo con sus palabras.'
         ))
         self.assertIn('Tiene hasta 60 preguntas este mes.', texto)
-        self.assertIn('*menu*', texto)
+        self.assertTrue(texto.endswith('_*agentes* = ver la lista · *menu* = menú principal._'))
         self.assertNotIn('preguntas este mes', texto_pregunta(TODOS, 0))
+
+    def test_los_agentes_no_mandan_a_menu_sino_al_otro_agente(self):
+        from core.sandbox_agentes import presentacion_agente, prompt_para
+
+        for agente in ('coach', 'ia_campo', 'ventas', 'finanzas'):
+            sistema = prompt_para(agente)
+            self.assertNotIn('escribir *menu*', sistema)
+            self.assertNotIn('ofrezca *menu*', sistema.lower())
+            self.assertIn('*asesor* para cambiar de tema', presentacion_agente(agente))
+        self.assertIn('*agronomo*', prompt_para('ia_campo'))
 
     def test_repregunta_repite_los_temas(self):
         texto = texto_repregunta(['nat', 'ventas'])

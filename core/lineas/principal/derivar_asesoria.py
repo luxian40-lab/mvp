@@ -43,12 +43,15 @@ def temas(permitidos) -> str:
     return _enumerar([tema for modo, tema in _TEMAS if modo in permitidos])
 
 
+PIE_ASESORIA = '_*agentes* = ver la lista · *menu* = menú principal._'
+
+
 def texto_pregunta(permitidos, tope: int) -> str:
     cupo = f"Tiene hasta {tope} preguntas este mes.\n\n" if tope > 0 else ''
     return (
         f"¿Qué quiere mejorar hoy: {temas(permitidos)}? Escríbalo con sus palabras.\n\n"
         f"{cupo}"
-        "_*menu* = menú principal._"
+        f"{PIE_ASESORIA}"
     )
 
 
@@ -56,7 +59,7 @@ def texto_repregunta(permitidos) -> str:
     return (
         "No me quedó claro en qué le podemos ayudar.\n\n"
         f"¿Es sobre {temas(permitidos)}? Cuéntenos un poco más con sus palabras.\n\n"
-        "_*menu* = menú principal._"
+        f"{PIE_ASESORIA}"
     )
 
 
