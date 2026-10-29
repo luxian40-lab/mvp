@@ -75,7 +75,8 @@ _SALTAR = frozenset({'seguir', 'saltar', 'omitir'})
 _SALIDAS = frozenset({
     'menu', 'menú', 'inicio', 'start', 'hola', 'hi', 'hey', 'buenas', 'buen día', 'buenos días', 'reiniciar',
     'nat', 'nati', 'agronomo', 'agrónomo', 'coach', 'entrenador', 'profe', 'innovacion', 'innovación',
-    'ventas', 'finanzas', 'agentes', 'asesor', 'asesoria', 'asesoría', 'formacion', 'formación', 'curso', 'cursos',
+    'ventas', 'finanzas', 'agentes', 'agente', 'agente ia', 'agentes ia', 'ver agentes', 'lista', 'asesores',
+    'expertos', 'asesor', 'asesoria', 'asesoría', 'formacion', 'formación', 'curso', 'cursos',
     'continuar', 'continuemos',
 })
 _INICIOS_DE_PREGUNTA = (

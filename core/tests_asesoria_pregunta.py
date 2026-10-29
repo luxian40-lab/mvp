@@ -241,6 +241,33 @@ class FlujoAsesoriaPreguntaTests(TestCase):
         self.assertEqual(self._modo(), 'agentes')
         self.assertEqual(self._usadas(), 0)
 
+    def test_palabras_de_la_lista_abren_la_lista_sin_derivar(self):
+        for palabra in ('Agente ia', 'agentes', 'lista', 'asesores'):
+            SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+            with patch('core.lineas.principal.derivar_asesoria.derivar') as der, \
+                    patch('core.lineas.envio._post_graph', return_value=OK) as send:
+                ruta = dispatch_sandbox_menu(_payload(self.tel, palabra))
+            self.assertEqual(ruta, 'handled')
+            der.assert_not_called()
+            self.assertEqual(send.call_args.args[0]['interactive']['type'], 'list')
+            self.assertEqual(self._modo(), 'agentes')
+
+    def test_lista_desde_dentro_de_un_agente(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='ventas')
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'lista'))
+        self.assertEqual(send.call_args.args[0]['interactive']['type'], 'list')
+        self.assertEqual(self._modo(), 'agentes')
+
+    def test_asesor_en_la_pregunta_la_repite_sin_derivar(self):
+        self._abrir()
+        with patch('core.lineas.principal.derivar_asesoria.derivar') as der, \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'asesor'))
+        der.assert_not_called()
+        self.assertEqual(send.call_args.kwargs.get('agente'), AGENTE_PREGUNTA)
+        self.assertEqual(self._modo(), 'asesoria')
+
     def test_tras_la_repregunta_una_respuesta_clara_va_al_agente(self):
         self._abrir()
         with patch('core.lineas.principal.derivar_asesoria.derivar', side_effect=[(None, 'llm'), ('coach', 'llm')]), \

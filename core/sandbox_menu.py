@@ -353,6 +353,12 @@ def clasificar_asesoria(texto: str) -> str | None:
     return None
 
 
+PALABRAS_LISTA_AGENTES = frozenset({
+    'agentes', 'agente', 'agente ia', 'agentes ia', 'ver agentes', 'lista', 'asesores', 'expertos',
+})
+_PALABRAS_PREGUNTA_ASESORIA = frozenset({'asesor', 'asesoria', 'asesoría'})
+
+
 def _normalizar_eleccion_raiz(body: str) -> str | None:
     t = (body or '').strip().lower()
     if t in ('menu', 'menú', 'inicio', 'start'):
@@ -363,7 +369,7 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
         return MODO_FORMACION
     if t in ('2', '2️⃣', 'dos', 'asesoria', 'asesoría', 'asesor'):
         return MODO_ASESORIA
-    if t in ('agentes', 'agente ia', 'agentes ia'):
+    if t in PALABRAS_LISTA_AGENTES:
         return MODO_AGENTES
     if t in ('seguir', 'seguir_curso'):
         return 'seguir'
@@ -512,6 +518,14 @@ def _ruta_asesoria(decision: SandboxRouteDecision, sesion, body: str) -> Sandbox
     if eleccion_ag == 'menu':
         _set_modo(sesion, MODO_MENU)
         decision.action = 'show_menu'
+        return decision
+    t = (body or '').strip().lower()
+    if t in PALABRAS_LISTA_AGENTES:
+        _set_modo(sesion, MODO_AGENTES)
+        decision.action = 'show_agentes'
+        return decision
+    if t in _PALABRAS_PREGUNTA_ASESORIA:
+        decision.action = 'show_asesoria'
         return decision
     from core.lineas.variante import perfil_de
 
