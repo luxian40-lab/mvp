@@ -236,6 +236,19 @@ class FlujoFichaTests(TestCase):
             dispatch_sandbox_menu(_payload(self.tel, 'quiero vender mi café a mejor precio'))
         self.assertFalse(ag.call_args.kwargs['sin_pregunta_final'])
 
+    def test_si_el_asesor_manda_a_otro_no_pregunta_la_ficha(self):
+        from core.lineas.principal.ficha_negocio import remite_a_otro_asesor
+
+        self.assertTrue(remite_a_otro_asesor('Escriba *menu* para elegir *Agrónomo* ahora.'))
+        self.assertTrue(remite_a_otro_asesor('Eso lo ve mejor el *Agrónomo*: que escriba *agronomo*.'))
+        self.assertFalse(remite_a_otro_asesor('Escriba en un papel *cuánto vende* cada día.'))
+        with patch('core.sandbox_agentes.responder_agente_sandbox',
+                   return_value='Para cultivos lo mejor es el *Agrónomo*: escriba *agronomo*.'), \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'necesito saber de cultivos'))
+        self.assertEqual(len(_textos(send)), 1)
+        self.assertIsNone(self._ficha())
+
     def test_si_el_asesor_deja_una_pregunta_la_ficha_espera(self):
         with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Suba poco a poco.\n\n¿A cuánto vende hoy?'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
@@ -495,6 +508,11 @@ class NatFichaTests(TestCase):
 
     def test_si_nat_termina_preguntando_la_ficha_espera(self):
         textos = self._nat(self._turno(), respuesta='Puede ser roya.\n\n¿Qué variedad tiene sembrada?')
+        self.assertEqual(textos, [])
+        self.assertIsNone(self._ficha())
+
+    def test_si_nat_manda_a_otro_asesor_no_pregunta(self):
+        textos = self._nat(self._turno(), respuesta='Eso lo ve mejor *Ventas*: escriba *ventas*.')
         self.assertEqual(textos, [])
         self.assertIsNone(self._ficha())
 

@@ -6,6 +6,7 @@ preguntar y guarda la respuesta; quien llama manda el mensaje.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -93,6 +94,17 @@ def deja_pregunta_abierta(respuesta: str) -> bool:
     """El asesor cerró preguntando algo: lo que la persona conteste es para él, no para la ficha."""
     lineas = [linea for linea in (respuesta or '').strip().splitlines() if linea.strip()]
     return bool(lineas) and '?' in lineas[-1]
+
+
+_REMITE = re.compile(
+    r'escrib\w*\s+\*(agr[oó]nomo|nat|coach|innovaci[oó]n|ventas|finanzas|caf[eé]|asesor|agentes|menu|menú)\*',
+    re.IGNORECASE,
+)
+
+
+def remite_a_otro_asesor(respuesta: str) -> bool:
+    """El asesor no ayudó: mandó a la persona a otro. No es momento de la ficha."""
+    return bool(_REMITE.search(respuesta or ''))
 
 
 @dataclass(frozen=True)

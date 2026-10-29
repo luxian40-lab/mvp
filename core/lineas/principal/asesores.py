@@ -142,7 +142,7 @@ def despues_de_nat(
     telefono_usuario: str, from_number: str, respuesta: str, *, derivado: bool, secundario: str = '',
 ) -> None:
     """Lo que los demás asesores mandan con su respuesta; Nat responde por el bot comercial y va aparte."""
-    from core.lineas.principal.ficha_negocio import deja_pregunta_abierta
+    from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
 
     from_n = from_number or _menu().sandbox_number()
     if derivado:
@@ -150,7 +150,7 @@ def despues_de_nat(
 
         cierre = cierre_derivacion(secundario, ya_pregunto=deja_pregunta_abierta(respuesta))
         _menu().enviar_texto_sandbox(telefono_usuario, from_n, cierre, agente='sandbox_asesoria_cierre')
-    elif not deja_pregunta_abierta(respuesta):
+    elif not deja_pregunta_abierta(respuesta) and not remite_a_otro_asesor(respuesta):
         preguntar_ficha_si_toca(telefono_usuario, from_n)
 
 
@@ -243,9 +243,10 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             texto = responder_agente_sandbox(
                 agente, body, telefono=decision.telefono_usuario, sin_pregunta_final=sin_pregunta,  # type: ignore[arg-type]
             )
-            from core.lineas.principal.ficha_negocio import deja_pregunta_abierta
+            from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
 
-            respuesta_util = not deja_pregunta_abierta(texto)
+            ya_pregunto = deja_pregunta_abierta(texto)
+            respuesta_util = not ya_pregunto and not remite_a_otro_asesor(texto)
             registrar_pregunta_asesor(decision.telefono_usuario)
             _guardar_pregunta_en_memoria(decision.telefono_usuario, agente, body)
             try:
@@ -257,7 +258,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             if decision.derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
                 from core.lineas.principal.derivar_asesoria import cierre_derivacion
 
-                cierre = cierre_derivacion(decision.agente_secundario, ya_pregunto=not respuesta_util)
+                cierre = cierre_derivacion(decision.agente_secundario, ya_pregunto=ya_pregunto)
                 texto = f"{texto}\n\n{cierre}"
             quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
             if quedan == 2:
