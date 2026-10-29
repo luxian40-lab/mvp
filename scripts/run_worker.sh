@@ -3,6 +3,10 @@
 # EKI_ROLE=web también arranca este worker: la caja de IA no lee masivo ni conversacion.
 # CELERY_POOL=threads añade --pool=threads. CELERY_QUEUES cambia -Q.
 set -euo pipefail
+# La caja de IA (EKI_EB_ROLE=ai_workers) no tiene la config de envío: nunca corre el worker general.
+if [ "${EKI_EB_ROLE:-}" = "ai_workers" ]; then
+  exec sleep infinity
+fi
 ROLE="${EKI_ROLE:-all}"
 case "$ROLE" in
   web|worker|all) ;;

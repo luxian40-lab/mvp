@@ -9,7 +9,9 @@ from django.test import SimpleTestCase
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / '.platform' / 'hooks' / 'prebuild' / '01_eki_procfile_role.sh'
+CONFIGHOOK = RAIZ / '.platform' / 'confighooks' / 'prebuild' / '01_eki_procfile_role.sh'
 RUN_BEAT = RAIZ / 'scripts' / 'run_beat.sh'
+RUN_WORKER = RAIZ / 'scripts' / 'run_worker.sh'
 
 
 def _bash():
@@ -76,6 +78,30 @@ class RunBeatTests(_ConBash):
         self.assertIn('DUERME infinity', self._beat(EKI_ROLE='worker'))
         self.assertIn('BEAT -A mvp_project beat', self._beat(EKI_ROLE='worker', RUN_BEAT='1'))
 
+    def test_caja_ia_nunca_corre_beat(self):
+        salida = self._beat(EKI_EB_ROLE='ai_workers', RUN_BEAT='1')
+        self.assertIn('DUERME infinity', salida)
+        self.assertNotIn('BEAT', salida)
+        self.assertIn('DUERME infinity', self._beat(EKI_EB_ROLE='ai_workers'))
+
+
+class RunWorkerTests(_ConBash):
+    def _worker(self, **env) -> str:
+        fake = self.tmp / 'bin'
+        fake.mkdir(exist_ok=True)
+        _ejecutable(fake, 'celery', 'echo "WORKER $*"')
+        _ejecutable(fake, 'sleep', 'echo "DUERME $*"')
+        return self._correr(RUN_WORKER, env, fake=fake)
+
+    def test_sin_rol_de_eb_corre_el_worker_general(self):
+        self.assertIn('WORKER -A mvp_project worker', self._worker())
+        self.assertIn('WORKER -A mvp_project worker', self._worker(EKI_EB_ROLE='web', EKI_ROLE='web'))
+
+    def test_caja_ia_nunca_corre_el_worker_general(self):
+        salida = self._worker(EKI_EB_ROLE='ai_workers')
+        self.assertIn('DUERME infinity', salida)
+        self.assertNotIn('WORKER', salida)
+
 
 class HookProcfileTests(_ConBash):
     def _hook(self, rol_get_config: str | None, **env) -> str:
@@ -101,3 +127,26 @@ class HookProcfileTests(_ConBash):
     def test_sin_rol_deja_el_procfile_completo(self):
         self.assertEqual(self._hook(None), 'beat: completo\n')
         self.assertEqual(self._hook(''), 'beat: completo\n')
+
+
+class ConfighookProcfileTests(_ConBash):
+    """eb setenv corre .platform/confighooks/, no .platform/hooks/: el rol se aplica igual."""
+
+    def _setenv(self, rol_get_config: str) -> bytes:
+        destino = self.tmp / '.platform' / 'hooks' / 'prebuild'
+        destino.mkdir(parents=True)
+        shutil.copy(HOOK, destino / HOOK.name)
+        (self.tmp / 'Procfile').write_bytes(b'beat: completo\r\n')
+        (self.tmp / 'Procfile.ai').write_bytes(b'# caja IA\r\nworker_rag: ia\r\n')
+        get_config = _ejecutable(
+            self.tmp, 'get-config',
+            f'[ "$1 $2 $3" = "environment -k EKI_EB_ROLE" ] && printf "%s" "{rol_get_config}"',
+        )
+        self._correr(CONFIGHOOK, {'EKI_GET_CONFIG': _posix(get_config)})
+        return (self.tmp / 'Procfile').read_bytes()
+
+    def test_setenv_en_caja_ia_conserva_procfile_ai_sin_cr(self):
+        self.assertEqual(self._setenv('ai_workers'), b'worker_rag: ia\n')
+
+    def test_setenv_en_web_deja_el_procfile_completo(self):
+        self.assertEqual(self._setenv('web'), b'beat: completo\n')
