@@ -105,6 +105,17 @@ def enviar_repregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
     )
 
 
+def toca_ficha(telefono_usuario: str) -> bool:
+    """Después de esta respuesta sale una pregunta de la ficha: el asesor no debe cerrar preguntando."""
+    from core.lineas.principal.ficha_negocio import siguiente_pregunta
+
+    try:
+        return siguiente_pregunta(telefono_usuario) is not None
+    except DatabaseError:
+        logger.exception('ficha_toca_fail')
+        return False
+
+
 def preguntar_ficha_si_toca(telefono_usuario: str, from_number: str) -> None:
     """Después de una respuesta útil del agente: una pregunta de la ficha, si toca."""
     from core.lineas.principal.ficha_negocio import AGENTE_FICHA, marcar_preguntada, siguiente_pregunta
@@ -224,7 +235,14 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             texto = _menu().texto_cupo_ia(tope)
         else:
             _menu()._reaccion_espera(decision.telefono_usuario, message_id)
-            texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
+            sin_pregunta = (
+                not decision.derivado
+                and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False)
+                and toca_ficha(decision.telefono_usuario)
+            )
+            texto = responder_agente_sandbox(
+                agente, body, telefono=decision.telefono_usuario, sin_pregunta_final=sin_pregunta,  # type: ignore[arg-type]
+            )
             from core.lineas.principal.ficha_negocio import deja_pregunta_abierta
 
             respuesta_util = not deja_pregunta_abierta(texto)

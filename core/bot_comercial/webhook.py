@@ -19,6 +19,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 _NAT_RESPUESTA: ContextVar[str] = ContextVar('nat_respuesta', default='')
+_NAT_SIN_PREGUNTA: ContextVar[bool] = ContextVar('nat_sin_pregunta', default=False)
 
 
 def _call_with_timeout(func, timeout_sec: int, label: str = 'op'):
@@ -505,7 +506,12 @@ def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> Non
 def _perfil_para_nat(telefono: str) -> str:
     from core.lineas.principal.contexto_asesoria import bloque_perfil
 
-    return bloque_perfil(telefono)
+    perfil = bloque_perfil(telefono)
+    if not _NAT_SIN_PREGUNTA.get():
+        return perfil
+    from core.lineas.principal.ficha_negocio import SIN_PREGUNTA_FINAL
+
+    return '\n\n'.join(x for x in (perfil, SIN_PREGUNTA_FINAL) if x)
 
 
 def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
@@ -841,6 +847,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
     identidad = identidad_agronomo_eki() if forzar_canal else nullcontext()
     token = _NAT_RESPUESTA.set('')
+    token_cierre = _NAT_SIN_PREGUNTA.set(bool(forzar_canal) and _toca_ficha_nat(post_data))
     try:
         with activar_sandbox_meta_si_inbound(post_data), identidad:
             resultado = _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=forzar_canal)
@@ -848,7 +855,26 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 _despues_de_nat(post_data, _NAT_RESPUESTA.get())
             return resultado
     finally:
+        _NAT_SIN_PREGUNTA.reset(token_cierre)
         _NAT_RESPUESTA.reset(token)
+
+
+def _telefono_linea_principal(post_data) -> str:
+    """El teléfono si el turno viene de la línea principal con la ficha prendida; si no, vacío."""
+    if post_data.get('_eki_linea_principal') != '1' or not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        return ''
+    from core.nati import normalizar_telefono_whatsapp
+
+    return normalizar_telefono_whatsapp(str(post_data.get('From') or '')) or ''
+
+
+def _toca_ficha_nat(post_data) -> bool:
+    telefono = _telefono_linea_principal(post_data)
+    if not telefono or post_data.get('_eki_derivado') == '1':
+        return False
+    from core.lineas.principal.asesores import toca_ficha
+
+    return toca_ficha(telefono)
 
 
 def _despues_de_nat(post_data, respuesta: str) -> None:
@@ -856,16 +882,11 @@ def _despues_de_nat(post_data, respuesta: str) -> None:
 
     Nat ya respondió: un fallo aquí no puede subir, o el webhook avisa error o Celery repite la respuesta.
     """
-    if not respuesta or post_data.get('_eki_linea_principal') != '1':
-        return
-    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
-        return
-    from core.lineas.principal.asesores import despues_de_nat
-    from core.nati import normalizar_telefono_whatsapp
-
-    telefono = normalizar_telefono_whatsapp(str(post_data.get('From') or ''))
+    telefono = _telefono_linea_principal(post_data) if respuesta else ''
     if not telefono:
         return
+    from core.lineas.principal.asesores import despues_de_nat
+
     try:
         despues_de_nat(
             telefono,

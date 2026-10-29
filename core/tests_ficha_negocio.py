@@ -12,6 +12,7 @@ from core.lineas.principal.ficha_negocio import (
     AGENTE_FICHA,
     GRACIAS,
     SALTADA,
+    SIN_PREGUNTA_FINAL,
     siguiente_pregunta,
 )
 from core.models import DerivacionAsesoria, FichaNegocio, SandboxCanalSesion, WhatsappLog
@@ -76,14 +77,19 @@ class PerfilEnElPromptTests(TestCase):
         cache.clear()
         FichaNegocio.objects.create(telefono=self.tel, dedica='cacao', equipo='trabajadores')
 
-    def _sistema(self):
+    def _sistema(self, **kwargs):
         from core.sandbox_agentes import responder_agente_sandbox
 
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('openai.OpenAI'), \
                 patch('core.openai_compat.completar_chat', return_value='R') as llm:
-            responder_agente_sandbox('ventas', 'cómo vendo más', telefono=self.tel)
+            responder_agente_sandbox('ventas', 'cómo vendo más', telefono=self.tel, **kwargs)
         return llm.call_args.args[2][0]['content']
+
+    @override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_CONTEXTO=True)
+    def test_cuando_toca_la_ficha_el_prompt_pide_cerrar_sin_pregunta(self):
+        self.assertTrue(self._sistema(sin_pregunta_final=True).endswith(SIN_PREGUNTA_FINAL))
+        self.assertNotIn(SIN_PREGUNTA_FINAL, self._sistema())
 
     @override_settings(EKI_ASESORIA_CONTEXTO=False)
     def test_sin_flag_no_hay_bloque(self):
@@ -215,6 +221,20 @@ class FlujoFichaTests(TestCase):
         self.assertEqual(send.call_args.kwargs.get('agente'), AGENTE_FICHA)
         ficha = self._ficha()
         self.assertEqual((ficha.preguntadas, ficha.pendiente), ('dedica', 'dedica'))
+
+    def test_solo_cuando_toca_la_ficha_se_pide_cerrar_sin_pregunta(self):
+        _, ag, _ = self._turno_agente()
+        self.assertTrue(ag.call_args.kwargs['sin_pregunta_final'])
+        _, ag, _ = self._mandar('¿cómo consigo clientes?')
+        self.assertFalse(ag.call_args.kwargs['sin_pregunta_final'])
+
+    def test_en_el_turno_de_la_derivacion_no_se_pide(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')), \
+                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            dispatch_sandbox_menu(_payload(self.tel, 'quiero vender mi café a mejor precio'))
+        self.assertFalse(ag.call_args.kwargs['sin_pregunta_final'])
 
     def test_si_el_asesor_deja_una_pregunta_la_ficha_espera(self):
         with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Suba poco a poco.\n\n¿A cuánto vende hoy?'), \
@@ -429,6 +449,7 @@ class NatFichaTests(TestCase):
         from core.bot_comercial import webhook
 
         def cuerpo(post_data, forzar_canal=False):
+            self.perfil = webhook._perfil_para_nat(self.tel)
             if llama_modelo:
                 webhook._completar_nat(None, 'gpt-5-mini', [], 100, 0.2, None)
 
@@ -443,6 +464,26 @@ class NatFichaTests(TestCase):
         self.assertEqual(len(textos), 1)
         self.assertIn('¿a qué se dedica?', textos[0])
         self.assertEqual(self._ficha().pendiente, 'dedica')
+
+    def test_cuando_toca_la_ficha_nat_cierra_sin_pregunta(self):
+        from core.bot_comercial.webhook import _perfil_para_nat
+
+        self._nat(self._turno())
+        self.assertTrue(self.perfil.endswith(SIN_PREGUNTA_FINAL))
+        self.assertNotIn(SIN_PREGUNTA_FINAL, _perfil_para_nat(self.tel))
+        self._nat(self._turno('¿y el cobre cada cuánto?'))
+        self.assertNotIn(SIN_PREGUNTA_FINAL, self.perfil)
+
+    def test_numero_comercial_y_derivacion_no_piden_cerrar_sin_pregunta(self):
+        self._nat(_payload(self.tel, 'tengo roya en el café'))
+        self.assertNotIn(SIN_PREGUNTA_FINAL, self.perfil)
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        payload = _payload(self.tel, 'las hojas del café tienen manchas amarillas')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('nat', 'llm', '')), \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            dispatch_sandbox_menu(payload)
+        self._nat(payload)
+        self.assertNotIn(SIN_PREGUNTA_FINAL, self.perfil)
 
     def test_la_respuesta_a_la_ficha_no_va_a_nat(self):
         self._nat(self._turno())

@@ -17,6 +17,10 @@ HORAS_ENTRE_PREGUNTAS = 20
 HORAS_PARA_RESPONDER = 24
 AGENTE_FICHA = 'sandbox_ficha'
 
+SIN_PREGUNTA_FINAL = (
+    'CIERRE DE ESTA RESPUESTA: no termine con una pregunta. Termine con el paso concreto que la persona '
+    'puede hacer ahora; después le llega aparte una pregunta corta de eki.'
+)
 GRACIAS = 'Gracias, ya lo tengo en cuenta. Siga con su pregunta cuando quiera.'
 SALTADA = 'Listo, seguimos. Escriba su pregunta cuando quiera.'
 

@@ -619,6 +619,7 @@ def responder_agente_sandbox(
     *,
     telefono: str = '',
     cliente_id=None,
+    sin_pregunta_final: bool = False,
 ) -> str:
     """Respuesta LLM con memoria; fallback sólido si falla la API."""
     q = (pregunta or '').strip()
@@ -664,6 +665,10 @@ def responder_agente_sandbox(
     perfil = bloque_perfil(telefono)
     if perfil:
         sistema = f"{sistema}\n\n{perfil}"
+    if sin_pregunta_final:
+        from core.lineas.principal.ficha_negocio import SIN_PREGUNTA_FINAL
+
+        sistema = f"{sistema}\n\n{SIN_PREGUNTA_FINAL}"
     messages = [{'role': 'system', 'content': sistema}]
     messages.extend(_historial_sandbox(telefono, agente))
     messages.append({'role': 'user', 'content': q[:1500]})
