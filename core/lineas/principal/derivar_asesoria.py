@@ -67,18 +67,24 @@ _COMANDOS = {
     'coach': ('Coach', 'coach'),
     'ia_campo': ('Innovación e IA', 'innovacion'),
 }
-CIERRE = '¿Era esto lo que necesitaba? Si no, escriba *menu*.'
+CIERRE = '¿Era esto lo que necesitaba? Si no, escriba *asesor*.'
+CIERRE_SIN_PREGUNTA = 'Si no era esto, escriba *asesor*.'
 
 
-def cierre_derivacion(secundario: str = '') -> str:
-    """Pie de la primera respuesta tras derivar: el otro asesor que también sirve y la salida."""
+def cierre_derivacion(secundario: str = '', *, ya_pregunto: bool = False) -> str:
+    """Pie de la primera respuesta tras derivar: el otro asesor que también sirve y la salida.
+
+    *asesor* vuelve a la pregunta de asesoría; *menu* llevaría hasta formación. Si el asesor
+    ya cerró preguntando, la salida va sin otra pregunta.
+    """
+    salida = CIERRE_SIN_PREGUNTA if ya_pregunto else CIERRE
     tema = dict(_TEMAS).get(secundario)
     if not tema or secundario not in _COMANDOS:
-        return CIERRE
+        return salida
     nombre, comando = _COMANDOS[secundario]
     return (
         f"Esto también tiene que ver con {tema}; si quiere, lo vemos con {nombre}: escriba *{comando}*.\n\n"
-        f"{CIERRE}"
+        f"{salida}"
     )
 
 

@@ -347,6 +347,29 @@ class FlujoFichaTests(TestCase):
         _, _, send = self._turno_agente('y a quién le vendo')
         self.assertNotIn(CIERRE, ' '.join(_textos(send)))
 
+    def test_el_cierre_lleva_a_asesor_y_no_al_menu(self):
+        _, textos = self._derivar(('ventas', 'llm', ''))
+        self.assertTrue(textos[0].endswith('¿Era esto lo que necesitaba? Si no, escriba *asesor*.'))
+
+    def test_si_el_asesor_ya_pregunto_el_cierre_no_pregunta_otra_vez(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')), \
+                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Elija un cliente.\n\n¿Cuál elige?'), \
+                patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(self.tel, 'no entiendo lo de ventas'))
+        texto = _textos(send)[0]
+        self.assertTrue(texto.endswith('¿Cuál elige?\n\nSi no era esto, escriba *asesor*.'))
+        self.assertNotIn(CIERRE, texto)
+
+    def test_asesor_tras_la_pregunta_de_la_ficha_vuelve_a_la_asesoria(self):
+        self._turno_agente()
+        _, ag, send = self._mandar('asesor')
+        ag.assert_not_called()
+        self.assertIn('¿Qué quiere mejorar hoy', ' '.join(_textos(send)))
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'asesoria')
+        ficha = self._ficha()
+        self.assertEqual((ficha.dedica, ficha.pendiente), ('', ''))
+
     def test_necesidad_mixta_menciona_al_otro_asesor(self):
         _, textos = self._derivar(('ventas', 'llm', 'finanzas'))
         self.assertIn(
@@ -446,6 +469,15 @@ class NatFichaTests(TestCase):
         self.assertTrue(textos[0].endswith(CIERRE))
         self.assertIsNone(self._ficha())
 
+    def test_derivado_a_nat_que_ya_pregunto_cierra_sin_otra_pregunta(self):
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
+        payload = _payload(self.tel, 'las hojas del café tienen manchas amarillas')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('nat', 'llm', '')), \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            dispatch_sandbox_menu(payload)
+        textos = self._nat(payload, respuesta='Puede ser roya.\n\n¿Qué variedad tiene?')
+        self.assertEqual(textos, ['Si no era esto, escriba *asesor*.'])
+
     def test_el_numero_comercial_no_pregunta(self):
         self.assertEqual(self._nat(_payload(self.tel, 'tengo roya en el café')), [])
         self.assertIsNone(self._ficha())
@@ -508,6 +540,12 @@ class DerivacionesTests(TestCase):
         self._mandar('menu')
         d = DerivacionAsesoria.objects.get()
         self.assertEqual((d.corregida, d.corregida_a), (True, 'menu'))
+
+    def test_escribir_asesor_justo_despues_la_corrige(self):
+        self._derivar()
+        self._mandar('asesor')
+        d = DerivacionAsesoria.objects.get()
+        self.assertEqual((d.corregida, d.corregida_a), (True, 'asesoria'))
 
     def test_cambiar_de_asesor_justo_despues_la_corrige(self):
         self._derivar()

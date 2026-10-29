@@ -137,9 +137,8 @@ def despues_de_nat(
     if derivado:
         from core.lineas.principal.derivar_asesoria import cierre_derivacion
 
-        _menu().enviar_texto_sandbox(
-            telefono_usuario, from_n, cierre_derivacion(secundario), agente='sandbox_asesoria_cierre',
-        )
+        cierre = cierre_derivacion(secundario, ya_pregunto=deja_pregunta_abierta(respuesta))
+        _menu().enviar_texto_sandbox(telefono_usuario, from_n, cierre, agente='sandbox_asesoria_cierre')
     elif not deja_pregunta_abierta(respuesta):
         preguntar_ficha_si_toca(telefono_usuario, from_n)
 
@@ -240,7 +239,8 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             if decision.derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
                 from core.lineas.principal.derivar_asesoria import cierre_derivacion
 
-                texto = f"{texto}\n\n{cierre_derivacion(decision.agente_secundario)}"
+                cierre = cierre_derivacion(decision.agente_secundario, ya_pregunto=not respuesta_util)
+                texto = f"{texto}\n\n{cierre}"
             quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
             if quedan == 2:
                 texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
