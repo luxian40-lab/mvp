@@ -9,9 +9,9 @@ La persona siente una conversación. La IA recibe lo que ella dijo. El prompt de
 De usted. Una burbuja, una pregunta. Si en la respuesta ya vino el dato siguiente, no se vuelve a preguntar. El lugar del registro no se usa ni se menciona.
 
 1. Saludo con el nombre del registro y cómo está. «Hola, María. ¿Cómo está?» Sin nombre usable, «Hola. ¿Cómo está?» y, si hace falta, «¿Cómo le digo?». Cada entrada a asesoría vuelve a preguntar cómo está.
-2. Una pregunta abierta: «Cuénteme de usted: de dónde es y a qué se dedica.» Si los dos datos vienen en esa respuesta, no se vuelven a pedir. Si falta uno, se pregunta solo ese: «¿De dónde es?» o «¿A qué se dedica?». No se repite lo que ella acaba de escribir. Quién es sale del nombre, no de una suposición.
-3. `gpt-6-luna`, con la misma API, hace hasta tres preguntas de usted sobre qué se le está complicando. No supone que el cultivo es el problema. «Las hojas se ponen amarillas» o «no sé a quién venderle» se derivan de una. «Me quedo sin plata» no: pregunta si no se vende o si entra y no cubre lo que gasta. Si luna no contesta, queda «Del {oficio}, ¿qué quiere entender mejor?».
-4. La frase que ya distingue el problema se deriva como hoy, con el mini. El agente la contesta. Ahí sí cuenta una de las 60. Las preguntas de luna no cuentan.
+2. Una pregunta abierta: «Cuénteme de usted: de dónde es y a qué se dedica.» Si los dos datos vienen en esa respuesta, incluso «en Subachoque», no se vuelven a pedir. Si falta uno, se pregunta solo ese. No se repite lo que ella acaba de escribir.
+3. «¿Cuál es el principal reto que tiene el día de hoy?» Si la respuesta ya distingue el problema, se deriva. Si se queda en «sin plata», `gpt-6-luna` pregunta si no se vende o si entra y no cubre. Tope de tres.
+4. Esa frase entra al agente con el contexto, sin la tarjeta de presentación. El mini sigue eligiendo al agente. Ahí sí cuenta una de las 60.
 
 *seguir* salta a la pregunta de qué quiere entender. *menu* y *agentes* salen igual. La vez siguiente, con la ficha llena, después de cómo está pasa a esa pregunta, sin volver a pedir el lugar ni a qué se dedica.
 
