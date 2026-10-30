@@ -56,7 +56,7 @@ class ConocimientoAgenteAdmin(admin.ModelAdmin):
 
 @admin.register(FichaNegocio)
 class FichaNegocioAdmin(admin.ModelAdmin):
-    list_display = ('telefono', 'dedica', 'etapa', 'equipo', 'actualizada_en')
+    list_display = ('telefono', 'dedica', 'lugar', 'etapa', 'equipo', 'actualizada_en')
     list_filter = ('etapa', 'equipo')
     search_fields = ('telefono', 'dedica')
     list_per_page = 50
@@ -64,7 +64,7 @@ class FichaNegocioAdmin(admin.ModelAdmin):
     readonly_fields = ('preguntadas', 'pendiente', 'pendiente_desde', 'saltadas', 'creada_en', 'actualizada_en')
     fieldsets = (
         ('Lo que contó la persona', {
-            'fields': ('telefono', 'dedica', 'etapa', 'equipo'),
+            'fields': ('telefono', 'trato', 'como_esta', 'lugar', 'dedica', 'etapa', 'equipo'),
             'description': (
                 'Lo leen el que deriva la pregunta y los agentes. '
                 'Se corrige aquí; la persona no vuelve a ver una pregunta ya hecha.'

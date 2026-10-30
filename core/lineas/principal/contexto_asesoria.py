@@ -110,12 +110,41 @@ def ultimo_agente(telefono: str) -> tuple[str, str] | None:
     return _ETIQUETAS_LOG[fila[0]], tema
 
 
+def _lineas_entrada(telefono: str) -> list[str]:
+    """Nombre, cómo está y el lugar que ella dijo. Sin municipio del registro."""
+    from core.models import FichaNegocio
+    from core.utils_telefono import estudiante_por_telefono
+
+    lineas = []
+    nombre = ''
+    estudiante = estudiante_por_telefono(telefono)
+    if estudiante is not None:
+        nombre = (estudiante.nombre or '').strip()
+        if nombre.lower() == 'usuario':
+            nombre = ''
+    ficha = FichaNegocio.objects.filter(telefono=telefono).first()
+    if not nombre and ficha is not None and (ficha.trato or '').strip():
+        nombre = ficha.trato.strip()
+    if nombre:
+        lineas.append(f'Nombre: {nombre.split()[0]}')
+    if ficha is None:
+        return lineas
+    if (ficha.como_esta or '').strip():
+        lineas.append(f'Hoy está: {ficha.como_esta.strip()}')
+    if (ficha.lugar or '').strip():
+        lineas.append(f'Es de: {ficha.lugar.strip()}')
+    return lineas
+
+
 def contexto_persona(telefono: str) -> str:
     """Líneas cortas con lo que se sabe. Vacío si no se sabe nada."""
     tel = (telefono or '').strip()
     if not tel:
         return ''
     lineas = _lineas_ficha(tel) + _linea_organizacion(tel) + _lineas_estudiante(tel)
+    if getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
+        lineas = [linea for linea in lineas if not linea.startswith('Región:')]
+        lineas = _lineas_entrada(tel) + lineas
     ultimo = ultimo_agente(tel)
     if ultimo is not None:
         modo, tema = ultimo
@@ -125,7 +154,9 @@ def contexto_persona(telefono: str) -> str:
 
 def bloque_perfil(telefono: str) -> str:
     """Para el prompt de cualquier agente. Vacío con el flag apagado o si no se sabe nada."""
-    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+    if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False) and not getattr(
+        settings, 'EKI_ASESORIA_ENTRADA', False,
+    ):
         return ''
     try:
         contexto = contexto_persona(telefono)

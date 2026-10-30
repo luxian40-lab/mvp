@@ -107,6 +107,8 @@ def enviar_repregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
 
 def toca_ficha(telefono_usuario: str) -> bool:
     """Después de esta respuesta sale una pregunta de la ficha: el asesor no debe cerrar preguntando."""
+    if getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
+        return False
     from core.lineas.principal.ficha_negocio import siguiente_pregunta
 
     try:
@@ -118,6 +120,8 @@ def toca_ficha(telefono_usuario: str) -> bool:
 
 def preguntar_ficha_si_toca(telefono_usuario: str, from_number: str) -> None:
     """Después de una respuesta útil del agente: una pregunta de la ficha, si toca."""
+    if getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
+        return
     from core.lineas.principal.ficha_negocio import AGENTE_FICHA, marcar_preguntada, siguiente_pregunta
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
@@ -152,6 +156,29 @@ def despues_de_nat(
         _menu().enviar_texto_sandbox(telefono_usuario, from_n, cierre, agente='sandbox_asesoria_cierre')
     elif not deja_pregunta_abierta(respuesta) and not remite_a_otro_asesor(respuesta):
         preguntar_ficha_si_toca(telefono_usuario, from_n)
+
+
+def enviar_entrada_asesoria(telefono_usuario: str, from_number: str) -> dict:
+    """Saludo y cómo está. No suma el cupo."""
+    from core.lineas.principal.entrada_asesoria import iniciar
+
+    return _menu().enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        iniciar(telefono_usuario),
+        agente='sandbox_entrada',
+    )
+
+
+def responder_entrada(telefono_usuario: str, from_number: str, body: str) -> str | None:
+    """'handled' si el mensaje era de la charla de entrada. None: sigue, y la duda se deriva."""
+    from core.lineas.principal.entrada_asesoria import responder
+
+    texto = responder(telefono_usuario, body)
+    if texto is None:
+        return None
+    _menu().enviar_texto_sandbox(telefono_usuario, from_number, texto, agente='sandbox_entrada')
+    return 'handled'
 
 
 def responder_ficha(telefono_usuario: str, from_number: str, body: str) -> str | None:

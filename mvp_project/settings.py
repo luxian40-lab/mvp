@@ -395,6 +395,11 @@ EKI_ASESORIA_MODELO = os.environ.get('EKI_ASESORIA_MODELO', 'gpt-5-mini')
 EKI_ASESORIA_CONTEXTO = os.environ.get('EKI_ASESORIA_CONTEXTO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Charla antes de derivar: cómo está, de dónde es y a qué se dedica. Off = la pregunta de siempre.
+# No suma el cupo de las 60. Ver docs/PLAN_ENTRADA_ASESORIA.md (29 de octubre de 2026).
+EKI_ASESORIA_ENTRADA = os.environ.get('EKI_ASESORIA_ENTRADA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
 # Segunda cuenta de WhatsApp (línea 2). Vacío = no se listan plantillas de la principal en esa línea.
 WHATSAPP_BUSINESS_ACCOUNT_ID_2 = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID_2', '')

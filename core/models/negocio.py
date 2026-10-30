@@ -38,6 +38,29 @@ class FichaNegocio(models.Model):
     equipo = models.CharField(
         max_length=20, blank=True, default='', choices=EQUIPO_CHOICES, verbose_name='Con quién trabaja',
     )
+    entrada = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Paso de la charla de entrada. Vacío: no espera respuesta.',
+    )
+    lugar = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='De dónde es',
+        help_text='Con sus palabras. No se copia del municipio del registro.',
+    )
+    como_esta = models.CharField(
+        max_length=200, blank=True, default='', verbose_name='Cómo está',
+    )
+    trato = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        verbose_name='Cómo le decimos',
+        help_text='Solo si el registro no tiene nombre.',
+    )
     preguntadas = models.CharField(
         max_length=60,
         blank=True,

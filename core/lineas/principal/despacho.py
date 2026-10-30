@@ -160,6 +160,7 @@ def _responder_menu(decision: SandboxRouteDecision, payload: Any, body: str, fro
         from django.conf import settings
 
         from core.lineas.principal.asesores import (
+            enviar_entrada_asesoria,
             enviar_pregunta_asesoria,
             enviar_repregunta_asesoria,
         )
@@ -167,6 +168,8 @@ def _responder_menu(decision: SandboxRouteDecision, payload: Any, body: str, fro
         try:
             if decision.action == 'repreguntar_asesoria':
                 enviar_repregunta_asesoria(decision.telefono_usuario, from_n)
+            elif getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
+                enviar_entrada_asesoria(decision.telefono_usuario, from_n)
             elif getattr(settings, 'EKI_ASESORIA_PREGUNTA', False):
                 enviar_pregunta_asesoria(decision.telefono_usuario, from_n)
             else:

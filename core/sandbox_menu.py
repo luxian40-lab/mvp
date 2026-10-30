@@ -831,6 +831,20 @@ def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str
 
 
 def _respuesta_ficha(payload: Any, from_tel: str, body: str) -> str | None:
+    if getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
+        from core.lineas.variante import perfil_de
+
+        if not perfil_de().curso_directo:
+            from core.lineas.principal.asesores import responder_entrada
+
+            _, to_tel, _ = _extract_from_body(payload)
+            try:
+                salida = responder_entrada(from_tel, to_tel or sandbox_number(), body)
+            except DatabaseError:
+                logger.exception('entrada_respuesta_fail tel=%s', from_tel)
+                salida = None
+            if salida == 'handled':
+                return 'handled'
     if not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
         return None
     from core.lineas.variante import perfil_de
