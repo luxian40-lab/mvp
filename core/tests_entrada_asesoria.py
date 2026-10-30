@@ -1,6 +1,7 @@
-"""Charla de entrada: cómo está, ficha con lo que ella dice, y recién ahí la duda.
+"""Charla de entrada: cómo está, de dónde es y a qué se dedica, y qué quiere entender.
 
 El contexto no suma las 60 preguntas. El lugar del registro no se usa.
+No se repite lo que la persona acaba de escribir.
 """
 from unittest.mock import patch
 
@@ -58,26 +59,39 @@ class EntradaAsesoriaTests(TestCase):
     def test_el_contexto_no_gasta_cupo_y_una_respuesta_llena_lugar_y_dedica(self):
         self._enviar('asesoria')
         _, textos = self._enviar('Bien')
-        self.assertEqual(textos, ['Bien. ¿De dónde es?'])
+        self.assertEqual(textos, ['Cuénteme de usted: de dónde es y a qué se dedica.'])
+        self.assertNotIn('Bien', textos[0])
         self.assertEqual(self._usadas(), 0)
-        _, textos = self._enviar('De Armero, cultivo café')
+        _, textos = self._enviar('Soy de Bogotá y vendo aguacate')
         self.assertEqual(
             textos,
-            ['Cultivo café, en Armero. ¿Qué duda tiene, o qué le gustaría hacer?\n\n'
+            ['Del aguacate, ¿qué quiere entender mejor?\n\n'
              '_*agentes* = ver la lista · *menu* = menú principal._'],
         )
+        self.assertNotIn('¿Qué duda tiene', textos[0])
+        self.assertNotIn('Soy de Bogotá', textos[0])
         ficha = self._ficha()
-        self.assertEqual((ficha.lugar, ficha.dedica, ficha.entrada), ('Armero', 'cultivo café', 'duda'))
+        self.assertEqual((ficha.lugar, ficha.dedica, ficha.entrada), ('Bogotá', 'vendo aguacate', 'duda'))
         self.assertEqual(self._usadas(), 0)
         self.assertNotIn('Líbano', contexto_persona(self.tel))
         self.assertNotIn('Zona Cafetera', contexto_persona(self.tel))
-        self.assertIn('Es de: Armero', contexto_persona(self.tel))
+        self.assertIn('Es de: Bogotá', contexto_persona(self.tel))
         self.assertIn('Nombre: María', contexto_persona(self.tel))
+
+    def test_si_falta_un_dato_pregunta_solo_ese(self):
+        self._enviar('asesoria')
+        self._enviar('Bien')
+        _, textos = self._enviar('Bogotá')
+        self.assertEqual(textos, ['¿A qué se dedica?'])
+        _, textos = self._enviar('vendo aguacate')
+        self.assertEqual(textos[0], 'Del aguacate, ¿qué quiere entender mejor?\n\n'
+                         '_*agentes* = ver la lista · *menu* = menú principal._')
+        self.assertEqual((self._ficha().lugar, self._ficha().dedica), ('Bogotá', 'vendo aguacate'))
 
     def test_la_duda_se_deriva_y_ahi_cuenta_una_pregunta(self):
         self._enviar('asesoria')
         self._enviar('Bien')
-        self._enviar('De Armero, cultivo café')
+        self._enviar('Soy de Bogotá y vendo aguacate')
         duda = 'las hojas se están poniendo amarillas'
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')) as der, \
                 patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta') as ag, \
@@ -85,7 +99,7 @@ class EntradaAsesoriaTests(TestCase):
             ruta = dispatch_sandbox_menu(_payload(self.tel, duda))
         self.assertEqual(ruta, 'handled')
         self.assertEqual(der.call_args.args[0], duda)
-        self.assertIn('Es de: Armero', der.call_args.kwargs['contexto'])
+        self.assertIn('Es de: Bogotá', der.call_args.kwargs['contexto'])
         self.assertNotIn('Líbano', der.call_args.kwargs['contexto'])
         self.assertEqual(ag.call_args.args[:2], ('ventas', duda))
         self.assertEqual(self._usadas(), 1)
@@ -94,19 +108,23 @@ class EntradaAsesoriaTests(TestCase):
     def test_seguir_salta_a_la_duda_sin_gastar_cupo(self):
         self._enviar('asesoria')
         _, textos = self._enviar('seguir')
-        self.assertIn('¿Qué duda tiene, o qué le gustaría hacer?', textos[0])
+        self.assertEqual(
+            textos[0],
+            'De lo que me contó, ¿qué quiere entender mejor?\n\n'
+            '_*agentes* = ver la lista · *menu* = menú principal._',
+        )
         self.assertEqual(self._usadas(), 0)
         self.assertEqual(self._ficha().entrada, 'duda')
 
     def test_con_la_ficha_llena_no_repite_el_lugar_ni_la_dedica(self):
         self._enviar('asesoria')
         self._enviar('Bien')
-        self._enviar('De Armero, cultivo café')
+        self._enviar('Soy de Bogotá y vendo aguacate')
         self._enviar('asesoria')
         _, textos = self._enviar('Ahí vamos')
         self.assertEqual(
             textos[0],
-            'Cultivo café, en Armero. ¿Qué duda tiene, o qué le gustaría hacer?\n\n'
+            'Del aguacate, ¿qué quiere entender mejor?\n\n'
             '_*agentes* = ver la lista · *menu* = menú principal._',
         )
         self.assertEqual(self._usadas(), 0)

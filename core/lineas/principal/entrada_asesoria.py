@@ -1,16 +1,24 @@
-"""Charla de entrada a asesoría: cómo está, ficha, y recién ahí la duda.
+"""Charla de entrada a asesoría: cómo está, ficha, y qué quiere entender.
 
 No llama al agente ni suma el cupo. Quien llama manda el mensaje.
-Fuera del ciclo de imports.
+Fuera del ciclo de imports. No repite lo que la persona acaba de escribir.
 """
 from __future__ import annotations
+
+import re
 
 from django.db import IntegrityError
 
 from core.lineas.principal.derivar_asesoria import PIE_ASESORIA
 from core.lineas.principal.ficha_negocio import _SALIDAS, _SALTAR, _parece_pregunta
 
-_DUDA = '¿Qué duda tiene, o qué le gustaría hacer?'
+_CONTEXTO = 'Cuénteme de usted: de dónde es y a qué se dedica.'
+_ENTENDER = '¿qué quiere entender mejor?'
+_VERBOS = re.compile(
+    r'((?:vendo|cultivo|produzco|siembro|trabajo en|me dedico a)\s+.+)',
+    re.IGNORECASE,
+)
+_VENDEDOR = re.compile(r'vendedor(?:a)? de\s+(\S+)', re.IGNORECASE)
 
 
 def _limpia(texto: str) -> str:
@@ -48,18 +56,13 @@ def _paso_que_falta(telefono: str, ficha) -> str:
         return 'como_esta'
     if not _nombre(telefono, ficha):
         return 'trato'
+    if not (ficha.lugar or '').strip() and not (ficha.dedica or '').strip():
+        return 'contexto'
     if not (ficha.lugar or '').strip():
         return 'lugar'
     if not (ficha.dedica or '').strip():
         return 'dedica'
     return 'duda'
-
-
-def _mayus(texto: str) -> str:
-    texto = (texto or '').strip()
-    if not texto:
-        return ''
-    return texto[0].upper() + texto[1:]
 
 
 def _sin_de(texto: str) -> str:
@@ -82,18 +85,51 @@ def _partir(texto: str) -> tuple[str, str]:
     return izquierda, derecha
 
 
-def _texto_duda(ficha) -> str:
-    dedica = (ficha.dedica or '').strip()
-    lugar = (ficha.lugar or '').strip()
-    if dedica and lugar:
-        cabeza = f'{_mayus(dedica)}, en {lugar}.'
-    elif dedica:
-        cabeza = f'{_mayus(dedica)}.'
-    elif lugar:
-        cabeza = f'{_mayus(lugar)}.'
+def _oficio_corto(dedica: str) -> str:
+    """Una palabra de lo que hace, para la pregunta. Vacío si no hay una clara."""
+    texto = (dedica or '').strip()
+    m = re.search(
+        r'(?:vendo|cultivo|produzco|siembro|trabajo en|me dedico a)\s+(\S+)',
+        texto,
+        re.IGNORECASE,
+    )
+    palabra = m.group(1) if m else ''
+    if not palabra:
+        hallado = _VENDEDOR.search(texto)
+        palabra = hallado.group(1) if hallado else ''
+    palabra = palabra.strip('.,').lower()
+    if not palabra or palabra in {'con', 'en', 'para', 'de', 'y', 'que', 'mi', 'el', 'la'}:
+        return ''
+    return palabra
+
+
+def _sacar_contexto(texto: str) -> tuple[str, str]:
+    """(lugar, a qué se dedica) si la frase abierta ya los trae."""
+    lugar = ''
+    m = re.search(r'(?:soy de|vivo en|estoy en)\s+(.+)', texto, re.IGNORECASE)
+    if not m and texto.lower().startswith('de '):
+        m = re.search(r'^de\s+(.+)', texto, re.IGNORECASE)
+    if m:
+        trozo = re.split(r'\s+y\s+|,', m.group(1).strip(), maxsplit=1, flags=re.IGNORECASE)[0]
+        lugar = ' '.join(trozo.strip(' .').split()[:3])
+    dedica = ''
+    hecho = _VERBOS.search(texto)
+    if hecho:
+        dedica = hecho.group(1).strip(' .')
+    if not lugar and not dedica:
+        if len(texto.split()) <= 3:
+            lugar = texto.strip(' .')
+        else:
+            dedica = texto.strip(' .')
+    return lugar[:80], dedica[:200]
+
+
+def _texto_entender(ficha) -> str:
+    oficio = _oficio_corto(ficha.dedica)
+    if oficio:
+        cuerpo = f'Del {oficio}, {_ENTENDER}'
     else:
-        cabeza = ''
-    cuerpo = f'{cabeza} {_DUDA}'.strip()
+        cuerpo = f'De lo que me contó, {_ENTENDER}'
     return f'{cuerpo}\n\n{PIE_ASESORIA}'
 
 
@@ -106,13 +142,13 @@ def texto_de(telefono: str, ficha) -> str:
         return f'{saludo}\n\n{PIE_ASESORIA}'
     if paso == 'trato':
         return '¿Cómo le digo?'
+    if paso == 'contexto':
+        return _CONTEXTO
     if paso == 'lugar':
-        animo = _mayus(ficha.como_esta)
-        return f'{animo}. ¿De dónde es?' if animo else '¿De dónde es?'
+        return '¿De dónde es?'
     if paso == 'dedica':
-        lugar = _mayus(ficha.lugar)
-        return f'{lugar}. ¿A qué se dedica?' if lugar else '¿A qué se dedica?'
-    return _texto_duda(ficha)
+        return '¿A qué se dedica?'
+    return _texto_entender(ficha)
 
 
 def iniciar(telefono: str) -> str:
@@ -136,6 +172,12 @@ def _guardar_respuesta(ficha, telefono: str, crudo: str) -> None:
         ficha.como_esta = crudo[:200]
     elif paso == 'trato':
         ficha.trato = crudo[:40]
+    elif paso == 'contexto':
+        lugar, dedica = _sacar_contexto(crudo)
+        if lugar and not (ficha.lugar or '').strip():
+            ficha.lugar = lugar[:80]
+        if dedica and not (ficha.dedica or '').strip():
+            ficha.dedica = dedica[:200]
     elif paso == 'lugar':
         lugar, resto = _partir(crudo)
         limpio = _sin_de(lugar)
@@ -165,7 +207,7 @@ def responder(telefono: str, texto: str) -> str | None:
     if t in _SALTAR:
         ficha.entrada = 'duda'
         ficha.save(update_fields=['entrada', 'actualizada_en'])
-        return _texto_duda(ficha)
+        return _texto_entender(ficha)
     if ficha.entrada == 'duda' or _parece_pregunta(t):
         _cerrar(ficha)
         return None
