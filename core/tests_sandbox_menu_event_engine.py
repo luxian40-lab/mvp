@@ -398,7 +398,7 @@ class SandboxMenuTests(TestCase):
         self.assertIn('Mejor apropiación tecnológica', TEXTO_AGENTES)
         self.assertIn('Aumenta tus ingresos', TEXTO_AGENTES)
         self.assertIn('Finanzas', TEXTO_AGENTES)
-        self.assertIn('Experto en café', TEXTO_AGENTES)
+        self.assertIn('Experto agrónomo', TEXTO_AGENTES)
         self.assertIn('Ventas', TEXTO_AGENTES)
         self.assertIn('reiniciar', TEXTO_AGENTES)
 

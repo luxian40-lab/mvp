@@ -571,7 +571,7 @@ class ContadorAsesorTests(TestCase):
                 r['description'] for r in lista['interactive']['action']['sections'][0]['rows']
             ]
             self.assertEqual(descripciones, [
-                'Experto en café',
+                'Experto agrónomo',
                 'Motivación y metas diarias',
                 'Mejor apropiación tecnológica',
                 'Aumenta tus ingresos',

@@ -132,5 +132,6 @@ class CafeMenuTests(TestCase):
         decision = resolver_ruta_sandbox({**base, 'Body': '6'})
         self.assertEqual(decision.action, 'nat')
         self.assertTrue(decision.saludo_entrada)
-        self.assertIn('Experto en café', TEXTO_AGENTES)
+        self.assertIn('Experto agrónomo', TEXTO_AGENTES)
+        self.assertNotIn('café', TEXTO_AGENTES)
         self.assertNotIn('*6*', TEXTO_AGENTES)

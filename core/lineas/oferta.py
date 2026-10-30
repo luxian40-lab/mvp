@@ -6,7 +6,7 @@ sigue siendo el general. Sin lista de agentes, siguen los cinco.
 from __future__ import annotations
 
 AGENTES = (
-    ('nat', 'Agrónomo', 'Experto en café'),
+    ('nat', 'Agrónomo', 'Experto agrónomo'),
     ('coach', 'Coach', 'Motivación y metas diarias'),
     ('profe', 'Innovación e IA', 'Mejor apropiación tecnológica'),
     ('ventas', 'Ventas', 'Aumenta tus ingresos'),

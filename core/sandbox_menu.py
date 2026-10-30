@@ -151,7 +151,7 @@ def _es_toque(payload: Any) -> bool:
 
 TEXTO_AGENTES = (
     "🤖 *Asesoría*\n\n"
-    "1️⃣ *Agrónomo* — Experto en café\n"
+    "1️⃣ *Agrónomo* — Experto agrónomo\n"
     "2️⃣ *Coach* — Motivación y metas diarias\n"
     "3️⃣ *Innovación e IA* — Mejor apropiación tecnológica\n"
     "4️⃣ *Ventas* — Aumenta tus ingresos\n"
