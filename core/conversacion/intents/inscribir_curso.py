@@ -80,6 +80,10 @@ def responder(intent, nombre_usuario, kwargs):
     
     # Split into multiple messages to avoid Twilio 1600 char limit
     # Message 1: Enrollment confirmation (short)
+    return _mensaje_inscripcion(curso, estudiante, obtener_video_url, primer_modulo, dividir_contenido_seguro, progreso, partir_sep, logger, parte_mensaje_con_media)
+
+
+def _mensaje_inscripcion(curso, estudiante, obtener_video_url, primer_modulo, dividir_contenido_seguro, progreso, partir_sep, logger, parte_mensaje_con_media):
     mensaje_1 = f"""✅ {curso.emoji} ¡Inscripción exitosa!
 
 Te inscribiste en: *{curso.nombre}*
