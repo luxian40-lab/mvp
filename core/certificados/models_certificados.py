@@ -1,0 +1,501 @@
+"""
+Sistema de Certificados Digitales para eki
+Generación automática de certificados al completar cursos
+"""
+
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from django.conf import settings
+import hashlib
+import uuid
+
+
+class Certificado(models.Model):
+    """
+    Certificado digital emitido al completar un curso
+    Inspirado en Coursera, edX, etc.
+    """
+    # Identificación
+    codigo_verificacion = models.CharField(
+        max_length=50,
+        unique=True,
+        editable=False,
+        help_text="Código único de verificación"
+    )
+    
+    # Estudiante y Curso
+    estudiante = models.ForeignKey(
+        'Estudiante',
+        on_delete=models.CASCADE,
+        related_name='certificados'
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.CASCADE,
+        related_name='certificados_emitidos'
+    )
+    
+    # Datos Académicos
+    calificacion_final = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Calificación final (0-100)"
+    )
+    fecha_inicio = models.DateField(
+        help_text="Fecha de inicio del curso"
+    )
+    fecha_completado = models.DateField(
+        default=timezone.now,
+        help_text="Fecha de finalización del curso"
+    )
+    
+    # Estado
+    emitido = models.BooleanField(
+        default=False,
+        help_text="Si el certificado fue generado y enviado"
+    )
+    fecha_emision = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de emisión del certificado"
+    )
+    
+    # Archivo PDF
+    archivo_pdf = models.FileField(
+        upload_to='Certificadosestudiantes/',
+        null=True,
+        blank=True,
+        help_text="Certificado en PDF"
+    )
+    
+    # Archivo Imagen (alternativa al PDF)
+    archivo_imagen = models.ImageField(
+        upload_to='Certificadosestudiantes/',
+        null=True,
+        blank=True,
+        help_text="Certificado en imagen (PNG/JPG)"
+    )
+    
+    # Metadata
+    enviado_whatsapp = models.BooleanField(
+        default=False,
+        help_text="Si fue enviado por WhatsApp"
+    )
+    fecha_envio = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    # Integridad / due diligence
+    hash_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='SHA-256 del PNG del diploma (integridad del artefacto)',
+    )
+    organizacion_emisora = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Snapshot del nombre de la organización al emitir',
+    )
+    anulado = models.BooleanField(
+        default=False,
+        help_text='Si está anulado, la verificación pública lo marca no válido',
+    )
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
+    motivo_anulacion = models.CharField(max_length=255, blank=True, default='')
+    
+    # Timestamps
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "📜 Certificado"
+        verbose_name_plural = "📜 Certificados"
+        ordering = ['-fecha_emision', '-creado_en']
+        indexes = [
+            models.Index(fields=['codigo_verificacion']),
+            models.Index(fields=['estudiante', 'curso']),
+        ]
+    
+    def __str__(self):
+        return f"Certificado {self.codigo_verificacion} - {self.estudiante.nombre}"
+    
+    def save(self, *args, **kwargs):
+        # Generar código de verificación si no existe
+        if not self.codigo_verificacion:
+            self.codigo_verificacion = self.generar_codigo_verificacion()
+        super().save(*args, **kwargs)
+    
+    def generar_codigo_verificacion(self):
+        """
+        Genera código único de verificación
+        Formato: eki-XXXX-YYYY-ZZZZ
+        """
+        # Crear hash único basado en datos
+        datos = f"{self.estudiante.id}{self.curso.id}{timezone.now().isoformat()}{uuid.uuid4()}"
+        hash_obj = hashlib.sha256(datos.encode())
+        hash_hex = hash_obj.hexdigest()[:12].upper()
+        
+        # Formatear como eki-XXXX-YYYY-ZZZZ
+        codigo = f"eki-{hash_hex[0:4]}-{hash_hex[4:8]}-{hash_hex[8:12]}"
+        
+        # Verificar que no exista (muy improbable)
+        if Certificado.objects.filter(codigo_verificacion=codigo).exists():
+            return self.generar_codigo_verificacion()
+        
+        return codigo
+    
+    def obtener_url_verificacion(self):
+        """URL pública del QR: página eki que valida este certificado."""
+        base = (
+            getattr(settings, "CERTIFICADO_VERIFICACION_BASE_URL", "")
+            or "https://certificados.eki.technology"
+        ).rstrip("/")
+        codigo = self.codigo_verificacion or ""
+        return f"{base}/verificar-certificado/{codigo}/"
+    
+    def obtener_mencion(self):
+        """
+        Menciones por nota desactivadas (no se muestran en verify, WA ni diploma).
+        Se mantiene el método por compatibilidad con admin/reportes.
+        """
+        return None
+    
+    def duracion_curso(self):
+        """Retorna duración del curso en días"""
+        if self.fecha_inicio and self.fecha_completado:
+            return (self.fecha_completado - self.fecha_inicio).days
+        return 0
+
+    def cedula_enmascarada(self):
+        """Cédula parcial para verificación pública (****1234)."""
+        raw = (getattr(self.estudiante, 'cedula', None) or '').strip()
+        if not raw:
+            return ''
+        if len(raw) <= 4:
+            return '*' * len(raw)
+        return ('*' * (len(raw) - 4)) + raw[-4:]
+
+    def horas_estimadas_curso(self):
+        """Horas estimadas a partir de duracion_semanas del curso (≈4 h/semana)."""
+        semanas = getattr(self.curso, 'duracion_semanas', None) or 0
+        try:
+            semanas = int(semanas)
+        except (TypeError, ValueError):
+            semanas = 0
+        if semanas <= 0:
+            return None
+        return semanas * 4
+
+
+class PlantillaCertificado(models.Model):
+    """
+    Plantillas personalizables para certificados
+    Permite diferentes diseños por tipo de curso o por cliente
+    """
+    nombre = models.CharField(
+        max_length=100,
+        help_text="Nombre identificador de la plantilla (ej: 'Plantilla Cargill', 'Plantilla TechnoServe')"
+    )
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Descripción opcional de cuándo usar esta plantilla"
+    )
+    
+    # 🏢 CLIENTE (para plantillas específicas de empresas)
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='plantillas_certificados',
+        verbose_name='Cliente',
+        help_text='Si es para un cliente específico. Dejar vacío = plantilla general de eki'
+    )
+    
+    # � CURSO (para plantillas específicas de un curso)
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='plantillas_certificados',
+        verbose_name='Curso',
+        help_text='Curso específico para esta plantilla. Si se asigna, se usará automáticamente al completar este curso.'
+    )
+    
+    # �📄 OPCIÓN 1: SUBIR PDF PERSONALIZADO (Recomendado para empresas)
+    archivo_plantilla_pdf = models.FileField(
+        upload_to='certificados/plantillas_personalizadas/',
+        null=True,
+        blank=True,
+        help_text="📤 Sube tu propia plantilla en PDF. Solo necesita tener espacio para el NOMBRE del estudiante."
+    )
+    
+    MODO_PLANTILLA_CHOICES = [
+        ('imagen', 'Imagen (S3 / archivo con marcadores)'),
+        ('diseno_eki', 'Diseño eki (colores y textos)'),
+        ('pdf', 'PDF personalizado'),
+    ]
+    modo_plantilla = models.CharField(
+        max_length=20,
+        choices=MODO_PLANTILLA_CHOICES,
+        default='imagen',
+        verbose_name='Modo de plantilla',
+        help_text='Define cómo se generará el certificado para esta plantilla.',
+    )
+
+    # 🖼️ OPCIÓN 1B: SUBIR IMAGEN/MULTIMEDIA (Alternativa al PDF)
+    FORMATO_CERTIFICADO_CHOICES = [
+        ('pdf', '📄 PDF'),
+        ('imagen', '🖼️ Imagen (PNG/JPG)'),
+    ]
+    formato_certificado = models.CharField(
+        max_length=10,
+        choices=FORMATO_CERTIFICADO_CHOICES,
+        default='pdf',
+        help_text="Formato de salida del certificado"
+    )
+    archivo_plantilla_imagen = models.ImageField(
+        upload_to='certificados/plantillas_imagenes/',
+        null=True,
+        blank=True,
+        help_text="🖼️ Sube una plantilla en formato imagen (PNG/JPG). Se personalizará con el nombre del estudiante."
+    )
+    
+    # 🔗 OPCIÓN 1C: URL DE IMAGEN EXTERNA (Alternativa a subir archivo)
+    url_plantilla_imagen = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text=(
+            "🔗 URL directa (PNG/JPG). Si también subes archivo, el archivo manda: "
+            "al guardar se actualiza esta URL a la del archivo nuevo en S3."
+        ),
+    )
+    
+    # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON eki (Si no subes PDF)
+    # Diseño
+    imagen_fondo = models.ImageField(
+        upload_to='certificados/plantillas/',
+        null=True,
+        blank=True,
+        help_text="Imagen de fondo del certificado (si no subes PDF)"
+    )
+    logo_institucion = models.ImageField(
+        upload_to='certificados/logos/',
+        null=True,
+        blank=True,
+        help_text="Logo de la institución"
+    )
+    
+    # Colores (hex)
+    color_primario = models.CharField(
+        max_length=7,
+        default='#2C3E50',
+        help_text="Color principal (ej: #2C3E50)"
+    )
+    color_secundario = models.CharField(
+        max_length=7,
+        default='#3498DB',
+        help_text="Color secundario"
+    )
+    
+    # Textos personalizables
+    texto_superior = models.CharField(
+        max_length=200,
+        default="eki - Soluciones Educativas",
+        help_text="Texto en la parte superior"
+    )
+    texto_certificado = models.CharField(
+        max_length=100,
+        default="CERTIFICADO DE FINALIZACIÓN",
+        help_text="Título del certificado"
+    )
+    
+    # 📝 Variables para reemplazar en PDF personalizado
+    variable_nombre = models.CharField(
+        max_length=50,
+        default="{nombre}",
+        help_text="Variable a reemplazar por el nombre del estudiante (ej: {nombre}, [NOMBRE], {{nombre}})"
+    )
+    variable_curso = models.CharField(
+        max_length=50,
+        default="{curso}",
+        help_text="Variable a reemplazar por el nombre del curso"
+    )
+    variable_fecha = models.CharField(
+        max_length=50,
+        default="{fecha}",
+        help_text="Variable a reemplazar por la fecha"
+    )
+    
+    # Estado
+    activa = models.BooleanField(default=True)
+    por_defecto = models.BooleanField(
+        default=False,
+        help_text="Plantilla por defecto para nuevos certificados"
+    )
+
+    # Página pública certificados.eki.technology (ficha de verificación)
+    VERIFICACION_HERO_CHOICES = [
+        ('estudiante', 'Nombre del estudiante'),
+        ('curso', 'Nombre del curso'),
+        ('organizacion', 'Organización'),
+    ]
+    VERIFICACION_TAMANO_CHOICES = [
+        ('m', 'Normal'),
+        ('l', 'Grande'),
+        ('xl', 'Muy grande'),
+    ]
+    verificacion_hero = models.CharField(
+        max_length=20,
+        choices=VERIFICACION_HERO_CHOICES,
+        default='estudiante',
+        verbose_name='Destacar en la ficha',
+        help_text='Qué título va más grande en certificados.eki.technology al verificar.',
+    )
+    verificacion_tamano_hero = models.CharField(
+        max_length=4,
+        choices=VERIFICACION_TAMANO_CHOICES,
+        default='l',
+        verbose_name='Tamaño del título',
+        help_text='Tamaño tipográfico del elemento destacado.',
+    )
+    verificacion_mostrar_diploma = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar miniatura del diploma',
+        help_text='Si hay imagen del certificado emitido, mostrarla en la ficha pública.',
+    )
+    verificacion_mostrar_hash = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar SHA-256',
+        help_text='Mostrar el hash de integridad en la ficha (más técnico).',
+    )
+
+    # Timestamps
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "🎨 Plantilla de Certificado"
+        verbose_name_plural = "🎨 Plantillas de Certificados"
+        ordering = ['-por_defecto', 'nombre']
+    
+    def __str__(self):
+        cliente_str = f" ({self.cliente.nombre})" if self.cliente else ""
+        return f"{self.nombre}{cliente_str} {'(Por defecto)' if self.por_defecto else ''}"
+    
+    def modo_efectivo(self) -> str:
+        modo = (self.modo_plantilla or '').strip()
+        if modo in dict(self.MODO_PLANTILLA_CHOICES):
+            return modo
+        if self.archivo_plantilla_imagen or self.url_plantilla_imagen:
+            return 'imagen'
+        if self.archivo_plantilla_pdf:
+            return 'pdf'
+        return 'diseno_eki'
+
+    def clean(self):
+        """Validar y limpiar URL de plantilla para evitar duplicaciones y errores"""
+        super().clean()
+        modo = self.modo_efectivo()
+        if modo == 'imagen' and not (self.archivo_plantilla_imagen or self.url_plantilla_imagen):
+            raise ValidationError({
+                'url_plantilla_imagen': (
+                    'En modo Imagen debes subir un archivo o pegar la URL de S3 (.png/.jpg).'
+                ),
+            })
+        if modo == 'pdf' and not self.archivo_plantilla_pdf:
+            raise ValidationError({
+                'archivo_plantilla_pdf': 'En modo PDF debes subir el archivo PDF personalizado.',
+            })
+        if self.url_plantilla_imagen:
+            url = self.url_plantilla_imagen.strip()
+            # Detectar URLs duplicadas pegadas (ej: "archivo.jpghttps://...archivo.jpg")
+            # Patron: buscar 'https://' dentro del string despues del inicio
+            partes_https = url.split('https://')
+            if len(partes_https) > 2:
+                # Hay multiples https:// — tomar la ultima URL completa
+                url = 'https://' + partes_https[-1]
+            elif len(partes_https) == 2 and not url.startswith('https://'):
+                # Empieza con basura y luego tiene https://
+                url = 'https://' + partes_https[1]
+            # Asegurar que termina en extension de imagen valida
+            url_lower = url.lower().split('?')[0]  # ignorar query params
+            if not any(url_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
+                raise ValidationError({
+                    'url_plantilla_imagen': 'La URL debe terminar en .png, .jpg, .jpeg o .webp'
+                })
+            # Validar que es una URL completa
+            if not url.startswith('http://') and not url.startswith('https://'):
+                raise ValidationError({
+                    'url_plantilla_imagen': 'La URL debe comenzar con https://'
+                })
+            self.url_plantilla_imagen = url
+        
+        # Si hay archivo y URL, el archivo tiene prioridad en runtime
+        # (ver obtener_url_plantilla_imagen / save sincroniza la URL).
+
+    def obtener_url_plantilla_imagen(self) -> str | None:
+        """
+        URL efectiva de la plantilla imagen.
+
+        Prioridad: archivo subido (S3) > url pegada.
+        Evita que una URL antigua en el campo de texto ignore un archivo nuevo.
+        """
+        if self.archivo_plantilla_imagen:
+            try:
+                u = (self.archivo_plantilla_imagen.url or '').strip()
+                if u:
+                    return u
+            except Exception:
+                pass
+        u = (self.url_plantilla_imagen or '').strip()
+        return u or None
+
+    def _sincronizar_url_desde_archivo(self) -> None:
+        """Tras subir/reemplazar archivo, alinea url_plantilla_imagen con la key nueva en S3."""
+        if not self.pk or not self.archivo_plantilla_imagen:
+            return
+        try:
+            new_url = (self.archivo_plantilla_imagen.url or '').strip()
+        except Exception:
+            return
+        if not new_url:
+            return
+        if (self.url_plantilla_imagen or '').strip() == new_url:
+            return
+        type(self).objects.filter(pk=self.pk).update(url_plantilla_imagen=new_url)
+        self.url_plantilla_imagen = new_url
+
+    def save(self, *args, **kwargs):
+        # Ejecutar validacion de URL
+        try:
+            self.clean()
+        except ValidationError:
+            pass  # En save() no bloqueamos, solo en admin form
+        # Si se marca como por defecto, desmarcar otras
+        if self.por_defecto:
+            PlantillaCertificado.objects.filter(por_defecto=True).exclude(pk=self.pk).update(por_defecto=False)
+        super().save(*args, **kwargs)
+        self._sincronizar_url_desde_archivo()
+    
+    def usa_pdf_personalizado(self):
+        """Verifica si esta plantilla usa un PDF personalizado"""
+        return bool(self.archivo_plantilla_pdf)
+    
+    def usa_imagen_personalizada(self):
+        """Verifica si esta plantilla usa una imagen personalizada (archivo o URL)"""
+        return bool(self.archivo_plantilla_imagen) or bool(self.url_plantilla_imagen)
+    
+    def get_tipo_formato(self):
+        """Retorna el formato de certificado efectivo"""
+        if self.archivo_plantilla_imagen or self.url_plantilla_imagen:
+            return 'imagen'
+        if self.archivo_plantilla_pdf:
+            return 'pdf'
+        return self.formato_certificado
