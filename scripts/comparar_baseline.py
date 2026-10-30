@@ -140,11 +140,13 @@ def _aviso(titulo: str, lineas: list[str], tope: int = 900) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    estricto = '--estricto' in args
+    args = [arg for arg in args if arg != '--estricto']
     junit = Path(args[0] if args else 'pytest-junit-suite.xml')
     baseline = Path(args[1] if len(args) > 1 else ROOT / 'scripts' / 'baseline_failures_before.txt')
     if not junit.is_file():
         print(f'comparar_baseline: no está {junit}')
-        return 0
+        return 1 if estricto else 0
     resultado = clasificar(
         junit.read_text(encoding='utf-8', errors='replace'),
         baseline.read_text(encoding='utf-8', errors='replace') if baseline.is_file() else '',
@@ -161,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
     destino = os.environ.get('GITHUB_STEP_SUMMARY')
     if destino:
         Path(destino).write_text(texto, encoding='utf-8')
+    if estricto and resultado['nuevos']:
+        return 1
     return 0
 
 

@@ -48,3 +48,19 @@ def test_separa_nuevos_conocidos_y_los_que_pasan():
     assert resultado['saltados'] == [
         ('core/tests_b.py::test_skip', 'ffmpeg/ffprobe no instalados'),
     ]
+
+
+def test_estricto_falla_solo_si_hay_fallo_nuevo(tmp_path: Path):
+    junit = tmp_path / 'junit.xml'
+    junit.write_text(_XML, encoding='utf-8')
+    base = tmp_path / 'base.txt'
+    base.write_text(_BASE, encoding='utf-8')
+    assert _mod.main([str(junit), str(base)]) == 0
+    assert _mod.main([str(junit), str(base), '--estricto']) == 1
+    limpio = """<?xml version="1.0" encoding="utf-8"?>
+<testsuite>
+  <testcase classname="core.tests_a.A" name="test_ok"/>
+</testsuite>
+"""
+    junit.write_text(limpio, encoding='utf-8')
+    assert _mod.main([str(junit), str(base), '--estricto']) == 0
