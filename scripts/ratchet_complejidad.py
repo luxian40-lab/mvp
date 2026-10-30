@@ -40,6 +40,15 @@ MODULOS_MOVIDOS = (
     'core.lineas.principal',
     'core.conversacion.intents',
     'core.models.',
+    'core.certificados',
+    'core.campanas',
+    'core.agentes',
+    'core.analitica',
+    'core.admin_vistas',
+    'core.gamificacion',
+    'core.canal',
+    'core.curso',
+    'core.conversacion',
 )
 ARCHIVOS_ESTADOS = 'core/conversacion/estados/'
 ARCHIVO_CUERPO = 'core/views/webhook_twilio.py'

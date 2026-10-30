@@ -251,6 +251,12 @@ Hecho el 25 de octubre de 2026 (G1 desplegado en `main-g1-parser-beat-20261025-2
 - H2 Archivos sueltos a paquetes por dominio, solo movimiento, con reexport en la ruta vieja: canal, conversación, curso, agentes, campañas, certificados, gamificación, analítica, vistas admin. Primero los menos acoplados.
 - H3 Cortar los imports de `core` hacia `portal`, `aprende`, `studio`, `formulario`.
 
+Hecho el 30 de octubre de 2026 en local (`refactor/h2-h3`, sin push):
+
+- H2. 225 módulos sueltos pasaron a su paquete (`certificados`, `gamificacion`, `campanas`, `canal`, `curso`, `agentes`, `conversacion`, `analitica`, `admin_vistas`). En la ruta vieja queda un import real y `sys.modules[__name__]` apunta al módulo nuevo, así `import core.foo` y los `patch('core.foo.X')` siguen. `core/gamificacion.py` pasó a `core/gamificacion/__init__.py` (en Windows no conviven el archivo y el paquete). No se movieron `apps.py`, `middleware.py`, `tasks.py`, `tasks_infra.py` (nombres de Celery y beat) ni `admin_actions.py` (no parsea; ya estaba en el baseline).
+- H3. `core` ya no importa `portal`, `aprende`, `studio` ni `formulario` (48 → 0). Los nombres se piden en `core/puentes.py`; cada app los registra en `ready()`. Esas cuatro apps quedan después de Unfold y antes de `django.contrib.admin`, para que el registro exista cuando el admin carga `core/admin`. Los `patch()` de los tests apuntan a `core.puentes` donde el caller busca el nombre.
+- El ciclo estático subió 159 → 211: cada stub y su módulo nuevo entran al mismo componente. Salieron los 7 módulos de arriba que estaban en el ciclo. El umbral de 30 no se cumple con este corte: el enredo interno de `core` sigue. Los reexports mantienen `archivos_sueltos_core` en 231 (`gamificacion.py` salió y `puentes.py` entró). Borrar los reexports es otro bloque.
+
 Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `main-g2-g7-h1-20261025-221655`; H1.2 y H1.3 en `main-h1-modelos-20261026-120623`):
 
 - H1.1 `core/models.py` pasa a paquete `core/models/` con `git mv`; mismo módulo `core.models`, sin migraciones.
