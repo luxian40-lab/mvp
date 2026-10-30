@@ -59,174 +59,187 @@ def manejar(contexto: Contexto) -> Respuesta:
 
             # Evaluar con la misma rúbrica de facilitadora para dar feedback
             # inmediato y mantener coherencia de gamificación.
-            curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
-            modulos_eval = list(curso_obj.modulos.all().order_by('numero')) if curso_obj else []
-            puntaje_final_10 = 7
-            feedback_final = (
-                "1. Gracias por su respuesta; usted sí propone una línea de acción.\n\n"
-                "2. Para subir nivel, faltó precisión objetiva en dos partes: "
-                "(a) diagnóstico: qué señales mediría, cuánto y en qué tiempo; "
-                "(b) control: qué acción exacta aplicaría, con qué frecuencia y criterio de verificación.\n\n"
-                "3. Puntaje total: 7/10\n"
-                "4. Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
-                "Diagnóstico: parcial | Acción/Control: parcial."
-            )
-            try:
-                from core.tutor_ia_modulo import evaluar_reto_facilitador
-                from core.gamificacion_modo import (
-                    get_modo_gamificacion,
-                    modo_usa_calificacion,
-                    gamificacion_otorga_puntos,
-                    formatear_nota,
-                    registrar_nota_gamificacion,
-                    resumen_calificaciones_estudiante,
-                )
-
-                modo_gami = get_modo_gamificacion(
-                    getattr(estudiante, 'cliente', None),
-                )
-                from core.sandbox_canal import poner_reaccion_espera
-
-                poner_reaccion_espera(telefono_limpio, msg_sid)
-                puntaje_final, feedback_final = evaluar_reto_facilitador(
-                    modulos_eval,
-                    msg_body,
-                    pregunta.pregunta,
-                    estudiante_nombre=estudiante.nombre or "Estudiante",
-                    curso_nombre=(getattr(curso_obj, 'nombre', None) if curso_obj else None),
-                    modo_gamificacion=modo_gami,
-                )
-            except Exception as e:
-                logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
-
-            respuesta_final.estado = 'calificada'
-            if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
-                nota = float(puntaje_final)
-                respuesta_final.calificacion = int(round(nota * 10))
-            else:
-                respuesta_final.calificacion = int(
-                    max(1, min(10, int(puntaje_final))) * 10,
-                )
-            respuesta_final.retroalimentacion = feedback_final
-            respuesta_final.fecha_calificacion = timezone.now()
-            respuesta_final.save(update_fields=['estado', 'calificacion', 'retroalimentacion', 'fecha_calificacion'])
-
-            puntos_msg = ""
-            try:
-                if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
-                    nota_f = float(puntaje_final)
-                    registrar_nota_gamificacion(
-                        estudiante,
-                        nota_f,
-                        'pregunta_abierta',
-                        curso=curso_obj,
-                        detalle='Pregunta abierta final',
-                    )
-                    res_n = resumen_calificaciones_estudiante(
-                        estudiante,
-                        curso_obj.id if curso_obj else None,
-                    )
-                    prom = res_n.get('promedio')
-                    extra_prom = (
-                        f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
-                        if prom is not None else ''
-                    )
-                    puntos_msg = (
-                        f"\n\n*Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
-                    )
-                elif gamificacion_otorga_puntos(
-                    getattr(estudiante, 'cliente', None), curso_obj,
-                ):
-                    from core.gamificacion import PerfilGamificacion
-                    from core.response_templates import _barra_progreso
-
-                    perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                    puntaje_10 = int(puntaje_final)
-                    puntos_abierta = int(max(1, min(10, puntaje_10)) * 5)
-                    perfil.agregar_puntos(
-                        puntos_abierta,
-                        f"Pregunta abierta final: {puntaje_10}/10",
-                    )
-                    perfil.refresh_from_db()
-
-                    porcentaje = progreso.porcentaje_avance() if progreso else 100
-                    barra = _barra_progreso(porcentaje)
-                    puntos_msg = (
-                        f"\n\n💰 *+{puntos_abierta} puntos* → Total: *{perfil.puntos_totales} pts*\n"
-                        f"{barra} {porcentaje}%"
-                    )
-            except Exception as e:
-                logger.warning(f"⚠️ No se pudieron aplicar puntos por pregunta abierta final: {e}")
+            _salida = _calificar_pregunta_abierta(pregunta, progreso, estudiante, telefono_limpio, msg_sid, msg_body, logger, timezone, respuesta_final)
+            if not isinstance(_salida, tuple):
+                return _salida
+            curso_obj, feedback_final, puntos_msg = _salida
 
             # Si hay más preguntas abiertas pendientes (máximo 3),
             # continuar en secuencia antes de emitir certificado.
             siguiente_pregunta = _pregunta_abierta_final_pendiente(estudiante, progreso) if progreso else None
-            if siguiente_pregunta:
-                logger.info(
-                    "🔁 Siguiente pregunta abierta final | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
-                    estudiante.id,
-                    progreso.curso.id,
-                    siguiente_pregunta.id,
-                    getattr(siguiente_pregunta, 'orden', None),
-                    (siguiente_pregunta.pregunta or '')[:180],
-                )
-                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
-                    'tipo': 'pregunta_abierta_final',
-                    'curso_id': progreso.curso.id,
-                    'progreso_id': progreso.id,
-                    'pregunta_abierta_final_id': siguiente_pregunta.id,
-                })
-                estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
-                estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-
-                texto_respuesta = (
-                    "[MULTI_MSG]"
-                    f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"
-                    "[SEP]"
-                    "📝 *Siguiente pregunta abierta final*\n\n"
-                    f"{siguiente_pregunta.pregunta}\n\n"
-                    "✍️ Responde con tus propias palabras (texto o audio)."
-                )
-            else:
-                # Mantener el flujo general: después de la última pregunta final,
-                # se entrega certificado y se cierra el curso.
-                msg_cert_img = ""
-                if curso_obj:
-                    try:
-                        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                        cert = crear_certificado_automatico(estudiante, curso_obj)
-                        if cert and cert.archivo_imagen:
-                            cert_url = obtener_url_certificado_twilio(cert)
-                            if cert_url:
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                            else:
-                                s3_key = str(cert.archivo_imagen.name)
-                                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                        elif cert and cert.archivo_pdf:
-                            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
-                        else:
-                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                    except Exception as e:
-                        logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
-                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-
-                # Radar/empleabilidad pausado: no envía Subachoque.
-                radar_msg = _radar_msg_si_aplica(estudiante)
-
-                estudiante.estado_onboarding = 'curso_finalizado'
-                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-                estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-
-                partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
-                if radar_msg:
-                    partes_finales.append(radar_msg)
-                if msg_cert_img:
-                    partes_finales.append(msg_cert_img)
-                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+            texto_respuesta = _cerrar_pregunta_abierta(texto_respuesta, siguiente_pregunta, logger, estudiante, progreso, contexto_limpio, feedback_final, puntos_msg, curso_obj, _radar_msg_si_aplica)
         else:
             texto_respuesta = (
                 "No encuentro una pregunta abierta final activa para tu curso en este momento. "
                 "Escribe *ayuda* para soporte."
             )
     return Respuesta(texto=texto_respuesta)
+
+
+def _cerrar_pregunta_abierta(texto_respuesta, siguiente_pregunta, logger, estudiante, progreso, contexto_limpio, feedback_final, puntos_msg, curso_obj, _radar_msg_si_aplica):
+    if siguiente_pregunta:
+        logger.info(
+            "🔁 Siguiente pregunta abierta final | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+            estudiante.id,
+            progreso.curso.id,
+            siguiente_pregunta.id,
+            getattr(siguiente_pregunta, 'orden', None),
+            (siguiente_pregunta.pregunta or '')[:180],
+        )
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
+            'tipo': 'pregunta_abierta_final',
+            'curso_id': progreso.curso.id,
+            'progreso_id': progreso.id,
+            'pregunta_abierta_final_id': siguiente_pregunta.id,
+        })
+        estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
+        estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+
+        texto_respuesta = (
+            "[MULTI_MSG]"
+            f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"
+            "[SEP]"
+            "📝 *Siguiente pregunta abierta final*\n\n"
+            f"{siguiente_pregunta.pregunta}\n\n"
+            "✍️ Responde con tus propias palabras (texto o audio)."
+        )
+    else:
+        # Mantener el flujo general: después de la última pregunta final,
+        # se entrega certificado y se cierra el curso.
+        msg_cert_img = ""
+        if curso_obj:
+            try:
+                from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                cert = crear_certificado_automatico(estudiante, curso_obj)
+                if cert and cert.archivo_imagen:
+                    cert_url = obtener_url_certificado_twilio(cert)
+                    if cert_url:
+                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                    else:
+                        s3_key = str(cert.archivo_imagen.name)
+                        cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                elif cert and cert.archivo_pdf:
+                    msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
+                else:
+                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+            except Exception as e:
+                logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
+                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+        # Radar/empleabilidad pausado: no envía Subachoque.
+        radar_msg = _radar_msg_si_aplica(estudiante)
+
+        estudiante.estado_onboarding = 'curso_finalizado'
+        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
+        estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+        partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
+        if radar_msg:
+            partes_finales.append(radar_msg)
+        if msg_cert_img:
+            partes_finales.append(msg_cert_img)
+        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+    return texto_respuesta
+
+
+def _calificar_pregunta_abierta(pregunta, progreso, estudiante, telefono_limpio, msg_sid, msg_body, logger, timezone, respuesta_final):
+    curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
+    modulos_eval = list(curso_obj.modulos.all().order_by('numero')) if curso_obj else []
+    puntaje_final_10 = 7
+    feedback_final = (
+        "1. Gracias por su respuesta; usted sí propone una línea de acción.\n\n"
+        "2. Para subir nivel, faltó precisión objetiva en dos partes: "
+        "(a) diagnóstico: qué señales mediría, cuánto y en qué tiempo; "
+        "(b) control: qué acción exacta aplicaría, con qué frecuencia y criterio de verificación.\n\n"
+        "3. Puntaje total: 7/10\n"
+        "4. Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
+        "Diagnóstico: parcial | Acción/Control: parcial."
+    )
+    try:
+        from core.tutor_ia_modulo import evaluar_reto_facilitador
+        from core.gamificacion_modo import (
+            get_modo_gamificacion,
+            modo_usa_calificacion,
+            gamificacion_otorga_puntos,
+            formatear_nota,
+            registrar_nota_gamificacion,
+            resumen_calificaciones_estudiante,
+        )
+
+        modo_gami = get_modo_gamificacion(
+            getattr(estudiante, 'cliente', None),
+        )
+        from core.sandbox_canal import poner_reaccion_espera
+
+        poner_reaccion_espera(telefono_limpio, msg_sid)
+        puntaje_final, feedback_final = evaluar_reto_facilitador(
+            modulos_eval,
+            msg_body,
+            pregunta.pregunta,
+            estudiante_nombre=estudiante.nombre or "Estudiante",
+            curso_nombre=(getattr(curso_obj, 'nombre', None) if curso_obj else None),
+            modo_gamificacion=modo_gami,
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
+
+    respuesta_final.estado = 'calificada'
+    if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+        nota = float(puntaje_final)
+        respuesta_final.calificacion = int(round(nota * 10))
+    else:
+        respuesta_final.calificacion = int(
+            max(1, min(10, int(puntaje_final))) * 10,
+        )
+    respuesta_final.retroalimentacion = feedback_final
+    respuesta_final.fecha_calificacion = timezone.now()
+    respuesta_final.save(update_fields=['estado', 'calificacion', 'retroalimentacion', 'fecha_calificacion'])
+
+    puntos_msg = ""
+    try:
+        if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+            nota_f = float(puntaje_final)
+            registrar_nota_gamificacion(
+                estudiante,
+                nota_f,
+                'pregunta_abierta',
+                curso=curso_obj,
+                detalle='Pregunta abierta final',
+            )
+            res_n = resumen_calificaciones_estudiante(
+                estudiante,
+                curso_obj.id if curso_obj else None,
+            )
+            prom = res_n.get('promedio')
+            extra_prom = (
+                f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
+                if prom is not None else ''
+            )
+            puntos_msg = (
+                f"\n\n*Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+            )
+        elif gamificacion_otorga_puntos(
+            getattr(estudiante, 'cliente', None), curso_obj,
+        ):
+            from core.gamificacion import PerfilGamificacion
+            from core.response_templates import _barra_progreso
+
+            perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+            puntaje_10 = int(puntaje_final)
+            puntos_abierta = int(max(1, min(10, puntaje_10)) * 5)
+            perfil.agregar_puntos(
+                puntos_abierta,
+                f"Pregunta abierta final: {puntaje_10}/10",
+            )
+            perfil.refresh_from_db()
+
+            porcentaje = progreso.porcentaje_avance() if progreso else 100
+            barra = _barra_progreso(porcentaje)
+            puntos_msg = (
+                f"\n\n💰 *+{puntos_abierta} puntos* → Total: *{perfil.puntos_totales} pts*\n"
+                f"{barra} {porcentaje}%"
+            )
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron aplicar puntos por pregunta abierta final: {e}")
+    return (curso_obj, feedback_final, puntos_msg)
