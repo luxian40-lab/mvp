@@ -1,18 +1,4 @@
-"""Señales para emitir eventos IA observables (Parte 2A)."""
-
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-from core.models import ModuloCompletado
-
-
-@receiver(post_save, sender=ModuloCompletado)
-def emitir_evento_modulo_completado(sender, instance, created, **kwargs):
-    if not created:
-        return
-    try:
-        from core.eventos_ia import emit_modulo_completado
-
-        emit_modulo_completado(instance, origen='signal')
-    except Exception:
-        pass
+"""Reexport de fase H2. El código vive en core.agentes.signals_eventos_ia."""
+import core.agentes.signals_eventos_ia as _impl
+import sys as _sys
+_sys.modules[__name__] = _impl

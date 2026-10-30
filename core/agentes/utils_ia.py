@@ -1,0 +1,621 @@
+"""
+Utilidades para generación de cursos con IA
+"""
+
+import os
+import json
+import logging
+from io import BytesIO
+from typing import Dict, List, Optional
+
+import openai
+from PyPDF2 import PdfReader
+from docx import Document
+
+from core.models import Curso, Modulo, PreguntaModulo, Examen, PreguntaExamen, Cliente
+
+logger = logging.getLogger(__name__)
+
+# Mapeo de modelos disponibles
+# Modelo por defecto para todas las operaciones de IA
+MODELO_IA_DEFAULT = 'gpt-4o-mini'
+
+MODELOS_IA = {
+    'gpt-4o-mini': {'proveedor': 'openai', 'nombre': 'GPT-4o Mini', 'costo': 0.005},
+    'gpt-3.5-turbo': {'proveedor': 'openai', 'nombre': 'GPT-3.5 Turbo', 'costo': 0.01},
+    'gpt-4': {'proveedor': 'openai', 'nombre': 'GPT-4', 'costo': 0.30},
+    'claude-3-sonnet': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Sonnet (no disponible)', 'costo': 0.015},
+    'claude-3-opus': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Opus (no disponible)', 'costo': 0.40},
+    'gemini-pro': {'proveedor': 'google', 'nombre': 'Gemini Pro (no disponible)', 'costo': 0.005},
+}
+
+
+def _tiene_openai() -> bool:
+    from django.conf import settings
+    return bool(getattr(settings, 'OPENAI_API_KEY', None) or os.getenv('OPENAI_API_KEY'))
+
+
+def modelos_ia_habilitados() -> dict:
+    """Solo modelos cuyo proveedor tiene API key configurada."""
+    if not _tiene_openai():
+        return {}
+    return {k: v for k, v in MODELOS_IA.items() if v.get('proveedor') == 'openai'}
+
+
+def validar_modelo_ia_disponible(modelo: str) -> None:
+    """Lanza ValueError si el modelo no está habilitado en este servidor."""
+    habilitados = modelos_ia_habilitados()
+    if not habilitados:
+        raise ValueError(
+            'OPENAI_API_KEY no configurada en el servidor. '
+            'No hay modelos de IA disponibles para crear cursos.'
+        )
+    if modelo not in habilitados:
+        info = MODELOS_IA.get(modelo, {})
+        nombre = info.get('nombre', modelo)
+        raise ValueError(
+            f'El modelo «{nombre}» no está disponible. '
+            f'Solo OpenAI está configurado; usa: {", ".join(habilitados.keys())}.'
+        )
+
+
+def extraer_texto_pdf(archivo) -> str:
+    """
+    Extrae texto de un archivo PDF.
+    
+    Args:
+        archivo: Archivo PDF (InMemoryUploadedFile o similar)
+        
+    Returns:
+        str: Texto extraído del PDF
+    """
+    try:
+        pdf_reader = PdfReader(archivo)
+        texto = ""
+        
+        for pagina in pdf_reader.pages:
+            texto += pagina.extract_text() + "\n\n"
+        
+        logger.info(f"PDF procesado: {len(pdf_reader.pages)} páginas, {len(texto)} caracteres")
+        return texto.strip()
+    
+    except Exception as e:
+        logger.error(f"Error al extraer texto de PDF: {e}")
+        raise ValueError(f"No se pudo procesar el PDF: {str(e)}")
+
+
+def extraer_texto_word(archivo) -> str:
+    """
+    Extrae texto de un archivo Word (.docx).
+    
+    Args:
+        archivo: Archivo Word (InMemoryUploadedFile o similar)
+        
+    Returns:
+        str: Texto extraído del documento
+    """
+    try:
+        doc = Document(archivo)
+        texto = ""
+        
+        for parrafo in doc.paragraphs:
+            if parrafo.text.strip():
+                texto += parrafo.text + "\n\n"
+        
+        logger.info(f"Word procesado: {len(doc.paragraphs)} párrafos, {len(texto)} caracteres")
+        return texto.strip()
+    
+    except Exception as e:
+        logger.error(f"Error al extraer texto de Word: {e}")
+        raise ValueError(f"No se pudo procesar el documento Word: {str(e)}")
+
+
+def extraer_texto_txt(archivo) -> str:
+    """
+    Extrae texto de un archivo de texto plano.
+    
+    Args:
+        archivo: Archivo de texto
+        
+    Returns:
+        str: Texto del archivo
+    """
+    try:
+        # Intentar diferentes encodings
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+        
+        for encoding in encodings:
+            try:
+                archivo.seek(0)
+                texto = archivo.read().decode(encoding)
+                logger.info(f"TXT procesado con encoding {encoding}: {len(texto)} caracteres")
+                return texto.strip()
+            except UnicodeDecodeError:
+                continue
+        
+        raise ValueError("No se pudo decodificar el archivo de texto")
+    
+    except Exception as e:
+        logger.error(f"Error al extraer texto de TXT: {e}")
+        raise ValueError(f"No se pudo procesar el archivo de texto: {str(e)}")
+
+
+def extraer_texto_documento(archivo) -> str:
+    """
+    Extrae texto de un documento (PDF, Word o TXT).
+    
+    Args:
+        archivo: Archivo subido
+        
+    Returns:
+        str: Texto extraído
+    """
+    nombre_archivo = archivo.name.lower()
+    
+    if nombre_archivo.endswith('.pdf'):
+        return extraer_texto_pdf(archivo)
+    elif nombre_archivo.endswith('.docx'):
+        return extraer_texto_word(archivo)
+    elif nombre_archivo.endswith('.txt'):
+        return extraer_texto_txt(archivo)
+    else:
+        raise ValueError("Formato no soportado. Use PDF, Word (.docx) o TXT")
+
+
+def _extraer_json_objeto(texto: str) -> Dict:
+    """JSON del modelo aunque venga con markdown o una frase antes del objeto."""
+    import re
+
+    raw = (texto or '').strip()
+    if raw.startswith('```'):
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.IGNORECASE)
+        raw = re.sub(r'\s*```$', '', raw).strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start < 0 or end <= start:
+            raise
+        data = json.loads(raw[start:end + 1])
+    if not isinstance(data, dict):
+        raise json.JSONDecodeError('objeto esperado', raw, 0)
+    return data
+
+
+def generar_estructura_curso_con_ia(texto: str, modelo: str = "gpt-4o-mini") -> Dict:
+    """
+    Genera estructura de curso usando IA (OpenAI, Claude o Gemini).
+    
+    Args:
+        texto: Contenido del curso extraído del documento
+        modelo: Modelo de IA (gpt-3.5-turbo, gpt-4, claude-3-sonnet, gemini-pro, etc.)
+        
+    Returns:
+        Dict: Estructura del curso en formato JSON
+    """
+    # Limitar texto a 12000 caracteres para no exceder límites de tokens
+    texto_resumido = texto[:12000] if len(texto) > 12000 else texto
+
+    validar_modelo_ia_disponible(modelo)
+    info_modelo = MODELOS_IA.get(modelo, {'proveedor': 'openai'})
+    proveedor = info_modelo['proveedor']
+    
+    prompt = f"""
+Eres diseñador instruccional de eki. El curso se entrega por WhatsApp a productores
+y pymes de América Latina, en español claro, de usted, sin jerga corporativa.
+
+FUENTE:
+{texto_resumido}
+
+Devuelve SOLO un JSON válido (sin markdown) con esta forma:
+
+{{
+  "titulo": "Nombre corto del curso",
+  "descripcion": "2 frases: qué podrá hacer la persona al terminar",
+  "duracion_estimada": "4 semanas",
+  "nivel": "Básico",
+  "modulos": [
+    {{
+      "nombre": "Nombre del módulo (sin número)",
+      "descripcion": "Una frase de para qué sirve",
+      "orden": 1,
+      "lecciones": [
+        {{
+          "titulo": "Idea concreta",
+          "contenido": "Texto WhatsApp: máximo 900 caracteres, párrafos cortos, un ejemplo real (finca, tienda o asociación) y una acción para hoy.",
+          "orden": 1
+        }}
+      ],
+      "mini_examen": [
+        {{
+          "texto": "Una sola pregunta práctica del módulo",
+          "opciones": [
+            {{"texto": "Opción A", "es_correcta": false}},
+            {{"texto": "Opción B", "es_correcta": true}},
+            {{"texto": "Opción C", "es_correcta": false}},
+            {{"texto": "Opción D", "es_correcta": false}}
+          ],
+          "explicacion": "Por qué esa opción es la correcta, en una frase"
+        }}
+      ]
+    }}
+  ]
+}}
+
+REGLAS:
+1. 4 módulos. Cada uno con 2 o 3 lecciones. No más.
+2. Cada lección cabe en un mensaje de WhatsApp (≤900 caracteres). Una idea. Un ejemplo. Una acción.
+3. mini_examen: exactamente 1 pregunta y exactamente 1 opción correcta.
+4. No inventes cifras, leyes ni nombres de instituciones que no estén en la fuente.
+5. Sin gamificación, sin emojis, sin “¡felicidades!”.
+6. Solo el JSON.
+"""
+
+    try:
+        logger.info(f"Enviando {len(texto_resumido)} caracteres a {modelo} ({proveedor})")
+        
+        # Llamar al proveedor correspondiente
+        if proveedor == 'openai':
+            contenido_respuesta = _generar_con_openai(modelo, prompt)
+        elif proveedor == 'anthropic':
+            contenido_respuesta = _generar_con_claude(modelo, prompt)
+        elif proveedor == 'google':
+            contenido_respuesta = _generar_con_gemini(modelo, prompt)
+        else:
+            raise ValueError(f"Proveedor de IA no soportado: {proveedor}")
+        
+        # Limpiar respuesta si viene con markdown
+        estructura = _extraer_json_objeto(contenido_respuesta)
+        
+        logger.info(f"Estructura generada: {len(estructura.get('modulos', []))} módulos")
+        
+        return estructura
+    
+    except json.JSONDecodeError as e:
+        logger.error(f"Error al parsear JSON de OpenAI: {e}")
+        logger.error(f"Respuesta recibida: {contenido_respuesta[:500]}")
+        raise ValueError("La IA generó una respuesta inválida. Intente nuevamente.")
+    
+    except Exception as e:
+        logger.error(f"Error al generar estructura con IA: {e}")
+        raise ValueError(f"Error al procesar con IA: {str(e)}")
+
+
+def _parse_duracion_semanas(texto: str | None, default: int = 4) -> int:
+    """Extrae número de semanas de textos como '4 semanas' o '8 horas'."""
+    if not texto:
+        return default
+    import re
+    m = re.search(r'(\d+)', str(texto))
+    if not m:
+        return default
+    n = int(m.group(1))
+    if 'hora' in str(texto).lower() and n < 10:
+        return max(1, (n + 6) // 7) or 1
+    return max(1, min(n, 52))
+
+
+def _contenido_modulo_desde_ia(modulo_data: dict) -> str:
+    if modulo_data.get('contenido'):
+        return modulo_data['contenido']
+    partes = []
+    for lec in modulo_data.get('lecciones') or []:
+        titulo = lec.get('titulo') or 'Lección'
+        cuerpo = lec.get('contenido') or ''
+        partes.append(f'*{titulo}*\n{cuerpo}')
+    if partes:
+        return '\n\n'.join(partes)
+    return modulo_data.get('descripcion') or ''
+
+
+def _crear_pasos_desde_lecciones(modulo, lecciones: list) -> None:
+    """Cada lección de la IA queda como paso visible en Module Builder."""
+    from core.models import PasoModulo, SeccionModulo
+
+    if not lecciones:
+        return
+    seccion = SeccionModulo.objects.create(
+        modulo=modulo,
+        orden=1,
+        titulo='Contenido',
+        activa=True,
+    )
+    for i, lec in enumerate(lecciones, start=1):
+        titulo = (lec.get('titulo') or f'Paso {i}')[:200]
+        cuerpo = (lec.get('contenido') or '').strip()
+        if not cuerpo:
+            continue
+        PasoModulo.objects.create(
+            modulo=modulo,
+            seccion=seccion,
+            orden=i,
+            titulo=titulo,
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido=cuerpo[:4000],
+            activo=True,
+        )
+
+
+def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_nombre: str) -> Curso:
+    """
+    Guarda un curso en la base de datos desde la estructura generada por IA.
+    
+    Args:
+        estructura: Estructura del curso generada por IA
+        cliente: Cliente al que pertenece el curso
+        archivo_nombre: Nombre del archivo original
+        
+    Returns:
+        Curso: Instancia del curso creado
+    """
+    try:
+        # Crear curso
+        curso = Curso.objects.create(
+            cliente=cliente,
+            nombre=estructura['titulo'],
+            descripcion=estructura['descripcion'],
+            duracion_semanas=_parse_duracion_semanas(estructura.get('duracion_estimada')),
+            activo=False,
+        )
+        
+        logger.info(f"Curso creado: {curso.nombre} (ID: {curso.id})")
+        
+        # Crear módulos
+        for idx, modulo_data in enumerate(estructura['modulos'], 1):
+            modulo = Modulo.objects.create(
+                curso=curso,
+                numero=idx,
+                titulo=modulo_data['nombre'],
+                descripcion=modulo_data.get('descripcion', ''),
+                contenido=_contenido_modulo_desde_ia(modulo_data),
+                duracion_dias=7,
+                publicado_wa=False,
+            )
+            _crear_pasos_desde_lecciones(modulo, modulo_data.get('lecciones') or [])
+            
+            logger.info(f"  Módulo creado: {modulo.titulo}")
+            
+            # WhatsApp usa una pregunta de cierre por módulo.
+            for pregunta_data in modulo_data.get('mini_examen', [])[:1]:
+                opciones = pregunta_data.get('opciones') or []
+                if len(opciones) < 2 or not (pregunta_data.get('texto') or '').strip():
+                    continue
+                # Encontrar la opción correcta
+                opciones = pregunta_data.get('opciones', [])
+                respuesta_correcta = 'A'
+                opcion_a = opciones[0]['texto'] if len(opciones) > 0 else ''
+                opcion_b = opciones[1]['texto'] if len(opciones) > 1 else ''
+                opcion_c = opciones[2]['texto'] if len(opciones) > 2 else ''
+                opcion_d = opciones[3]['texto'] if len(opciones) > 3 else ''
+                
+                for idx_opt, opcion in enumerate(opciones[:4]):
+                    if opcion.get('es_correcta'):
+                        respuesta_correcta = ['A', 'B', 'C', 'D'][idx_opt]
+                        break
+                
+                PreguntaModulo.objects.create(
+                    modulo=modulo,
+                    pregunta=pregunta_data['texto'],
+                    opcion_a=opcion_a,
+                    opcion_b=opcion_b,
+                    opcion_c=opcion_c or '',
+                    opcion_d=opcion_d or '',
+                    respuesta_correcta=respuesta_correcta,
+                    explicacion=pregunta_data.get('explicacion', ''),
+                    activa=True
+                )
+                
+                logger.info(f"    Mini-examen agregado al módulo")
+        
+        # Crear examen final del curso (opcional)
+        try:
+            examen = Examen.objects.create(
+                curso=curso,
+                instrucciones="Responde las siguientes preguntas sobre el curso:",
+                puntaje_minimo=70
+            )
+            logger.info(f"  Examen final creado")
+        except Exception as e:
+            logger.warning(f"No se pudo crear examen final: {e}")
+        
+        logger.info("Curso completo guardado: %s", curso.nombre)
+        return curso
+    
+    except Exception as e:
+        logger.error(f"Error al guardar curso: {e}")
+        import traceback
+        traceback.print_exc()
+        # Si algo falla, eliminar el curso para evitar datos incompletos
+        if 'curso' in locals():
+            curso.delete()
+        raise ValueError(f"Error al guardar el curso: {str(e)}")
+
+
+def regenerar_modulo_en_estructura(
+    estructura: Dict,
+    indice_modulo: int,
+    *,
+    texto_fuente: str = "",
+    instrucciones: str = "",
+    modelo: str = MODELO_IA_DEFAULT,
+) -> Dict:
+    """
+    Regenera un solo módulo dentro de la estructura JSON (índice 0-based).
+    Conserva el resto del curso intacto.
+    """
+    modulos = estructura.get('modulos') or []
+    if indice_modulo < 0 or indice_modulo >= len(modulos):
+        raise ValueError(f"Índice de módulo inválido: {indice_modulo + 1}")
+
+    modulo_actual = modulos[indice_modulo]
+    contexto_curso = json.dumps(
+        {
+            'titulo': estructura.get('titulo'),
+            'descripcion': estructura.get('descripcion'),
+            'modulos_resumen': [
+                {'orden': i + 1, 'nombre': m.get('nombre', '')} for i, m in enumerate(modulos)
+            ],
+        },
+        ensure_ascii=False,
+    )
+    fuente = (texto_fuente or '')[:8000]
+    prompt = f"""
+Regenera SOLO el módulo #{indice_modulo + 1} de un curso educativo.
+
+CONTEXTO DEL CURSO:
+{contexto_curso}
+
+MÓDULO ACTUAL (referencia):
+{json.dumps(modulo_actual, ensure_ascii=False)[:4000]}
+
+CONTENIDO FUENTE (si aplica):
+{fuente}
+
+INSTRUCCIONES ADICIONALES DEL ADMIN:
+{instrucciones or 'Mejorar claridad pedagógica y coherencia con el curso.'}
+
+Responde con JSON de UN solo módulo con esta estructura EXACTA:
+{{
+  "nombre": "Módulo N: ...",
+  "descripcion": "...",
+  "orden": {indice_modulo + 1},
+  "lecciones": [{{ "titulo": "...", "contenido": "...", "orden": 1, "duracion_minutos": 15, "preguntas": [] }}],
+  "mini_examen": [{{ "texto": "...", "opciones": [{{"texto": "...", "es_correcta": false}}], "explicacion": "..." }}]
+}}
+
+Responde SOLO el JSON del módulo, sin markdown.
+"""
+    info_modelo = MODELOS_IA.get(modelo, {'proveedor': 'openai'})
+    validar_modelo_ia_disponible(modelo)
+    proveedor = info_modelo['proveedor']
+    if proveedor == 'openai':
+        contenido = _generar_con_openai(modelo, prompt)
+    elif proveedor == 'anthropic':
+        contenido = _generar_con_claude(modelo, prompt)
+    elif proveedor == 'google':
+        contenido = _generar_con_gemini(modelo, prompt)
+    else:
+        raise ValueError(f"Proveedor no soportado: {proveedor}")
+
+    if contenido.startswith('```'):
+        contenido = contenido.replace('```json', '').replace('```', '').strip()
+
+    nuevo_modulo = json.loads(contenido)
+    estructura_nueva = dict(estructura)
+    modulos_nuevos = list(modulos)
+    modulos_nuevos[indice_modulo] = nuevo_modulo
+    estructura_nueva['modulos'] = modulos_nuevos
+    es_valida, errores = validar_estructura_curso(estructura_nueva)
+    if not es_valida:
+        raise ValueError(f"Regeneración inválida: {', '.join(errores)}")
+    return estructura_nueva
+
+
+def regenerar_seccion(curso_id: int, tipo: str, seccion_id: int, instrucciones: str = "") -> bool:
+    """
+    Regenera una sección específica del curso (módulo, lección, etc.).
+    
+    Args:
+        curso_id: ID del curso
+        tipo: Tipo de sección ('modulo', 'leccion', 'preguntas')
+        seccion_id: ID de la sección a regenerar
+        instrucciones: Instrucciones adicionales para la IA
+        
+    Returns:
+        bool: True si se regeneró exitosamente
+    """
+    # TODO: Implementar en Fase 3
+    logger.info(f"Regeneración de {tipo} {seccion_id} del curso {curso_id}")
+    return True
+
+
+def validar_estructura_curso(estructura: Dict) -> tuple[bool, List[str]]:
+    """
+    Valida que la estructura generada tenga todos los campos necesarios.
+    
+    Args:
+        estructura: Estructura del curso a validar
+        
+    Returns:
+        tuple: (es_valida, lista_de_errores)
+    """
+    errores = []
+    
+    # Validar campos principales
+    if 'titulo' not in estructura or not estructura['titulo']:
+        errores.append("Falta el título del curso")
+    
+    if 'descripcion' not in estructura or not estructura['descripcion']:
+        errores.append("Falta la descripción del curso")
+    
+    if 'modulos' not in estructura or not estructura['modulos']:
+        errores.append("El curso debe tener al menos un módulo")
+    else:
+        # Validar módulos
+        for idx, modulo in enumerate(estructura['modulos']):
+            if 'nombre' not in modulo:
+                errores.append(f"Módulo {idx+1}: falta nombre")
+            
+            if 'lecciones' not in modulo or not modulo['lecciones']:
+                errores.append(f"Módulo {idx+1}: debe tener al menos una lección")
+            else:
+                # Validar lecciones
+                for idx_l, leccion in enumerate(modulo['lecciones']):
+                    if 'titulo' not in leccion:
+                        errores.append(f"Módulo {idx+1}, Lección {idx_l+1}: falta título")
+                    
+                    if 'contenido' not in leccion:
+                        errores.append(f"Módulo {idx+1}, Lección {idx_l+1}: falta contenido")
+    
+    return (len(errores) == 0, errores)
+
+
+# ========================================
+# FUNCIONES AUXILIARES POR PROVEEDOR DE IA
+# ========================================
+
+def _generar_con_openai(modelo: str, prompt: str) -> str:
+    """Genera contenido usando OpenAI (GPT-3.5 o GPT-4)"""
+    try:
+        from django.conf import settings
+        api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError('OPENAI_API_KEY no configurada en el servidor')
+        client = openai.OpenAI(api_key=api_key)
+        
+        response = client.chat.completions.create(
+            model=modelo,
+            messages=[
+                {"role": "system", "content": "Eres un experto en diseño instruccional. Respondes SOLO con JSON válido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=4000
+        )
+        
+        return response.choices[0].message.content.strip()
+    
+    except Exception as e:
+        logger.error(f"Error con OpenAI: {e}")
+        raise ValueError(f"Error al comunicarse con OpenAI: {str(e)}")
+
+
+def _generar_con_claude(modelo: str, prompt: str) -> str:
+    """Genera contenido usando Anthropic Claude"""
+    try:
+        # Intentar importar anthropic
+        raise ValueError("Funcionalidad Claude deshabilitada: anthropic no está disponible.")
+    
+    except Exception as e:
+        logger.error(f"Error con Claude: {e}")
+        raise ValueError(f"Error al comunicarse con Claude: {str(e)}")
+
+
+# Si se reactiva el cliente, no puede superar el soft_time_limit del webhook.
+GEMINI_HTTP_TIMEOUT_SEG = 30
+
+
+def _generar_con_gemini(modelo: str, prompt: str) -> str:
+    """Genera contenido usando Google Gemini. Hoy no abre cliente HTTP."""
+    raise ValueError('Funcionalidad Gemini deshabilitada en este entorno.')
