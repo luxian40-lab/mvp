@@ -614,6 +614,12 @@ def _historial_sandbox(telefono: str, agente: AgenteSandbox, max_turnos: int | N
         return []
 
 
+_YA_EN_CONVERSACION = (
+    'Ya está en la conversación. No se presente. No pregunte de dónde es ni a qué se dedica. '
+    'Responda el caso con lo que ya sabe de esta persona.'
+)
+
+
 def responder_agente_sandbox(
     agente: AgenteSandbox,
     pregunta: str,
@@ -621,6 +627,7 @@ def responder_agente_sandbox(
     telefono: str = '',
     cliente_id=None,
     sin_pregunta_final: bool = False,
+    ya_en_conversacion: bool = False,
 ) -> str:
     """Respuesta LLM con memoria; fallback sólido si falla la API."""
     q = (pregunta or '').strip()
@@ -666,6 +673,8 @@ def responder_agente_sandbox(
     perfil = bloque_perfil(telefono)
     if perfil:
         sistema = f"{sistema}\n\n{perfil}"
+    if ya_en_conversacion:
+        sistema = f'{sistema}\n\n{_YA_EN_CONVERSACION}'
     if sin_pregunta_final:
         from core.lineas.principal.ficha_negocio import SIN_PREGUNTA_FINAL
 

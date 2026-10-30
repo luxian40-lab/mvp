@@ -197,6 +197,11 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
             except Exception:
                 logger.exception('sandbox_nat_saludo_fail')
             return 'handled'
+        from core.lineas.principal.entrada_asesoria import tomar_sin_presentacion
+
+        if tomar_sin_presentacion(decision.telefono_usuario):
+            decision.saludo_entrada = False
+            decision.derivado = True
         if decision.saludo_entrada:
             try:
                 from core.sandbox_agentes import presentacion_agente

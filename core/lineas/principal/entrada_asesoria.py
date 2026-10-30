@@ -5,15 +5,23 @@ Fuera del ciclo de imports. No repite lo que la persona acaba de escribir.
 """
 from __future__ import annotations
 
+import logging
 import re
 
 from django.db import IntegrityError
+
+logger = logging.getLogger(__name__)
 
 from core.lineas.principal.derivar_asesoria import PIE_ASESORIA
 from core.lineas.principal.ficha_negocio import _SALIDAS, _SALTAR, _parece_pregunta
 
 _CONTEXTO = 'Cuénteme de usted: de dónde es y a qué se dedica.'
+_RETO = '¿Cuál es el principal reto que tiene el día de hoy?'
 _ENTENDER = '¿qué quiere entender mejor?'
+_NO_LUGAR = {
+    'la', 'el', 'mi', 'un', 'una', 'los', 'las', 'su', 'sus', 'este', 'esta',
+    'ese', 'esa', 'clase', 'clases', 'casa', 'finca', 'campo', 'negocio', 'trabajo',
+}
 _VERBOS = re.compile(
     r'((?:vendo|cultivo|produzco|siembro|trabajo en|me dedico a)\s+.+)',
     re.IGNORECASE,
@@ -103,6 +111,24 @@ def _oficio_corto(dedica: str) -> str:
     return palabra
 
 
+def _lugar_en(texto: str) -> str:
+    """«clase en Subachoque» trae el lugar al final, sin pedir de dónde es otra vez."""
+    hallado = re.search(r'\ben\s+(.+)$', (texto or '').strip(), re.IGNORECASE)
+    if not hallado:
+        return ''
+    tomadas = []
+    for palabra in hallado.group(1).strip(' .').split():
+        limpia = palabra.strip('.,').lower()
+        if limpia in _NO_LUGAR or limpia in {'y', 'con', 'de', 'que', 'para'}:
+            if not tomadas:
+                return ''
+            break
+        tomadas.append(palabra.strip('.,'))
+        if len(tomadas) == 2:
+            break
+    return ' '.join(tomadas)
+
+
 def _sacar_contexto(texto: str) -> tuple[str, str]:
     """(lugar, a qué se dedica) si la frase abierta ya los trae."""
     lugar = ''
@@ -112,10 +138,18 @@ def _sacar_contexto(texto: str) -> tuple[str, str]:
     if m:
         trozo = re.split(r'\s+y\s+|,', m.group(1).strip(), maxsplit=1, flags=re.IGNORECASE)[0]
         lugar = ' '.join(trozo.strip(' .').split()[:3])
+    if not lugar:
+        lugar = _lugar_en(texto)
     dedica = ''
     hecho = _VERBOS.search(texto)
     if hecho:
         dedica = hecho.group(1).strip(' .')
+    if lugar and not dedica:
+        dedica = re.sub(
+            r'\s+en\s+' + re.escape(lugar) + r'\s*$', '', texto, count=1, flags=re.IGNORECASE,
+        ).strip(' .')
+        if dedica.lower() == lugar.lower():
+            dedica = ''
     if not lugar and not dedica:
         if len(texto.split()) <= 3:
             lugar = texto.strip(' .')
@@ -145,6 +179,31 @@ def _pregunta_de(salida: str) -> str:
     return texto
 
 
+def marcar_sin_presentacion(telefono: str) -> None:
+    """La frase que sale de la charla entra al agente sin la tarjeta de presentación."""
+    from django.core.cache import cache
+    from redis.exceptions import RedisError
+
+    try:
+        cache.set(f'eki:asesoria:sin_presentacion:{telefono}', 1, timeout=120)
+    except (RedisError, OSError):
+        logger.exception('entrada_sin_presentacion_fail')
+
+
+def tomar_sin_presentacion(telefono: str) -> bool:
+    from django.core.cache import cache
+    from redis.exceptions import RedisError
+
+    clave = f'eki:asesoria:sin_presentacion:{telefono}'
+    try:
+        habia = bool(cache.get(clave))
+        if habia:
+            cache.delete(clave)
+        return habia
+    except (RedisError, OSError):
+        return False
+
+
 def _llamar(telefono: str, mensajes: list) -> str:
     from django.conf import settings
 
@@ -165,17 +224,6 @@ def _llamar(telefono: str, mensajes: list) -> str:
         )
     finally:
         marca.var.reset(marca)
-
-
-def _mensajes_primera(ficha) -> list:
-    sistema = (
-        'Habla por WhatsApp con una persona en Colombia. De usted. '
-        'Una sola pregunta, corta, sobre qué se le está complicando en lo que hace. '
-        'No suponga que el problema es el cultivo: puede ser la venta o la plata. '
-        'No nombre asesores ni dé consejos. No repita la frase completa. Solo la pregunta.'
-    )
-    datos = f"Lugar: {(ficha.lugar or '').strip()}\nSe dedica a: {(ficha.dedica or '').strip()}"
-    return [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': datos[:500]}]
 
 
 def _mensajes_sigue(ficha, dicho: str) -> list:
@@ -236,6 +284,11 @@ def _cerrar(ficha) -> None:
     ficha.save(update_fields=['entrada', 'actualizada_en'])
 
 
+def _soltar(ficha, telefono: str) -> None:
+    _cerrar(ficha)
+    marcar_sin_presentacion(telefono)
+
+
 def _guardar_respuesta(ficha, telefono: str, crudo: str) -> None:
     paso = ficha.entrada
     if paso == 'como_esta':
@@ -279,26 +332,21 @@ def responder(telefono: str, texto: str) -> str | None:
         ficha.save(update_fields=['entrada', 'actualizada_en'])
         return _texto_entender(ficha)
     if ficha.entrada == 'duda' or _parece_pregunta(t):
-        _cerrar(ficha)
+        _soltar(ficha, telefono)
         return None
     n = _numero_indaga(ficha.entrada)
     if n:
         if n >= 3:
-            _cerrar(ficha)
+            _soltar(ficha, telefono)
             return None
         pregunta = _pregunta_de(_llamar(telefono, _mensajes_sigue(ficha, crudo)))
         if not pregunta:
-            _cerrar(ficha)
+            _soltar(ficha, telefono)
             return None
         ficha.entrada = f'indaga{n + 1}'
         ficha.save(update_fields=['entrada', 'actualizada_en'])
         return _con_pie(pregunta)
     _guardar_respuesta(ficha, telefono, crudo)
     if ficha.entrada == 'indaga1':
-        pregunta = _pregunta_de(_llamar(telefono, _mensajes_primera(ficha)))
-        if not pregunta:
-            ficha.entrada = 'duda'
-            ficha.save(update_fields=['entrada', 'actualizada_en'])
-            return _texto_entender(ficha)
-        return _con_pie(pregunta)
+        return _con_pie(_RETO)
     return texto_de(telefono, ficha)

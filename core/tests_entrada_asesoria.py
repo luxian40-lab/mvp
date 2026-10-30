@@ -16,14 +16,14 @@ from core.tests_asesoria_pregunta import PREGUNTA
 from core.tests_planes_linea import OK, _payload, _textos
 
 ENTRADA = dict(PREGUNTA, EKI_ASESORIA_ENTRADA=True, EKI_ASESORIA_CONTEXTO=True)
-_PRIMERA = 'Con el aguacate, ¿qué se le está complicando?'
+_RETO = '¿Cuál es el principal reto que tiene el día de hoy?'
 _PLATA = '¿La plata no entra porque no se vende, o entra y no le cubre lo que gasta?'
 
 
 def _luna(_client, modelo, messages, _max_out, temperature=None):
     user = messages[-1]['content']
     if 'Última frase:' not in user:
-        return _PRIMERA
+        return '¿Qué se le está complicando?'
     frase = user.split('Última frase:', 1)[1].lower()
     if 'plata' in frase:
         return _PLATA
@@ -78,10 +78,11 @@ class EntradaAsesoriaTests(TestCase):
         self.assertNotIn('Bien', textos[0])
         self.assertEqual(self._usadas(), 0)
         _, textos = self._enviar('Soy de Bogotá y vendo aguacate')
-        self.assertEqual(textos, [f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._'])
+        self.assertEqual(textos, [f'{_RETO}\n\n_*agentes* = ver la lista · *menu* = menú principal._'])
+        self.assertNotIn('¿De dónde es?', textos[0])
         self.assertNotIn('¿Qué duda tiene', textos[0])
         self.assertNotIn('Soy de Bogotá', textos[0])
-        self.assertEqual(self.luna.call_args.args[1], 'gpt-6-luna')
+        self.luna.assert_not_called()
         ficha = self._ficha()
         self.assertEqual((ficha.lugar, ficha.dedica, ficha.entrada), ('Bogotá', 'vendo aguacate', 'indaga1'))
         self.assertEqual(self._usadas(), 0)
@@ -96,7 +97,7 @@ class EntradaAsesoriaTests(TestCase):
         _, textos = self._enviar('Bogotá')
         self.assertEqual(textos, ['¿A qué se dedica?'])
         _, textos = self._enviar('vendo aguacate')
-        self.assertEqual(textos[0], f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
+        self.assertEqual(textos[0], f'{_RETO}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
         self.assertEqual((self._ficha().lugar, self._ficha().dedica), ('Bogotá', 'vendo aguacate'))
 
     def test_la_duda_se_deriva_y_ahi_cuenta_una_pregunta(self):
@@ -133,7 +134,7 @@ class EntradaAsesoriaTests(TestCase):
         self._enviar('Soy de Bogotá y vendo aguacate')
         self._enviar('asesoria')
         _, textos = self._enviar('Ahí vamos')
-        self.assertEqual(textos[0], f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
+        self.assertEqual(textos[0], f'{_RETO}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
         self.assertEqual(self._usadas(), 0)
 
     def test_sin_plata_pregunta_el_detalle_y_no_deriva_todavia(self):
@@ -152,17 +153,29 @@ class EntradaAsesoriaTests(TestCase):
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, frase))
         self.assertEqual(der.call_args.args[0], frase)
+        self.assertEqual(self.luna.call_args.args[1], 'gpt-6-luna')
         self.assertEqual(self._usadas(), 1)
         self.assertEqual(self._ficha().entrada, '')
 
-    def test_si_luna_no_contesta_queda_la_frase_fija(self):
+    def test_el_lugar_dicho_en_la_misma_frase_no_se_vuelve_a_pedir(self):
         self._enviar('asesoria')
         self._enviar('Bien')
-        with patch('core.openai_compat.completar_chat', return_value=''):
-            _, textos = self._enviar('Soy de Bogotá y vendo aguacate')
-        self.assertIn('Del aguacate, ¿qué quiere entender mejor?', textos[0])
+        _, textos = self._enviar('Profesor y dicto clase en Subachoque')
+        self.assertEqual(textos, [f'{_RETO}\n\n_*agentes* = ver la lista · *menu* = menú principal._'])
+        self.assertNotIn('¿De dónde es?', textos[0])
+        self.assertEqual(self._ficha().lugar, 'Subachoque')
+        self.assertIn('Profesor', self._ficha().dedica)
         self.assertEqual(self._usadas(), 0)
-        self.assertEqual(self._ficha().entrada, 'duda')
+
+    def test_si_luna_no_contesta_el_reto_sigue_y_luego_deriva(self):
+        self._enviar('asesoria')
+        self._enviar('Bien')
+        self._enviar('Soy de Bogotá y vendo aguacate')
+        with patch('core.openai_compat.completar_chat', return_value=''):
+            _, textos = self._enviar('no sé')
+        self.assertFalse(any('¿De dónde es?' in t for t in textos))
+        self.assertEqual(self._usadas(), 0)
+        self.assertEqual(self._ficha().entrada, '')
 
 
 @override_settings(**PREGUNTA)

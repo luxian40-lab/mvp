@@ -221,7 +221,12 @@ def _reaccion_espera(telefono: str, message_id: str) -> None:
 
 def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id: str = '') -> str:
     """Coach / Profe IA: reinicio, saludo de entrada o turno LLM. Returns 'handled'."""
+    from core.lineas.principal.entrada_asesoria import tomar_sin_presentacion
     from core.sandbox_agentes import responder_agente_sandbox, saludo_agente
+
+    if tomar_sin_presentacion(decision.telefono_usuario):
+        decision.saludo_entrada = False
+        decision.derivado = True
 
     if decision.action == 'coach':
         agente = 'coach'
@@ -269,6 +274,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             )
             texto = responder_agente_sandbox(
                 agente, body, telefono=decision.telefono_usuario, sin_pregunta_final=sin_pregunta,  # type: ignore[arg-type]
+                ya_en_conversacion=decision.derivado,
             )
             from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
 
