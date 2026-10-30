@@ -1,0 +1,1171 @@
+"""Panel ejecutivo = Inicio del admin (/admin/)."""
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Any
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count, Q
+from django.shortcuts import redirect
+from django.utils import timezone
+from django.utils.timesince import timesince
+
+from core.infra_monitor import header_health_strip
+from core.models import Campana, Cliente, Curso, Estudiante, ProgresoEstudiante
+from core.views_cobertura_admin import get_cobertura_global
+
+
+def _pct_delta(hoy: int, ayer: int) -> int | None:
+    """% vs base. Sin base no fingimos 100%."""
+    if ayer <= 0:
+        return None
+    return int(round(((hoy - ayer) / ayer) * 100))
+
+
+def _relativo(dt) -> str:
+    if not dt:
+        return ''
+    try:
+        return f'Hace {timesince(dt, timezone.now()).split(",")[0]}'
+    except Exception:
+        return ''
+
+
+def _avg_avance_pct() -> float:
+    """% promedio de avance (denominador = módulos publicados WA)."""
+    from collections import defaultdict
+
+    from core.models import Curso, ModuloCompletado
+    from core.modulo_publicacion import modulos_publicados_wa_qs
+
+    qs = list(
+        ProgresoEstudiante.objects.filter(curso_id__isnull=False)
+        .only('id', 'curso_id')
+        .order_by('id')[:800]
+    )
+    if not qs:
+        return 0.0
+    curso_ids = {p.curso_id for p in qs if p.curso_id}
+    cursos = {c.id: c for c in Curso.objects.filter(id__in=curso_ids)}
+    pub_by_curso: dict[int, set[int]] = {}
+    for cid, curso in cursos.items():
+        pub_by_curso[cid] = set(
+            modulos_publicados_wa_qs(curso).values_list('id', flat=True)
+        )
+    done_by_prog: dict[int, set[int]] = defaultdict(set)
+    for progreso_id, modulo_id in ModuloCompletado.objects.filter(
+        progreso_id__in=[p.id for p in qs]
+    ).values_list('progreso_id', 'modulo_id'):
+        done_by_prog[progreso_id].add(modulo_id)
+    rows: list[float] = []
+    for prog in qs:
+        pub_ids = pub_by_curso.get(prog.curso_id) or set()
+        total = len(pub_ids)
+        if total <= 0:
+            continue
+        done = len(done_by_prog[prog.id] & pub_ids)
+        rows.append(done / total)
+    if not rows:
+        total_p = ProgresoEstudiante.objects.count()
+        if not total_p:
+            return 0.0
+        done = ProgresoEstudiante.objects.filter(completado=True).count()
+        return (done / total_p) * 100.0
+    return (sum(rows) / len(rows)) * 100.0
+
+
+def _nodo_status(ok: bool, warn: bool = False) -> str:
+    if warn:
+        return 'warn'
+    return 'ok' if ok else 'empty'
+
+
+def _build_ecosistema(
+    *,
+    cursos_activos: int,
+    est_activos: int,
+    activos_7d: int,
+    empresas: int,
+    campanas_enviadas: int,
+    campanas_7d: int,
+    certs: int,
+    avance: float,
+    eventos_ia: int,
+    eventos_ia_total: int,
+    sin_progreso: int,
+    wa_24h: int = 0,
+    wa_fallos_24h: int = 0,
+    n_63021: int = 0,
+    prospectos: int = 0,
+    munis: int = 0,
+    twilio_txt: str = '',
+) -> dict[str, Any]:
+    """
+    Hub visual del ecosistema eki (Inicio).
+
+    Regla de producto: Studio NO se conecta a Aprende (productos separados).
+    Campo WhatsApp es el ancla operativo. Contadores con etiquetas honestas.
+    """
+    nodos = [
+        {
+            'id': 'studio',
+            'label': 'Studio',
+            'metric_label': 'Vitrina comercial',
+            'value': f'{cursos_activos} cursos en admin (proxy, no LMS Studio)',
+            'detail': 'Producto aparte · sin cable a Aprende',
+            'status': _nodo_status(cursos_activos > 0),
+            'url': 'https://studio.eki.technology/studio/',
+            'external': True,
+            'icon': 'palette',
+            'x': 8,
+            'y': 14,
+            'z': 8,
+            'island': True,
+        },
+        {
+            'id': 'aprende',
+            'label': 'Aprende',
+            'metric_label': 'Aula LMS',
+            'value': (
+                f'{est_activos} estudiantes con ficha'
+                if est_activos
+                else 'Sin fichas aún'
+            ),
+            'detail': 'Producto aparte · entra por aprende.eki',
+            'status': 'ok',
+            'url': 'https://aprende.eki.technology/aprende/',
+            'external': True,
+            'icon': 'menu_book',
+            'x': 26,
+            'y': 26,
+            'z': 18,
+            'island': False,
+        },
+        {
+            'id': 'portal',
+            'label': 'Portal',
+            'metric_label': 'B2B app.eki',
+            'value': f'{empresas} orgs activas' if empresas else 'Sin orgs',
+            'detail': 'Mismos clientes que admin',
+            'status': _nodo_status(empresas > 0),
+            'url': 'https://app.eki.technology/portal/',
+            'external': True,
+            'icon': 'storefront',
+            'x': 42,
+            'y': 12,
+            'z': 14,
+            'island': False,
+        },
+        {
+            'id': 'campo',
+            'label': 'Campo',
+            'metric_label': 'WhatsApp operativo',
+            'value': (
+                f'{est_activos} activos · {activos_7d} con señal 7d'
+                if est_activos
+                else 'Sin estudiantes'
+            ),
+            'detail': (
+                f'{wa_24h} envíos 24h'
+                + (f' · {wa_fallos_24h} fallos' if wa_fallos_24h else '')
+                + (f' · {n_63021}×63021' if n_63021 else '')
+            ),
+            'status': _nodo_status(est_activos > 0, warn=sin_progreso >= 5),
+            'url': '/admin/core/estudiante/',
+            'external': False,
+            'icon': 'sms',
+            'x': 50,
+            'y': 46,
+            'z': 48,
+            'island': False,
+            'anchor': True,
+        },
+        {
+            'id': 'empresas',
+            'label': 'Empresas',
+            'metric_label': 'Fichas Cliente',
+            'value': f'{empresas} activas' if empresas else 'Sin datos',
+            'detail': 'Orgs que pagan / operan cohortes',
+            'status': _nodo_status(empresas > 0),
+            'url': '/admin/core/cliente/',
+            'external': False,
+            'icon': 'apartment',
+            'x': 70,
+            'y': 16,
+            'z': 16,
+            'island': False,
+        },
+        {
+            'id': 'campanas',
+            'label': 'Campañas',
+            'metric_label': 'Lanzamientos',
+            'value': (
+                f'{campanas_enviadas} ejecutadas · {campanas_7d} en 7d'
+                if campanas_enviadas
+                else 'Ninguna ejecutada'
+            ),
+            'detail': 'HSM / Content SID',
+            'status': _nodo_status(
+                campanas_enviadas > 0,
+                warn=campanas_enviadas > 0 and campanas_7d == 0,
+            ),
+            'url': '/admin/core/campana/',
+            'external': False,
+            'icon': 'campaign',
+            'x': 90,
+            'y': 34,
+            'z': 22,
+            'island': False,
+        },
+        {
+            'id': 'nat',
+            'label': 'Nat',
+            'metric_label': 'Bot comercial',
+            'value': (
+                f'{prospectos} prospectos B2B'
+                if prospectos
+                else 'Knowledge / CRM'
+            ),
+            'detail': 'No es el copiloto ops del admin',
+            'status': 'ok',
+            'url': '/admin/dashboard/?tab=commercial',
+            'external': False,
+            'icon': 'handshake',
+            'x': 90,
+            'y': 62,
+            'z': 18,
+            'island': False,
+        },
+        {
+            'id': 'ia',
+            'label': 'IA',
+            'metric_label': 'Eventos recientes',
+            'value': (
+                f'{eventos_ia} en feed'
+                + (f' · {eventos_ia_total} total' if eventos_ia_total > eventos_ia else '')
+                if eventos_ia or eventos_ia_total
+                else 'Sin eventos'
+            ),
+            'detail': 'Señales territoriales / tutor',
+            'status': _nodo_status(eventos_ia > 0 or eventos_ia_total > 0),
+            'url': '/admin/ai-ops/eventos/',
+            'external': False,
+            'icon': 'psychology',
+            'x': 26,
+            'y': 74,
+            'z': 12,
+            'island': False,
+        },
+        {
+            'id': 'certs',
+            'label': 'Certificados',
+            'metric_label': 'Emitidos',
+            'value': f'{certs} emitidos' if certs else 'Sin certificados',
+            'detail': 'Auditoría en Sistema',
+            'status': _nodo_status(certs > 0),
+            'url': '/admin/envio-certificados/',
+            'external': False,
+            'icon': 'workspace_premium',
+            'x': 54,
+            'y': 78,
+            'z': 16,
+            'island': False,
+        },
+        {
+            'id': 'impacto',
+            'label': 'Éxito',
+            'metric_label': 'Centro · avance',
+            'value': (
+                f'{int(round(avance))}% avance medio'
+                if avance
+                else 'Retención'
+            ),
+            'detail': f'{sin_progreso} sin progreso' if sin_progreso else 'Cohortes en marcha',
+            'status': _nodo_status(
+                certs > 0 or avance > 0,
+                warn=avance > 0 and avance < 30,
+            ),
+            'url': '/admin/dashboard/?tab=retencion',
+            'external': False,
+            'icon': 'trending_up',
+            'x': 74,
+            'y': 80,
+            'z': 20,
+            'island': False,
+        },
+        {
+            'id': 'infra',
+            'label': 'Infra',
+            'metric_label': 'Salud plataforma',
+            'value': 'Monitor',
+            'status': 'ok',
+            'url': '/admin/infra/',
+            'external': False,
+            'icon': 'monitor_heart',
+            'x': 8,
+            'y': 78,
+            'z': 6,
+            'island': True,
+            'detail': 'Celery · Redis · S3 · EB',
+        },
+        {
+            'id': 'twilio',
+            'label': 'Twilio',
+            'metric_label': 'Canal WhatsApp',
+            'value': (twilio_txt or 'Saldo').replace('Twilio ', ''),
+            'status': _nodo_status(
+                bool(wa_24h or est_activos),
+                warn=wa_fallos_24h > 0 or n_63021 > 0,
+            ),
+            'url': '/admin/dashboard/?tab=ai_ops',
+            'external': False,
+            'icon': 'cell_tower',
+            'x': 72,
+            'y': 48,
+            'z': 28,
+            'island': False,
+            'detail': f'{wa_24h} msgs 24h' + (f' · {n_63021} videos rechazados' if n_63021 else ''),
+        },
+        {
+            'id': 'cobertura',
+            'label': 'Cobertura',
+            'metric_label': 'Colombia',
+            'value': (
+                f'{munis} municipios con gente'
+                if munis
+                else (f'{empresas} orgs' if empresas else 'Ver mapa')
+            ),
+            'detail': 'Mismo mapa de arriba',
+            'status': _nodo_status(est_activos > 0 or empresas > 0),
+            'url': '/admin/cobertura/',
+            'external': False,
+            'icon': 'map',
+            'x': 12,
+            'y': 48,
+            'z': 14,
+            'island': False,
+        },
+    ]
+    # Studio e Infra aislados: sin aristas. Studio ↛ Aprende.
+    edges = [
+        ('campo', 'twilio'),
+        ('campanas', 'twilio'),
+        ('campo', 'aprende'),
+        ('campo', 'portal'),
+        ('campo', 'empresas'),
+        ('campo', 'campanas'),
+        ('campo', 'certs'),
+        ('campo', 'impacto'),
+        ('campo', 'cobertura'),
+        ('cobertura', 'empresas'),
+        ('aprende', 'ia'),
+        ('portal', 'empresas'),
+        ('empresas', 'campanas'),
+        ('campanas', 'nat'),
+        ('empresas', 'impacto'),
+        ('certs', 'impacto'),
+        ('ia', 'impacto'),
+        ('nat', 'impacto'),
+    ]
+    by_id = {n['id']: n for n in nodos}
+    aristas = []
+    for a, b in edges:
+        if a in ('studio', 'infra') or b in ('studio', 'infra'):
+            continue
+        if {a, b} == {'studio', 'aprende'}:
+            continue
+        na, nb = by_id[a], by_id[b]
+        aristas.append(
+            {
+                'from': a,
+                'to': b,
+                'x1': na['x'],
+                'y1': na['y'],
+                'x2': nb['x'],
+                'y2': nb['y'],
+            }
+        )
+    return {
+        'nodos': nodos,
+        'aristas': aristas,
+        'nota': (
+            'Números del admin ahora: estudiantes, envíos WA 24h, campañas, certificados, '
+            'mapa y saldo Twilio. Studio e Infra siguen sin cables (productos / monitor).'
+        ),
+    }
+
+
+def _build_alertas_ops(
+    *,
+    now,
+    wa_fallos_24h: int,
+    n_63019: int,
+    n_63021: int,
+    meta_fallos_24h: dict | None = None,
+) -> list[dict[str, Any]]:
+    """Tarjetas de alerta operativa para Inicio (Meta por código, Twilio, media, infra)."""
+    alertas: list[dict[str, Any]] = []
+    meta_fallos_24h = meta_fallos_24h or {}
+    if meta_fallos_24h:
+        detalle = ', '.join(f'{n}×{code}' for code, n in sorted(meta_fallos_24h.items()))
+        alertas.append({
+            'nivel': 'fail',
+            'titulo': f'Fallos Meta 24h: {detalle}',
+            'texto': 'Códigos de Cloud API en la línea Meta. 63019 y 63021 quedan solo en Twilio.',
+            'cta': 'Ver historial WA',
+            'url': '/admin/core/whatsapplog/?canal__exact=meta',
+            'icon': 'error',
+        })
+
+    try:
+        from core.meta_token import token_invalido
+
+        if token_invalido():
+            alertas.append({
+                'nivel': 'fail',
+                'titulo': 'Token de Meta inválido',
+                'texto': 'Graph devolvió 190. Las campañas y el reenganche no envían hasta que rote el token.',
+                'cta': 'Infra',
+                'url': '/admin/infra/',
+                'icon': 'error',
+            })
+    except Exception:
+        pass
+
+    if wa_fallos_24h >= 1:
+        detalle = []
+        if n_63019:
+            detalle.append(f'{n_63019}×63019')
+        if n_63021:
+            detalle.append(f'{n_63021}×63021')
+        extra = f' ({", ".join(detalle)})' if detalle else ''
+        alertas.append(
+            {
+                'nivel': 'fail' if (n_63019 or n_63021) else 'warn',
+                'titulo': f'WhatsApp fallidos 24h: {wa_fallos_24h}{extra}',
+                'texto': 'Twilio: descarga media (63019) o codec video (63021).',
+                'cta': 'Ver historial Twilio',
+                'url': '/admin/core/whatsapplog/?canal__exact=twilio',
+                'icon': 'error',
+            }
+        )
+
+    try:
+        from core.media_wa_audit import contar_media_en_riesgo
+
+        media = contar_media_en_riesgo(solo_activos=True)
+        total = int(media.get('total') or 0)
+        if total >= 1:
+            n_fail = int(media.get('fail') or 0)
+            n_warn = int(media.get('warn') or 0)
+            top = media.get('top_cursos') or []
+            nombres = ', '.join(
+                (t.get('curso_nombre') or '')[:28] for t in top[:3]
+            )
+            if nombres and len(top) > 3:
+                nombres += '…'
+            alertas.append(
+                {
+                    'nivel': 'fail' if n_fail else 'warn',
+                    'titulo': f'Media en riesgo: {total} paso(s)',
+                    'texto': (
+                        f'No apto: {n_fail} · sin verificar: {n_warn}.'
+                        + (f' Cursos: {nombres}.' if nombres else '')
+                    ),
+                    'cta': 'Module Builder',
+                    'url': (
+                        f'/admin/module-builder/{top[0]["modulo_id"]}/'
+                        if top
+                        else '/admin/core/curso/'
+                    ),
+                    'icon': 'videocam_off',
+                }
+            )
+    except Exception:
+        pass
+
+    try:
+        from core.infra_monitor import header_health_strip
+
+        strip = header_health_strip(force=False)
+        bad = [s for s in strip if (s.get('tone') or '') in ('warn', 'fail', 'red', 'yellow')]
+        if bad:
+            alertas.append(
+                {
+                    'nivel': 'warn',
+                    'titulo': f'Infra: {len(bad)} señal(es)',
+                    'texto': ' · '.join((b.get('label') or b.get('title') or '—')[:40] for b in bad[:3]),
+                    'cta': 'Monitor infra',
+                    'url': '/admin/infra/',
+                    'icon': 'monitor_heart',
+                }
+            )
+    except Exception:
+        pass
+
+    if not alertas:
+        alertas.append(
+            {
+                'nivel': 'ok',
+                'titulo': 'Sin alertas críticas',
+                'texto': 'WA 24h, media publicada e infra en verde según umbrales actuales.',
+                'cta': 'Dashboard ops',
+                'url': '/admin/dashboard/',
+                'icon': 'check_circle',
+            }
+        )
+
+    return alertas
+
+
+def _gasto_llm_panel() -> dict:
+    """Gasto estimado. Si la tabla aún no existe, el panel sigue."""
+    try:
+        from django.db.models import Sum
+        from django.utils import timezone
+
+        from core.models import Estudiante
+        from core.models_uso_llm import UsoLLM
+        from core.presupuesto_llm import dia_bogota
+
+        hoy = dia_bogota()
+        inicio = timezone.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+        mes = inicio.replace(day=1)
+        total_hoy = UsoLLM.objects.filter(creado__gte=inicio).aggregate(s=Sum('costo_usd_est'))['s'] or 0
+        total_mes = UsoLLM.objects.filter(creado__gte=mes).aggregate(s=Sum('costo_usd_est'))['s'] or 0
+        activos = Estudiante.objects.filter(activo=True).count()
+        por_est = (total_hoy / activos) if activos else total_hoy
+        return {
+            'dia': hoy,
+            'hoy': f'{total_hoy:.4f}',
+            'mes': f'{total_mes:.4f}',
+            'por_estudiante': f'{por_est:.6f}',
+        }
+    except Exception:
+        return {}
+
+
+def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
+    """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
+    from django.core.cache import cache
+
+    cache_key = 'admin_panel_snapshot_v9'
+    if not force:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+    snap = _build_panel_snapshot_uncached()
+    cache.set(cache_key, snap, 45)
+    return snap
+
+
+def _build_panel_snapshot_uncached() -> dict[str, Any]:
+    """KPIs y bloques del Panel (Inicio) con datos reales."""
+    now = timezone.now()
+    hoy = timezone.localdate()
+    ayer = hoy - timedelta(days=1)
+    hace_7 = now - timedelta(days=7)
+
+    est_activos = Estudiante.objects.filter(activo=True).count()
+    est_ayer = Estudiante.objects.filter(activo=True, fecha_registro__date__lte=ayer).count()
+    activos_7d = (
+        Estudiante.objects.filter(activo=True)
+        .filter(
+            Q(progresos__fecha_ultimo_avance__gte=hace_7)
+            | Q(
+                mensajes_whatsapp__tipo='INCOMING',
+                mensajes_whatsapp__fecha__gte=hace_7,
+            )
+        )
+        .distinct()
+        .count()
+    )
+
+    try:
+        from core.models_certificados import Certificado
+
+        certs = Certificado.objects.filter(emitido=True).count()
+        certs_ayer = Certificado.objects.filter(
+            emitido=True, fecha_emision__date__lte=ayer
+        ).count()
+        certs_7d = Certificado.objects.filter(
+            emitido=True, fecha_emision__gte=hace_7
+        ).count()
+    except Exception:
+        certs = 0
+        certs_ayer = 0
+        certs_7d = 0
+
+    campanas_enviadas = Campana.objects.filter(ejecutada=True).count()
+    campanas_7d = 0
+    try:
+        from core.domains.analytics.metricas import q_enviolog_ok
+        from core.models import EnvioLog
+
+        campanas_7d = (
+            EnvioLog.objects.filter(fecha_envio__gte=hace_7)
+            .filter(q_enviolog_ok())
+            .values('campana_id')
+            .distinct()
+            .count()
+        )
+    except Exception:
+        campanas_7d = Campana.objects.filter(
+            ejecutada=True
+        ).filter(
+            Q(fecha_programada__gte=hace_7)
+            | Q(fecha_programada__isnull=True, fecha_creacion__gte=hace_7)
+        ).count()
+    avance = _avg_avance_pct()
+    empresas = Cliente.objects.filter(activo=True).count()
+    empresas_ayer = Cliente.objects.filter(
+        activo=True, fecha_registro__date__lte=ayer
+    ).count()
+
+    # Misma fuente que el mapa Leaflet (cache 45s)
+    mapa = {
+        'total_estudiantes': est_activos,
+        'departamentos_distintos': 0,
+        'municipios_distintos': 0,
+        'con_municipio_mapeado': 0,
+        'generated_at': '',
+    }
+    cobertura = []
+    depts_con_estudiantes = 0
+    try:
+        geo = get_cobertura_global(force=False)
+        mapa = {
+            'total_estudiantes': geo.get('total_estudiantes') or est_activos,
+            'departamentos_distintos': geo.get('departamentos_distintos') or 0,
+            'municipios_distintos': geo.get('municipios_distintos') or 0,
+            'con_municipio_mapeado': geo.get('con_municipio_mapeado') or 0,
+            'generated_at': geo.get('generated_at') or '',
+        }
+        top = geo.get('por_departamento') or []
+        max_n = top[0]['cantidad'] if top else 1
+        cobertura = [
+            {
+                'nombre': d['departamento'],
+                'n': d['cantidad'],
+                'pct': int(round(d['cantidad'] / max_n * 100)) if max_n else 0,
+            }
+            for d in top[:8]
+        ]
+        depts_con_estudiantes = mapa['departamentos_distintos']
+    except Exception:
+        dept_rows = list(
+            Estudiante.objects.filter(activo=True)
+            .exclude(departamento__isnull=True)
+            .exclude(departamento='')
+            .values('departamento')
+            .annotate(n=Count('id'))
+            .order_by('-n')[:8]
+        )
+        max_dept = max((d['n'] for d in dept_rows), default=1)
+        cobertura = [
+            {
+                'nombre': d['departamento'],
+                'n': d['n'],
+                'pct': int(round(d['n'] / max_dept * 100)),
+            }
+            for d in dept_rows
+        ]
+        depts_con_estudiantes = len(dept_rows)
+    actividad = []
+    try:
+        from core.models import EventoIA
+
+        for ev in EventoIA.objects.order_by('-created_at')[:6]:
+            actividad.append(
+                {
+                    'texto': (ev.tipo or 'evento').replace('_', ' '),
+                    'cuando': ev.created_at,
+                    'relativo': _relativo(ev.created_at),
+                }
+            )
+    except Exception:
+        pass
+    if not actividad:
+        try:
+            from core.models import EstudianteEventoAprendizaje
+
+            for ev in EstudianteEventoAprendizaje.objects.select_related('estudiante').order_by(
+                '-created_at'
+            )[:6]:
+                nombre = ''
+                if ev.estudiante_id:
+                    nombre = (ev.estudiante.nombre or '')[:40]
+                actividad.append(
+                    {
+                        'texto': f"{ev.tipo.replace('_', ' ')}"
+                        + (f' · {nombre}' if nombre else ''),
+                        'cuando': ev.created_at,
+                        'relativo': _relativo(ev.created_at),
+                    }
+                )
+        except Exception:
+            pass
+
+    insights = []
+    cursos_activos = Curso.objects.filter(activo=True).count()
+    sin_progreso = (
+        Estudiante.objects.filter(activo=True)
+        .annotate(np=Count('progresos'))
+        .filter(np=0)
+        .count()
+    )
+    if sin_progreso >= 5:
+        insights.append(
+            {
+                'nivel': 'warn',
+                'texto': f'{sin_progreso} estudiantes activos sin progreso de curso.',
+                'cta': 'Ver estudiantes',
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
+            }
+        )
+    if depts_con_estudiantes or mapa.get('con_municipio_mapeado'):
+        insights.append(
+            {
+                'nivel': 'info',
+                'texto': (
+                    f'Mapa live: {mapa.get("con_municipio_mapeado", 0)} estudiantes '
+                    f'en mapa · {mapa.get("municipios_distintos", 0)} municipios · '
+                    f'{depts_con_estudiantes} departamentos.'
+                ),
+                'cta': 'Ampliar cobertura',
+                'url': '/admin/cobertura/',
+            }
+        )
+    else:
+        insights.append(
+            {
+                'nivel': 'warn',
+                'texto': (
+                    'Pocos estudiantes con municipio/departamento DANE. '
+                    'Sin geo el mapa queda vacío aunque haya activos.'
+                ),
+                'cta': 'Ver estudiantes',
+                'url': '/admin/core/estudiante/',
+            }
+        )
+    if cursos_activos:
+        insights.append(
+            {
+                'nivel': 'ok',
+                'texto': f'{cursos_activos} cursos activos en catálogo.',
+                'cta': 'Ver cursos',
+                'url': '/admin/core/curso/',
+            }
+        )
+
+    espacios = [
+        {
+            'key': 'portal',
+            'nombre': 'Portal',
+            'desc': 'Coordinadores B2B y programas',
+            'metrics': [
+                {'label': 'Orgs', 'value': empresas},
+                {'label': 'Estudiantes', 'value': est_activos},
+                {'label': 'Activos 7d', 'value': activos_7d},
+            ],
+            'url': 'https://app.eki.technology/portal/',
+            'tone': 'blue',
+            'external': True,
+        },
+        {
+            'key': 'exito',
+            'nombre': 'Centro de Éxito',
+            'desc': 'Riesgo, retención e intervenciones',
+            'metrics': [
+                {'label': 'Sin progreso', 'value': sin_progreso},
+                {'label': 'Depts', 'value': depts_con_estudiantes},
+                {'label': 'Certs', 'value': certs},
+            ],
+            'url': '/admin/dashboard/?tab=retencion',
+            'tone': 'gold',
+            'external': False,
+        },
+    ]
+
+    acciones = []
+    try:
+        from core.models import EnvioLog
+
+        from core.domains.analytics.metricas import q_enviolog_fail
+
+        n_fallos = EnvioLog.objects.filter(
+            q_enviolog_fail(),
+            fecha_envio__gte=hace_7,
+        ).count()
+        if n_fallos >= 1:
+            acciones.append(
+                {
+                    'label': f'Envíos fallidos ({n_fallos})',
+                    'url': '/admin/core/enviolog/?estado__exact=FALLIDO',
+                    'icon': 'error',
+                    'destacada': True,
+                }
+            )
+    except Exception:
+        pass
+
+    campanas_hoy = Campana.objects.filter(
+        ejecutada=False,
+        fecha_programada__date=hoy,
+    ).count()
+    if campanas_hoy:
+        acciones.append(
+            {
+                'label': f'Campañas hoy ({campanas_hoy})',
+                'url': '/admin/core/campana/',
+                'icon': 'schedule',
+                'destacada': True,
+            }
+        )
+
+    if sin_progreso >= 5:
+        acciones.append(
+            {
+                'label': f'Sin progreso ({sin_progreso})',
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
+                'icon': 'person_off',
+                'destacada': True,
+            }
+        )
+
+    try:
+        from core.models_certificados import Certificado
+
+        certs_pend_wa = Certificado.objects.filter(
+            emitido=True,
+            enviado_whatsapp=False,
+        ).count()
+        if certs_pend_wa >= 1:
+            acciones.insert(
+                0,
+                {
+                    'label': f'Certs pend. WA ({certs_pend_wa})',
+                    'url': '/admin/envio-certificados/',
+                    'icon': 'workspace_premium',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'{certs_pend_wa} certificado(s) emitido(s) '
+                        'sin envío por WhatsApp.'
+                    ),
+                    'cta': 'Envío certificados',
+                    'url': '/admin/envio-certificados/',
+                },
+            )
+    except Exception:
+        pass
+
+    try:
+        from core.models import Modulo
+
+        n_mod_borrador = Modulo.objects.filter(
+            publicado_wa=False,
+            curso__activo=True,
+        ).exclude(curso__modo_aula=Curso.MODO_AULA_CLASES).count()
+        if n_mod_borrador >= 1:
+            acciones.insert(
+                0,
+                {
+                    'label': f'Módulos borrador ({n_mod_borrador})',
+                    'url': '/admin/core/modulo/?publicado_wa__exact=0',
+                    'icon': 'visibility_off',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'{n_mod_borrador} módulo(s) en borrador: '
+                        'el campo no los envía hasta Publicar.'
+                    ),
+                    'cta': 'Ver borradores',
+                    'url': '/admin/core/modulo/?publicado_wa__exact=0',
+                },
+            )
+    except Exception:
+        pass
+
+    try:
+        from core.modulo_publicacion import campanas_programadas_con_borradores
+
+        for item in campanas_programadas_con_borradores()[:5]:
+            fp = item['fecha_programada']
+            when = fp.strftime('%d/%m %H:%M') if fp else '—'
+            acciones.insert(
+                0,
+                {
+                    'label': f'Campaña · {item["n_borradores"]} borrador(es)',
+                    'url': f'/admin/core/campana/{item["campana_id"]}/change/',
+                    'icon': 'event_busy',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'«{item["campana_nombre"]}» programada {when} '
+                        f'con {item["n_borradores"]} módulo(s) borrador en '
+                        f'«{item["curso_nombre"]}».'
+                    ),
+                    'cta': 'Revisar campaña',
+                    'url': f'/admin/core/campana/{item["campana_id"]}/change/',
+                },
+            )
+    except Exception:
+        pass
+
+    acciones.extend([
+        {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
+        {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},
+        {'label': 'Nueva empresa', 'url': '/admin/core/cliente/add/', 'icon': 'apartment'},
+        {'label': 'Certificados', 'url': '/admin/envio-certificados/', 'icon': 'verified'},
+        {'label': 'Estudiantes', 'url': '/admin/core/estudiante/', 'icon': 'group'},
+        {'label': 'Conversaciones', 'url': '/admin/conversaciones/', 'icon': 'chat'},
+        {'label': 'Dashboard', 'url': '/admin/dashboard/', 'icon': 'dashboard'},
+        {'label': 'Infra', 'url': '/admin/infra/', 'icon': 'monitor_heart'},
+    ])
+    # Atajos fusionados en acciones (una sola fila de CTAs).
+    atajos = []
+
+    eventos_ia_total = 0
+    try:
+        from core.models import EventoIA
+
+        eventos_ia_total = EventoIA.objects.count()
+    except Exception:
+        pass
+
+    wa_24h = 0
+    wa_fallos_24h = 0
+    n_63021 = 0
+    n_63019 = 0
+    meta_fallos_24h = {}
+    prospectos = 0
+    twilio_txt = ''
+    try:
+        from core.models import WhatsappLog
+
+        desde_24 = now - timedelta(hours=24)
+        logs = WhatsappLog.objects.filter(tipo='SENT', fecha__gte=desde_24)
+        wa_24h = logs.count()
+        twilio = logs.filter(canal='twilio')
+        fallos = twilio.filter(
+            Q(estado__iexact='undelivered')
+            | Q(estado__iexact='failed')
+            | Q(error_detalle__icontains='63021')
+            | Q(error_detalle__icontains='63019')
+        )
+        wa_fallos_24h = fallos.count()
+        n_63021 = fallos.filter(error_detalle__icontains='63021').count()
+        n_63019 = fallos.filter(error_detalle__icontains='63019').count()
+        from core.meta_estados import contar_fallos_meta_24h
+
+        meta_fallos_24h = contar_fallos_meta_24h(desde_24)
+    except Exception:
+        pass
+    try:
+        from core.models import ProspectoB2B
+
+        prospectos = ProspectoB2B.objects.count()
+    except Exception:
+        pass
+    try:
+        from core.twilio_balance import twilio_balance_badge
+
+        twilio_txt, _tono = twilio_balance_badge()
+    except Exception:
+        twilio_txt = ''
+
+    alertas = _build_alertas_ops(
+        now=now,
+        wa_fallos_24h=wa_fallos_24h,
+        n_63019=n_63019,
+        n_63021=n_63021,
+        meta_fallos_24h=meta_fallos_24h,
+    )
+
+    ecosistema = _build_ecosistema(
+        cursos_activos=cursos_activos,
+        est_activos=est_activos,
+        activos_7d=activos_7d,
+        empresas=empresas,
+        campanas_enviadas=campanas_enviadas,
+        campanas_7d=campanas_7d,
+        certs=certs,
+        avance=float(avance or 0),
+        eventos_ia=len(actividad),
+        eventos_ia_total=eventos_ia_total,
+        sin_progreso=sin_progreso,
+        wa_24h=wa_24h,
+        wa_fallos_24h=wa_fallos_24h,
+        n_63021=n_63021,
+        prospectos=prospectos,
+        munis=int(mapa.get('municipios_distintos') or 0),
+        twilio_txt=twilio_txt,
+    )
+
+    def _kpi(label, value, *, delta=None, note=None, tone='purple'):
+        item = {
+            'label': label,
+            'value': value,
+            'delta': delta,
+            'note': note,
+            'tone': tone,
+        }
+        if delta is None:
+            item['delta_dir'] = 'flat'
+        elif delta > 0:
+            item['delta_dir'] = 'up'
+        elif delta < 0:
+            item['delta_dir'] = 'down'
+        else:
+            item['delta_dir'] = 'flat'
+        return item
+
+    meta_n = 0
+    if isinstance(meta_fallos_24h, dict):
+        meta_n = sum(int(v or 0) for v in meta_fallos_24h.values())
+    cola = []
+    try:
+        from core.models_campana_meta import CampanaMeta
+
+        for camp in (
+            CampanaMeta.objects.filter(ejecutada=False, plantilla__estado='APPROVED')
+            .select_related('plantilla')
+            .order_by('-id')[:3]
+        ):
+            cola.append({
+                'titulo': camp.nombre,
+                'detalle': 'Plantilla aprobada, lista para enviar',
+                'url': f'/admin/core/campanameta/{camp.pk}/change/',
+                'cta': 'Abrir',
+            })
+    except Exception:
+        pass
+    for acc in acciones:
+        if len(cola) >= 5 or not acc.get('destacada'):
+            continue
+        cola.append({
+            'titulo': acc.get('label') or 'Revisar',
+            'detalle': 'Para revisar hoy',
+            'url': acc.get('url') or '/admin/core/estudiante/',
+            'cta': 'Abrir',
+        })
+
+    return {
+        'inicio_cifras': [
+            {
+                'label': 'Activos',
+                'value': est_activos,
+                'url': '/admin/core/estudiante/',
+            },
+            {
+                'label': 'Sin progreso',
+                'value': sin_progreso,
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
+            },
+            {
+                'label': 'Fallos 24 h',
+                'value': wa_fallos_24h + meta_n,
+                'url': '/admin/core/whatsapplog/?codigo_twilio=fallos',
+            },
+        ],
+        'cola': cola[:5],
+        'kpis': [
+            _kpi(
+                'Estudiantes activos',
+                est_activos,
+                delta=_pct_delta(est_activos, est_ayer),
+                note=f'{activos_7d} activos 7d',
+                tone='purple',
+            ),
+            _kpi(
+                'Certificados',
+                certs,
+                delta=_pct_delta(certs, certs_ayer),
+                note=f'{certs_7d} en 7d' if certs_7d else None,
+                tone='green',
+            ),
+            _kpi(
+                'Campañas',
+                campanas_enviadas,
+                delta=None,
+                note=f'{campanas_7d} en 7d' if campanas_7d else 'Sin envíos 7d',
+                tone='blue',
+            ),
+            _kpi(
+                'Avance medio',
+                f'{int(round(float(avance or 0)))}%',
+                delta=None,
+                note='Solo módulos publicados WA',
+                tone='purple',
+            ),
+            _kpi(
+                'Empresas',
+                empresas,
+                delta=(
+                    _pct_delta(empresas, empresas_ayer)
+                    if empresas != empresas_ayer
+                    else None
+                ),
+                note=None,
+                tone='gold',
+            ),
+        ],
+        'cobertura': cobertura,
+        'mapa': mapa,
+        'activos_7d': activos_7d,
+        'depts_activos': depts_con_estudiantes,
+        'depts_meta': 32,
+        'actividad': actividad,
+        'insights': insights,
+        'alertas': alertas,
+        'espacios': espacios,
+        'acciones': acciones,
+        'atajos': atajos,
+        'ecosistema': ecosistema,
+        'health': header_health_strip(force=False),
+        'actualizado': timezone.localtime(now).strftime('%H:%M'),
+        'gasto_llm': _gasto_llm_panel(),
+    }
+
+
+def unfold_dashboard_callback(request, context):
+    """
+    Unfold DASHBOARD_CALLBACK nativo: inyecta el inicio en /admin/.
+    """
+    from django.urls import reverse
+
+    from core.admin.home_data import home_para
+
+    user = getattr(request, 'user', None)
+    context.update(
+        {
+            'inicio': home_para(user),
+            'conversaciones_url': reverse('conversaciones'),
+            'dashboard_url': reverse('dashboard_unificado'),
+            'dashboard_control_url': reverse('dashboard_unificado'),
+            'dashboard_analytics_url': reverse('dashboard_analytics'),
+        }
+    )
+    return context
+
+
+@staff_member_required
+def admin_panel_view(request):
+    """Compat: el Panel vive en Inicio (/admin/)."""
+    return redirect('admin:index')

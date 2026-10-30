@@ -1,8 +1,4 @@
-"""
-Wrapper module para aislar endpoints de webhooks.
-Mantiene compatibilidad importando implementaciones existentes.
-"""
-
-from core.views import bot_comercial_webhook, whatsapp_webhook
-
-__all__ = ["whatsapp_webhook", "bot_comercial_webhook"]
+"""Reexport de fase H2. El código vive en core.admin_vistas.views_webhooks."""
+import core.admin_vistas.views_webhooks as _impl
+import sys as _sys
+_sys.modules[__name__] = _impl

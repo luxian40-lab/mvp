@@ -1,15 +1,4 @@
-"""Legacy URL: redirige a envío certificados unificado."""
-
-from __future__ import annotations
-
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import redirect
-
-
-@staff_member_required
-def certificados_presenciales_view(request):
-    q = request.GET.copy()
-    if request.method == 'POST':
-        q = request.POST.copy()
-    base = '/admin/envio-certificados/'
-    return redirect(base + (f'?{q.urlencode()}' if q else ''))
+"""Reexport de fase H2. El código vive en core.admin_vistas.views_certificados_presenciales."""
+import core.admin_vistas.views_certificados_presenciales as _impl
+import sys as _sys
+_sys.modules[__name__] = _impl

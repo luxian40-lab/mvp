@@ -1,13 +1,4 @@
-"""Pantalla de líneas WhatsApp en el admin. Solo lectura."""
-
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-
-from core.lineas.campana import fichas_admin
-
-
-@staff_member_required
-def lineas_admin_view(request):
-    return render(request, 'admin/lineas_meta.html', {
-        'fichas': fichas_admin(),
-    })
+"""Reexport de fase H2. El código vive en core.admin_vistas.views_lineas_admin."""
+import core.admin_vistas.views_lineas_admin as _impl
+import sys as _sys
+_sys.modules[__name__] = _impl

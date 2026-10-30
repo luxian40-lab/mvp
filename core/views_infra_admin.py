@@ -1,19 +1,4 @@
-"""Admin: monitoreo operativo de Redis / DB / S3."""
-
-from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse
-from django.shortcuts import render
-
-from core.infra_monitor import snapshot_infra
-
-
-@staff_member_required
-def infra_monitor_view(request):
-    data = snapshot_infra()
-    return render(request, 'admin/infra_monitor.html', {'data': data})
-
-
-@staff_member_required
-def infra_monitor_api(request):
-    force = request.GET.get('force') in ('1', 'true', 'yes')
-    return JsonResponse(snapshot_infra(force=force))
+"""Reexport de fase H2. El código vive en core.admin_vistas.views_infra_admin."""
+import core.admin_vistas.views_infra_admin as _impl
+import sys as _sys
+_sys.modules[__name__] = _impl
