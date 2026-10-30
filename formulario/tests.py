@@ -334,7 +334,7 @@ def test_sesion_completada_no_bloquea():
     # Si DJANGO_DEBUG=False en .env, SecurityMiddleware redirige HTTP→HTTPS y el POST no llega al view.
     SECURE_SSL_REDIRECT=False,
 )
-@mock.patch("formulario.agent.manejar_mensaje_formulario", return_value="[FORMULARIO-OK]")
+@mock.patch("core.puentes.manejar_mensaje_formulario", return_value="[FORMULARIO-OK]")
 def test_mensaje_entrante_con_sesion_activa(m_maneja):
     c = ClienteFactory()
     e = EstudianteFactory(
@@ -350,7 +350,7 @@ def test_mensaje_entrante_con_sesion_activa(m_maneja):
     SesionFormulario.objects.create(
         estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, completado=False, progreso=None, modulo_siguiente=None
     )
-    with mock.patch("formulario.routing.debe_usar_agente_formulario", return_value=True), mock.patch(
+    with mock.patch("core.puentes.debe_usar_agente_formulario", return_value=True), mock.patch(
         "core.twilio_puerta.aplicar_puerta_twilio", return_value="seguir"
     ):
         cl = Client()

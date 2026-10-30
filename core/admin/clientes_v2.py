@@ -25,7 +25,7 @@ from core.admin.clientes import (
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProductoComercial, ProgresoEstudiante, WhatsappLog
 from core.planes_linea import PLAN_CHOICES
-from portal.forms import PORTAL_PRODUCTO_CHOICES, ClientePortalAdminForm
+from core.puentes import PORTAL_PRODUCTO_CHOICES, ClientePortalAdminForm
 
 
 def _conteo(qs):
@@ -680,7 +680,7 @@ class ClienteAdminV2(ClienteAdmin):
     def _panel_asi_se_ve(self, obj):
         if not obj or not obj.pk:
             return 'Guarde la organización para ver el logo y el fondo.'
-        from portal.branding import contexto_identidad_org
+        from core.puentes import contexto_identidad_org
 
         ctx = contexto_identidad_org(obj)
         logo = ctx.get('eki_org_logo') or ''

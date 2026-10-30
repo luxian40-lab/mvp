@@ -86,7 +86,7 @@ class CampanaAdmin(admin.ModelAdmin):
         if object_id:
             obj = self.get_object(request, object_id)
             if obj:
-                from portal.branding import contexto_identidad_org
+                from core.puentes import contexto_identidad_org
 
                 extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
                 extra_context['eki_camp_inicial'] = (obj.nombre or 'C').strip()[:1].upper()

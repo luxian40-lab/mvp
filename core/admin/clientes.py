@@ -107,7 +107,7 @@ class ClienteAdmin(admin.ModelAdmin):
     change_form_template = 'admin/core/cliente/change_form.html'
 
     def get_form(self, request, obj=None, **kwargs):
-        from portal.forms import ClientePortalAdminForm
+        from core.puentes import ClientePortalAdminForm
         kwargs['form'] = ClientePortalAdminForm
         return super().get_form(request, obj, **kwargs)
 
@@ -122,7 +122,7 @@ class ClienteAdmin(admin.ModelAdmin):
 
     @admin.display(description='Cómo sale en WhatsApp')
     def aviso_formato_whatsapp(self, obj):
-        from portal.forms import texto_formato_whatsapp
+        from core.puentes import texto_formato_whatsapp
 
         if not obj or not obj.pk:
             return texto_formato_whatsapp(0)
@@ -308,7 +308,7 @@ class ClienteAdmin(admin.ModelAdmin):
         obj = self.get_object(request, object_id)
         if obj:
             from core.models import Campana, Curso, Estudiante
-            from portal.branding import contexto_identidad_org
+            from core.puentes import contexto_identidad_org
 
             extra_context.update(contexto_identidad_org(obj))
             extra_context['eki_org_tipo'] = obj.get_tipo_proyecto_display()
@@ -380,7 +380,7 @@ class ClienteAdmin(admin.ModelAdmin):
             + f'?organizacion__id__exact={obj.pk}'
         )
         portal_url = '/portal/login/'
-        from portal.provision import cupos_restantes, cupos_totales, cupos_usados
+        from core.puentes import cupos_restantes, cupos_totales, cupos_usados
         usados = cupos_usados(obj)
         total = cupos_totales(obj)
         restan = cupos_restantes(obj)
@@ -483,8 +483,8 @@ class ClienteAdmin(admin.ModelAdmin):
         if not obj or not obj.pk:
             return 'Guarde el cliente para ver los KPIs de empleabilidad.'
 
-        from portal.capabilities import modulos_portal
-        from portal.empleabilidad_metricas import resumen_empleabilidad_portal
+        from core.puentes import modulos_portal
+        from core.puentes import resumen_empleabilidad_portal
 
         resumen = resumen_empleabilidad_portal(obj)
         mods = modulos_portal(obj)
@@ -557,8 +557,8 @@ class ClienteAdmin(admin.ModelAdmin):
         if not self.has_change_permission(request, cliente):
             raise PermissionDenied
 
-        from portal.forms_usuarios import CrearUsuarioPortalForm
-        from portal.provision import cupos_restantes, cupos_totales, cupos_usados
+        from core.puentes import CrearUsuarioPortalForm
+        from core.puentes import cupos_restantes, cupos_totales, cupos_usados
 
         initial = {
             'email': cliente.email,

@@ -36,7 +36,7 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').strip()
     if status:
         return False
-    from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+    from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
     from core.habeas_respuestas import texto_desde_webhook_twilio
     from core.nati import normalizar_telefono_whatsapp
     from core.utils_telefono import estudiante_por_telefono

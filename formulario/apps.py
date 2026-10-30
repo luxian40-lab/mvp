@@ -8,3 +8,4 @@ class FormularioConfig(AppConfig):
 
     def ready(self) -> None:
         import formulario.signals  # noqa: F401, PLC0415
+        import formulario.registro_core  # noqa: F401, PLC0415

@@ -264,7 +264,7 @@ def _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actua
     else:
         # Completó el último módulo del curso (p. ej. balance GEI en M5)
         try:
-            from formulario.hooks import intentar_iniciar_formulario_al_completar_modulo
+            from core.puentes import intentar_iniciar_formulario_al_completar_modulo
             _msg_ficha = intentar_iniciar_formulario_al_completar_modulo(
                 estudiante, progreso, modulo_actual, None
             )
@@ -448,7 +448,7 @@ def _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_
 def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual, siguiente_modulo, logger, obtener_video_url, dividir_contenido_seguro, activar_checkpoint_facilitador, parte_mensaje_con_media):
     if not es_modulo_reto:
         try:
-            from formulario.hooks import intentar_iniciar_formulario_al_completar_modulo
+            from core.puentes import intentar_iniciar_formulario_al_completar_modulo
             _msg_ficha = intentar_iniciar_formulario_al_completar_modulo(
                 estudiante, progreso, modulo_actual, siguiente_modulo
             )

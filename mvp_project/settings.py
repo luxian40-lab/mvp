@@ -81,6 +81,10 @@ if not DEBUG:
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [
     'unfold',                   # Debe ir antes de django.contrib.admin
+    'formulario',               # GEI / encuestas. ready() registra puentes antes del admin.
+    'portal',                   # Portal web para clientes B2B
+    'aprende',                  # Aula web estudiantes / profesores
+    'studio',                   # Catálogo / creadores (separado del aula)
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -89,15 +93,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'storages',                 # <--- AWS S3 para almacenar audios
     'core',                     # <--- Orquestador + modelos compartidos
-    'formulario',               # GEI / encuestas
     'learning',                 # Bounded context educación (migración gradual)
     'agents_edu',               # Darío, Claudia, tutor
     'agents_commercial',        # Nati, RAG comercial
     'analytics',                # Dashboards, métricas, Excel
     'integrations',             # API LXP / Angular
-    'portal',                   # Portal web para clientes B2B
-    'aprende',                  # Aula web estudiantes / profesores
-    'studio',                   # Catálogo / creadores (separado del aula)
     'calculadora_margen',       # MVP público: ¿estoy ganando plata?
     'mercado_gtm',              # MVP público: Encuentra tu mercado (TAM/SAM/SOM + GTM)
 ]

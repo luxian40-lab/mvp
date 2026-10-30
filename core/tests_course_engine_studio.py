@@ -116,7 +116,7 @@ class CourseEngineStudioViewTests(TestCase):
         self.assertEqual(self.curso.course_engine_voice_id, vid)
 
     @override_settings(SECURE_SSL_REDIRECT=False)
-    @patch('portal.rag_curso_service.encolar_indexacion_rag_curso')
+    @patch('core.puentes.encolar_indexacion_rag_curso')
     def test_reindex_doc(self, mock_encolar):
         doc = DocumentoRAG.objects.create(
             curso=self.curso,

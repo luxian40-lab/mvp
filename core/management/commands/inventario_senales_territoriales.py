@@ -45,7 +45,7 @@ class Command(BaseCommand):
         con_texto = est.filter(Q(municipio__gt='') | Q(departamento__gt='')).count()
 
         # Resolución en vivo (muestra cobertura potencial sin escribir)
-        from portal.geo_catalogo import resolver_ubicacion
+        from core.puentes import resolver_ubicacion
 
         mapeados = 0
         ambiguos = 0
@@ -147,6 +147,6 @@ class Command(BaseCommand):
         self.stdout.write(f"Catálogo DIVIPOLA embebido: {report['catalogo']['divipola_municipios']} municipios")
 
     def _divipola_count(self) -> int:
-        from portal.geo_catalogo import _divipola_por_clave
+        from core.puentes import _divipola_por_clave
 
         return len(_divipola_por_clave())

@@ -269,7 +269,7 @@ def detalle_progreso(progreso):
 
 def ordenes_studio(estudiante):
     """Órdenes de la CuentaAula. Vacío si no hay compra. No crea filas."""
-    from studio.models import CuentaAula, OrdenStudio
+    from core.puentes import CuentaAula, OrdenStudio
 
     cuenta = CuentaAula.objects.filter(estudiante=estudiante).first()
     if cuenta is None:
@@ -1057,7 +1057,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             from django.urls import reverse
 
             from core.models import ProgresoEstudiante, WhatsappLog
-            from portal.branding import contexto_identidad_org
+            from core.puentes import contexto_identidad_org
 
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
             extra_context['eki_est_inicial'] = (obj.nombre or '?').strip()[:1].upper()

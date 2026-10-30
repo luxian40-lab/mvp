@@ -30,7 +30,7 @@ from core.models import (
     PreguntaModulo,
     ProgresoEstudiante,
 )
-from formulario.models import FlujoPregunta, TipoFormulario
+from core.puentes import FlujoPregunta, TipoFormulario
 
 
 PRESERVA_CLIENTE = {
@@ -370,7 +370,7 @@ class Command(BaseCommand):
             self.stdout.write("   (no existía cliente Preserva, nada para borrar)")
             return
         # Sesiones, fichas, progreso, estudiantes test, tipo formulario, curso, cliente
-        from formulario.models import FichaGEI, SesionFormulario
+        from core.puentes import FichaGEI, SesionFormulario
         SesionFormulario.objects.filter(estudiante__cliente=cliente).delete()
         FichaGEI.objects.filter(cliente=cliente).delete()
         TipoFormulario.objects.filter(cliente=cliente).delete()
@@ -456,7 +456,7 @@ class Command(BaseCommand):
     def _upsert_tipo_formulario(
         self, cliente: Cliente, curso: Curso, modulo: Modulo, bloque: str
     ) -> TipoFormulario:
-        from formulario.gei_flujos import BLOQUES_GEI
+        from core.puentes import BLOQUES_GEI
 
         meta = BLOQUES_GEI[bloque]
         nombre = f"Balance GEI {meta['nombre_suffix']} — Preserva"
@@ -481,7 +481,7 @@ class Command(BaseCommand):
         return tf
 
     def _sembrar_pasos_gei(self, tf: TipoFormulario, bloque: str):
-        from formulario.gei_flujos import BLOQUES_GEI
+        from core.puentes import BLOQUES_GEI
 
         pasos = BLOQUES_GEI[bloque]["pasos"]
         FlujoPregunta.objects.filter(formulario=tf).delete()

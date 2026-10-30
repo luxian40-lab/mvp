@@ -55,7 +55,7 @@ def documentos_curso_json(curso, *, limite: int = 24) -> list[dict]:
 
 def subir_documentos_rag(curso, archivos, *, usuario=None) -> dict[str, Any]:
     """Sube material del curso al RAG; la indexación corre en segundo plano."""
-    from portal.rag_curso_service import crear_documento_curso
+    from core.puentes import crear_documento_curso
 
     if not archivos:
         return {'ok': False, 'error': 'No hay archivos', 'status': 400}
@@ -91,7 +91,7 @@ def subir_documentos_rag(curso, archivos, *, usuario=None) -> dict[str, Any]:
 
 def reindexar_documento(curso, doc_id) -> dict[str, Any]:
     from core.models import DocumentoRAG
-    from portal.rag_curso_service import encolar_indexacion_rag_curso
+    from core.puentes import encolar_indexacion_rag_curso
 
     try:
         pk = int(doc_id or 0)

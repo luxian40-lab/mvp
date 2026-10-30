@@ -563,7 +563,7 @@ class CursoAdmin(admin.ModelAdmin):
 
             from core.models import Campana, Curso, Estudiante, ProgresoEstudiante
             from core.module_builder import module_builder_habilitado_para_curso
-            from portal.branding import contexto_identidad_org
+            from core.puentes import contexto_identidad_org
 
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
             extra_context['eki_curso_experiencia'] = obj.get_modo_aula_display()
@@ -2159,7 +2159,7 @@ class ModuloAdmin(admin.ModelAdmin):
             from django.urls import reverse
 
             from core.module_builder import module_builder_habilitado_para_curso
-            from portal.branding import contexto_identidad_org
+            from core.puentes import contexto_identidad_org
 
             curso = getattr(obj, 'curso', None)
             extra_context.update(contexto_identidad_org(getattr(curso, 'cliente', None)))

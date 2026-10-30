@@ -21,7 +21,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
     # Acceso web Aprende: el alumno escribe *aula* (respuesta inbound = ventana WA abierta)
     try:
-        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+        from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
         if mensaje_pide_acceso_aula(msg_body):
             texto_respuesta = emitir_acceso_desde_whatsapp(estudiante)
             try:
@@ -49,9 +49,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
     if estado_chat == 'ACTIVO':
         try:
-            from formulario.routing import debe_usar_agente_formulario
+            from core.puentes import debe_usar_agente_formulario
             if debe_usar_agente_formulario(estudiante):
-                from formulario.agent import manejar_mensaje_formulario
+                from core.puentes import manejar_mensaje_formulario
                 texto_respuesta = manejar_mensaje_formulario(estudiante, msg_body)
                 try:
                     from twilio.rest import Client as TwilioClient

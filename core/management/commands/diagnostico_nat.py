@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.bot_comercial_routing import es_destino_bot_comercial, numeros_destino_comercial
 from core.models import Cliente
-from portal.nat_service import checklist_preparacion_nat
+from core.puentes import checklist_preparacion_nat
 
 
 class Command(BaseCommand):

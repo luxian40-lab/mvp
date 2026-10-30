@@ -261,7 +261,7 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
 
 def _avisar_aula_es_twilio(telefono: str, from_number: str, body: str) -> bool:
     """*aula* en Meta no emite código: el aula vive en la línea Twilio."""
-    from aprende.acceso_whatsapp import mensaje_pide_acceso_aula
+    from core.puentes import mensaje_pide_acceso_aula
 
     if not mensaje_pide_acceso_aula(body):
         return False

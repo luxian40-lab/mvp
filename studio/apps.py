@@ -5,3 +5,6 @@ class StudioConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'studio'
     verbose_name = 'eki Studio'
+
+    def ready(self) -> None:
+        import studio.registro_core  # noqa: F401, PLC0415

@@ -60,7 +60,7 @@ class RateLimitMiddleware(MiddlewareMixin):
     
     def get_client_ip(self, request):
         """La misma IP que el login del aula (proxy de confianza o Cloudflare)."""
-        from aprende.acceso_whatsapp import client_ip_from_request
+        from core.puentes import client_ip_from_request
 
         return client_ip_from_request(request)
     

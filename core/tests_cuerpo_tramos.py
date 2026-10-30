@@ -192,8 +192,8 @@ class PrioridadGlobalTests(_Base):
     def test_formulario_activo_tiene_prioridad(self):
         self._est()
         with patch('core.utils.enviar_whatsapp_twilio') as enviar, \
-                patch('formulario.routing.debe_usar_agente_formulario', return_value=True), \
-                patch('formulario.agent.manejar_mensaje_formulario', return_value='FORM'):
+                patch('core.puentes.debe_usar_agente_formulario', return_value=True), \
+                patch('core.puentes.manejar_mensaje_formulario', return_value='FORM'):
             self._post('mi finca tiene 3 hectareas', 'SM_tr_pg_form')
         enviar.assert_called_once_with(f'+{TEL}', 'FORM')
         self.assertTrue(WhatsappLog.objects.filter(telefono=TEL, tipo='SENT', mensaje='FORM').exists())
@@ -202,16 +202,16 @@ class PrioridadGlobalTests(_Base):
 class EntradaActivoTests(_Base):
     def test_aula_entrega_el_acceso(self):
         self._est()
-        with patch('aprende.acceso_whatsapp.mensaje_pide_acceso_aula', side_effect=lambda t: t == 'aula'), \
-                patch('aprende.acceso_whatsapp.emitir_acceso_desde_whatsapp', return_value='AULA_OK'):
+        with patch('core.puentes.mensaje_pide_acceso_aula', side_effect=lambda t: t == 'aula'), \
+                patch('core.puentes.emitir_acceso_desde_whatsapp', return_value='AULA_OK'):
             cli = self._post('aula', 'SM_tr_ea_aula')
         self.assertEqual(self._cuerpos(cli), ['AULA_OK'])
         self.assertTrue(WhatsappLog.objects.filter(telefono=TEL, tipo='SENT', mensaje='AULA_OK').exists())
 
     def test_formulario_sin_terminos_lo_atiende_el_bloque_activo(self):
         self._est(acepto_terminos=False)
-        with patch('formulario.routing.debe_usar_agente_formulario', return_value=True), \
-                patch('formulario.agent.manejar_mensaje_formulario', return_value='FORM2'):
+        with patch('core.puentes.debe_usar_agente_formulario', return_value=True), \
+                patch('core.puentes.manejar_mensaje_formulario', return_value='FORM2'):
             cli = self._post('mi finca', 'SM_tr_ea_form')
         self.assertEqual(self._cuerpos(cli), ['FORM2'])
 

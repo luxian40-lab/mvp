@@ -25,7 +25,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         from core.models import Cliente, Curso
-        from portal.models import PortalUsuario
+        from core.puentes import PortalUsuario
 
         cliente = Cliente.objects.filter(pk=options['cliente_id']).first()
         if not cliente:

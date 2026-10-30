@@ -3,7 +3,7 @@
 from django.core.management.base import BaseCommand
 
 from core.models import Estudiante
-from portal.geo_catalogo import resolver_ubicacion
+from core.puentes import resolver_ubicacion
 
 
 class Command(BaseCommand):

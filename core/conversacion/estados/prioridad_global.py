@@ -77,9 +77,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         # GEI / formulario activo: tiene prioridad sobre *hola*/*menú*/retomar B2B.
         # Si no, "hola" (keyword retomar) saltaba la ficha y dejaba la sesión pegada.
         try:
-            from formulario.routing import debe_usar_agente_formulario
+            from core.puentes import debe_usar_agente_formulario
             if estado_chat == 'ACTIVO' and debe_usar_agente_formulario(estudiante):
-                from formulario.agent import manejar_mensaje_formulario
+                from core.puentes import manejar_mensaje_formulario
                 texto_respuesta = manejar_mensaje_formulario(estudiante, msg_body)
                 enviar_whatsapp_twilio(msg_from, texto_respuesta)
                 WhatsappLog.objects.create(
