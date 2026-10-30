@@ -74,6 +74,7 @@ def _modelo_nuevo_api(modelo: str) -> bool:
         return False
     return (
         m.startswith('gpt-5')
+        or m.startswith('gpt-6')
         or m.startswith('o1')
         or m.startswith('o3')
         or m.startswith('o4')

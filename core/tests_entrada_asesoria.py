@@ -16,12 +16,27 @@ from core.tests_asesoria_pregunta import PREGUNTA
 from core.tests_planes_linea import OK, _payload, _textos
 
 ENTRADA = dict(PREGUNTA, EKI_ASESORIA_ENTRADA=True, EKI_ASESORIA_CONTEXTO=True)
+_PRIMERA = 'Con el aguacate, ¿qué se le está complicando?'
+_PLATA = '¿La plata no entra porque no se vende, o entra y no le cubre lo que gasta?'
+
+
+def _luna(_client, modelo, messages, _max_out, temperature=None):
+    user = messages[-1]['content']
+    if 'Última frase:' not in user:
+        return _PRIMERA
+    frase = user.split('Última frase:', 1)[1].lower()
+    if 'plata' in frase:
+        return _PLATA
+    return 'DERIVAR'
 
 
 @override_settings(**ENTRADA)
 class EntradaAsesoriaTests(TestCase):
     def setUp(self):
         cache.clear()
+        parche = patch('core.openai_compat.completar_chat', side_effect=_luna)
+        self.luna = parche.start()
+        self.addCleanup(parche.stop)
         self.tel = '573005559180'
         SandboxCanalSesion.objects.create(telefono=self.tel, habeas_aceptado=True, plan=PLAN_CURSO_ASESOR)
         Estudiante.objects.create(
@@ -63,15 +78,12 @@ class EntradaAsesoriaTests(TestCase):
         self.assertNotIn('Bien', textos[0])
         self.assertEqual(self._usadas(), 0)
         _, textos = self._enviar('Soy de Bogotá y vendo aguacate')
-        self.assertEqual(
-            textos,
-            ['Del aguacate, ¿qué quiere entender mejor?\n\n'
-             '_*agentes* = ver la lista · *menu* = menú principal._'],
-        )
+        self.assertEqual(textos, [f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._'])
         self.assertNotIn('¿Qué duda tiene', textos[0])
         self.assertNotIn('Soy de Bogotá', textos[0])
+        self.assertEqual(self.luna.call_args.args[1], 'gpt-6-luna')
         ficha = self._ficha()
-        self.assertEqual((ficha.lugar, ficha.dedica, ficha.entrada), ('Bogotá', 'vendo aguacate', 'duda'))
+        self.assertEqual((ficha.lugar, ficha.dedica, ficha.entrada), ('Bogotá', 'vendo aguacate', 'indaga1'))
         self.assertEqual(self._usadas(), 0)
         self.assertNotIn('Líbano', contexto_persona(self.tel))
         self.assertNotIn('Zona Cafetera', contexto_persona(self.tel))
@@ -84,8 +96,7 @@ class EntradaAsesoriaTests(TestCase):
         _, textos = self._enviar('Bogotá')
         self.assertEqual(textos, ['¿A qué se dedica?'])
         _, textos = self._enviar('vendo aguacate')
-        self.assertEqual(textos[0], 'Del aguacate, ¿qué quiere entender mejor?\n\n'
-                         '_*agentes* = ver la lista · *menu* = menú principal._')
+        self.assertEqual(textos[0], f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
         self.assertEqual((self._ficha().lugar, self._ficha().dedica), ('Bogotá', 'vendo aguacate'))
 
     def test_la_duda_se_deriva_y_ahi_cuenta_una_pregunta(self):
@@ -122,12 +133,36 @@ class EntradaAsesoriaTests(TestCase):
         self._enviar('Soy de Bogotá y vendo aguacate')
         self._enviar('asesoria')
         _, textos = self._enviar('Ahí vamos')
-        self.assertEqual(
-            textos[0],
-            'Del aguacate, ¿qué quiere entender mejor?\n\n'
-            '_*agentes* = ver la lista · *menu* = menú principal._',
-        )
+        self.assertEqual(textos[0], f'{_PRIMERA}\n\n_*agentes* = ver la lista · *menu* = menú principal._')
         self.assertEqual(self._usadas(), 0)
+
+    def test_sin_plata_pregunta_el_detalle_y_no_deriva_todavia(self):
+        self._enviar('asesoria')
+        self._enviar('Bien')
+        self._enviar('Soy de Bogotá y vendo aguacate')
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle') as der:
+            _, textos = self._enviar('me quedo sin plata')
+        self.assertEqual(textos, [f'{_PLATA}\n\n_*agentes* = ver la lista · *menu* = menú principal._'])
+        der.assert_not_called()
+        self.assertEqual(self._usadas(), 0)
+        self.assertEqual(self._ficha().entrada, 'indaga2')
+        frase = 'entra y no me cubre lo que gasto'
+        with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('finanzas', 'llm', '')) as der, \
+                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'), \
+                patch('core.lineas.envio._post_graph', return_value=OK):
+            dispatch_sandbox_menu(_payload(self.tel, frase))
+        self.assertEqual(der.call_args.args[0], frase)
+        self.assertEqual(self._usadas(), 1)
+        self.assertEqual(self._ficha().entrada, '')
+
+    def test_si_luna_no_contesta_queda_la_frase_fija(self):
+        self._enviar('asesoria')
+        self._enviar('Bien')
+        with patch('core.openai_compat.completar_chat', return_value=''):
+            _, textos = self._enviar('Soy de Bogotá y vendo aguacate')
+        self.assertIn('Del aguacate, ¿qué quiere entender mejor?', textos[0])
+        self.assertEqual(self._usadas(), 0)
+        self.assertEqual(self._ficha().entrada, 'duda')
 
 
 @override_settings(**PREGUNTA)

@@ -391,6 +391,9 @@ EKI_ASESORIA_PREGUNTA = os.environ.get('EKI_ASESORIA_PREGUNTA', 'false').strip()
     '1', 'true', 'yes', 'on',
 )
 EKI_ASESORIA_MODELO = os.environ.get('EKI_ASESORIA_MODELO', 'gpt-5-mini')
+# Indagación de la charla de entrada. Misma API. Precio el 30 de octubre de 2026:
+# gpt-6-luna, $0.10 entrada y $0.50 salida por millón de tokens (contexto corto).
+EKI_ASESORIA_ENTRADA_MODELO = os.environ.get('EKI_ASESORIA_ENTRADA_MODELO', 'gpt-6-luna')
 # Ficha del negocio: contexto al derivar y a los agentes, tres preguntas y medición. Off = igual que antes.
 EKI_ASESORIA_CONTEXTO = os.environ.get('EKI_ASESORIA_CONTEXTO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
@@ -1207,6 +1210,8 @@ SANDBOX_CELERY_ASYNC = os.environ.get('SANDBOX_CELERY_ASYNC', 'False').lower() i
 LLM_PRECIOS_USD_POR_MTOK = {
     'gpt-5': (Decimal('1.25'), Decimal('10')),
     'gpt-5-mini': (Decimal('0.25'), Decimal('2')),
+    # gpt-6-luna, lista de OpenAI, 30 de octubre de 2026. Contexto corto.
+    'gpt-6-luna': (Decimal('0.10'), Decimal('0.50')),
 }
 LLM_PRESUPUESTO_DIARIO_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_USD', '10'))
 LLM_PRESUPUESTO_DIARIO_ORG_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_ORG_USD', '10'))

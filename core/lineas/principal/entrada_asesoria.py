@@ -62,7 +62,7 @@ def _paso_que_falta(telefono: str, ficha) -> str:
         return 'lugar'
     if not (ficha.dedica or '').strip():
         return 'dedica'
-    return 'duda'
+    return 'indaga1'
 
 
 def _sin_de(texto: str) -> str:
@@ -122,6 +122,76 @@ def _sacar_contexto(texto: str) -> tuple[str, str]:
         else:
             dedica = texto.strip(' .')
     return lugar[:80], dedica[:200]
+
+
+def _numero_indaga(entrada: str) -> int:
+    resto = (entrada or '').removeprefix('indaga')
+    return int(resto) if resto.isdigit() else 0
+
+
+def _con_pie(pregunta: str) -> str:
+    return f'{pregunta}\n\n{PIE_ASESORIA}'
+
+
+def _pregunta_de(salida: str) -> str:
+    """La pregunta del modelo, o vacío si toca derivar o la respuesta no sirve."""
+    texto = ' '.join((salida or '').split())
+    if not texto or texto.upper().startswith('DERIVAR'):
+        return ''
+    if '?' in texto:
+        texto = texto[:texto.find('?') + 1].strip()
+    if '?' not in texto or len(texto) > 320:
+        return ''
+    return texto
+
+
+def _llamar(telefono: str, mensajes: list) -> str:
+    from django.conf import settings
+
+    from core.presupuesto_llm import debe_degradar
+
+    api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
+    if not api_key or debe_degradar():
+        return ''
+    from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
+
+    marca = contexto_uso_llm(telefono=telefono, agente='entrada_asesoria')
+    try:
+        return completar_chat(
+            cliente_openai(api_key),
+            getattr(settings, 'EKI_ASESORIA_ENTRADA_MODELO', 'gpt-6-luna'),
+            mensajes,
+            120,
+        )
+    finally:
+        marca.var.reset(marca)
+
+
+def _mensajes_primera(ficha) -> list:
+    sistema = (
+        'Habla por WhatsApp con una persona en Colombia. De usted. '
+        'Una sola pregunta, corta, sobre qué se le está complicando en lo que hace. '
+        'No suponga que el problema es el cultivo: puede ser la venta o la plata. '
+        'No nombre asesores ni dé consejos. No repita la frase completa. Solo la pregunta.'
+    )
+    datos = f"Lugar: {(ficha.lugar or '').strip()}\nSe dedica a: {(ficha.dedica or '').strip()}"
+    return [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': datos[:500]}]
+
+
+def _mensajes_sigue(ficha, dicho: str) -> list:
+    sistema = (
+        'Responda DERIVAR si la última frase ya dice el problema '
+        '(la mata, quién compra, el precio, la ganancia, las cuentas, el ánimo o la tecnología). '
+        'Si solo nombra el oficio, o dice que se queda sin plata sin aclarar si no se vende '
+        'o si entra y no cubre lo que gasta, haga una sola pregunta de usted para distinguirlo. '
+        'Sin asesores, sin consejos, sin repetir la frase completa. DERIVAR o la pregunta, nada más.'
+    )
+    datos = (
+        f"Se dedica a: {(ficha.dedica or '').strip()}\n"
+        f"Lugar: {(ficha.lugar or '').strip()}\n"
+        f"Última frase: {dicho}"
+    )
+    return [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': datos[:700]}]
 
 
 def _texto_entender(ficha) -> str:
@@ -211,5 +281,24 @@ def responder(telefono: str, texto: str) -> str | None:
     if ficha.entrada == 'duda' or _parece_pregunta(t):
         _cerrar(ficha)
         return None
+    n = _numero_indaga(ficha.entrada)
+    if n:
+        if n >= 3:
+            _cerrar(ficha)
+            return None
+        pregunta = _pregunta_de(_llamar(telefono, _mensajes_sigue(ficha, crudo)))
+        if not pregunta:
+            _cerrar(ficha)
+            return None
+        ficha.entrada = f'indaga{n + 1}'
+        ficha.save(update_fields=['entrada', 'actualizada_en'])
+        return _con_pie(pregunta)
     _guardar_respuesta(ficha, telefono, crudo)
+    if ficha.entrada == 'indaga1':
+        pregunta = _pregunta_de(_llamar(telefono, _mensajes_primera(ficha)))
+        if not pregunta:
+            ficha.entrada = 'duda'
+            ficha.save(update_fields=['entrada', 'actualizada_en'])
+            return _texto_entender(ficha)
+        return _con_pie(pregunta)
     return texto_de(telefono, ficha)
