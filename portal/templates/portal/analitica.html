@@ -23,7 +23,14 @@
     }
     html[data-theme="dark"] .ana-box { background: var(--blanco); }
     .ana-box .metric-number { font-size: 1.7rem; }
-    .ana-box .ana-box__title { font-size: 1rem; line-height: 1.35; font-weight: 600; }
+    .ana-box p.ana-box__dato {
+        margin: 0;
+        color: var(--purple-deep);
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.35;
+        letter-spacing: 0;
+    }
     .ana-box h3 {
         margin: 0 0 8px;
         font-size: 0.95rem;
@@ -279,7 +286,7 @@
             <article class="ana-box">
                 <h3>Curso con más inicios</h3>
                 {% if cursos_destacados.mas_inicios %}
-                <p class="metric-number ana-box__title">{{ cursos_destacados.mas_inicios.nombre }}</p>
+                <p class="ana-box__dato">{{ cursos_destacados.mas_inicios.nombre }}</p>
                 <p>{{ cursos_destacados.mas_inicios.iniciaron }} personas lo iniciaron.</p>
                 {% else %}
                 <p class="metric-number">Sin dato</p>
@@ -299,7 +306,7 @@
             <article class="ana-box">
                 <h3>Curso con mayor culminación</h3>
                 {% if cursos_destacados.mayor_culminacion %}
-                <p class="metric-number ana-box__title">{{ cursos_destacados.mayor_culminacion.nombre }}</p>
+                <p class="ana-box__dato">{{ cursos_destacados.mayor_culminacion.nombre }}</p>
                 <p>{{ cursos_destacados.mayor_culminacion.culminacion_iniciados_pct|stringformat:".1f" }}% · {{ cursos_destacados.mayor_culminacion.terminaron }} de {{ cursos_destacados.mayor_culminacion.iniciaron }} iniciadores. Entran cursos con al menos {{ cursos_destacados.min_iniciadores }} iniciadores.</p>
                 {% else %}
                 <p class="metric-number">Sin dato</p>
@@ -398,7 +405,7 @@
             <article class="ana-box">
                 <h3>IA más usada</h3>
                 {% if uso_ia.mas_usadas %}
-                <p class="metric-number ana-box__title">{{ uso_ia.mas_usadas|join:", " }}</p>
+                <p class="ana-box__dato">{{ uso_ia.mas_usadas|join:", " }}</p>
                 <p>{{ uso_ia.mas_usada_n }} preguntas{% if uso_ia.mas_usadas|length == 1 %}, {{ uso_ia.mas_usada_pct|stringformat:".1f" }}% del total{% else %}, empatadas{% endif %}. Últimos {{ uso_ia.periodo_dias }} días.</p>
                 {% else %}
                 <p class="metric-number">Sin dato</p>
