@@ -101,48 +101,21 @@
   <section class="fab-section" aria-labelledby="fab-cursos">
     <div class="fab-section__head">
       <h2 id="fab-cursos">Cursos</h2>
-      {% if puede_crear_curso %}
-      <a class="fab-btn-nuevo" href="{% url 'portal_curso_crear_stub' %}">Nuevo curso</a>
-      {% endif %}
     </div>
 
-    {% if es_confama_demo and cursos_mock %}
     <div class="fab-cards">
-      {% for c in cursos_mock %}
-      <article class="fab-card">
-        <div class="fab-card__foto" style="background-image:url('{{ c.imagen }}');" role="img" aria-label="{{ c.titulo }}"></div>
+      {% for c in programas %}
+      <a class="fab-card" href="{{ c.url }}" target="_blank" rel="noopener">
+        <div class="fab-card__foto" style="{% if c.imagen %}background-image:url('{{ c.imagen }}');{% else %}background-image:linear-gradient(145deg,rgba(154,108,172,.45),rgba(60,123,191,.4));{% endif %}" role="img" aria-label="{{ c.titulo }}"></div>
         <div class="fab-card__body">
           <span class="fab-card__tag">{{ c.tag }}</span>
           <h3>{{ c.titulo }}</h3>
           <p>{{ c.desc }}</p>
-          {% if c.ce_url %}
-          <a class="fab-card__cta" href="{{ c.ce_url }}">Abrir →</a>
-          {% else %}
-          <a class="fab-card__cta" href="{{ c.url }}" target="_blank" rel="noopener">Ver +</a>
-          {% endif %}
-        </div>
-      </article>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="fab-cards">
-      {% for curso in cursos %}
-      <a class="fab-card" href="/portal/cursos/{{ curso.id }}/flujo/">
-        <div class="fab-card__foto" style="background-image:linear-gradient(145deg,rgba(154,108,172,.45),rgba(60,123,191,.4));" aria-hidden="true"></div>
-        <div class="fab-card__body">
-          <span class="fab-card__tag">Curso</span>
-          <h3>{{ curso.nombre }}</h3>
-          <p>{{ curso.modulos_count }} módulo{{ curso.modulos_count|pluralize }}</p>
           <span class="fab-card__cta">Ver +</span>
         </div>
       </a>
-      {% empty %}
-      <article class="panel" style="grid-column:1/-1;">
-        <p class="muted" style="margin:0;">Aún no hay cursos. {% if puede_crear_curso %}Crea el primero.{% endif %}</p>
-      </article>
       {% endfor %}
     </div>
-    {% endif %}
   </section>
 
   <section class="fab-section fab-tools" id="fab-tools" aria-labelledby="fab-tools-title">
