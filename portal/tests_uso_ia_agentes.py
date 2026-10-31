@@ -54,8 +54,17 @@ class UsoIaPorPersonaTests(TestCase):
         self.assertEqual(len(uso['personas']), 1)
         self.assertEqual(uso['personas'][0]['nombre'], 'Ana')
         self.assertEqual(uso['personas'][0]['por_agente'], [2, 1])
+        self.assertEqual(uso['mas_usadas'], ['Coach'])
+        self.assertEqual(uso['mas_usada_n'], 2)
+        self.assertEqual(uso['mas_usada_pct'], round(200 / 3, 1))
+        self.assertEqual(
+            [(fila['nombre'], fila['n'], fila['pct']) for fila in uso['comparacion']],
+            [('Coach', 2, round(200 / 3, 1)), ('Agrónomo (Nat)', 1, round(100 / 3, 1))],
+        )
 
         html = r.content.decode()
+        self.assertIn('IA más usada', html)
+        self.assertIn('Comparación por agentes', html)
         self.assertIn('Uso de IA por persona', html)
         self.assertIn('Agrónomo (Nat)', html)
         self.assertNotIn('Ajena', html)

@@ -60,6 +60,23 @@ def uso_ia_por_persona(org, *, ahora=None) -> dict:
             ultima[eid] = fecha
 
     agentes = sorted(totales_agente, key=lambda a: (-totales_agente[a], a))
+    total = sum(totales_agente.values())
+    tope = totales_agente[agentes[0]] if agentes else 0
+    mas_usadas = [agente for agente in agentes if totales_agente[agente] == tope]
+    maximo = max(totales_agente.values(), default=0)
+    comparacion = []
+    for agente in agentes:
+        n = totales_agente[agente]
+        if n and maximo:
+            altura = max(8, round(n * 100 / maximo))
+        else:
+            altura = 0
+        comparacion.append({
+            'nombre': agente,
+            'n': n,
+            'pct': round(n * 100 / total, 1) if total else None,
+            'altura': altura,
+        })
     personas = sorted(
         (
             {
@@ -77,7 +94,11 @@ def uso_ia_por_persona(org, *, ahora=None) -> dict:
         'periodo_dias': DIAS_PERIODO,
         'agentes': agentes,
         'totales_agente': [totales_agente[a] for a in agentes],
-        'total': sum(totales_agente.values()),
+        'total': total,
+        'mas_usadas': mas_usadas,
+        'mas_usada_n': tope,
+        'mas_usada_pct': round(tope * 100 / total, 1) if total else None,
+        'comparacion': comparacion,
         'personas': personas,
         'usan': len(personas),
         'registrados': registrados,

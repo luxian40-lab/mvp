@@ -49,15 +49,15 @@
                     <th>Curso</th>
                     <th>Inscritos</th>
                     <th>Tasa de inicio</th>
-                    <th>Culminación de quienes iniciaron</th>
-                    <th>Culminación de inscritos</th>
+                    <th>Culminación sobre iniciadores</th>
+                    <th>Culminación sobre aceptantes</th>
                     <th>Avance promedio</th>
                 </tr>
             </thead>
             <tbody>
                 {% for c in linea.cursos %}
                 <tr>
-                    <td>{{ c.nombre }}{% if c.general %}<small>Curso general de eki</small>{% endif %}</td>
+                    <td><a href="{% url 'portal_analitica_curso_inscritos' c.id %}">{{ c.nombre }}</a>{% if c.general %}<small>Curso general de eki</small>{% endif %}</td>
                     <td>{{ c.inscritos }}</td>
                     <td>{% if c.inicio_pct is None %}Sin dato{% else %}{{ c.inicio_pct|stringformat:".1f" }}%<small>{{ c.iniciaron }} de {{ c.inscritos }}</small>{% endif %}</td>
                     <td>{% if c.culminacion_iniciados_pct is None %}Sin dato{% else %}{{ c.culminacion_iniciados_pct|stringformat:".1f" }}%<small>{{ c.terminaron }} de {{ c.iniciaron }}</small>{% endif %}</td>
@@ -76,7 +76,7 @@
 {% endfor %}
 
 <p class="mc-nota">
-    Inscrito: aceptó el curso. Inició: recibió al menos un paso o cerró un módulo.
+    Aceptante: aceptó el curso. Inició: recibió al menos un paso o cerró un módulo.
     Avance: módulos cerrados sobre módulos del curso; un curso terminado cuenta 100 %.
     Un curso puede aparecer en más de una línea si ambas lo ofrecen.
 </p>

@@ -411,7 +411,13 @@ def _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_
         f"{barra} {porcentaje}%\n\n"
         f"🎓 *¡Felicitaciones! Ha completado todo el curso.*"
     )
-    
+
+    from core.conversacion.estados.reto import pregunta_si_falta
+
+    pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+    if pregunta_nota:
+        return f'{mensaje}\n\n{pregunta_nota}'
+
     msg_cert_img = ""
     try:
         from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio

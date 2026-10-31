@@ -182,6 +182,11 @@ def _texto_cierre_curso(pregunta_abierta, contexto_limpio, estudiante, progreso,
             "✍️ Tu facilitadora revisará y calificará tu respuesta."
         )
     else:
+        from core.conversacion.estados.reto import pregunta_si_falta
+
+        pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+        if pregunta_nota:
+            return f'{mensaje_respuesta}\n\n{pregunta_nota}'
         estudiante.estado_onboarding = 'curso_finalizado'
         estudiante.save(update_fields=['estado_onboarding'])
 

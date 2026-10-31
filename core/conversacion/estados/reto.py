@@ -1,5 +1,6 @@
 """Estado esperando_respuesta_reto. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
 import logging
+import re
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.claves_contexto import contexto_limpio
@@ -306,42 +307,133 @@ def _cerrar_reto_final(texto_respuesta, ctx, progreso, estudiante, _pregunta_abi
             progreso.curso.id,
             pregunta_abierta_ctx_id,
         )
-        # v1.9.8h: Final reto — issue certificate
-        estudiante.estado_onboarding = 'curso_finalizado'
-        estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-        estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-
-        msg_cert_img = ""
-        try:
-            from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-            cert = crear_certificado_automatico(estudiante, progreso.curso)
-            if cert and cert.archivo_imagen:
-                cert_url = obtener_url_certificado_twilio(cert)
-                if cert_url:
-                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                else:
-                    s3_key = str(cert.archivo_imagen.name)
-                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-            elif cert and cert.archivo_pdf:
-                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
-            else:
-                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-        except Exception as e:
-            logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
-            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-
-        # Radar/empleabilidad pausado: no envía Subachoque.
-        radar_msg = _radar_msg_si_aplica(estudiante)
-
-        msg_final = (
-            f"{msg_eval}\n\n"
-            f"🎓 *¡FELICITACIONES!*\n\n"
-            f"Ha completado el curso: *{progreso.curso.nombre}*"
-        )
-        partes_finales = [msg_final]
-        if radar_msg:
-            partes_finales.append(radar_msg)
-        partes_finales.append(msg_cert_img)
-        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+        pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+        if pregunta_nota:
+            texto_respuesta = f'{msg_eval}\n\n{pregunta_nota}'
+        else:
+            texto_respuesta = _texto_certificado_reto(estudiante, progreso, msg_eval)
     return texto_respuesta
+
+
+def _texto_certificado_reto(estudiante, progreso, msg_eval) -> str:
+    """Cierre de la línea sin nota: el mismo texto de antes del certificado."""
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
+    estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+    msg_cert_img = ""
+    try:
+        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        cert = crear_certificado_automatico(estudiante, progreso.curso)
+        if cert and cert.archivo_imagen:
+            cert_url = obtener_url_certificado_twilio(cert)
+            if cert_url:
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+            else:
+                s3_key = str(cert.archivo_imagen.name)
+                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+        elif cert and cert.archivo_pdf:
+            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
+        else:
+            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+    except Exception as e:
+        logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
+        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+    radar_msg = _radar_msg_si_aplica(estudiante)
+    msg_final = (
+        f"{msg_eval}\n\n"
+        f"🎓 *¡FELICITACIONES!*\n\n"
+        f"Ha completado el curso: *{progreso.curso.nombre}*"
+    )
+    partes_finales = [msg_final]
+    if radar_msg:
+        partes_finales.append(radar_msg)
+    partes_finales.append(msg_cert_img)
+    return "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+
+
+ESTADO_NOTA = 'esperando_nota_cierre'
+PREGUNTA_NOTA = (
+    'De 1 a 10, ¿qué tanto recomendaría este curso?\n\n'
+    'Responda solo con el número.'
+)
+REPREGUNTA_NOTA = (
+    'Necesito un número del 1 al 10.\n\n'
+    'De 1 a 10, ¿qué tanto recomendaría este curso?'
+)
+
+
+def nota_de(texto: str):
+    """El mensaje entero es el número. «8» y «8/10» valen. «tengo 2» no."""
+    limpio = (texto or '').strip()
+    if re.fullmatch(r'10|[1-9]', limpio):
+        return int(limpio)
+    partido = re.fullmatch(r'(10|[1-9])\s*/\s*10', limpio)
+    if partido:
+        return int(partido.group(1))
+    return None
+
+
+def pregunta_si_falta(estudiante, curso, progreso):
+    """Pide la nota en la línea principal y deja el certificado para el turno siguiente."""
+    from core.lineas.variante import perfil_de
+    from core.models import NotaCierreCurso
+
+    if not perfil_de().nota_cierre:
+        return None
+    if curso is None or NotaCierreCurso.objects.filter(estudiante=estudiante, curso=curso).exists():
+        return None
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
+        'tipo': 'nota_cierre',
+        'curso_id': curso.id,
+        'progreso_id': progreso.id if progreso is not None else None,
+        'reintento': False,
+    })
+    estudiante.estado_onboarding = ESTADO_NOTA
+    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+    return PREGUNTA_NOTA
+
+
+def _guardar_nota(estudiante, curso, nota: int) -> None:
+    from core.models import NotaCierreCurso
+
+    NotaCierreCurso.objects.update_or_create(
+        estudiante=estudiante,
+        curso=curso,
+        defaults={'nota': nota},
+    )
+
+
+def manejar_nota(contexto: Contexto) -> Respuesta:
+    estudiante = contexto.estudiante
+    ctx = dict(estudiante.contexto_temporal or {})
+    nota = nota_de(contexto.msg_body)
+    if nota is None and not ctx.get('reintento'):
+        ctx['reintento'] = True
+        estudiante.contexto_temporal = ctx
+        estudiante.save(update_fields=['contexto_temporal'])
+        return Respuesta(texto=REPREGUNTA_NOTA)
+
+    from core.models import Curso
+
+    curso = Curso.objects.filter(pk=ctx.get('curso_id')).first() if ctx.get('curso_id') else None
+    if nota is not None and curso is not None:
+        _guardar_nota(estudiante, curso, nota)
+    return Respuesta(texto=_texto_certificado_reto(estudiante, _progreso_de(curso, estudiante, ctx), ''))
+
+
+def _progreso_de(curso, estudiante, ctx):
+    from core.models import ProgresoEstudiante
+
+    progreso = None
+    if ctx.get('progreso_id'):
+        progreso = ProgresoEstudiante.objects.filter(pk=ctx['progreso_id']).select_related('curso').first()
+    if progreso is None and curso is not None:
+        progreso = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso=curso).select_related('curso').first()
+    if progreso is None:
+        class _Vacio:
+            curso = curso
+        progreso = _Vacio()
+    return progreso

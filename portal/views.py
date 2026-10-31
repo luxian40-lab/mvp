@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.db.models import Count
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -42,6 +42,7 @@ from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
 from .retencion_service import analitica_retencion_portal
 from .agente_retencion import responder_agente_retencion
+from .inscritos_curso import curso_de_la_org, inscritos_curso
 from .metricas_curso import metricas_cursos
 from .ranking_portal import ranking_portal
 from .uso_ia_agentes import uso_ia_por_persona
@@ -849,6 +850,15 @@ def estudiante_detalle(request, estudiante_id):
                 else ('En curso' if max_modulo_alcanzado(p) > 0 else 'Sin avance')
             ),
         })
+    curso_foco = None
+    crudo = request.GET.get('curso') or ''
+    if str(crudo).isdigit():
+        curso_id = int(crudo)
+        if any(item['progreso'].curso_id == curso_id for item in progreso_filas):
+            curso_foco = curso_id
+            progreso_filas.sort(
+                key=lambda item: (item['progreso'].curso_id != curso_id, item['progreso'].curso.nombre),
+            )
 
     pqrs = _filtrar_pqrs_por_tipo_proyecto(
         SolicitudSoporte.objects.filter(estudiante=estudiante),
@@ -890,6 +900,7 @@ def estudiante_detalle(request, estudiante_id):
         'certificados': certificados,
         'gamificacion': gamificacion,
         'mensajes_recientes': mensajes_recientes,
+        'curso_foco': curso_foco,
     })
 
 
@@ -1128,11 +1139,15 @@ def portal_analitica(request):
 
         impacto = impacto_nucleo(org)
     uso_ia = uso_ia_por_persona(org) if seccion == 'habilidades' else None
+    metricas = metricas_cursos(org)
     return render(request, 'portal/analitica.html', {
         'org': org,
         'mods': mods,
         'uso': uso_plataforma(org),
-        'cursos_total': metricas_cursos(org)['total'],
+        'cursos_total': metricas['total'],
+        'cursos_segundo': metricas['segundo_curso'],
+        'cursos_destacados': metricas['destacados'],
+        'cursos_nota': metricas['nota_cierre'],
         'ranking': ranking_portal(org),
         'ce_data': ce_data,
         'impacto': impacto,
@@ -1150,6 +1165,28 @@ def portal_analitica_cursos(request):
     return render(request, 'portal/analitica_cursos.html', {
         'org': org,
         'metricas': metricas_cursos(org),
+    })
+
+
+@portal_login_required
+def portal_analitica_curso_inscritos(request, curso_id):
+    """Aceptantes de un curso. Los nombres no viajan en la tabla de métricas."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    curso = curso_de_la_org(org, curso_id)
+    if curso is None:
+        raise Http404
+    lista = inscritos_curso(
+        org,
+        curso,
+        q=request.GET.get('q') or '',
+        page=request.GET.get('page') or 1,
+    )
+    return render(request, 'portal/analitica_curso_inscritos.html', {
+        'org': org,
+        'curso': curso,
+        'lista': lista,
     })
 
 

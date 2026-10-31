@@ -35,6 +35,8 @@ AGENTES = {
     'esperando_respuesta_asistente': asistente.manejar,
     # Respuesta abierta final, calificada por la facilitadora.
     'esperando_respuesta_pregunta_abierta_final': pregunta_abierta_final.manejar,
+    # Nota 1 a 10 de la línea principal, y después el certificado.
+    'esperando_nota_cierre': reto.manejar_nota,
     # Facilitadora: evalúa la respuesta al reto (texto, audio o foto de evidencia).
     'esperando_respuesta_reto': reto.manejar,
     # Examen clásico del módulo: valida la letra, avanza o cierra el curso.

@@ -81,6 +81,7 @@ ESTADOS_PEDAGOGIA = frozenset({
     'esperando_respuesta_reto',
     'esperando_respuesta_modulo',
     'esperando_respuesta_pregunta_abierta_final',
+    'esperando_nota_cierre',
     'esperando_seleccion_curso',
 })
 

@@ -31,6 +31,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         'esperando_respuesta_reto',          # Facilitadora
         'esperando_respuesta_modulo',         # Evaluación módulo
         'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
+        'esperando_nota_cierre',                     # Nota 1 a 10 antes del certificado
     ]
     from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_gate
     # Radar: código de aliado (no gate *listo*) — pausado no intercepta.

@@ -104,6 +104,11 @@ def _cerrar_pregunta_abierta(texto_respuesta, siguiente_pregunta, logger, estudi
             "✍️ Responde con tus propias palabras (texto o audio)."
         )
     else:
+        from core.conversacion.estados.reto import pregunta_si_falta
+
+        pregunta_nota = pregunta_si_falta(estudiante, curso_obj, progreso)
+        if pregunta_nota:
+            return f'*Facilitadora*\n\n{feedback_final}{puntos_msg}\n\n{pregunta_nota}'
         # Mantener el flujo general: después de la última pregunta final,
         # se entrega certificado y se cierra el curso.
         msg_cert_img = ""

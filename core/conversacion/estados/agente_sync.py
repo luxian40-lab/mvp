@@ -34,5 +34,8 @@ def resincronizar(contexto: Contexto) -> None:
                 _ob_prev,
                 estudiante.id,
             )
+        elif _tipo_ctx == 'nota_cierre' and estudiante.estado_onboarding != 'esperando_nota_cierre':
+            estudiante.estado_onboarding = 'esperando_nota_cierre'
+            estudiante.save(update_fields=['estado_onboarding'])
     except Exception as e:
         logger.warning("⚠️ Sync agente pedagógico omitido: %s", e)
