@@ -25,6 +25,11 @@ class InstruccionesComunesTests(SimpleTestCase):
     def test_metodo_y_limites_comunes(self):
         texto = INSTRUCCIONES_EKI
         self.assertIn('comprender, razonar, decidir, aplicar, aprender', texto)
+        self.assertIn('lo que veo', texto)
+        self.assertIn('el criterio', texto)
+        self.assertIn('hacer hoy (un solo paso', texto)
+        self.assertIn('una pregunta para que ella juzgue', texto)
+        self.assertIn('no cierra el caso por ella', texto)
         self.assertIn('UNA pregunta breve', texto)
         self.assertIn('No prometa recordatorios', texto)
         self.assertIn('Nunca reemplace la decisión de la persona', texto)
