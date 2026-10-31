@@ -637,8 +637,6 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     import re
 
-    from core.cursos_generales import payload_catalogo
-
     seguido = re.fullmatch(r'seguir_(\d+)', (body or '').strip())
     if seguido:
         curso_id = int(seguido.group(1))
@@ -647,9 +645,9 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
             decision.texto_menu = str(curso_id)
             return decision
 
-    if sesion.modo in (MODO_MENU, MODO_FORMACION, MODO_CURSOS) and payload_catalogo(body):
-        decision.action = 'catalogo_general'
-        decision.texto_menu = (body or '').strip()
+    from core.lineas.principal.menu import aplicar_ruta_catalogo
+
+    if aplicar_ruta_catalogo(decision, sesion, body):
         return decision
 
     if (body or '').strip().lower() in ('continuemos', 'continuar'):
