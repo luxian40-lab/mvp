@@ -167,7 +167,7 @@ class MetricasCursoTests(TestCase):
         for etiqueta in (
             'Tasa de inicio', 'Culminación sobre iniciadores', 'Culminación sobre aceptantes',
             'Avance promedio', 'Inicio de segundo curso', 'Curso con más inicios',
-            'Curso con mayor culminación', 'Recomendación del curso',
+            'Curso con mayor culminación', '>NPS<',
         ):
             self.assertIn(etiqueta, uso)
         self.assertIn('Curso finca', uso)

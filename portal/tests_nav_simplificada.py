@@ -67,6 +67,25 @@ class PortalNavSimplificadaTests(TestCase):
         self.assertIn('id="analitica-sub"', html)
         self.assertIn('analitica-toggle', html)
 
+    def test_fabrica_abre_la_ficha_del_programa(self):
+        self._login()
+        r = self.http.get('/portal/cursos/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('https://www.eki.com.co/programas/emprendimiento-agro-rural', html)
+        self.assertIn('https://www.eki.com.co/programas/maquinaria-herramientas-agro', html)
+        self.assertIn('https://www.eki.com.co/programas/comercializacion-ventas', html)
+        self.assertIn('https://www.eki.com.co/programas/agricultura-digital-ia', html)
+        self.assertIn('https://www.eki.com.co/programas/modelo-negocio-rural-sostenible', html)
+        self.assertIn('https://www.eki.com.co/programas/comercializacion-y-ventas', html)
+        self.assertIn('https://www.eki.com.co/programas/gestion-costos-agropecuarios', html)
+        self.assertIn('https://www.eki.com.co/programas/tome-las-riendas', html)
+        self.assertIn('https://www.eki.com.co/cursos/capital-humano-10x', html)
+        self.assertIn('https://www.eki.com.co/cursos/coaching-productividad-liderazgo-campo', html)
+        self.assertNotIn('course-engine', html)
+        self.assertNotIn('Nuevo curso', html)
+        self.assertNotIn(f'/portal/cursos/{self.curso.pk}/flujo/', html)
+
     def test_ver_curso_solo_estructura(self):
         self._login()
         r = self.http.get(f'/portal/cursos/{self.curso.pk}/flujo/')

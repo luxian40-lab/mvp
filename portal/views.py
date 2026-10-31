@@ -990,75 +990,87 @@ def portal_reportes(request):
     })
 
 
+# Catálogo público de eki.com.co/programas, verificado el 30 de octubre de 2026.
+PROGRAMAS_FABRICA = (
+    {
+        'titulo': 'Innovación e IA para nuevos emprendedores',
+        'desc': 'Propósito, cliente y una prueba en chiquito, con apoyo de IA.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/emprendimiento-agro-rural',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-innovacion.jpg?v=20261002a',
+    },
+    {
+        'titulo': 'Maquinaria y herramientas',
+        'desc': 'Criterio de uso, seguridad y cuándo no conviene comprar.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/maquinaria-herramientas-agro',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-maquinaria.jpg',
+    },
+    {
+        'titulo': 'Gestión de tiempo y productividad personal en el campo',
+        'desc': 'Ver en qué se va el día y dejar un ritmo que sí se sostenga.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/comercializacion-ventas',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-tiempo.jpg?v=20261002a',
+    },
+    {
+        'titulo': 'Agricultura digital e IA',
+        'desc': 'Qué del celular sí sirve en finca y qué es humo.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/agricultura-digital-ia',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-digital.jpg',
+    },
+    {
+        'titulo': 'Introducción a un modelo de negocios rural sostenible',
+        'desc': 'Ver el negocio completo: qué ofrece, a quién, qué lo sostiene y qué lo pone en riesgo.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/modelo-negocio-rural-sostenible',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-modelo-sostenible.jpg?v=20261029a',
+    },
+    {
+        'titulo': 'Comercialización y ventas',
+        'desc': 'Precio, cliente y canales para vender lo que ya produce con menos dependencia.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/comercializacion-y-ventas',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-comercializacion.jpg?v=20261029a',
+    },
+    {
+        'titulo': 'Gestión de costos agropecuarios',
+        'desc': 'Saber cuánto cuesta producir y si el cultivo o los animales están dejando.',
+        'tag': 'Vitrina',
+        'url': 'https://www.eki.com.co/programas/gestion-costos-agropecuarios',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
+    },
+    {
+        'titulo': 'Tome las riendas de su dinero',
+        'desc': 'La forma de ver hoy cómo se estudia en eki, con la plata de la semana.',
+        'tag': 'Demo',
+        'url': 'https://www.eki.com.co/programas/tome-las-riendas',
+        'imagen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
+    },
+    {
+        'titulo': 'Programa Capital Humano 10X',
+        'desc': 'De la gestión humana operativa a la estratégica, con IA, empatía rural e innovación.',
+        'tag': 'Curso',
+        'url': 'https://www.eki.com.co/cursos/capital-humano-10x',
+        'imagen': '',
+    },
+    {
+        'titulo': 'Coaching, Productividad y Liderazgo para el Campo',
+        'desc': 'Tiempo, recursos, comunicación y soluciones desde el puesto de trabajo.',
+        'tag': 'Curso',
+        'url': 'https://www.eki.com.co/cursos/coaching-productividad-liderazgo-campo',
+        'imagen': '',
+    },
+)
+
+
 @portal_login_required
 @requiere_modulo('cursos')
 def cursos_lista(request):
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
-
-    lista = scoped_to_org(Curso.objects.all(), org).annotate(
-        modulos_count=Count('modulos', distinct=True),
-        estudiantes_count=Count('progresoestudiante__estudiante', distinct=True),
-    ).order_by('orden')
-
-    es_confama = (org.nombre or '').strip().lower() == 'confama'
-    cursos_mock = []
-    if es_confama:
-        por_nombre = {c.nombre.lower(): c for c in lista}
-
-        def _ce_for(*nombres):
-            for n in nombres:
-                c = por_nombre.get(n.lower())
-                if c:
-                    return f'/portal/cursos/{c.id}/course-engine/'
-            return ''
-
-        cursos_mock = [
-            {
-                'titulo': 'Emprendimiento agro rural',
-                'desc': 'Ordenar un negocio alrededor de lo que ya se produce.',
-                'tag': 'Programa',
-                'url': 'https://www.eki.com.co/programas',
-                'imagen': 'https://www.eki.com.co/assets/programas/prog-emprendimiento.jpg',
-                'ce_url': _ce_for('Negocios rurales — Confama'),
-            },
-            {
-                'titulo': 'Maquinaria y herramientas',
-                'desc': 'Criterio de uso, seguridad y cuándo no conviene comprar.',
-                'tag': 'Programa',
-                'url': 'https://www.eki.com.co/programas',
-                'imagen': 'https://www.eki.com.co/assets/programas/prog-maquinaria.jpg',
-                'ce_url': _ce_for('Power Skills — liderazgo en campo'),
-            },
-            {
-                'titulo': 'Comercialización y ventas',
-                'desc': 'A quién vender, precio versus costo, no regalar margen.',
-                'tag': 'Programa',
-                'url': 'https://www.eki.com.co/programas',
-                'imagen': 'https://www.eki.com.co/assets/programas/prog-ventas.jpg',
-                'ce_url': _ce_for('Sostenibilidad y buen vivir'),
-            },
-            {
-                'titulo': 'Agricultura digital e IA',
-                'desc': 'Qué del celular sí sirve en finca y qué es humo.',
-                'tag': 'Programa',
-                'url': 'https://www.eki.com.co/programas',
-                'imagen': 'https://www.eki.com.co/assets/programas/prog-digital.jpg',
-                'ce_url': _ce_for('Innovación & IA para el agro'),
-            },
-            {
-                'titulo': 'Tome las riendas de su dinero',
-                'desc': 'La plata de la semana, con los pies en la tierra.',
-                'tag': 'Demo',
-                'url': 'https://www.eki.com.co/programas',
-                'imagen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
-                'ce_url': _ce_for('Negocios rurales — Confama'),
-            },
-        ]
-
-    pu = getattr(request, 'portal_usuario', None)
-    puede_crear = bool(pu and pu.rol in ('admin', 'eki_ops'))
 
     url_margen = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/calculadora-margen/'
     url_mercado = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/mercado-gtm/'
@@ -1068,10 +1080,7 @@ def cursos_lista(request):
 
     return render(request, 'portal/cursos.html', {
         'org': org,
-        'cursos': lista,
-        'es_confama_demo': es_confama,
-        'cursos_mock': cursos_mock,
-        'puede_crear_curso': puede_crear,
+        'programas': PROGRAMAS_FABRICA,
         'url_margen': url_margen,
         'url_mercado': url_mercado,
         'url_herramientas': url_herramientas,
