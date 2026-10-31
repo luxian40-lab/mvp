@@ -1048,20 +1048,6 @@ PROGRAMAS_FABRICA = (
         'url': 'https://www.eki.com.co/programas/tome-las-riendas',
         'imagen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
     },
-    {
-        'titulo': 'Programa Capital Humano 10X',
-        'desc': 'De la gestión humana operativa a la estratégica, con IA, empatía rural e innovación.',
-        'tag': 'Curso',
-        'url': 'https://www.eki.com.co/cursos/capital-humano-10x',
-        'imagen': '',
-    },
-    {
-        'titulo': 'Coaching, Productividad y Liderazgo para el Campo',
-        'desc': 'Tiempo, recursos, comunicación y soluciones desde el puesto de trabajo.',
-        'tag': 'Curso',
-        'url': 'https://www.eki.com.co/cursos/coaching-productividad-liderazgo-campo',
-        'imagen': '',
-    },
 )
 
 
