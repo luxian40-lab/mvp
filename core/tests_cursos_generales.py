@@ -156,6 +156,15 @@ class CatalogoFormacionTests(TestCase):
             'To': 'whatsapp:+14155238886',
         }
 
+    def _confirmar(self, body, nombre):
+        curso = Curso.objects.get(nombre=nombre, catalogo_menu=True)
+        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
+            self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': body}), 'handled')
+        self.assertFalse(ProgresoEstudiante.objects.filter(curso=curso).exists())
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
+            out = dispatch_sandbox_menu({**self.base, 'Body': f'si_curso_{curso.id}'})
+        return out, texto, curso
+
     def test_formacion_envia_carrusel_con_foto_y_enlace(self):
         with patch(
             'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
@@ -465,8 +474,7 @@ class CatalogoFormacionTests(TestCase):
 
         ProgresoEstudiante.objects.filter(pk=otro.pk).update(fecha_inicio=timezone.now() - timedelta(days=40))
         resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
-            out = dispatch_sandbox_menu({**self.base, 'Body': 'ver_tiempo'})
+        out, texto, general = self._confirmar('ver_tiempo', NOMBRE_TIEMPO)
         self.assertEqual(out, 'handled')
         self.assertTrue(ProgresoEstudiante.objects.filter(pk=otro.pk).exists())
         general = Curso.objects.get(nombre=NOMBRE_TIEMPO, catalogo_menu=True)
@@ -489,8 +497,7 @@ class CatalogoFormacionTests(TestCase):
         from django.utils import timezone
 
         resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
-            dispatch_sandbox_menu({**self.base, 'Body': 'ver_riendas'})
+        self._confirmar('ver_riendas', NOMBRE_RIENDAS)
         riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
         tiempo = Curso.objects.get(nombre=NOMBRE_TIEMPO, catalogo_menu=True)
         est = Estudiante.objects.get(telefono=self.tel)
@@ -503,8 +510,7 @@ class CatalogoFormacionTests(TestCase):
         progreso = ProgresoEstudiante.objects.get(estudiante=est, curso=riendas)
         progreso.fecha_inicio = timezone.now() - timedelta(days=40)
         progreso.save(update_fields=['fecha_inicio'])
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
-            dispatch_sandbox_menu({**self.base, 'Body': 'ver_tiempo'})
+        _, texto, _curso = self._confirmar('ver_tiempo', NOMBRE_TIEMPO)
         self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=est, curso=tiempo).exists())
         self.assertIn('[send_button:continuemos]', texto.call_args.args[2].lower())
 
@@ -540,9 +546,15 @@ class CatalogoFormacionTests(TestCase):
                 dispatch_sandbox_menu({**self.base, 'Body': 'formacion'}), 'handled',
             )
         self.assertEqual(carrusel.call_count, 1)
-        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'}),
+                'handled',
+            )
+        self.assertFalse(ProgresoEstudiante.objects.filter(curso=riendas).exists())
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+            self.assertEqual(
+                dispatch_sandbox_menu({**self.base, 'Body': f'si_curso_{riendas.id}'}),
                 'handled',
             )
         est = Estudiante.objects.get(telefono=self.tel)

@@ -48,6 +48,7 @@ class ContratoLineaPrincipalTests(ContratoLineaTestCase):
         self._hasta_menu()
         self.tocar(TEL, 'formacion', 'Formación')
         self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
+        self.tocar(TEL, f'si_curso_{self.curso_1.id}', 'Sí, este')
         return self.tocar(TEL, 'continuemos', 'Continuar')
 
     def _hasta_reto_final(self):
@@ -156,14 +157,54 @@ class ContratoLineaPrincipalTests(ContratoLineaTestCase):
             f'ver_curso_{self.curso_2.id}', f'info_curso_{self.curso_2.id}',
         ])
 
-    def test_ver_curso_inscribe_y_ofrece_continuar(self):
+    def test_ver_curso_pregunta_y_el_si_inscribe(self):
         self._hasta_menu()
         self.tocar(TEL, 'formacion', 'Formación')
         envios = self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
         self.assertEqual(len(envios), 1)
+        self.assertIn('¿Arrancamos *General1*?', envios[0].texto)
+        self.assertIn('Este mes puede elegir un curso', envios[0].texto)
+        self.assertEqual(envios[0].botones, ['Sí, este', 'Otro curso'])
+        self.assertEqual(envios[0].ids, [f'si_curso_{self.curso_1.id}', 'otro_curso'])
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_1).exists())
+        alta = self.tocar(TEL, f'si_curso_{self.curso_1.id}', 'Sí, este')
+        self.assertEqual(len(alta), 1)
+        self.assertIn('Quedó en *General1*', alta[0].texto)
+        self.assertEqual(alta[0].ids, ['continuemos'])
+        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_1).exists())
+
+    def test_otro_curso_vuelve_al_carrusel_sin_inscribir(self):
+        self._hasta_menu()
+        self.tocar(TEL, 'formacion', 'Formación')
+        self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
+        envios = self.tocar(TEL, 'otro_curso', 'Otro curso')
+        self.assertEqual(envios[0].cuerpo['interactive']['type'], 'carousel')
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=self.est).exists())
+
+    def test_si_de_la_tarjeta_anterior_no_inscribe(self):
+        self._hasta_menu()
+        self.tocar(TEL, 'formacion', 'Formación')
+        self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
+        self.tocar(TEL, f'ver_curso_{self.curso_2.id}', 'Ver curso')
+        viejo = self.tocar(TEL, f'si_curso_{self.curso_1.id}', 'Sí, este')
+        self.assertIn('¿Arrancamos *General2*?', viejo[0].texto)
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=self.est).exists())
+        self.tocar(TEL, f'si_curso_{self.curso_2.id}', 'Sí, este')
+        self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_1).exists())
+        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_2).exists())
+
+    def test_ver_curso_ya_empezado_no_vuelve_a_preguntar(self):
+        self._hasta_menu()
+        self.tocar(TEL, 'formacion', 'Formación')
+        self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
+        self.tocar(TEL, f'si_curso_{self.curso_1.id}', 'Sí, este')
+        envios = self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
         self.assertIn('Quedó en *General1*', envios[0].texto)
         self.assertEqual(envios[0].ids, ['continuemos'])
-        self.assertTrue(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_1).exists())
+        self.assertEqual(
+            ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_1).count(),
+            1,
+        )
 
     def test_continuar_presenta_formador_companero_y_modulo_1(self):
         envios = self._hasta_modulo_1()
@@ -201,16 +242,26 @@ class ContratoLineaPrincipalTests(ContratoLineaTestCase):
         self.assertIn(RESPUESTA_LLM, planteo[0].texto)
         self.assertEqual(self._refrescar().estado_onboarding, 'esperando_respuesta_reto')
         cierre = self.escribir(TEL, 'Primero mido la finca y anoto los gastos cada semana')
-        self.assertIn('Ha completado el curso: *General1*', cierre[0].texto)
-        self.assertIn('certificado se está generando', cierre[-1].texto)
+        self.assertIn('De 1 a 10', cierre[0].texto)
+        self.assertNotIn('certificado', cierre[0].texto.lower())
         self.assertTrue(ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso_1).completado)
+        self.assertEqual(self._refrescar().estado_onboarding, 'esperando_nota_cierre')
+        diploma = self.escribir(TEL, '8')
+        self.assertIn('Ha completado el curso: *General1*', diploma[0].texto)
+        self.assertIn('certificado', diploma[-1].texto.lower())
         self.assertEqual(self._refrescar().estado_onboarding, 'curso_finalizado')
+        from core.models import NotaCierreCurso
+        self.assertEqual(
+            NotaCierreCurso.objects.get(estudiante=self.est, curso=self.curso_1).nota,
+            8,
+        )
 
     def test_tras_el_curso_listo_avisa_el_cierre_y_menu_vuelve_al_menu(self):
         self.salida.llm_responde(RESPUESTA_LLM)
         self._hasta_reto_final()
         self.tocar(TEL, 'continuemos', 'Continuar')
         self.escribir(TEL, 'Primero mido la finca y anoto los gastos cada semana')
+        self.escribir(TEL, '8')
         listo = self.escribir(TEL, 'listo')
         self.assertEqual(len(listo), 1)
         self.assertIn('ya finalizó', listo[0].texto)
@@ -222,6 +273,7 @@ class ContratoLineaPrincipalTests(ContratoLineaTestCase):
         self._hasta_menu()
         self.tocar(TEL, 'formacion', 'Formación')
         self.tocar(TEL, f'ver_curso_{self.curso_1.id}', 'Ver curso')
+        self.tocar(TEL, f'si_curso_{self.curso_1.id}', 'Sí, este')
         envios = self.tocar(TEL, f'ver_curso_{self.curso_2.id}', 'Ver curso')
         self.assertIn('Este mes ya eligió *General1*', envios[0].texto)
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso_2).exists())

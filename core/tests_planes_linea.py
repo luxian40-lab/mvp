@@ -346,6 +346,12 @@ class CupoCursosTests(TestCase):
     def _ver(self, tel, clave):
         with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(tel, f'ver_{clave}'))
+        texto = _textos(send)[0]
+        if '¿Arrancamos' not in texto:
+            return texto
+        sid = send.call_args.args[0]['interactive']['action']['buttons'][0]['reply']['id']
+        with patch('core.lineas.envio._post_graph', return_value=OK) as send:
+            dispatch_sandbox_menu(_payload(tel, sid))
         return _textos(send)[0]
 
     def test_op2_dos_cursos_y_el_tercero_espera(self):
