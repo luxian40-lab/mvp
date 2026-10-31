@@ -52,6 +52,7 @@ class ContratoDosLineasTests(ContratoLineaTestCase):
         self._identidad(LINEA_PRINCIPAL, 'principal')
         self.tocar(TEL, 'formacion', 'Formación')
         self.tocar(TEL, f'ver_curso_{self.general.id}', 'Ver curso')
+        self.tocar(TEL, f'si_curso_{self.general.id}', 'Sí, este')
         self.tocar(TEL, 'continuemos', 'Continuar')
         inscribir_estudiante_en_curso(self.est, self.lineal)
 

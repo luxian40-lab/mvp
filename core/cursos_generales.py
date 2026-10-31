@@ -69,6 +69,10 @@ def payload_catalogo(body: str) -> dict | None:
         return {'accion': 'ver', 'clave': f'curso_{texto[10:]}'}
     if texto.startswith('info_curso_') and texto[11:].isdigit():
         return {'accion': 'info', 'clave': f'curso_{texto[11:]}'}
+    if texto.startswith('si_curso_') and texto[9:].isdigit():
+        return {'accion': 'confirmar', 'clave': f'curso_{texto[9:]}'}
+    if texto == 'otro_curso':
+        return {'accion': 'otro', 'clave': ''}
     return None
 
 
@@ -556,12 +560,8 @@ def _crear_modulos_tiempo(curso) -> None:
             )
 
 
-def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
-    """Inscribe sin borrar otros progresos. Cupo mensual según el plan de la persona."""
-    from django.utils import timezone
-
-    from core.inscripcion_curso import inscribir_estudiante_en_curso
-    from core.models import Estudiante, ProgresoEstudiante
+def evaluar_catalogo(telefono: str, clave: str) -> dict:
+    """Sin escrituras. Los mismos rechazos que la inscripción."""
     from core.nati import normalizar_telefono_whatsapp
     from core.planes_linea import cursos_iniciados_en_el_mes, resolver_plan
 
@@ -596,6 +596,24 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
                 'curso_activo_id': iniciados[0].curso_id,
                 'cursos_mes': plan.cursos_mes,
             }
+    return {'ok': True, 'nombre': curso.nombre, 'curso_id': curso.id}
+
+
+def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
+    """Inscribe sin borrar otros progresos. Cupo mensual según el plan de la persona."""
+    from django.utils import timezone
+
+    from core.inscripcion_curso import inscribir_estudiante_en_curso
+    from core.models import Estudiante, ProgresoEstudiante
+    from core.nati import normalizar_telefono_whatsapp
+
+    visto = evaluar_catalogo(telefono, clave)
+    if not visto.get('ok'):
+        return visto
+    tel = normalizar_telefono_whatsapp(telefono)
+    curso = resolver_curso_menu(clave, tel)
+    if curso is None:
+        return {'ok': False, 'error': 'sin_curso', 'nombre': visto.get('nombre') or ''}
     est = Estudiante.objects.filter(telefono=tel).first()
     if est is None:
         digitos = ''.join(ch for ch in tel if ch.isdigit())[-12:] or '0'

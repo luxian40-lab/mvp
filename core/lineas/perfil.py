@@ -17,6 +17,7 @@ class PerfilLinea:
     uso: str
     menu: bool = False
     carrusel: bool = False
+    confirmar_curso: bool = False
     varios_cursos: bool = False
     planes: bool = False
     asesores: bool = False
@@ -26,12 +27,14 @@ class PerfilLinea:
     campanas: bool = False
     usa_waba_principal: bool = False
     curso_directo: bool = False
+    nota_cierre: bool = False
 
 
 PERFIL_COMPLETA = PerfilLinea(
     uso=USO_COMPLETA,
     menu=True,
     carrusel=True,
+    confirmar_curso=True,
     varios_cursos=True,
     planes=True,
     asesores=True,
@@ -40,6 +43,7 @@ PERFIL_COMPLETA = PerfilLinea(
     aula=True,
     campanas=True,
     usa_waba_principal=True,
+    nota_cierre=True,
 )
 
 PERFIL_SOLO_CURSOS = PerfilLinea(
