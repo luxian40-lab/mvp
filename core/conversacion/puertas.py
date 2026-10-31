@@ -27,6 +27,10 @@ def _menu():
 
 def correr_puertas(telefono: str, body: str) -> str | None:
     """'handled' si una puerta respondió este turno; None si el turno sigue."""
+    from core.lineas.registro_guardar import responder_registro
+
+    if responder_registro(telefono, body) == 'handled':
+        return 'handled'
     if _responder_optout(telefono, body) == 'handled':
         return 'handled'
     corte = _responder_habeas(telefono, _menu().sandbox_number(), body)

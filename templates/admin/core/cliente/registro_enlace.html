@@ -1,0 +1,22 @@
+{% if original and eki_registro_frase %}
+<div class="eki-puente-panel" aria-label="Enlace de registro">
+    <div class="eki-puente-panel__head">
+        <h3>Registro en la línea 3</h3>
+    </div>
+    <p>La persona abre el enlace o escanea el QR, envía la frase y queda en esta organización. La frase usa el número interno del cliente, así el QR impreso sigue si el nombre cambia.</p>
+    {% if eki_registro_enlace %}
+    <p>Este cliente: <strong>{{ eki_registro_frase }}</strong></p>
+    <p>
+        <a class="button" href="{{ eki_registro_enlace }}" target="_blank" rel="noopener">Abrir enlace</a>
+        <a class="button" href="{{ eki_registro_qr }}">Descargar QR</a>
+    </p>
+    <p>Sin cliente, catálogo general: <strong>{{ eki_registro_general_frase }}</strong></p>
+    <p>
+        <a class="button" href="{{ eki_registro_general_enlace }}" target="_blank" rel="noopener">Abrir enlace general</a>
+        <a class="button" href="{{ eki_registro_general_qr }}">Descargar QR general</a>
+    </p>
+    {% else %}
+    <p>Falta el número de la línea de registro. Configura <strong>EKI_LINEA_REGISTRO_E164</strong> para armar el enlace y el QR.</p>
+    {% endif %}
+</div>
+{% endif %}

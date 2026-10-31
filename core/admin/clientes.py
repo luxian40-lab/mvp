@@ -300,6 +300,16 @@ class ClienteAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.crear_usuario_portal_view),
                 name='core_cliente_crear_usuario_portal',
             ),
+            path(
+                '<int:cliente_id>/registro-qr/',
+                self.admin_site.admin_view(self.registro_qr_view),
+                name='core_cliente_registro_qr',
+            ),
+            path(
+                'registro-qr-general/',
+                self.admin_site.admin_view(self.registro_qr_general_view),
+                name='core_cliente_registro_qr_general',
+            ),
         ]
         return custom_urls + urls
 
@@ -341,7 +351,48 @@ class ClienteAdmin(admin.ModelAdmin):
                     .first()
                 )
             extra_context['eki_cli_ultima_wa'] = ultimo_wa
+            from core.lineas.registro_enlace import FRASE_GENERAL, enlace_whatsapp, frase_de_cliente
+
+            frase = frase_de_cliente(obj.pk)
+            extra_context['eki_registro_frase'] = frase
+            extra_context['eki_registro_enlace'] = enlace_whatsapp(frase)
+            extra_context['eki_registro_qr'] = reverse(
+                'admin:core_cliente_registro_qr', args=[obj.pk],
+            )
+            extra_context['eki_registro_general_frase'] = FRASE_GENERAL
+            extra_context['eki_registro_general_enlace'] = enlace_whatsapp(FRASE_GENERAL)
+            extra_context['eki_registro_general_qr'] = reverse(
+                'admin:core_cliente_registro_qr_general',
+            )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def registro_qr_view(self, request, cliente_id):
+        from django.http import Http404
+
+        from core.lineas.registro_enlace import enlace_whatsapp, frase_de_cliente, png_qr
+
+        obj = self.get_object(request, str(cliente_id))
+        if obj is None:
+            raise Http404
+        if not self.has_view_permission(request, obj):
+            raise PermissionDenied
+        return self._png_del_enlace(enlace_whatsapp(frase_de_cliente(obj.pk)), f'eki-registro-{obj.pk}.png')
+
+    def registro_qr_general_view(self, request):
+        from core.lineas.registro_enlace import FRASE_GENERAL, enlace_whatsapp
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        return self._png_del_enlace(enlace_whatsapp(FRASE_GENERAL), 'eki-registro-general.png')
+
+    def _png_del_enlace(self, url, nombre):
+        from core.lineas.registro_enlace import png_qr
+
+        if not url:
+            return HttpResponse('La línea de registro no tiene número.', status=404)
+        respuesta = HttpResponse(png_qr(url), content_type='image/png')
+        respuesta['Content-Disposition'] = f'attachment; filename="{nombre}"'
+        return respuesta
 
     def logo_thumb(self, obj):
         """Foto/logo de la organización en el listado. Fallback: mapa estático o inicial."""
