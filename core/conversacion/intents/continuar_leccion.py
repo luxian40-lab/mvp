@@ -828,38 +828,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 f"{barra} {porcentaje}%\n\n"
                 f"🎓 *¡Felicitaciones! Ha completado todo el curso.*"
             )
-            
-            msg_cert_img = ""
-            try:
-                from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                cert = crear_certificado_automatico(estudiante, progreso.curso)
-                if cert and cert.archivo_imagen:
-                    cert_url = obtener_url_certificado_twilio(cert)
-                    if cert_url:
-                        msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
-                    else:
-                        from django.conf import settings as _s
-                        bucket = getattr(_s, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
-                        s3_key = str(cert.archivo_imagen.name)
-                        cert_url = f"https://{bucket}.s3.us-east-2.amazonaws.com/{s3_key}"
-                        msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
-                elif cert and cert.archivo_pdf:
-                    cert_url = cert.archivo_pdf.url
-                    msg_cert_img = f"🎓 *¡Su certificado!*\n📄 Descárgalo: {cert_url}"
-                else:
-                    msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"⚠️ Certificado falló: {e}")
-                msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
-            
-            estudiante.estado_onboarding = 'curso_finalizado'
-            estudiante.save()
-            
-            partes = [mensaje]
-            if msg_cert_img:
-                partes.append(msg_cert_img)
-            return "[MULTI_MSG]" + "[SEP]".join(partes)
+            from core.conversacion.estados.reto import pregunta_si_falta
+
+            pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+            if pregunta_nota:
+                return f'{mensaje}\n\n{pregunta_nota}'
+            return _certificado_directo(estudiante, mensaje, progreso)
+
     
     # Cualquier otro texto en continuar_leccion: reenviar el módulo actual.
     else:
@@ -966,3 +941,36 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             curso=progreso.curso,
             modulo=modulo_actual,
         )
+
+
+def _certificado_directo(estudiante, mensaje, progreso) -> str:
+    msg_cert_img = ""
+    try:
+        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        cert = crear_certificado_automatico(estudiante, progreso.curso)
+        if cert and cert.archivo_imagen:
+            cert_url = obtener_url_certificado_twilio(cert)
+            if cert_url:
+                msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
+            else:
+                from django.conf import settings as _s
+                bucket = getattr(_s, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+                s3_key = str(cert.archivo_imagen.name)
+                cert_url = f"https://{bucket}.s3.us-east-2.amazonaws.com/{s3_key}"
+                msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
+        elif cert and cert.archivo_pdf:
+            cert_url = cert.archivo_pdf.url
+            msg_cert_img = f"🎓 *¡Su certificado!*\n📄 Descárgalo: {cert_url}"
+        else:
+            msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"⚠️ Certificado falló: {e}")
+        msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
+
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.save()
+    partes = [mensaje]
+    if msg_cert_img:
+        partes.append(msg_cert_img)
+    return "[MULTI_MSG]" + "[SEP]".join(partes)

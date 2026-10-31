@@ -188,45 +188,55 @@ def manejar(contexto: Contexto) -> Respuesta:
                     "✍️ Responde con tus propias palabras (texto o audio)."
                 )
             else:
-                # Mantener el flujo general: después de la última pregunta final,
-                # se entrega certificado y se cierra el curso.
-                msg_cert_img = ""
-                if curso_obj:
-                    try:
-                        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                        cert = crear_certificado_automatico(estudiante, curso_obj)
-                        if cert and cert.archivo_imagen:
-                            cert_url = obtener_url_certificado_twilio(cert)
-                            if cert_url:
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                            else:
-                                s3_key = str(cert.archivo_imagen.name)
-                                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                        elif cert and cert.archivo_pdf:
-                            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
-                        else:
-                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                    except Exception as e:
-                        logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
-                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                from core.conversacion.estados.reto import pregunta_si_falta
 
-                # Radar/empleabilidad pausado: no envía Subachoque.
-                radar_msg = _radar_msg_si_aplica(estudiante)
-
-                estudiante.estado_onboarding = 'curso_finalizado'
-                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-                estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-
-                partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
-                if radar_msg:
-                    partes_finales.append(radar_msg)
-                if msg_cert_img:
-                    partes_finales.append(msg_cert_img)
-                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+                pregunta_nota = pregunta_si_falta(estudiante, curso_obj, progreso)
+                if pregunta_nota:
+                    texto_respuesta = (
+                        f'*Facilitadora*\n\n{feedback_final}{puntos_msg}\n\n{pregunta_nota}'
+                    )
+                else:
+                    texto_respuesta = _texto_certificado_abierta(
+                        estudiante, curso_obj, feedback_final, puntos_msg,
+                    )
         else:
             texto_respuesta = (
                 "No encuentro una pregunta abierta final activa para tu curso en este momento. "
                 "Escribe *ayuda* para soporte."
             )
     return Respuesta(texto=texto_respuesta)
+
+
+def _texto_certificado_abierta(estudiante, curso_obj, feedback_final, puntos_msg) -> str:
+    msg_cert_img = ""
+    if curso_obj:
+        try:
+            from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+            cert = crear_certificado_automatico(estudiante, curso_obj)
+            if cert and cert.archivo_imagen:
+                cert_url = obtener_url_certificado_twilio(cert)
+                if cert_url:
+                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                else:
+                    s3_key = str(cert.archivo_imagen.name)
+                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+            elif cert and cert.archivo_pdf:
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
+            else:
+                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+        except Exception as e:
+            logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
+            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+    radar_msg = _radar_msg_si_aplica(estudiante)
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
+    estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+    partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
+    if radar_msg:
+        partes_finales.append(radar_msg)
+    if msg_cert_img:
+        partes_finales.append(msg_cert_img)
+    return "[MULTI_MSG]" + "[SEP]".join(partes_finales)

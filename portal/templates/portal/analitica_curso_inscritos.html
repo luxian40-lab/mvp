@@ -1,0 +1,96 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}{{ curso.nombre }} | Métricas por curso{% endblock %}
+
+{% block extra_head %}
+<style>
+    .mc-tabla-wrap {
+        background: var(--surface);
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        padding: 8px 16px;
+        overflow-x: auto;
+    }
+    html[data-theme="dark"] .mc-tabla-wrap { background: var(--blanco); }
+    .mc-tabla { width: 100%; border-collapse: collapse; }
+    .mc-tabla th, .mc-tabla td {
+        text-align: left;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--borde);
+        color: var(--texto);
+    }
+    .mc-tabla th { color: var(--texto-muted); font-size: 12px; font-weight: 600; }
+    .mc-tabla tr:last-child td { border-bottom: 0; }
+    .mc-buscar {
+        display: flex;
+        gap: 8px;
+        margin: 0 0 16px;
+        max-width: 420px;
+    }
+    .mc-buscar input {
+        flex: 1;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+        background: var(--surface);
+        color: var(--texto);
+    }
+    .mc-pag { margin-top: 16px; color: var(--texto-muted); }
+    .mc-pag a { margin-right: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_analitica_cursos' %}">Métricas por curso</a></p>
+        <h1>{{ curso.nombre }}</h1>
+        <p class="muted">{{ lista.total }} aceptante{{ lista.total|pluralize:"s" }} de {{ org.nombre }}. El nombre abre el avance de esa persona en este curso.</p>
+    </div>
+</div>
+
+<form class="mc-buscar" method="get" action="">
+    <input type="search" name="q" value="{{ lista.q }}" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+    <button class="btn" type="submit">Buscar</button>
+</form>
+
+<div class="mc-tabla-wrap">
+    <table class="mc-tabla">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Módulo</th>
+                <th>Paso</th>
+                <th>Último avance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in lista.filas %}
+            <tr>
+                <td><a href="{% url 'portal_estudiante_detalle' fila.estudiante_id %}?curso={{ curso.id }}">{{ fila.nombre }}</a></td>
+                <td>{{ fila.estado }}</td>
+                <td>{% if fila.modulo %}{{ fila.modulo }}{% else %}—{% endif %}</td>
+                <td>{{ fila.paso }}</td>
+                <td>{{ fila.ultimo|date:"d/m/Y H:i"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="muted">Nadie de la organización aceptó este curso{% if lista.q %} con ese nombre{% endif %}.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if lista.pagina.paginator.num_pages > 1 %}
+<p class="mc-pag">
+    {% if lista.pagina.has_previous %}
+    <a href="?page={{ lista.pagina.previous_page_number }}{% if lista.q %}&q={{ lista.q|urlencode }}{% endif %}">Anterior</a>
+    {% endif %}
+    Página {{ lista.pagina.number }} de {{ lista.pagina.paginator.num_pages }}
+    {% if lista.pagina.has_next %}
+    <a href="?page={{ lista.pagina.next_page_number }}{% if lista.q %}&q={{ lista.q|urlencode }}{% endif %}">Siguiente</a>
+    {% endif %}
+</p>
+{% endif %}
+{% endblock %}

@@ -5,7 +5,14 @@
 {% block content %}
 <div class="page-title">
     <div>
-        <p class="muted" style="margin:0 0 6px;"><a href="/portal/estudiantes/">Estudiantes</a> / Detalle</p>
+        <p class="muted" style="margin:0 0 6px;">
+            {% if curso_foco %}
+            <a href="/portal/analitica/cursos/{{ curso_foco }}/">Inscritos del curso</a> /
+            {% else %}
+            <a href="/portal/estudiantes/">Estudiantes</a> /
+            {% endif %}
+            Detalle
+        </p>
         <h1>{{ estudiante.nombre }}</h1>
         <p class="muted">Documento {{ estudiante.cedula }} · Tel. {{ estudiante.telefono }}</p>
     </div>
@@ -58,13 +65,14 @@
                 <th>Estado</th>
                 <th>Módulo alcanzado</th>
                 <th>Módulo actual</th>
+                <th>Paso</th>
                 <th>Progreso</th>
                 <th>Último avance</th>
             </tr>
         </thead>
         <tbody>
             {% for item in progreso_filas %}
-                <tr>
+                <tr{% if curso_foco == item.progreso.curso_id %} style="background: var(--surface);"{% endif %}>
                     <td>{{ item.progreso.curso.nombre }}</td>
                     <td>{{ item.estado }}</td>
                     <td>M{{ item.max_modulo|default:"0" }}</td>
@@ -75,11 +83,12 @@
                             —
                         {% endif %}
                     </td>
+                    <td>{{ item.progreso.paso_actual_modulo }}</td>
                     <td>{{ item.avance_pct }}%</td>
                     <td>{{ item.progreso.fecha_ultimo_avance|date:"d/m/Y H:i"|default:"—" }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="6" class="muted">Sin inscripciones en cursos.</td></tr>
+                <tr><td colspan="7" class="muted">Sin inscripciones en cursos.</td></tr>
             {% endfor %}
         </tbody>
     </table>

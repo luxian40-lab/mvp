@@ -163,6 +163,7 @@ from core.models.negocio import (  # noqa: F401
     DerivacionAsesoria,
     FichaNegocio,
 )
+from core.models.nota_cierre import NotaCierreCurso  # noqa: F401
 
 
 __all__ = [
@@ -197,6 +198,7 @@ __all__ = [
     'SenalTerritorial',
     'AlertaTerritorial',
     'FichaNegocio',
+    'NotaCierreCurso',
     'DerivacionAsesoria',
     'VideoEnlace', 'VideoView',
     'PlantillaMeta',

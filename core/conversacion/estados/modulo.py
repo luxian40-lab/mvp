@@ -422,67 +422,15 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     "✍️ Tu facilitadora revisará y calificará tu respuesta."
                                 )
                             else:
-                                estudiante.estado_onboarding = 'curso_finalizado'
-                                estudiante.save(update_fields=['estado_onboarding'])
+                                from core.conversacion.estados.reto import pregunta_si_falta
 
-                                msg_final = (
-                                    f"{mensaje_respuesta}\n\n"
-                                    f"🎓 *¡FELICITACIONES!*\n\n"
-                                    f"Ha completado el curso: *{progreso.curso.nombre}*\n\n"
-                                    f"🏆 Su certificado se está generando..."
-                                )
-
-                                msg_cert_img = ""
-                                try:
-                                    from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                                    logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
-                                    cert = crear_certificado_automatico(estudiante, progreso.curso)
-                                    logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
-
-                                    if cert and cert.archivo_imagen:
-                                        cert_url = obtener_url_certificado_twilio(cert)
-                                        if cert_url:
-                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                            logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
-                                        else:
-                                            s3_key = str(cert.archivo_imagen.name)
-                                            cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                            logger.info(f"✅ Certificado URL fallback: {cert_url}")
-                                    elif cert and cert.archivo_pdf:
-                                        cert_url = cert.archivo_pdf.url
-                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                        logger.info(f"📄 Certificado PDF URL: {cert_url}")
-                                    elif cert:
-                                        logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-                                        from core.certificado_service import generar_y_guardar_certificado
-                                        generar_y_guardar_certificado(cert, force=True)
-                                        cert.refresh_from_db()
-                                        if cert.archivo_imagen:
-                                            cert_url = obtener_url_certificado_twilio(cert)
-                                            if cert_url:
-                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
-                                            else:
-                                                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                        else:
-                                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                    else:
-                                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                        logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
-                                except Exception as e:
-                                    logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
-                                    import traceback; traceback.print_exc()
-                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-
-                                # Radar/empleabilidad pausado: no envía Subachoque.
-                                radar_msg = _radar_msg_si_aplica(estudiante)
-
-                                partes = [msg_final]
-                                if radar_msg:
-                                    partes.append(radar_msg)
-                                partes.append(msg_cert_img)
-                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+                                if pregunta_nota:
+                                    texto_respuesta = f'{mensaje_respuesta}\n\n{pregunta_nota}'
+                                else:
+                                    texto_respuesta = _texto_certificado_modulo(
+                                        estudiante, progreso, mensaje_respuesta,
+                                    )
 
         # El default «No entendí» se asigna antes de esta rama.
         # Opción inválida / error de contexto deben ganar.
@@ -490,3 +438,64 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
             texto_respuesta = mensaje_respuesta
         print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
     return Respuesta(texto=texto_respuesta)
+
+
+def _texto_certificado_modulo(estudiante, progreso, mensaje_respuesta) -> str:
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.save(update_fields=['estado_onboarding'])
+
+    msg_final = (
+        f"{mensaje_respuesta}\n\n"
+        f"🎓 *¡FELICITACIONES!*\n\n"
+        f"Ha completado el curso: *{progreso.curso.nombre}*\n\n"
+        f"🏆 Su certificado se está generando..."
+    )
+    msg_cert_img = ""
+    try:
+        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
+        cert = crear_certificado_automatico(estudiante, progreso.curso)
+        logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
+
+        if cert and cert.archivo_imagen:
+            cert_url = obtener_url_certificado_twilio(cert)
+            if cert_url:
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
+            else:
+                s3_key = str(cert.archivo_imagen.name)
+                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                logger.info(f"✅ Certificado URL fallback: {cert_url}")
+        elif cert and cert.archivo_pdf:
+            cert_url = cert.archivo_pdf.url
+            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+            logger.info(f"📄 Certificado PDF URL: {cert_url}")
+        elif cert:
+            logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
+            from core.certificado_service import generar_y_guardar_certificado
+            generar_y_guardar_certificado(cert, force=True)
+            cert.refresh_from_db()
+            if cert.archivo_imagen:
+                cert_url = obtener_url_certificado_twilio(cert)
+                if cert_url:
+                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                    logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                else:
+                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+            else:
+                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+        else:
+            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+            logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
+    except Exception as e:
+        logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
+        import traceback; traceback.print_exc()
+        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+    radar_msg = _radar_msg_si_aplica(estudiante)
+    partes = [msg_final]
+    if radar_msg:
+        partes.append(radar_msg)
+    partes.append(msg_cert_img)
+    return "[MULTI_MSG]" + "[SEP]".join(partes)

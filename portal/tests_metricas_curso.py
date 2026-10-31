@@ -3,7 +3,9 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
 from core.lineas.modelo import LineaWhatsapp
-from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
+from core.models import (
+    Cliente, Curso, Estudiante, Modulo, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante,
+)
 from portal.metricas_curso import metricas_cursos
 from portal.models import PortalUsuario
 
@@ -85,6 +87,64 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(total['culminacion_inscritos_pct'], 20.0)
         self.assertEqual(total['avance_pct'], 30.0)
 
+    def test_segundo_curso_y_cursos_destacados(self):
+        quien = Estudiante.objects.get(telefono='573001300002', cliente=self.org)
+        ProgresoEstudiante.objects.create(estudiante=quien, curso=self.general, paso_actual_modulo=2)
+
+        amplio = Curso.objects.create(nombre='Amplio', cliente=self.org, activo=True)
+        for i in range(5):
+            est = Estudiante.objects.create(
+                nombre=f'Am{i}', cedula=f'81{i:04d}', telefono=f'5730081000{i}',
+                cliente=self.org, activo=True,
+            )
+            progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=amplio, paso_actual_modulo=2)
+            if i < 2:
+                self._completar(progreso)
+        largo = Curso.objects.create(nombre='Largo', cliente=self.org, activo=True)
+        for i in range(6):
+            est = Estudiante.objects.create(
+                nombre=f'La{i}', cedula=f'82{i:04d}', telefono=f'5730082000{i}',
+                cliente=self.org, activo=True,
+            )
+            ProgresoEstudiante.objects.create(estudiante=est, curso=largo, paso_actual_modulo=2)
+        chico = Curso.objects.create(nombre='Chico', cliente=self.org, activo=True)
+        uno = Estudiante.objects.create(
+            nombre='Uno', cedula='830001', telefono='573008300001', cliente=self.org, activo=True,
+        )
+        self._completar(ProgresoEstudiante.objects.create(estudiante=uno, curso=chico))
+
+        data = metricas_cursos(self.org)
+        self.assertEqual(data['segundo_curso']['n'], 1)
+        self.assertEqual(data['segundo_curso']['base'], 3 + 5 + 6 + 1)
+        self.assertEqual(data['destacados']['mas_inicios']['nombre'], 'Largo')
+        self.assertEqual(data['destacados']['mas_inicios']['iniciaron'], 6)
+        self.assertEqual(data['destacados']['mayor_culminacion']['nombre'], 'Amplio')
+        self.assertEqual(data['destacados']['mayor_culminacion']['culminacion_iniciados_pct'], 40.0)
+        self.assertEqual(data['destacados']['min_iniciadores'], 5)
+
+    def test_recomendacion_es_nps_no_promedio(self):
+        vacio = metricas_cursos(self.org)['nota_cierre']
+        self.assertEqual(vacio['n'], 0)
+        self.assertIsNone(vacio['nps'])
+        # 10, 9, 8 y 6: promotores 2, detractores 1, base 4 → NPS 25. El promedio sería 8.3.
+        for telefono, nota in (
+            ('573001300001', 10),
+            ('573001300002', 9),
+            ('573001300003', 8),
+            ('573001300004', 6),
+        ):
+            NotaCierreCurso.objects.create(
+                estudiante=Estudiante.objects.get(telefono=telefono, cliente=self.org),
+                curso=self.finca,
+                nota=nota,
+            )
+        ajeno = Estudiante.objects.get(telefono='573001300099')
+        NotaCierreCurso.objects.create(estudiante=ajeno, curso=self.finca, nota=1)
+
+        nota = metricas_cursos(self.org)['nota_cierre']
+        self.assertEqual(nota['n'], 4)
+        self.assertEqual(nota['nps'], 25)
+
     def test_agrupa_por_linea_sin_mostrar_lineas_de_otra_org(self):
         propia = LineaWhatsapp.objects.create(phone_id='pid-met-1', nombre='Línea finca', cliente=self.org)
         propia.cursos.add(self.finca, self.general)
@@ -104,13 +164,27 @@ class MetricasCursoTests(TestCase):
         uso = http.get('/portal/analitica/').content.decode()
         self.assertIn('Ver métricas por curso', uso)
         self.assertIn('href="/portal/analitica/cursos/"', uso)
-        for etiqueta in ('Tasa de inicio', 'Culminación de quienes iniciaron', 'Culminación de inscritos', 'Avance promedio'):
+        for etiqueta in (
+            'Tasa de inicio', 'Culminación sobre iniciadores', 'Culminación sobre aceptantes',
+            'Avance promedio', 'Inicio de segundo curso', 'Curso con más inicios',
+            'Curso con mayor culminación', 'Recomendación del curso',
+        ):
             self.assertIn(etiqueta, uso)
+        self.assertIn('Curso finca', uso)
+        self.assertIn('0 de 3', uso)
+        self.assertIn('Ningún curso llega a 5 iniciadores.', uso)
+        self.assertIn('Promotores 9–10, detractores 1–6.', uso)
+        self.assertNotIn('Culminación de quienes iniciaron', uso)
+        self.assertNotIn('Culminación de inscritos', uso)
         self.assertIn('3 de 5', uso)
         self.assertNotIn('Ver métricas por curso', http.get('/portal/analitica/?s=impacto').content.decode())
         r = http.get('/portal/analitica/cursos/')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
         self.assertIn('Curso finca', html)
+        self.assertIn(f'href="/portal/analitica/cursos/{self.finca.id}/"', html)
+        self.assertNotIn('>E01<', html)
         self.assertIn('75.0%', html)
+        self.assertIn('Culminación sobre iniciadores', html)
+        self.assertIn('Culminación sobre aceptantes', html)
         self.assertIn('Sin línea asignada', html)
