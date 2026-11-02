@@ -405,7 +405,9 @@ def mp4_necesita_reencode_whatsapp(data: bytes) -> bool:
 # Límite práctico Meta/WhatsApp para video por MediaUrl (~16 MB).
 WHATSAPP_VIDEO_MAX_BYTES = 16 * 1024 * 1024
 # eki_wa_v2: mismo tope y codec (H.264 Main). El primer pase ya no es CRF 26.
-WA_ENCODE_PRESET = 'medium'
+# veryfast: en t3.small un pase medium se iba a 10 minutos y el siguiente
+# empezaba de cero. El perfil de salida sigue siendo H.264 Main.
+WA_ENCODE_PRESET = 'veryfast'
 WA_CRF_CABE = 20
 WA_CRF_TOPE = 21
 WA_WIDTH_MAX = 720
@@ -440,7 +442,8 @@ def plan_mp4_encodes_whatsapp(
     """
     Pases ffmpeg en orden. El primero es el que debe usarse si el resultado cabe.
 
-    - Origen ≤16 MB: CRF 20, ancho min(origen, 720), sin bajar a 480.
+    - Origen ≤16 MB: un solo pase CRF 20 con -maxrate para no pasar de 16 MB.
+      Sin escalera: cada escalón anterior podía quemar 10 minutos y descartarse.
     - Origen >16 MB con duración: un pase CRF 21 con -maxrate según duración.
       720 px si el presupuesto ≥400 kbps; si no, baja resolución antes que CRF 32.
     """
@@ -456,13 +459,17 @@ def plan_mp4_encodes_whatsapp(
         }
 
     if nbytes <= max_bytes:
-        return [
-            step(quality_w, WA_CRF_CABE),
-            step(quality_w, 23),
-            step(quality_w, 26),
-            step(min(quality_w, 640), 26, '64k'),
-            step(min(quality_w, 640), 28, '48k'),
-        ]
+        if duration_s and float(duration_s) > 0.5:
+            vbps = max(_video_budget_bps(float(duration_s), max_bytes), 64_000)
+        else:
+            vbps = WA_BPS_720
+        if vbps >= WA_BPS_720:
+            w = quality_w
+        elif vbps >= WA_BPS_640:
+            w = min(quality_w, 640)
+        else:
+            w = min(quality_w, 480)
+        return [step(w, WA_CRF_CABE, '96k', vbps)]
 
     if duration_s and float(duration_s) > 0.5:
         vbps = max(_video_budget_bps(float(duration_s), max_bytes), 64_000)
@@ -621,7 +628,7 @@ def _ffmpeg_encode_wa(
             audio_bitrate=audio_bitrate,
             maxrate_bps=maxrate_bps,
         )
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         if r.returncode == 0 and os.path.getsize(dst) > 64:
             with open(dst, 'rb') as f:
                 return f.read()
@@ -633,7 +640,7 @@ def _ffmpeg_encode_wa(
             maxrate_bps=maxrate_bps,
             drop_audio=True,
         )
-        r2 = subprocess.run(cmd_an, capture_output=True, text=True, timeout=600)
+        r2 = subprocess.run(cmd_an, capture_output=True, text=True, timeout=180)
         if r2.returncode == 0 and os.path.getsize(dst) > 64:
             with open(dst, 'rb') as f:
                 logger.info('🎬 ffmpeg encode WA sin audio (AAC origen ilegible)')
@@ -648,6 +655,18 @@ def _ffmpeg_encode_wa(
         )
         return None
     except Exception as exc:
+        # El límite de Celery no es un fallo del archivo: si se traga, el
+        # siguiente pase arranca y el worker llega al corte duro sin guardar.
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        if isinstance(exc, SoftTimeLimitExceeded):
+            raise
+        try:
+            from billiard.exceptions import TimeLimitExceeded
+        except ImportError:
+            TimeLimitExceeded = ()  # type: ignore[misc, assignment]
+        if TimeLimitExceeded and isinstance(exc, TimeLimitExceeded):
+            raise
         logger.warning('🎬 ffmpeg encode error | %s', exc)
         return None
     finally:

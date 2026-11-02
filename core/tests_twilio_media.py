@@ -149,10 +149,11 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         from core.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(4 * 1024 * 1024, 40.0, 1280)
+        self.assertEqual(len(plan), 1)
         self.assertEqual(plan[0]['max_width'], 720)
         self.assertEqual(plan[0]['crf'], 20)
-        self.assertIsNone(plan[0]['maxrate_bps'])
-        self.assertTrue(all(step['max_width'] >= 640 for step in plan))
+        self.assertIsNotNone(plan[0]['maxrate_bps'])
+        self.assertGreaterEqual(plan[0]['maxrate_bps'], 400_000)
         self.assertNotIn(480, [step['max_width'] for step in plan])
 
     def test_archivo_que_cabe_no_amplia_ancho_chico(self):
@@ -200,14 +201,14 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         )
         joined = ' '.join(argv)
         self.assertIn('flags=lanczos', joined)
-        self.assertIn('medium', argv)
+        self.assertIn('veryfast', argv)
         self.assertIn('20', argv)
         self.assertIn('main', argv)
         self.assertIn('yuv420p', argv)
         self.assertIn('+faststart', joined)
         self.assertIn('1200k', argv)
         self.assertIn('2400k', argv)
-        self.assertEqual(argv[argv.index('-preset') + 1], 'medium')
+        self.assertEqual(argv[argv.index('-preset') + 1], 'veryfast')
 
     def test_mp4_ya_apto_no_reencodea_en_upload(self):
         from core.admin._common import _procesar_mp4_bytes_whatsapp
@@ -268,7 +269,21 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]['crf'], 20)
         self.assertEqual(calls[0]['max_width'], 720)
-        self.assertIsNone(calls[0]['maxrate_bps'])
+        self.assertIsNotNone(calls[0]['maxrate_bps'])
+        self.assertGreaterEqual(calls[0]['maxrate_bps'], 400_000)
+
+    def test_el_limite_de_celery_no_se_traga(self):
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        from core.twilio_media import _ffmpeg_encode_wa
+
+        with patch('shutil.which', return_value='ffmpeg'):
+            with patch(
+                'subprocess.run',
+                side_effect=SoftTimeLimitExceeded(),
+            ):
+                with self.assertRaises(SoftTimeLimitExceeded):
+                    _ffmpeg_encode_wa(b'\x00' * 80)
 
     def test_perfil_high_real_queda_main_720_y_apto(self):
         import os
