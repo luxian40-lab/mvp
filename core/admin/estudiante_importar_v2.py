@@ -1,8 +1,8 @@
 """Vista previa de la importación que ya existe. No crea otro importador.
 
 El guardado sigue siendo update_or_create por documento, como
-EstudianteAdmin.importar_estudiantes_view. El curso solo se acepta si
-está en cursos_permitidos.
+EstudianteAdmin.importar_estudiantes_view. Esta pantalla no inscribe:
+la columna Curso se avisa y se ignora. Cada línea inscribe en su campaña.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from core.import_estudiantes_excel import extraer_fila_estudiante, mapear_column
 from core.utils_telefono import normalizar_telefono, validar_telefono_whatsapp
 
 SESION = 'eki_import_est_v2'
-MENSAJE_CURSO = 'el curso no corresponde a la organización'
+MENSAJE_CURSO = 'el curso no se inscribe aquí'
 
 
 def tope_filas() -> int:
@@ -135,13 +135,6 @@ def evaluar_filas(headers, filas) -> list[dict]:
                 errores.append(f'Hay más de una organización llamada {org_nombre}.')
             else:
                 organizacion = coincidencias[0]
-        curso_id = None
-        if curso_nombre and not any('Organización' in e for e in errores):
-            curso, error_curso = _curso_de_fila(curso_nombre, organizacion)
-            if error_curso:
-                errores.append(error_curso)
-            elif curso is not None:
-                curso_id = curso.pk
         accion = 'crear'
         if cedula and Estudiante.objects.filter(cedula=cedula).exists():
             accion = 'actualizar'
@@ -157,7 +150,7 @@ def evaluar_filas(headers, filas) -> list[dict]:
             'nombre': nombre,
             'telefono': telefono,
             'cliente_id': organizacion.pk if organizacion else None,
-            'curso_id': curso_id,
+            'curso_id': None,
             'curso_nombre': curso_nombre,
             'municipio': campos['municipio'],
             'departamento': campos['departamento'],
@@ -165,22 +158,6 @@ def evaluar_filas(headers, filas) -> list[dict]:
             'edad_raw': campos['edad_raw'],
         })
     return salida
-
-
-def _curso_de_fila(nombre, organizacion):
-    from core.cursos_permitidos import cursos_permitidos
-    from core.inscripcion_curso import _norm_nombre_curso
-
-    objetivo = _norm_nombre_curso(nombre)
-    hits = []
-    for curso in cursos_permitidos(organizacion):
-        if _norm_nombre_curso(curso.nombre) == objetivo or curso.nombre.lower() == nombre.strip().lower():
-            hits.append(curso)
-    if len(hits) == 1:
-        return hits[0], None
-    if len(hits) > 1:
-        return None, 'Hay más de un curso con ese nombre.'
-    return None, MENSAJE_CURSO
 
 
 def _error(fila, texto) -> dict:
@@ -206,16 +183,13 @@ def _error(fila, texto) -> dict:
 def _confirmar(admin, request):
     from django.utils import timezone
 
-    from core.admin.estudiante_bienvenida import enviar_bienvenida_alta
-    from core.inscripcion_curso import inscribir_estudiante_en_curso
-    from core.models import Cliente, Curso, Estudiante
+    from core.models import Cliente, Estudiante
 
     paquete = request.session.get(SESION) or {}
     if paquete.get('usuario') != request.user.pk:
         messages.error(request, 'La vista previa venció. Sube el archivo otra vez.')
         return redirect('admin:core_estudiante_importar')
-    enviar = request.POST.get('enviar_bienvenida') == '1'
-    creados = actualizados = inscritos = errores = 0
+    creados = actualizados = errores = 0
     avisos = []
     generos = {
         'm': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F',
@@ -226,17 +200,6 @@ def _confirmar(admin, request):
             errores += 1
             continue
         cliente = Cliente.objects.filter(pk=fila['cliente_id']).first() if fila.get('cliente_id') else None
-        curso = Curso.objects.filter(pk=fila['curso_id']).first() if fila.get('curso_id') else None
-        if fila.get('curso_nombre') and curso is None:
-            errores += 1
-            avisos.append(f"Fila {fila['fila']}: {MENSAJE_CURSO}")
-            continue
-        if curso is not None:
-            from core.cursos_permitidos import curso_esta_permitido
-            if not curso_esta_permitido(curso, cliente):
-                errores += 1
-                avisos.append(f"Fila {fila['fila']}: {MENSAJE_CURSO}")
-                continue
         genero = generos.get((fila.get('genero_raw') or '').strip().lower(), '') or 'NR'
         edad = None
         if fila.get('edad_raw'):
@@ -283,21 +246,11 @@ def _confirmar(admin, request):
             action_flag=accion,
             change_message=f"Importación Excel {timezone.now():%Y-%m-%d %H:%M}",
         )
-        if curso is not None:
-            _progreso, nuevo = inscribir_estudiante_en_curso(estudiante, curso)
-            if nuevo:
-                inscritos += 1
-        if enviar and curso is not None:
-            resultado = enviar_bienvenida_alta(estudiante, [curso])
-            if not resultado['ok']:
-                avisos.append(f"Fila {fila['fila']}: bienvenida no enviada. {resultado['motivo']}")
     request.session.pop(SESION, None)
     if creados:
         messages.success(request, f'{creados} estudiante(s) creado(s).')
     if actualizados:
         messages.info(request, f'{actualizados} estudiante(s) actualizado(s).')
-    if inscritos:
-        messages.success(request, f'{inscritos} inscripción(es) en cursos.')
     if errores:
         messages.warning(request, f'{errores} fila(s) con error, no se importaron.')
     for aviso in avisos[:8]:
@@ -328,17 +281,16 @@ def _csv_errores(request):
 
 
 def _pagina(request, preview):
-    from core.admin.estudiante_bienvenida import hay_plantilla_bienvenida
-
-    validas = [fila for fila in (preview or []) if fila.get('ok')]
-    malas = [fila for fila in (preview or []) if not fila.get('ok')]
-    con_curso = [fila for fila in validas if fila.get('curso_id')]
+    filas = preview or []
+    validas = [fila for fila in filas if fila.get('ok')]
+    malas = [fila for fila in filas if not fila.get('ok')]
+    hay_columna_curso = any((fila.get('curso_nombre') or '').strip() for fila in filas)
     return render(request, 'admin/importar_estudiantes_v2.html', {
         'title': 'Importar varios desde Excel',
         'preview': preview,
         'validas': validas,
         'malas': malas,
-        'n_mensajes': len(con_curso),
-        'hay_bienvenida': hay_plantilla_bienvenida(),
+        'hay_columna_curso': hay_columna_curso,
+        'mensaje_curso': MENSAJE_CURSO,
         'tope': tope_filas(),
     })

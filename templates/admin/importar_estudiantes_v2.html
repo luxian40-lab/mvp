@@ -2,55 +2,94 @@
 
 {% block content %}
 <div class="eki-import">
+    <p class="eki-import-back">
+        <a href="{% url 'admin:core_estudiante_changelist' %}">← Volver a estudiantes</a>
+    </p>
     <h1>Importar varios desde Excel</h1>
-    <p>Tope de {{ tope }} filas. Si la persona ya existe (mismo documento), se actualiza y no se duplica.</p>
-    <ol>
-        <li>Descargue la <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}">plantilla</a>.</li>
-        <li>Suba un .xlsx o un .csv.</li>
-        <li>Revise la vista previa. Solo se guardan las filas válidas.</li>
-    </ol>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="hidden" name="paso" value="previsualizar">
-        <label>Archivo <input type="file" name="archivo_excel" accept=".xlsx,.csv" required></label>
-        <button type="submit">Ver vista previa</button>
-    </form>
-    {% if preview %}
-    <h2>Vista previa</h2>
-    <p>{{ validas|length }} válida(s), {{ malas|length }} con error.</p>
-    {% if malas %}
-    <p><a href="?errores=1">Descargar filas con error</a></p>
-    <table>
-        <thead><tr><th>Fila</th><th>Documento</th><th>Motivo</th></tr></thead>
-        <tbody>
-        {% for fila in malas %}
-        <tr>
-            <td>{{ fila.fila }}</td>
-            <td>{{ fila.cedula|default:"—" }}</td>
-            <td>{{ fila.errores|join:" " }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
-    {% if validas %}
-    <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="paso" value="confirmar">
-        {% if hay_bienvenida %}
-        <label>
-            <input type="checkbox" name="enviar_bienvenida" value="1">
-            Enviar bienvenida por WhatsApp
-        </label>
-        <p class="eki-import-aviso">
-            Saldrían {{ n_mensajes }} mensaje(s), uno por fila válida con curso.
-            Quien no haya aceptado datos o haya pedido no recibir más, no recibe el mensaje.
-            El interruptor está apagado: no se envía nada salvo que lo marque.
-        </p>
-        {% endif %}
-        <button type="submit">Importar filas válidas</button>
-    </form>
-    {% endif %}
-    {% endif %}
+    <p class="eki-import-lead">
+        Guarda personas en la organización. No las inscribe en un curso: cada línea se inscribe en su campaña.
+        Si el documento ya existe, se actualiza y no se duplica.
+        Máximo {{ tope }} filas. Nada se guarda hasta el paso 3.
+    </p>
+
+    <section class="eki-import-paso">
+        <span class="eki-import-num" aria-hidden="true">1</span>
+        <div>
+            <h2>Descargar la plantilla</h2>
+            <p>Una fila por estudiante. El cliente va con el nombre exacto del admin.</p>
+            <a class="eki-import-btn eki-import-btn--sec" href="{% url 'admin:core_estudiante_exportar_plantilla' %}">
+                Descargar plantilla Excel
+            </a>
+            <details class="eki-import-ayuda">
+                <summary>Qué columnas lleva</summary>
+                <ul>
+                    <li><strong>Obligatorias:</strong> tipo de documento, documento, nombre, teléfono (con código de país, en texto). Ej. Colombia: <code>573001234567</code>.</li>
+                    <li><strong>Para dejarlos en la organización:</strong> columna Cliente, nombre exacto.</li>
+                    <li><strong>Columna Curso:</strong> si viene, no se inscribe. El grupo se asigna después, en lote.</li>
+                </ul>
+            </details>
+        </div>
+    </section>
+
+    <section class="eki-import-paso">
+        <span class="eki-import-num" aria-hidden="true">2</span>
+        <div>
+            <h2>Revisar el archivo</h2>
+            <p>Este botón solo muestra la vista previa. Todavía no guarda a nadie.</p>
+            <form method="post" enctype="multipart/form-data" class="eki-import-form eki-import-form--col">
+                {% csrf_token %}
+                <input type="hidden" name="paso" value="previsualizar">
+                <label class="eki-import-file-label" for="archivo_excel">Archivo Excel o CSV</label>
+                <input id="archivo_excel" type="file" name="archivo_excel" accept=".xlsx,.csv" required>
+                <button type="submit" class="eki-import-btn eki-import-btn--pri">Revisar archivo</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="eki-import-paso{% if not preview %} eki-import-paso--espera{% endif %}">
+        <span class="eki-import-num" aria-hidden="true">3</span>
+        <div>
+            <h2>Guardar en el sistema</h2>
+            {% if not preview %}
+            <p>Aparece después de revisar el archivo.</p>
+            {% else %}
+            {% if hay_columna_curso %}
+            <p class="eki-import-aviso">{{ mensaje_curso }}. Cada línea se inscribe en su campaña, no en esta pantalla.</p>
+            {% endif %}
+            <p class="eki-import-resumen">
+                <span class="eki-import-pill eki-import-pill--ok">{{ validas|length }} lista(s) para guardar</span>
+                <span class="eki-import-pill eki-import-pill--mal">{{ malas|length }} con error</span>
+            </p>
+            {% if malas %}
+            <p>
+                <a class="eki-import-btn eki-import-btn--sec" href="?errores=1">Descargar filas con error</a>
+            </p>
+            <table class="eki-import-tabla">
+                <thead><tr><th>Fila</th><th>Documento</th><th>Motivo</th></tr></thead>
+                <tbody>
+                {% for fila in malas %}
+                <tr>
+                    <td>{{ fila.fila }}</td>
+                    <td>{{ fila.cedula|default:"—" }}</td>
+                    <td>{{ fila.errores|join:" " }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            {% if validas %}
+            <form method="post" class="eki-import-form">
+                {% csrf_token %}
+                <input type="hidden" name="paso" value="confirmar">
+                <button type="submit" class="eki-import-btn eki-import-btn--pri">
+                    Guardar {{ validas|length }} estudiante(s)
+                </button>
+            </form>
+            {% else %}
+            <p>Ninguna fila se puede guardar. Corrija el archivo y vuelva al paso 2.</p>
+            {% endif %}
+            {% endif %}
+        </div>
+    </section>
 </div>
 {% endblock %}

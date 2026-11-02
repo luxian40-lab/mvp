@@ -381,14 +381,17 @@ class AltaEstudianteTests(TestCase):
         url = reverse('admin:core_estudiante_importar')
         with patch('core.meta_waba._post') as post:
             previo = self.client.post(url, {'paso': 'previsualizar', 'archivo_excel': archivo})
-            self.assertContains(previo, 'el curso no corresponde a la organización')
+            self.assertContains(previo, 'el curso no se inscribe aquí')
             self.assertContains(previo, 'Documento vacío')
             self.client.post(url, {'paso': 'confirmar'})
             post.assert_not_called()
         self.assertTrue(Estudiante.objects.filter(cedula='4242').exists())
+        self.assertTrue(Estudiante.objects.filter(cedula='4244', cliente=self.org).exists())
         self.assertTrue(Estudiante.objects.filter(cedula='4245', cliente__isnull=True).exists())
-        self.assertFalse(Estudiante.objects.filter(cedula='4244').exists())
         self.assertFalse(Estudiante.objects.filter(cedula='4246').exists())
+        self.assertFalse(
+            ProgresoEstudiante.objects.filter(estudiante__cedula__in=['4242', '4244', '4245']).exists()
+        )
         otra = _xlsx([
             ['tipo_documento', 'documento', 'nombre', 'telefono', 'organización', 'curso'],
             ['CC', '4242', 'Ana Perez', '3001112300', 'Org A', 'Curso A'],
