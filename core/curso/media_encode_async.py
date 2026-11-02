@@ -7,6 +7,7 @@ import uuid
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -84,16 +85,22 @@ def encolar_encode_paso_modulo(
     prefix: str,
 ) -> None:
     _set_encode_state(job_id=job_id, paso_id=paso_id, status='pending')
-    from core.tasks import encode_paso_modulo_media
 
-    encode_paso_modulo_media.delay(
-        job_id,
-        paso_id,
-        temp_s3_path,
-        filename,
-        carpeta,
-        prefix,
-    )
+    def _publicar():
+        from core.tasks import encode_paso_modulo_media
+
+        encode_paso_modulo_media.delay(
+            job_id,
+            paso_id,
+            temp_s3_path,
+            filename,
+            carpeta,
+            prefix,
+        )
+
+    # Dentro del guardado del admin la fila aún no es visible. El aviso sale
+    # al confirmar; fuera de una transacción, on_commit corre al instante.
+    transaction.on_commit(_publicar)
 
 
 def aplicar_resultado_upload_async(

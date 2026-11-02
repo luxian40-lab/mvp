@@ -781,6 +781,8 @@ def encode_paso_modulo_media(
         paso = PasoModulo.objects.get(pk=paso_id)
     except PasoModulo.DoesNotExist:
         logger.warning('[Celery][MediaEncode] paso_id=%s no existe', paso_id)
+        if self.request.retries < (self.max_retries or 0):
+            raise self.retry(countdown=2)
         _clear_encode_state(job_id=job_id, paso_id=paso_id)
         return {'error': 'paso_not_found'}
 

@@ -135,6 +135,73 @@ class EstadoMediaProcesandoTests(TestCase):
         )
 
 
+class EncolarAlCommitTests(SimpleTestCase):
+    @patch('core.media_encode_async._set_encode_state')
+    def test_el_aviso_sale_al_confirmar_el_guardado(self, _estado):
+        from core.media_encode_async import encolar_encode_paso_modulo
+
+        callbacks = []
+
+        def captura(fn, using=None, robust=False):
+            callbacks.append(fn)
+
+        with patch('core.media_encode_async.transaction.on_commit', side_effect=captura), \
+                patch('core.tasks.encode_paso_modulo_media.delay') as delay:
+            encolar_encode_paso_modulo(
+                paso_id=510,
+                job_id='job-510',
+                temp_s3_path='incoming/x.mp4',
+                filename='x.mp4',
+                carpeta='modulos/pasos',
+                prefix='m1',
+            )
+            delay.assert_not_called()
+            self.assertEqual(len(callbacks), 1)
+            callbacks[0]()
+        delay.assert_called_once_with(
+            'job-510', 510, 'incoming/x.mp4', 'x.mp4', 'modulos/pasos', 'm1',
+        )
+
+
+class EncodePasoAusenteTests(SimpleTestCase):
+    def _correr(self, retries):
+        from core.tasks import encode_paso_modulo_media
+
+        encode_paso_modulo_media.push_request(retries=retries)
+        try:
+            return encode_paso_modulo_media.run(
+                'job-510', 510, 'incoming/x.mp4', 'x.mp4', 'modulos/pasos', 'm1',
+            )
+        finally:
+            encode_paso_modulo_media.pop_request()
+
+    @patch('core.media_encode_async._set_encode_state')
+    @patch('core.media_encode_async._clear_encode_state')
+    @patch('core.models.PasoModulo.objects.get')
+    def test_si_el_paso_aun_no_esta_reintenta_sin_soltarlo(self, get, clear, _estado):
+        from celery.exceptions import Retry
+        from core.models import PasoModulo
+        from core.tasks import encode_paso_modulo_media
+
+        get.side_effect = PasoModulo.DoesNotExist
+        with patch.object(encode_paso_modulo_media, 'retry', side_effect=Retry('luego')) as retry:
+            with self.assertRaises(Retry):
+                self._correr(0)
+        retry.assert_called_once_with(countdown=2)
+        clear.assert_not_called()
+
+    @patch('core.media_encode_async._set_encode_state')
+    @patch('core.media_encode_async._clear_encode_state')
+    @patch('core.models.PasoModulo.objects.get')
+    def test_agotado_el_reintento_suelta_el_estado(self, get, clear, _estado):
+        from core.models import PasoModulo
+
+        get.side_effect = PasoModulo.DoesNotExist
+        resultado = self._correr(1)
+        self.assertEqual(resultado, {'error': 'paso_not_found'})
+        clear.assert_called_once_with(job_id='job-510', paso_id=510)
+
+
 class MensajeUploadYEncodeModuloTests(TestCase):
     def setUp(self):
         curso = Curso.objects.create(nombre='Encode banner', descripcion='d', dias_espera_entre_modulos=0)
