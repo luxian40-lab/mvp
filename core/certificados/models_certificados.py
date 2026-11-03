@@ -340,6 +340,23 @@ class PlantillaCertificado(models.Model):
         help_text="Plantilla por defecto para nuevos certificados"
     )
 
+    # Tipografía sobre marcadores RGB (modo imagen)
+    fuente_nombre = models.PositiveSmallIntegerField(
+        default=56,
+        verbose_name='Tamaño nombre (px)',
+        help_text='Texto del nombre sobre el marcador gris. Por defecto 56.',
+    )
+    fuente_cedula = models.PositiveSmallIntegerField(
+        default=33,
+        verbose_name='Tamaño documento (px)',
+        help_text='Cédula / documento sobre el marcador rojo. Por defecto 33.',
+    )
+    fuente_fecha = models.PositiveSmallIntegerField(
+        default=29,
+        verbose_name='Tamaño fecha (px)',
+        help_text='Fecha sobre el marcador amarillo. Por defecto 29.',
+    )
+
     # Página pública certificados.eki.technology (ficha de verificación)
     VERIFICACION_HERO_CHOICES = [
         ('estudiante', 'Nombre del estudiante'),
@@ -399,9 +416,25 @@ class PlantillaCertificado(models.Model):
             return 'pdf'
         return 'diseno_eki'
 
+    def tamanos_fuente_marcadores(self) -> dict:
+        """Kwargs de fuente para generar_certificado_marcadores."""
+        return {
+            'fuente_nombre_size': int(self.fuente_nombre or 56),
+            'fuente_cedula_size': int(self.fuente_cedula or 33),
+            'fuente_fecha_size': int(self.fuente_fecha or 29),
+        }
+
     def clean(self):
         """Validar y limpiar URL de plantilla para evitar duplicaciones y errores"""
         super().clean()
+        for campo, etiqueta in (
+            ('fuente_nombre', 'nombre'),
+            ('fuente_cedula', 'documento'),
+            ('fuente_fecha', 'fecha'),
+        ):
+            valor = getattr(self, campo, None)
+            if valor is not None and (valor < 8 or valor > 200):
+                raise ValidationError({campo: f'El tamaño de {etiqueta} debe estar entre 8 y 200 px.'})
         modo = self.modo_efectivo()
         if modo == 'imagen' and not (self.archivo_plantilla_imagen or self.url_plantilla_imagen):
             raise ValidationError({

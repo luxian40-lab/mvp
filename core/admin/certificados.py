@@ -57,12 +57,20 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         }),
         ('Plantilla', {
             'classes': ['tab'],
-            'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
+            'fields': (
+                'formato_certificado',
+                'archivo_plantilla_imagen',
+                'url_plantilla_imagen',
+                'fuente_nombre',
+                'fuente_cedula',
+                'fuente_fecha',
+            ),
             'description': (
                 'Imagen + marcadores: PNG/JPG con relleno sólido — '
                 'GRIS (128,128,128)=nombre, ROJO (255,0,0)=cédula, '
                 'AMARILLO (255,255,0)=fecha, AZUL (0,0,255)=QR. '
-                'Sube archivo o pega URL S3 (una sola vez).'
+                'Sube archivo o pega URL S3 (una sola vez). '
+                'Los tamaños (px) se ven al instante en la vista previa.'
             ),
         }),
         ('Diseño eki', {

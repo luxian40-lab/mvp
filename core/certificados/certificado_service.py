@@ -536,6 +536,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     fecha_emision=getattr(certificado, 'fecha_emision', None)
                     or getattr(certificado, 'fecha_completado', None)
                     or timezone.localdate(),
+                    **plantilla.tamanos_fuente_marcadores(),
                 )
                 if img_buffer:
                     generado = _guardar_cert_s3(certificado, img_buffer, "P0 Marcadores+DB")

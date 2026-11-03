@@ -23,6 +23,11 @@ CAMPOS_TEXTO = (
     'texto_certificado',
     'url_plantilla_imagen',
 )
+CAMPOS_ENTEROS = (
+    'fuente_nombre',
+    'fuente_cedula',
+    'fuente_fecha',
+)
 
 
 def _modo_preview(plantilla, post_data: dict) -> str:
@@ -60,6 +65,16 @@ def _aplicar_campos_post(plantilla, post_data: dict) -> None:
         if field == 'url_plantilla_imagen':
             val = (val or '').strip() or None
         setattr(plantilla, field, val)
+    for field in CAMPOS_ENTEROS:
+        if field not in post_data:
+            continue
+        raw = post_data.get(field)
+        if raw is None or str(raw).strip() == '':
+            continue
+        try:
+            setattr(plantilla, field, int(raw))
+        except (TypeError, ValueError):
+            continue
 
 
 def _resolver_fuente_imagen(plantilla, uploaded_img=None) -> tuple[str | None, str | bytes | None]:
@@ -151,8 +166,7 @@ def plantilla_desde_request(post_data: dict, plantilla_id: str | None = None):
             texto_certificado=post_data.get('texto_certificado') or 'CERTIFICADO DE FINALIZACIÓN',
             url_plantilla_imagen=(post_data.get('url_plantilla_imagen') or '').strip() or None,
         )
-    else:
-        _aplicar_campos_post(plantilla, post_data)
+    _aplicar_campos_post(plantilla, post_data)
 
     return plantilla
 
@@ -207,6 +221,8 @@ def generar_preview_certificado(
         'url_verificacion': url_demo,
         'organizacion_nombre': org_nom,
     }
+    if hasattr(plantilla, 'tamanos_fuente_marcadores'):
+        kwargs.update(plantilla.tamanos_fuente_marcadores())
     try:
         if kind == 'url':
             return generar_certificado_marcadores(plantilla_url_o_path=src, **kwargs)

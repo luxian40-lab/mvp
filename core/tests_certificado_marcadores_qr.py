@@ -54,6 +54,29 @@ class CertificadoMarcadoresQrTests(SimpleTestCase):
 
         self.assertEqual(FUENTE_FECHA_DEFAULT, 29)
 
+    def test_plantilla_expone_tamanos_editables(self):
+        from core.models_certificados import PlantillaCertificado
+
+        plantilla = PlantillaCertificado(fuente_nombre=90, fuente_cedula=40, fuente_fecha=35)
+        self.assertEqual(
+            plantilla.tamanos_fuente_marcadores(),
+            {'fuente_nombre_size': 90, 'fuente_cedula_size': 40, 'fuente_fecha_size': 35},
+        )
+
+    def test_genera_con_tamano_nombre_grande(self):
+        buf = generar_certificado_marcadores(
+            plantilla_bytes=_plantilla_con_marcadores(con_fecha=False),
+            nombre_estudiante='Ana María López',
+            cedula_estudiante='1020304050',
+            url_verificacion=URL_QR,
+            fuente_nombre_size=90,
+            tamaño_qr=TAMAÑO_QR_DEFAULT,
+            ajuste_qr_y=0,
+        )
+        out = Image.open(buf)
+        self.assertEqual(out.format, 'PNG')
+        self.assertEqual(out.size, (600, 420))
+
     def test_encontrar_marcadores_en_plantilla(self):
         raw = _plantilla_con_marcadores(con_fecha=True)
         np_img = np.array(Image.open(BytesIO(raw)).convert('RGB'))
