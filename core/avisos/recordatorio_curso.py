@@ -92,13 +92,16 @@ def _toca(recordatorio, progreso, ahora: datetime) -> bool:
     referencia = max(senal, desde) if desde else senal
     if referencia > ahora - timedelta(days=recordatorio.dias_sin_avanzar):
         return False
-    ultimo = (
-        RecordatorioCursoEnviado.objects.filter(recordatorio=recordatorio, estudiante_id=progreso.estudiante_id)
-        .order_by('-fecha')
-        .values_list('fecha', flat=True)
-        .first()
+    enviados = RecordatorioCursoEnviado.objects.filter(
+        recordatorio=recordatorio,
+        estudiante_id=progreso.estudiante_id,
+        estado='ENVIADO',
+        fecha__gt=referencia,
     )
-    if ultimo and ultimo > referencia and ultimo > ahora - timedelta(days=recordatorio.repetir_cada_dias):
+    if enviados.count() >= recordatorio.maximo_envios:
+        return False
+    ultimo = enviados.order_by('-fecha').values_list('fecha', flat=True).first()
+    if ultimo and ultimo > ahora - timedelta(days=recordatorio.repetir_cada_dias):
         return False
     return True
 

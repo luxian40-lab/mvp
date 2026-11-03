@@ -133,6 +133,29 @@ class RecordatorioCursoTests(TestCase):
         resultado, sender = self._ejecutar()
         self.assertEqual(resultado['enviados'], 1)
 
+    def test_corta_al_llegar_al_maximo_de_envios(self):
+        ana = self._estudiante('573001120026', escribio_hace=20)
+        self.recordatorio.maximo_envios = 3
+        self.recordatorio.repetir_cada_dias = 2
+        self.recordatorio.save()
+        self._enviado_hace(ana, 10)
+        self._enviado_hace(ana, 6)
+        self._enviado_hace(ana, 3)
+        resultado, sender = self._ejecutar()
+        sender.plantilla.assert_not_called()
+        self.assertEqual(resultado['enviados'], 0)
+
+    def test_tras_escribir_de_nuevo_puede_recordar_aunque_ya_hubiera_llegado_al_maximo(self):
+        ana = self._estudiante('573001120027', escribio_hace=3)
+        self.recordatorio.maximo_envios = 3
+        self.recordatorio.repetir_cada_dias = 2
+        self.recordatorio.save()
+        self._enviado_hace(ana, 12)
+        self._enviado_hace(ana, 9)
+        self._enviado_hace(ana, 6)
+        resultado, sender = self._ejecutar()
+        self.assertEqual(resultado['enviados'], 1)
+
     def test_si_vuelve_a_escribir_la_cuenta_empieza_otra_vez(self):
         ana = self._estudiante('573001120007', escribio_hace=3)
         self._enviado_hace(ana, 5)

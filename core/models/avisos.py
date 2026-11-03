@@ -122,7 +122,12 @@ class RecordatorioCurso(models.Model):
     repetir_cada_dias = models.PositiveSmallIntegerField(
         default=7,
         verbose_name='Repetir cada (días)',
-        help_text='Si sigue sin avanzar, otro recordatorio cada tantos días hasta que termine.',
+        help_text='Si sigue sin avanzar, otro recordatorio cada tantos días.',
+    )
+    maximo_envios = models.PositiveSmallIntegerField(
+        default=3,
+        verbose_name='Máximo de envíos',
+        help_text='Tope de recordatorios enviados desde la última señal (mensaje o aviso). Si escribe de nuevo, la cuenta vuelve a cero.',
     )
     hora = models.PositiveSmallIntegerField(default=9, choices=HORAS, verbose_name='Hora (Bogotá)')
     activo = models.BooleanField(default=True, verbose_name='Activo')

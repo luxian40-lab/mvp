@@ -185,7 +185,7 @@ class RecordatorioCursoForm(AvisoModuloForm):
         model = RecordatorioCurso
         fields = (
             'cliente', 'curso', 'grupo', 'phone_number_id', 'plantilla',
-            'dias_sin_avanzar', 'repetir_cada_dias', 'hora', 'activo',
+            'dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora', 'activo',
         )
 
     def clean(self):
@@ -194,6 +194,8 @@ class RecordatorioCursoForm(AvisoModuloForm):
             self.add_error('dias_sin_avanzar', 'Mínimo 1 día.')
         if (limpio.get('repetir_cada_dias') or 0) < 1:
             self.add_error('repetir_cada_dias', 'Mínimo 1 día.')
+        if (limpio.get('maximo_envios') or 0) < 1:
+            self.add_error('maximo_envios', 'Mínimo 1 envío.')
         return limpio
 
 
@@ -208,13 +210,16 @@ class RecordatorioCursoAdmin(ModelAdmin):
     fieldsets = (
         ('Estado', {'fields': ('col_estado', 'col_hoy')}),
         ('A quién', {'fields': ('cliente', 'curso', 'grupo')}),
-        ('Cuándo', {'fields': ('dias_sin_avanzar', 'repetir_cada_dias', 'hora')}),
+        ('Cuándo', {'fields': ('dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora')}),
         ('Envío', {'fields': ('phone_number_id', 'plantilla', 'activo')}),
     )
 
     @display(description='Regla')
     def col_regla(self, obj):
-        return f'A los {obj.dias_sin_avanzar} días, luego cada {obj.repetir_cada_dias} · {obj.hora:02d}:00'
+        return (
+            f'A los {obj.dias_sin_avanzar} días, luego cada {obj.repetir_cada_dias} '
+            f'(máx. {obj.maximo_envios}) · {obj.hora:02d}:00'
+        )
 
     @display(description='Plantilla')
     def col_plantilla(self, obj):
