@@ -734,12 +734,31 @@ def enviar_meta_flow(
     flow_token: str,
     cta: str = 'Llenar ficha',
     agente_evento: str = 'sandbox_formulario',
+    modo: str = '',
+    con_datos: bool = True,
 ) -> dict:
-    """Formulario nativo de WhatsApp (Flow). El chat sigue como respaldo si esto falla."""
+    """Formulario nativo de WhatsApp (Flow). El chat sigue como respaldo si esto falla.
+
+    `con_datos` en False omite `data` vacío: el Flow de registro lo rechaza.
+    `modo` ('published') solo se manda si viene. El GEI no cambia.
+    """
     to = _telefono_graph(telefono)
     cuerpo = (texto or '').strip()[:1024]
     if not to or not cuerpo or not flow_id or not pantalla:
         return {'success': False, 'mensaje_id': None, 'response': 'Flow incompleto'}
+    accion = {'screen': pantalla}
+    if con_datos:
+        accion['data'] = {}
+    parametros = {
+        'flow_message_version': '3',
+        'flow_token': str(flow_token or 'gei')[:128],
+        'flow_id': str(flow_id),
+        'flow_cta': (cta or 'Llenar ficha')[:20],
+        'flow_action': 'navigate',
+        'flow_action_payload': accion,
+    }
+    if (modo or '').strip():
+        parametros['mode'] = modo.strip()
     result = _post_graph(
         {
             'messaging_product': 'whatsapp',
@@ -751,14 +770,7 @@ def enviar_meta_flow(
                 'body': {'text': cuerpo},
                 'action': {
                     'name': 'flow',
-                    'parameters': {
-                        'flow_message_version': '3',
-                        'flow_token': str(flow_token or 'gei')[:128],
-                        'flow_id': str(flow_id),
-                        'flow_cta': (cta or 'Llenar ficha')[:20],
-                        'flow_action': 'navigate',
-                        'flow_action_payload': {'screen': pantalla, 'data': {}},
-                    },
+                    'parameters': parametros,
                 },
             },
         },

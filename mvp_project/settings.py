@@ -350,8 +350,14 @@ WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID
 # Segunda línea de la misma app. Vacío = solo la principal. La respuesta sale por el número al que escribieron.
 WHATSAPP_PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', '')
 WHATSAPP_NUMERO_2_E164 = os.environ.get('WHATSAPP_NUMERO_2_E164', '')
-# Línea 3, registro por QR. El entorno puede cambiarlo. No toca las otras líneas.
-EKI_LINEA_REGISTRO_E164 = os.environ.get('EKI_LINEA_REGISTRO_E164', '573019018929')
+# Línea 3 (registro por Flow). Las cuatro vacías = no existe la línea y nada cambia.
+# Verificado el 30 de octubre de 2026 en Meta, no van como default:
+# número 573019018929, phone id 1477762615411333, WABA 1560693046090506,
+# Flow eki_registro 1644555950738838.
+EKI_LINEA_REGISTRO_E164 = os.environ.get('EKI_LINEA_REGISTRO_E164', '')
+EKI_LINEA_REGISTRO_PHONE_ID = os.environ.get('EKI_LINEA_REGISTRO_PHONE_ID', '')
+EKI_LINEA_REGISTRO_WABA_ID = os.environ.get('EKI_LINEA_REGISTRO_WABA_ID', '')
+EKI_LINEA_REGISTRO_FLOW_ID = os.environ.get('EKI_LINEA_REGISTRO_FLOW_ID', '')
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre
 META_LINEAS = os.environ.get('META_LINEAS', '')

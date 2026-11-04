@@ -33,6 +33,10 @@ def correr_puertas(telefono: str, body: str) -> str | None:
         return 'handled'
     if _responder_optout(telefono, body) == 'handled':
         return 'handled'
+    from core.lineas.registro_abrir import abrir_registro
+
+    if abrir_registro(telefono, body) == 'handled':
+        return 'handled'
     corte = _responder_habeas(telefono, _menu().sandbox_number(), body)
     if corte == 'handled':
         return 'handled'

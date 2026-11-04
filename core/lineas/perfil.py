@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 USO_COMPLETA = 'completa'
 USO_SOLO_CURSOS = 'solo_cursos'
+USO_REGISTRO = 'registro'
 
 
 @dataclass(frozen=True)
@@ -54,9 +55,13 @@ PERFIL_SOLO_CURSOS = PerfilLinea(
     curso_directo=True,
 )
 
+# Línea 3: solo el Flow de registro. Sin menú, cursos ni asesores.
+PERFIL_REGISTRO = PerfilLinea(uso=USO_REGISTRO)
+
 _POR_USO = {
     USO_COMPLETA: PERFIL_COMPLETA,
     USO_SOLO_CURSOS: PERFIL_SOLO_CURSOS,
+    USO_REGISTRO: PERFIL_REGISTRO,
 }
 
 

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from core.lineas.perfil import USO_COMPLETA, USO_SOLO_CURSOS, PerfilLinea, perfil_por_uso
+from core.lineas.perfil import USO_COMPLETA, USO_REGISTRO, USO_SOLO_CURSOS, PerfilLinea, perfil_por_uso
 from core.nati import normalizar_telefono_whatsapp
 
 
@@ -32,11 +32,11 @@ def lineas_producto() -> tuple[LineaMeta, ...]:
     if getattr(settings, 'EKI_LINEAS_BD_ENABLED', False):
         de_bd = _lineas_bd()
         if de_bd:
-            return de_bd
+            return _sumar_registro(de_bd)
     explicito = _parsear(getattr(settings, 'META_LINEAS', '') or '')
     if explicito:
-        return explicito
-    return _lineas_historicas()
+        return _sumar_registro(explicito)
+    return _sumar_registro(_lineas_historicas())
 
 
 def phone_ids() -> tuple[str, ...]:
@@ -101,6 +101,23 @@ def _lineas_historicas() -> tuple[LineaMeta, ...]:
     return tuple(lineas)
 
 
+def _linea_registro() -> LineaMeta | None:
+    """La línea 3 solo aparece si hay phone id y número. Vacío = no existe."""
+    phone = (getattr(settings, 'EKI_LINEA_REGISTRO_PHONE_ID', '') or '').strip()
+    e164 = normalizar_telefono_whatsapp(getattr(settings, 'EKI_LINEA_REGISTRO_E164', '') or '')
+    if not phone or not e164:
+        return None
+    waba = (getattr(settings, 'EKI_LINEA_REGISTRO_WABA_ID', '') or '').strip()
+    return LineaMeta(phone, e164, 'Línea 3', uso=USO_REGISTRO, waba_id=waba)
+
+
+def _sumar_registro(lineas: tuple[LineaMeta, ...]) -> tuple[LineaMeta, ...]:
+    extra = _linea_registro()
+    if extra is None or any(linea.phone_id == extra.phone_id for linea in lineas):
+        return lineas
+    return lineas + (extra,)
+
+
 def _parsear(bruto: str) -> tuple[LineaMeta, ...]:
     lineas: list[LineaMeta] = []
     vistos: set[str] = set()
@@ -120,10 +137,11 @@ def _parsear(bruto: str) -> tuple[LineaMeta, ...]:
         if not nombre:
             nombre = f'Línea {len(lineas) + 1}'
         marca = partes[3].lower() if len(partes) > 3 else ''
-        uso = (
-            USO_SOLO_CURSOS
-            if marca in ('cursos', 'solo_cursos', 'twilio', 'curso_lineal')
-            else USO_COMPLETA
-        )
+        if marca in ('cursos', 'solo_cursos', 'twilio', 'curso_lineal'):
+            uso = USO_SOLO_CURSOS
+        elif marca == 'registro':
+            uso = USO_REGISTRO
+        else:
+            uso = USO_COMPLETA
         lineas.append(LineaMeta(phone, e164, nombre, uso=uso))
     return tuple(lineas)
