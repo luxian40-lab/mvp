@@ -23,6 +23,11 @@ class FraseRegistroTests(TestCase):
     def test_frase_usa_el_id(self):
         self.assertEqual(frase_de_cliente(12), 'EKI C12')
 
+    def test_agricapital_abre_con_hola_eki_agri(self):
+        self.assertEqual(frase_de_cliente(26), 'Hola eki agri')
+        self.assertEqual(leer_frase('Hola eki agri'), ('cliente', 26))
+        self.assertEqual(leer_frase('EKI C26'), ('cliente', 26))
+
     def test_leer_cliente_y_general(self):
         self.assertEqual(leer_frase('eki c12'), ('cliente', 12))
         self.assertEqual(leer_frase('  Hola   eki '), ('general', None))

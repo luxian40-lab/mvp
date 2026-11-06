@@ -88,6 +88,8 @@ class AtenderCursosTests(SimpleTestCase):
             {'imagen': 'https://eki.example/2.jpg', 'body': 'Dos', 'botones': []},
         ]
         with patch(
+            'core.lineas.registro_cursos._oferta_recien_enviada', return_value=False,
+        ), patch(
             'core.lineas.registro_cursos.cursos_del_cliente', return_value=cursos,
         ), patch(
             'core.lineas.registro_cursos._tarjeta', side_effect=tarjetas,
@@ -100,6 +102,15 @@ class AtenderCursosTests(SimpleTestCase):
         carrusel.assert_called_once()
         boton.assert_not_called()
         self.assertEqual(len(carrusel.call_args.args[2]), 2)
+
+    def test_no_repite_el_carrusel_si_acaba_de_salir(self):
+        with patch(
+            'core.lineas.registro_cursos._oferta_recien_enviada', return_value=True,
+        ), patch(
+            'core.lineas.envio.enviar_meta_carrusel',
+        ) as carrusel:
+            atender_cursos('573001112233', 'hola', 7)
+        carrusel.assert_not_called()
 
     def test_ver_curso_inscribe_solo_si_es_del_enlace(self):
         curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')

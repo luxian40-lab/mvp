@@ -125,6 +125,22 @@ class AbrirRegistroTests(SimpleTestCase):
             [(BOTON_CONTINUAR, TITULO_CONTINUAR)],
             agente_evento='registro_flow',
         )
+
+    def test_hola_eki_agri_tambien_da_la_bienvenida(self):
+        with salida_por_phone_id(PHONE), patch(
+            'core.lineas.envio.enviar_meta_flow',
+        ) as envio, patch(
+            'core.lineas.envio.enviar_meta_botones', return_value={'success': True},
+        ) as botones:
+            self.assertEqual(abrir_registro('573001112233', 'Hola eki agri'), 'handled')
+        envio.assert_not_called()
+        self.recordar.assert_called_once_with('573001112233', 26)
+        botones.assert_called_once_with(
+            '573001112233',
+            botones.call_args.args[1],
+            [(BOTON_CONTINUAR, TITULO_CONTINUAR)],
+            agente_evento='registro_flow',
+        )
         self.assertIn('Agricapital', botones.call_args.args[1])
         self.assertLessEqual(len(TITULO_CONTINUAR), 20)
 

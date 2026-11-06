@@ -72,6 +72,8 @@ def atender_cursos(telefono: str, body: str, cliente_id: int | None) -> None:
     if not cliente_id:
         _avisar(telefono, TEXTO_SIN_ENLACE)
         return
+    if _oferta_recien_enviada(telefono):
+        return
     try:
         cursos = cursos_del_cliente(cliente_id)
     except DatabaseError:
@@ -91,6 +93,28 @@ def atender_cursos(telefono: str, body: str, cliente_id: int | None) -> None:
         _enviar_boton(telefono, cursos[0])
         return
     _enviar_lista(telefono, cursos[:10])
+
+
+def _oferta_recien_enviada(telefono: str) -> bool:
+    """El carrusel acaba de salir. Otro mensaje enseguida no lo repite."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import WhatsappLog
+    from core.nati import normalizar_telefono_whatsapp
+
+    tel = normalizar_telefono_whatsapp(telefono) or (telefono or '')
+    if not tel:
+        return False
+    return WhatsappLog.objects.filter(
+        telefono__in=[tel, f'+{tel}'],
+        tipo='SENT',
+        estado='SENT',
+        agente_usado='registro_cursos',
+        mensaje__startswith=CUERPO_OFERTA,
+        fecha__gte=timezone.now() - timedelta(minutes=2),
+    ).exists()
 
 
 def _es_info(body: str) -> bool:

@@ -11,6 +11,8 @@ from urllib.parse import quote
 
 FRASE_GENERAL = 'HOLA EKI'
 TOKEN_GENERAL = 'registro-general'
+# El enlace de Agricapital no muestra el id. EKI C26 sigue abriendo lo mismo.
+_ALIAS_CLIENTE = {26: 'Hola eki agri'}
 
 
 def numero_registro() -> str:
@@ -21,7 +23,10 @@ def numero_registro() -> str:
 
 
 def frase_de_cliente(cliente_id: int) -> str:
-    """Frase estable. Usa el id, no el nombre: si renombran al cliente, el QR impreso sigue."""
+    """Frase del enlace. El id sigue sirviendo si el alias cambia."""
+    alias = _ALIAS_CLIENTE.get(int(cliente_id))
+    if alias:
+        return alias
     return f'EKI C{int(cliente_id)}'
 
 
@@ -30,6 +35,9 @@ def leer_frase(frase: str) -> tuple[str, int | None] | None:
     texto = ' '.join((frase or '').split()).upper()
     if texto == FRASE_GENERAL:
         return ('general', None)
+    for cliente_id, alias in _ALIAS_CLIENTE.items():
+        if texto == alias.upper():
+            return ('cliente', cliente_id)
     if not texto.startswith('EKI C'):
         return None
     resto = texto[5:]
