@@ -45,6 +45,22 @@ Decisiones de producto (24 de octubre de 2026):
 2. En la línea 2 una persona termina un curso y después puede recibir otra campaña con otro curso. Cursos en serie, no a la vez.
 3. Vendrán más líneas, quizá una por cliente. El perfil de línea vive en la base, editable en el admin. `META_LINEAS` queda de respaldo.
 
+### Línea 3 — registro y después los cursos del enlace (5 de noviembre de 2026)
+
+Tercera línea de educación, en el +57 301 901 8929. Hace lo mismo que la formación, con registro previo, y los cursos salen en ese mismo número. La línea 1 y la línea 2 no se tocan: nada de este comportamiento entra en su menú, en `_procesar_twilio_webhook_cuerpo`, en `dispatch_sandbox_menu` ni en `get_response_for_intent`.
+
+Cuando se parta el motor o se unifique el carrusel, hay que conservar esto:
+
+1. Cualquier palabra, si todavía no hay ficha, manda el saludo, el cómo funciona y el Flow de registro. `EKI C{id}` solo elige la organización del enlace. `HOLA EKI` no elige ninguna. Agricapital (cliente 26, enlace `EKI C26`) es la excepción: ese primer mensaje manda la bienvenida con el botón *Cómo continuar*; el mensaje siguiente manda las dudas en dos textos y recién ahí el Flow. Las «explicaciones y preguntas» de esa copia son el Formador y el Compañero, prometidos para cuando *listo* entregue la clase.
+2. El cliente no se pregunta en el formulario. Viaja en el token. Quien ya pertenece a una organización no se mueve, aunque abra otro enlace.
+3. El municipio no va en el Flow. Un campo que se puede saltar hace que WhatsApp escriba «Opcional» en la pantalla.
+4. Con ficha, la oferta es la de esa organización: los cursos marcados para WhatsApp y, si no marcó, los suyos activos. No es el catálogo de la línea principal. No se prenden las capacidades del perfil de la principal para reutilizar su carrusel: eso mostraría el catálogo general.
+5. *listo* todavía no entrega la clase en esta línea. No se resuelve devolviendo la ruta `cursos`: eso cae en el cuerpo de la línea principal.
+6. La sesión del chat recuerda el último `EKI C{id}`. Un `HOLA EKI` de después no lo borra. Una prueba de “quedó en eki, sin organización” usa un celular que no abrió un enlace de cliente.
+7. La pantalla del formulario es el Flow publicado en Meta (`eki_registro`). Cambiar campos exige un Flow nuevo y actualizar su id. Subir este código no reescribe el Flow que ya está publicado.
+
+Código: `core/lineas/registro_abrir.py`, `registro_agricapital.py`, `registro_flow.py`, `registro_guardar.py`, `registro_cursos.py`, `registro_enlace.py`. La organización del enlace queda en `SandboxCanalSesion.registro_cliente_id` (migración 0202, solo una columna nueva).
+
 ## 2. Arquitectura destino
 
 ```

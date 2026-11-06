@@ -13,6 +13,7 @@ from core.lineas.registro_abrir import (
     abrir_registro,
     publicar_flow_registro,
 )
+from core.lineas.registro_agricapital import BOTON_CONTINUAR, TITULO_CONTINUAR
 from core.lineas.registro_flow import PANTALLA, flow_registro
 from core.sandbox_canal import salida_por_phone_id
 
@@ -44,6 +45,15 @@ def _parametros(envio):
 
 @override_settings(**AJUSTES)
 class AbrirRegistroTests(SimpleTestCase):
+    def setUp(self):
+        self.recordar = patch('core.lineas.registro_abrir._recordar').start()
+        patch('core.lineas.registro_abrir._ficha', return_value=None).start()
+        self.guardado = patch(
+            'core.lineas.registro_abrir._cliente_guardado', return_value=None,
+        ).start()
+        self.texto = patch('core.sandbox_menu.enviar_texto_sandbox').start()
+        self.addCleanup(patch.stopall)
+
     def test_la_frase_del_cliente_abre_el_flow_publicado(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
@@ -62,6 +72,12 @@ class AbrirRegistroTests(SimpleTestCase):
         )
         self.assertIn('cédula', envio.call_args.args[1])
         self.assertNotIn('correo', envio.call_args.args[1].lower())
+        self.recordar.assert_called_once_with('573001112233', 12)
+        self.assertEqual(self.texto.call_count, 4)
+        juntos = ' '.join(llamada.args[2] for llamada in self.texto.call_args_list)
+        self.assertIn('soy eki', juntos)
+        self.assertIn('Este mismo WhatsApp', juntos)
+        self.assertIn('listo', juntos.lower())
 
     def test_hola_eki_es_el_registro_general(self):
         with salida_por_phone_id(PHONE), patch(
@@ -84,14 +100,64 @@ class AbrirRegistroTests(SimpleTestCase):
             self.assertIsNone(abrir_registro('573001112233', 'EKI C4'))
         envio.assert_not_called()
 
-    def test_otra_frase_en_la_linea_3_no_abre_el_menu(self):
+    def test_cualquier_palabra_abre_el_registro(self):
+        with salida_por_phone_id(PHONE), patch(
+            'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
+        ) as envio:
+            self.assertEqual(abrir_registro('573001112233', 'buenas'), 'handled')
+        self.assertEqual(envio.call_args.kwargs['flow_token'], 'registro-general')
+        self.assertEqual(envio.call_args.kwargs['cta'], 'Registrarme')
+        self.assertEqual(self.texto.call_count, 4)
+
+    def test_el_enlace_de_agricapital_solo_da_la_bienvenida(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow',
-        ) as envio, patch('core.sandbox_menu.enviar_texto_sandbox') as texto:
-            self.assertEqual(abrir_registro('573001112233', 'menu'), 'handled')
+        ) as envio, patch(
+            'core.lineas.envio.enviar_meta_botones', return_value={'success': True},
+        ) as botones:
+            self.assertEqual(abrir_registro('573001112233', 'EKI C26'), 'handled')
         envio.assert_not_called()
-        self.assertIn('HOLA EKI', texto.call_args.args[2])
-        self.assertIn('municipio', texto.call_args.args[2])
+        self.texto.assert_not_called()
+        self.recordar.assert_called_once_with('573001112233', 26)
+        botones.assert_called_once_with(
+            '573001112233',
+            botones.call_args.args[1],
+            [(BOTON_CONTINUAR, TITULO_CONTINUAR)],
+            agente_evento='registro_flow',
+        )
+        self.assertIn('Agricapital', botones.call_args.args[1])
+        self.assertLessEqual(len(TITULO_CONTINUAR), 20)
+
+    def test_despues_del_enlace_vienen_las_dudas_y_el_registro(self):
+        self.guardado.return_value = 26
+        with salida_por_phone_id(PHONE), patch(
+            'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
+        ) as envio, patch('core.lineas.envio.enviar_meta_botones') as botones:
+            self.assertEqual(abrir_registro('573001112233', BOTON_CONTINUAR), 'handled')
+        botones.assert_not_called()
+        self.assertEqual(self.texto.call_count, 2)
+        juntos = ' '.join(llamada.args[2] for llamada in self.texto.call_args_list)
+        self.assertIn('Dónde voy a ver el curso', juntos)
+        self.assertIn('sin internet', juntos)
+        self.assertIn('explicaciones y preguntas', juntos)
+        self.assertEqual(envio.call_args.kwargs['flow_token'], 'registro-C26')
+        self.assertEqual(envio.call_args.kwargs['cta'], 'Registrarme')
+
+    def test_una_palabra_despues_del_enlace_tambien_sigue(self):
+        self.guardado.return_value = 26
+        with salida_por_phone_id(PHONE), patch(
+            'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
+        ) as envio:
+            self.assertEqual(abrir_registro('573001112233', 'hola'), 'handled')
+        self.assertEqual(envio.call_args.kwargs['flow_token'], 'registro-C26')
+        self.assertEqual(self.texto.call_count, 2)
+
+    def test_la_linea_principal_no_da_la_bienvenida_de_agricapital(self):
+        with salida_por_phone_id(PRINCIPAL), patch(
+            'core.lineas.envio.enviar_meta_botones',
+        ) as botones:
+            self.assertIsNone(abrir_registro('573001112233', 'EKI C26'))
+        botones.assert_not_called()
 
     @override_settings(EKI_LINEA_REGISTRO_FLOW_ID='', EKI_LINEA_REGISTRO_WABA_ID='')
     def test_sin_flow_avisa_y_no_sigue(self):
@@ -107,7 +173,7 @@ class AbrirRegistroTests(SimpleTestCase):
             'core.lineas.envio.enviar_meta_flow', return_value={'success': False},
         ), patch('core.sandbox_menu.enviar_texto_sandbox') as texto:
             self.assertEqual(correr_puertas('573001112233', 'HOLA EKI'), 'handled')
-        self.assertIn('Envíe de nuevo', texto.call_args.args[2])
+        self.assertIn('Escriba de nuevo', texto.call_args.args[2])
 
     def test_el_payload_publicado_no_manda_datos_vacios(self):
         with patch('core.lineas.envio._emit_enviado'), patch(
@@ -170,7 +236,7 @@ class PublicarRegistroTests(SimpleTestCase):
         self.assertEqual(documento, flow_registro())
         hijos = documento['screens'][0]['layout']['children'][0]['children']
         nombres = {hijo.get('name') for hijo in hijos if hijo.get('name')}
-        self.assertEqual(nombres, {'habeas', 'nombre', 'cedula', 'municipio'})
+        self.assertEqual(nombres, {'habeas', 'nombre', 'cedula'})
 
 
 class LineaRegistroEnElRegistroTests(SimpleTestCase):

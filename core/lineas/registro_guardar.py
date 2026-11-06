@@ -145,6 +145,10 @@ def responder_registro(telefono: str, body: str) -> str | None:
     except DatabaseError:
         logger.exception('registro_flow_sesion')
     enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
+    if texto.startswith('Listo'):
+        from core.lineas.registro_cursos import ofrecer_tras_registro
+
+        ofrecer_tras_registro(telefono)
     return 'handled'
 
 

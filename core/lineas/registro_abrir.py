@@ -1,8 +1,8 @@
-"""Abre el Flow de registro cuando escriben la frase de la línea 3.
+"""La línea 3 saluda y abre el registro con cualquier palabra.
 
 En otra línea no hace nada: la principal y la línea 2 siguen igual.
+La frase EKI C{id} solo guarda la organización del enlace.
 Si el Flow no está en Meta, lo publica en la WABA de esta línea.
-Los datos siguen siendo los del JSON: habeas, nombre, cédula y municipio.
 """
 from __future__ import annotations
 
@@ -10,23 +10,44 @@ import json
 import logging
 
 from core.lineas.perfil import USO_REGISTRO
+from core.lineas.registro_agricapital import (
+    AGRICAPITAL_ID,
+    DUDAS_DESPUES,
+    DUDAS_PRIMERO,
+    enviar_bienvenida,
+    es_enlace_agricapital,
+)
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
 
 logger = logging.getLogger(__name__)
 
+SALUDO = (
+    'Hola, soy eki. Aquí se aprende por WhatsApp, en mensajes cortos, '
+    'sin descargar una aplicación.'
+)
+COMO_FUNCIONA = (
+    'Este mismo WhatsApp es la clase. Primero deja su nombre y su cédula. '
+    'Después las lecciones llegan aquí. Escribe *listo* y recibe la siguiente parte.'
+)
+TUTO = (
+    'Así se usa:\n'
+    '1. Toque *Registrarme* y deje su nombre y su cédula.\n'
+    '2. En este mismo chat escriba *listo*.\n'
+    '3. Cuando termine esa parte, vuelva a escribir *listo*.\n'
+    'Si hay una pregunta con letras, responda A, B, C o D.'
+)
+MINIMO = (
+    'Necesita WhatsApp en este celular, su nombre, su cédula y aceptar el uso de sus datos. '
+    'No necesita computador ni correo.'
+)
+TEXTOS_ENTRADA = (SALUDO, COMO_FUNCIONA, TUTO, MINIMO)
 TEXTO_FLOW = (
-    'Para crear su registro necesitamos su nombre y su cédula. '
-    'El municipio puede dejarlo vacío. Su número de WhatsApp ya lo tenemos.'
+    'Toque Registrarme y deje su nombre y su cédula. '
+    'Su número de WhatsApp ya lo tenemos.'
 )
-TEXTO_OTRA_FRASE = (
-    'Para registrarse envíe *HOLA EKI* o la frase del enlace. '
-    'El formulario pide el nombre, la cédula y, si quiere, el municipio.'
-)
-TEXTO_SIN_FLOW = (
-    'El formulario de registro no está listo. Envíe de nuevo *HOLA EKI* en un momento.'
-)
-TEXTO_REINTENTO = 'No pude abrir el formulario. Envíe de nuevo *HOLA EKI*.'
+TEXTO_SIN_FLOW = 'El formulario de registro no está listo. Escriba de nuevo en un momento.'
+TEXTO_REINTENTO = 'No pude abrir el formulario. Escriba de nuevo.'
 CTA = 'Registrarme'
 
 
@@ -94,14 +115,32 @@ def abrir_registro(telefono: str, body: str) -> str | None:
     """'handled' si este turno es de la línea 3. None en cualquier otra."""
     if not es_turno_registro():
         return None
-    destino = leer_frase(body)
-    if destino is None:
-        _avisar(telefono, TEXTO_OTRA_FRASE)
+    cliente_id = _cliente_de_turno(telefono, body)
+    ficha = _ficha(telefono)
+    if ficha is not None:
+        from core.lineas.registro_cursos import atender_cursos
+
+        atender_cursos(telefono, body, ficha.cliente_id or cliente_id)
         return 'handled'
+    if cliente_id == AGRICAPITAL_ID and not es_enlace_agricapital(cliente_id, body):
+        _avisar(telefono, DUDAS_PRIMERO)
+        _avisar(telefono, DUDAS_DESPUES)
+        _enviar_flow(telefono, cliente_id)
+        return 'handled'
+    if es_enlace_agricapital(cliente_id, body):
+        enviar_bienvenida(telefono)
+        return 'handled'
+    for texto in TEXTOS_ENTRADA:
+        _avisar(telefono, texto)
+    _enviar_flow(telefono, cliente_id)
+    return 'handled'
+
+
+def _enviar_flow(telefono: str, cliente_id: int | None) -> None:
     flow_id = flow_id_registro()
     if not flow_id:
         _avisar(telefono, TEXTO_SIN_FLOW)
-        return 'handled'
+        return
     from core.lineas.envio import enviar_meta_flow
 
     resultado = enviar_meta_flow(
@@ -109,7 +148,7 @@ def abrir_registro(telefono: str, body: str) -> str | None:
         TEXTO_FLOW,
         flow_id,
         pantalla=PANTALLA,
-        flow_token=token_de_cliente(destino[1]),
+        flow_token=token_de_cliente(cliente_id),
         cta=CTA,
         agente_evento='registro_flow',
         modo='published',
@@ -117,7 +156,67 @@ def abrir_registro(telefono: str, body: str) -> str | None:
     )
     if not resultado.get('success'):
         _avisar(telefono, TEXTO_REINTENTO)
-    return 'handled'
+
+
+def _cliente_de_turno(telefono: str, body: str) -> int | None:
+    """La organización del enlace, la guardada, o la de la ficha."""
+    destino = leer_frase(body)
+    if destino and destino[0] == 'cliente':
+        _recordar(telefono, destino[1])
+        return destino[1]
+    guardado = _cliente_guardado(telefono)
+    if guardado:
+        return guardado
+    ficha = _ficha(telefono)
+    if ficha is not None and ficha.cliente_id:
+        return ficha.cliente_id
+    return None
+
+
+def _ficha(telefono: str):
+    """Ficha usable. Sin cédula real, sigue en el registro."""
+    from django.db import DatabaseError
+
+    from core.utils_telefono import estudiante_por_telefono
+
+    try:
+        est = estudiante_por_telefono(telefono)
+    except DatabaseError:
+        logger.exception('registro_ficha')
+        return None
+    if est is None or not est.acepto_terminos:
+        return None
+    cedula = est.cedula or ''
+    if cedula.startswith(('TEMP_', 'GEN')) or not (est.nombre or '').strip():
+        return None
+    return est
+
+
+def _recordar(telefono: str, cliente_id: int) -> None:
+    from django.db import DatabaseError
+
+    from core.lineas.sesion import sesion_de
+
+    try:
+        sesion = sesion_de(telefono)
+        if sesion.registro_cliente_id != cliente_id:
+            sesion.registro_cliente_id = cliente_id
+            sesion.save(update_fields=['registro_cliente_id', 'actualizado_en'])
+    except DatabaseError:
+        logger.exception('registro_cliente_sesion')
+
+
+def _cliente_guardado(telefono: str) -> int | None:
+    from django.db import DatabaseError
+
+    from core.lineas.sesion import sesion_de
+
+    try:
+        sesion = sesion_de(telefono)
+    except DatabaseError:
+        logger.exception('registro_cliente_leido')
+        return None
+    return sesion.registro_cliente_id or None
 
 
 def _avisar(telefono: str, texto: str) -> None:

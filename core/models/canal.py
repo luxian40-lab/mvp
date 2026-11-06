@@ -69,6 +69,12 @@ class SandboxCanalSesion(models.Model):
         default='',
         help_text='Línea de racha/insignia que va al inicio del próximo mensaje del día.',
     )
+    registro_cliente_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Organización del enlace',
+        help_text='Cliente que trajo el enlace de la línea 3. Vacío en las otras líneas.',
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

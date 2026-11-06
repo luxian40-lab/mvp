@@ -29,7 +29,7 @@ def flow_registro() -> dict:
                             'type': 'TextBody',
                             'text': (
                                 'Para crear su registro necesitamos su nombre y su cédula. '
-                                'El municipio puede dejarlo vacío. Su número de WhatsApp ya lo tenemos.'
+                                'Su número de WhatsApp ya lo tenemos.'
                             ),
                         },
                         {
@@ -53,13 +53,6 @@ def flow_registro() -> dict:
                             'input-type': 'text',
                         },
                         {
-                            'type': 'TextInput',
-                            'name': 'municipio',
-                            'label': 'Municipio',
-                            'required': False,
-                            'input-type': 'text',
-                        },
-                        {
                             'type': 'Footer',
                             'label': 'Enviar',
                             'on-click-action': {
@@ -68,7 +61,6 @@ def flow_registro() -> dict:
                                     'habeas': '${form.habeas}',
                                     'nombre': '${form.nombre}',
                                     'cedula': '${form.cedula}',
-                                    'municipio': '${form.municipio}',
                                 },
                             },
                         },
