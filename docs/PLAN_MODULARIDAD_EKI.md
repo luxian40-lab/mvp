@@ -55,7 +55,7 @@ Cuando se parta el motor o se unifique el carrusel, hay que conservar esto:
 2. El cliente no se pregunta en el formulario. Viaja en el token. Quien ya pertenece a una organización no se mueve, aunque abra otro enlace.
 3. El municipio no va en el Flow. Un campo que se puede saltar hace que WhatsApp escriba «Opcional» en la pantalla.
 4. Con ficha, la oferta es la de esa organización: los cursos marcados para WhatsApp y, si no marcó, los suyos activos. No es el catálogo de la línea principal. No se prenden las capacidades del perfil de la principal para reutilizar su carrusel: eso mostraría el catálogo general.
-5. *listo* todavía no entrega la clase en esta línea. No se resuelve devolviendo la ruta `cursos`: eso cae en el cuerpo de la línea principal.
+5. *listo* y *continuar* avanzan el curso que la persona eligió con Ver curso, y la respuesta sale por esta línea. Si ese curso no ha empezado, Ver curso manda el saludo y el módulo 1 en el mismo turno. No se resuelve devolviendo la ruta `cursos`: eso cae en el cuerpo de la línea principal. Una respuesta A, B, C o D todavía no califica aquí.
 6. La sesión del chat recuerda el último `EKI C{id}`. Un `HOLA EKI` de después no lo borra. Una prueba de “quedó en eki, sin organización” usa un celular que no abrió un enlace de cliente.
 7. La pantalla del formulario es el Flow publicado en Meta (`eki_registro`). Cambiar campos exige un Flow nuevo y actualizar su id. Subir este código no reescribe el Flow que ya está publicado.
 

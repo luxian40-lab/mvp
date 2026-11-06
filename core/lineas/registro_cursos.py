@@ -69,6 +69,8 @@ def atender_cursos(telefono: str, body: str, cliente_id: int | None) -> None:
     if curso_id is not None:
         _inscribir(telefono, curso_id, cliente_id)
         return
+    if _avanzar(telefono, body):
+        return
     if not cliente_id:
         _avisar(telefono, TEXTO_SIN_ENLACE)
         return
@@ -229,9 +231,75 @@ def _inscribir(telefono: str, curso_id: int, cliente_id: int | None) -> None:
         if curso is None or ficha is None:
             _avisar(telefono, TEXTO_OTRO_CURSO)
             return
-        inscribir_estudiante_en_curso(ficha, curso)
+        progreso, _creado = inscribir_estudiante_en_curso(ficha, curso)
     except DatabaseError:
         logger.exception('registro_inscribir')
         _avisar(telefono, TEXTO_OTRO_CURSO)
         return
+    try:
+        _recordar_curso(ficha, curso.id)
+    except DatabaseError:
+        logger.exception('registro_curso_activo')
     _avisar(telefono, TEXTO_INSCRITO.format(nombre=curso.nombre))
+    try:
+        clase = _abrir_si_no_empezo(ficha, progreso)
+    except DatabaseError:
+        logger.exception('registro_primera_clase')
+        return
+    if clase:
+        _avisar(telefono, clase)
+
+
+def _recordar_curso(ficha, curso_id: int) -> None:
+    """El listo siguiente avanza este curso, el que la persona acaba de elegir."""
+    ctx = dict(getattr(ficha, 'contexto_temporal', None) or {})
+    if ctx.get('curso_activo_id') == curso_id:
+        return
+    ctx['curso_activo_id'] = curso_id
+    ficha.contexto_temporal = ctx
+    ficha.save(update_fields=['contexto_temporal'])
+
+
+def _abrir_si_no_empezo(ficha, progreso) -> str:
+    """Saludo y módulo 1 solo si ese curso todavía no se mostró."""
+    from core.curso.inicio_curso import curso_sin_empezar, mensaje_primera_entrega
+
+    modulo = getattr(progreso, 'modulo_actual', None)
+    if modulo is None or not curso_sin_empezar(ficha, progreso, modulo):
+        return ''
+    return mensaje_primera_entrega(ficha, progreso, modulo) or ''
+
+
+def _avanzar(telefono: str, body: str) -> bool:
+    """listo y continuar siguen el curso en esta línea. No reabre el carrusel."""
+    from core.conversacion.intents.continuar_leccion import responder
+    from core.conversacion.response_templates import (
+        LECCION_EN_CURSO,
+        _es_mensaje_listo_avance_curso,
+        soltar_turno_entrega_actual,
+    )
+    from core.lineas.registro_abrir import _avisar, _ficha
+
+    if not _es_mensaje_listo_avance_curso(body):
+        return False
+    ficha = _ficha(telefono)
+    if ficha is None:
+        return False
+    texto = ''
+    try:
+        texto = responder(
+            'continuar_leccion',
+            getattr(ficha, 'nombre', None) or 'Estudiante',
+            {'estudiante_id': ficha.id, 'mensaje_original': body},
+        ) or ''
+    except DatabaseError:
+        logger.exception('registro_listo')
+        texto = ''
+    finally:
+        try:
+            soltar_turno_entrega_actual()
+        except DatabaseError:
+            logger.exception('registro_soltar_turno')
+    if texto and texto != LECCION_EN_CURSO:
+        _avisar(telefono, texto)
+    return True

@@ -8,6 +8,16 @@ from core.lineas.registro_abrir import abrir_registro
 from core.lineas.registro_cursos import atender_cursos, modo_de_oferta
 from core.sandbox_canal import salida_por_phone_id
 
+class _Ficha:
+    def __init__(self):
+        self.id = 3
+        self.nombre = 'Ana'
+        self.contexto_temporal = {}
+
+    def save(self, update_fields=None):
+        self.guardado = update_fields
+
+
 PHONE = '1477762615411333'
 PRINCIPAL = '111'
 
@@ -112,21 +122,91 @@ class AtenderCursosTests(SimpleTestCase):
             atender_cursos('573001112233', 'hola', 7)
         carrusel.assert_not_called()
 
-    def test_ver_curso_inscribe_solo_si_es_del_enlace(self):
+    def test_ver_curso_inscribe_y_abre_la_clase(self):
         curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
-        ficha = SimpleNamespace(id=3)
+        ficha = _Ficha()
+        progreso = SimpleNamespace(modulo_actual=SimpleNamespace(numero=1), curso_id=5)
         with patch(
             'core.lineas.registro_cursos.cursos_del_cliente', return_value=[curso],
         ), patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
         ), patch(
             'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
+            return_value=(progreso, True),
         ) as alta, patch(
+            'core.curso.inicio_curso.curso_sin_empezar', return_value=True,
+        ), patch(
+            'core.curso.inicio_curso.mensaje_primera_entrega', return_value='CLASE',
+        ) as primera, patch(
             'core.lineas.registro_abrir._avisar',
         ) as aviso:
             atender_cursos('573001112233', 'ver_curso_5', 7)
         alta.assert_called_once_with(ficha, curso)
-        self.assertIn('Suelos', aviso.call_args.args[1])
+        textos = [llamada.args[1] for llamada in aviso.call_args_list]
+        self.assertEqual(textos, ['Quedó en Suelos.', 'CLASE'])
+        self.assertEqual(ficha.contexto_temporal['curso_activo_id'], 5)
+        primera.assert_called_once_with(ficha, progreso, progreso.modulo_actual)
+
+    def test_ver_curso_ya_empezado_no_repite_el_saludo(self):
+        curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
+        ficha = _Ficha()
+        progreso = SimpleNamespace(modulo_actual=SimpleNamespace(numero=1), curso_id=5)
+        with patch(
+            'core.lineas.registro_cursos.cursos_del_cliente', return_value=[curso],
+        ), patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
+            return_value=(progreso, False),
+        ), patch(
+            'core.curso.inicio_curso.curso_sin_empezar', return_value=False,
+        ), patch(
+            'core.curso.inicio_curso.mensaje_primera_entrega',
+        ) as primera, patch(
+            'core.lineas.registro_abrir._avisar',
+        ) as aviso:
+            atender_cursos('573001112233', 'ver_curso_5', 7)
+        primera.assert_not_called()
+        self.assertEqual(aviso.call_args.args[1], 'Quedó en Suelos.')
+
+    def test_listo_avanza_y_no_abre_el_carrusel(self):
+        ficha = _Ficha()
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.conversacion.intents.continuar_leccion.responder',
+            return_value='SIGUIENTE',
+        ) as avanzar, patch(
+            'core.conversacion.response_templates.soltar_turno_entrega_actual',
+        ) as soltar, patch(
+            'core.lineas.registro_abrir._avisar',
+        ) as aviso, patch(
+            'core.lineas.envio.enviar_meta_carrusel',
+        ) as carrusel:
+            atender_cursos('573001112233', 'listo', 7)
+        avanzar.assert_called_once_with(
+            'continuar_leccion', 'Ana',
+            {'estudiante_id': 3, 'mensaje_original': 'listo'},
+        )
+        aviso.assert_called_once_with('573001112233', 'SIGUIENTE')
+        soltar.assert_called_once()
+        carrusel.assert_not_called()
+
+    def test_listo_mientras_sale_la_clase_no_manda_el_aviso_interno(self):
+        from core.conversacion.response_templates import LECCION_EN_CURSO
+
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=_Ficha(),
+        ), patch(
+            'core.conversacion.intents.continuar_leccion.responder',
+            return_value=LECCION_EN_CURSO,
+        ), patch(
+            'core.conversacion.response_templates.soltar_turno_entrega_actual',
+        ), patch(
+            'core.lineas.registro_abrir._avisar',
+        ) as aviso:
+            atender_cursos('573001112233', 'continuemos', 7)
+        aviso.assert_not_called()
 
     def test_ver_curso_de_otra_organizacion_no_inscribe(self):
         with patch(
