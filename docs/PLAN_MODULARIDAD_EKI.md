@@ -110,6 +110,24 @@ Riesgos o dudas: <lista>
 
 Esperar «continúa» antes del siguiente bloque. Deploy solo con pedido explícito.
 
+## 4b. Estado vivo (8 de noviembre de 2026)
+
+Thermos y git, no un número de lápiz.
+
+| Cifra | Valor | Qué hacer |
+|---|---|---|
+| Ciclo en `origin/main` | **211** | Dejarlo. No portar H1. No bajar a 30 para vender. |
+| Checkpoint H1 (28 oct) | 159 | Hecho. Modelos fuera del ciclo. |
+| Canvas que decía 233 | Muerto | Corregido el 8 nov. |
+
+E1–E3 están ON en producción (espejo en `Estudiante` a propósito). E4, G3–G6 y MULTI_MSG→`enviar_marcado` viven en `integrar/e4-g6-origin` (195 tests, flags apagados). **No están en origin ni en prod.** No se prenden flags. E4 espera al listado Unfold que lee `EstadoLinea`. G3 no sustituye el outbox del bloque 2.
+
+`EKI_CONTEXTO_CONSERVA_CLAVES=true` en prod. Las dos `contexto_temporal = None` del cuerpo, en origin, siguen: no se tocan en esta corrección de docs.
+
+Cognito no es una fase de este plan. Se sacó de aquí el 8 nov.
+
+El siguiente código de producto no es una fase G/H: es **bandeja FIFO** desde `origin/main`, o ajustes de líneas en esa misma base. No mezclar con `slice/bloque-1-bandeja`.
+
 ## 5. Fases
 
 | Fase | Qué | Cambia comportamiento | Línea que protege |
@@ -206,14 +224,14 @@ Ampliación del 26 de octubre de 2026 (rama `refactor/d5-habeas`). Los doce esta
 - D5 `ESPERANDO_HABEAS_DATA` a `core/conversacion/estados/habeas.py`. Devuelve `CORTAR` o `None`: con `cert_envio_pendiente` no responde y el cuerpo sigue de largo, como antes. Comparado por AST con la rama original (solo cambian los imports relativos y los `return`). Caracterización previa en `core/tests_estado_habeas_cuerpo.py` (plantilla reenviada, texto de respaldo, certificado pendiente); acepto, no acepto y botón ya los cubría `core/tests_habeas_respuestas.py`. Cuerpo 1.427 → 1.391 líneas; ciclo 223 → 224 por el handler.
 - D6 `ESPERANDO_AYUDA_MODIFICAR` y `ESPERANDO_CORRECCION_DATOS` a `core/conversacion/estados/correccion_legado.py`, registrados en `BARRERAS` (siempre cortan; no había lógica entre la tabla y la rama, el orden no cambia). Comparado por AST con la rama original. Caracterización previa en `core/tests_estado_correccion_cuerpo.py` (vuelve a ACTIVO con «Listo» en ambos estados, ticket `soporte_legacy` si pide ayuda). Cuerpo 1.391 → 1.343 líneas; ciclo 224 → 225 por el handler.
 - D7 (autorizada el 26 de octubre de 2026, «termina D en esta sesión»): el resto del cuerpo a `core/conversacion/estados/`, un tramo por commit, con `scripts/mover_tramo.py` (análisis de flujo en `scripts/flujo_definidos.py`: aborta si una variable leída no está asignada en todos los caminos o si una salida no se declara). Caracterización previa en `core/tests_cuerpo_tramos.py` (32 casos). Tramos: `envio_comun` (envío final), `intent_ia` y `agente_sync` (respaldo por IA y resincronización; el despacho `agente_de(...)` se queda en el cuerpo porque lo exige `core/tests_contexto_motor.py`), `activo_menu`, `activo_puerta`, `activo_entrada` (aula y formulario), `prioridad_global`, `arranque`, `no_registrado` e `intercepciones` (empleabilidad, carrusel, campaña, ubicación). Cuerpo 1.343 → 384 líneas. `activo_menu` (234) y `envio_comun` (182) quedan por encima de 150: entraron como movimiento y se parten aparte. El freno cuenta `webhook_twilio.py` y `core/conversacion/estados/` como una sola unidad en `core_importa_apps_superiores` con `--aceptar-movimiento`; un import a una app de arriba que el cuerpo no tenía sigue bloqueando.
-- Quedan en el cuerpo, a propósito: filtros de entrada, parseo y audio, búsqueda del estudiante, el intercept de certificado, habeas y `BARRERAS`, la selección de curso del bloque ACTIVO (sus `contexto_temporal = None` esperan `contexto_limpio`, que es cambio de comportamiento), PQRS y seguridad, el despacho `agente_de` y la red de seguridad del `except`.
+- Quedan en el cuerpo, a propósito: filtros de entrada, parseo y audio, búsqueda del estudiante, el intercept de certificado, habeas y `BARRERAS`, la selección de curso del bloque ACTIVO (sus dos `contexto_temporal = None` del cuerpo, en origin, siguen; `CONSERVA_CLAVES` ya está prendido en prod), PQRS y seguridad, el despacho `agente_de` y la red de seguridad del `except`.
 
 ### Fase E — Estado por persona y línea
 
 - E1 Expand: tabla de estado por (estudiante, línea): `estado_chat`, `estado_onboarding`, `contexto`. Nullable, sin reescribir filas.
 - E2 Escritura doble detrás de flag.
 - E3 Lectura desde la tabla nueva vía `Turno`, detrás de flag. Contrato A4 pasa a exigir estados separados.
-- E4 Contract en un bloque posterior: dejar de escribir los campos viejos. No se borran columnas en el mismo deploy.
+- E4 Contract: dejar de escribir los campos viejos. No se borran columnas en el mismo deploy. Código en `integrar/e4-g6-origin` (`EKI_ESTADO_LINEA_SIN_ESPEJO`, default false). **No en origin/prod.** No prender hasta que el listado de estudiante lea `EstadoLinea` (Unfold slice 3).
 - `contexto_temporal = None` deja de borrar claves ajenas: se limpian solo las claves del estado que sale.
 
 Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (E1 a E3; el cuerpo no se tocó):
@@ -249,7 +267,7 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (solo movimiento; cada fu
 
 - G1 Un solo parser de marcadores (las 12 copias llaman a uno).
 - G2 `Respuesta` tipada; los marcadores quedan como formato legado de entrada.
-- G3 Delays como tareas Celery con `countdown`, sin `time.sleep` en el worker.
+- G3 Delays como tareas Celery con `countdown`, sin `time.sleep` en el worker. Código en `integrar/e4-g6-origin` (`EKI_ENTREGA_DELAYS_CELERY`, default false). Flag off: el worker sigue durmiendo. El 0,5 s entre partes y el reenvío de puerta siguen en sleep. **No sustituye el outbox del bloque 2. No prender.**
 - G4 LLM en la cola `llm` con respuesta diferida.
 - G5 `print` a `logger`; `except Exception` con `logger.exception`.
 - G6 Tabla explícita de transiciones de estado.
@@ -279,8 +297,7 @@ Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `
 - H1.2 Las opciones de plan viven en `core/models/opciones.py`, sin imports de `core`; `core/planes_linea.py` las reexporta. Los modelos ya no cargan `planes_linea`.
 - H1.3 Los modelos se partieron en 15 submódulos por dominio: `clientes`, `estudiantes`, `mensajeria` (con el receptor `procesar_excel_campana`), `cursos`, `conocimiento`, `modulos`, `aprendizaje`, `soporte`, `campanas_b2b`, `empleabilidad`, `pregunta_final`, `configuracion`, `ia`, `canal`, `territorio`. Un commit por dominio con `scripts/mover_modelos.py`: copia el tramo tal cual, genera solo los imports que el tramo lee, deja en `__init__` un reexport en la misma posición (los modelos se cargan en el mismo orden) y compara por AST antes de escribir. `from core.models import X` sigue igual; `__init__` bajó de 4.760 a 158 líneas y solo reexporta (sus imports de cabecera salieron en un commit aparte: nadie los importaba desde `core.models`). Ningún método usaba un modelo definido más abajo, ningún test parchea `core.models.*` y ninguna migración apunta a funciones de `core.models`; `makemigrations --check` sin cambios en cada paso. Cambio visible: las clases y sus excepciones llevan el submódulo en el nombre (`core.models.mensajeria.WhatsappLog.DoesNotExist`) en tracebacks y logs.
 - El freno acepta los submódulos de `core.models` como movimiento (una entrada de `MODULOS_MOVIDOS` que termina en punto cuenta solo para submódulos; `core.models` sigue contando). Ciclo 211 → 223: doce submódulos heredan los imports dentro de métodos que ya estaban en `core.models` (`configuracion`, `canal` y `territorio` quedan fuera del ciclo).
-- Pendiente de H1: quitar los imports de negocio dentro de los métodos de los modelos (es lo que mete los submódulos en el ciclo). Es cambio de código, no movimiento: bloque aparte.
-  - Hecho el 27 de octubre de 2026 en `refactor/h1-imports-modelos`, un commit por grupo, todo movido tal cual (comparado por AST) con reexport en la ruta vieja: formato de teléfono a `core/canal/telefono.py` y `estudiante_por_telefono` junto al modelo; `firma_meta_ok` a `core/canal/firma_meta.py`; URLs públicas de S3 a `core/canal/media_s3.py`; modo de gamificación a `core/models/opciones.py`; `limpiar_cache_conocimiento` a `core/models_agentes.py`; reglas de módulo (contenido mínimo, evaluación, video) a `core/curso/reglas_modulo.py` y `modulos_publicados_wa_qs` a `core/models/modulos.py`; `guardar_borrador_carrusel` a `core/plantilla_builder.py` (sin reexport: era la arista). Ningún modelo queda en el ciclo; ciclo 233 → 159 y baseline bajado.
+- Lo que era pendiente de H1 (quitar imports de negocio en los métodos de los modelos) se hizo el 27 de octubre de 2026 en `refactor/h1-imports-modelos`, un commit por grupo, todo movido tal cual (comparado por AST) con reexport en la ruta vieja: formato de teléfono a `core/canal/telefono.py` y `estudiante_por_telefono` junto al modelo; `firma_meta_ok` a `core/canal/firma_meta.py`; URLs públicas de S3 a `core/canal/media_s3.py`; modo de gamificación a `core/models/opciones.py`; `limpiar_cache_conocimiento` a `core/models_agentes.py`; reglas de módulo (contenido mínimo, evaluación, video) a `core/curso/reglas_modulo.py` y `modulos_publicados_wa_qs` a `core/models/modulos.py`; `guardar_borrador_carrusel` a `core/plantilla_builder.py` (sin reexport: era la arista). Ningún modelo queda en el ciclo; ciclo 233 → 159 y baseline bajado.
   - Se dejaron a propósito `DocumentoRAG.indexar` (→ `rag_manager`) y `Curso.copiar_a_analytics_pruebas` (→ `copiar_cursos`): cortarlos no baja el ciclo y `indexar` se llama genérico (`doc.indexar()` en `core/tasks.py` y `core/admin/commercial.py` sobre varios modelos).
   - En el camino apareció un arreglo aparte (commit propio): el sandbox de agentes y Nat dejaban puesto el contexto de cobro del LLM después de la llamada, y la siguiente llamada del mismo hilo se anotaba a la persona anterior. Ahora se suelta en `finally`, como en `derivar_asesoria`.
 - Ficha del negocio y derivación con contexto (27 de octubre de 2026, `feat/ficha-negocio`, flag `EKI_ASESORIA_CONTEXTO` apagado por default). La lógica va en módulos nuevos fuera del ciclo (`core/lineas/principal/contexto_asesoria.py`, `ficha_negocio.py`, `derivaciones.py`); `sandbox_menu`, `asesores` y `sandbox_agentes` solo llaman y envían. La respuesta a la ficha se atiende en `dispatch_sandbox_menu` antes del resolver para no agrandar `resolver_ruta_sandbox`; Nat recibe el perfil junto al contexto agronómico sin sumar líneas a su función grande. Tablas nuevas `FichaNegocio` (0195) y `DerivacionAsesoria` (0196), solo `CreateModel`. Pendiente: las preguntas de la ficha y el cierre «¿Era esto lo que necesitaba?» no salen en el camino de Nat (lo responde el bot comercial).
@@ -301,4 +318,4 @@ Hecho el 26 de octubre de 2026 en `refactor/h1-constantes` (H1.1 desplegado en `
 - Cero `es_modo_twilio()` fuera de `core/lineas/`. Cero reemplazos globales de `Client`. Un solo parser.
 - Estado de curso por persona y línea.
 - Una línea nueva se da de alta desde el admin sin deploy.
-- Ciclo de imports más grande por debajo de 30 módulos. `core` no importa apps de arriba.
+- Ciclo de imports más grande por debajo de 30 módulos. `core` no importa apps de arriba. Eso es el bloque 6, **después** del padrón. Hoy origin = 211. No se trabaja ahora.

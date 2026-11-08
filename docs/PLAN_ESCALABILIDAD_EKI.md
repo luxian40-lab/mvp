@@ -113,6 +113,8 @@ Commit: `feat(celery): webhook async por defecto, lock por teléfono, acks_late`
 
 ### P3 — Roles de proceso + Redis gestionado
 
+El mapa de las dos cajas y el orden de los cortes está en `docs/PLAN_WORKERS_EKI.md`. Este bloque no se lee solo: sin ese plan, `media_encode` sigue en el mismo proceso que la conversación.
+
 Hoy `Procfile` corre web, worker, worker_rag y beat en la misma instancia con Redis local.
 
 - `EKI_ROLE = web | worker | all` (default `all`). Scripts `scripts/run_web.sh`, `run_worker.sh`, `run_worker_rag.sh`, `run_beat.sh`. Si el rol no aplica: `exec sleep infinity`.
