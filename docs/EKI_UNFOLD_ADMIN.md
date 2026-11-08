@@ -85,12 +85,14 @@ Deploy en prod: `main-agentes-fallback-20261001-171500`. El mapa de producto (pl
 
 `Cliente.plan_linea_meta` está en el bloque **Datos y logo** (siempre visible, no en una pestaña escondida) y es columna del listado.
 
-| Valor | Producto |
+| Valor | Producto (igual que `PLAN_CHOICES` en `core/models/opciones.py`) |
 |-------|----------|
 | vacío | Usa el plan del servidor (`LINEA_META_PLAN_DEFAULT`, hoy OP1) hasta que se asigne uno. |
-| `curso_asesor` | OP1: 1 curso al mes y 30 preguntas al asesor. |
-| `cursos` | OP2: 2 cursos al mes, sin asesor. |
-| `asesor` | OP3: solo asesor, 60 preguntas al mes. |
+| `curso_asesor` | OP1 — 1 curso al mes + asesor (60 preguntas). |
+| `dos_cursos` | OP2 — 2 cursos al mes + asesor (120 preguntas). |
+| `asesor_60` | OP3 — asesor, 60 preguntas al mes. |
+
+Las claves `cursos` y `asesor` del manual viejo no existen en el formulario.
 
 ### Grupo — el mismo cliente con planes distintos
 
@@ -109,6 +111,10 @@ En **Datos del curso**, checkbox **En el menú de Formación** (`catalogo_menu`)
 - La imagen es la portada https del primer módulo. Si no hay, una imagen fija de respaldo.
 
 Los cursos generales creados antes de esta regla hay que revisarlos una vez en el listado (filtro del checkbox) y marcar los que deban verse.
+
+### Líneas del menú y líneas en base
+
+En el sidebar, el ítem de solo lectura (`/admin/lineas/`) muestra el estado leído de las **variables de entorno**. El alta de `LineaWhatsapp` es otra pantalla. Con `EKI_LINEAS_BD_ENABLED` apagado, esa fila **no** reemplaza a las variables.
 
 ### Insignias de racha
 

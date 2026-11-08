@@ -1,6 +1,8 @@
 # Hoja de ruta — Ordenar Admin (tú) y Portal (empresas)
 
-**Objetivo:** Que el día a día sea claro sin migrar a Unfold.  
+**Historia.** Este documento es de la época Jazzmin. El admin de producción es Unfold (pin 0.91). La guía viva es `docs/EKI_UNFOLD_ADMIN.md`. Los slices de nombres (menú, Ctrl+K, ficha, estudiante) están en `docs/PLAN_ADMIN_UNFOLD_CLARIDAD.md`. No se vuelve a Jazzmin.
+
+**Objetivo (entonces):** Que el día a día sea claro sin migrar a Unfold.  
 **Quién usa qué:**
 
 | Espacio | Usuario | URL base |
