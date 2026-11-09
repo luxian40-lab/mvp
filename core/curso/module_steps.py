@@ -416,9 +416,27 @@ def _siguiente_idx_tras_bloque(qs: list, idx: int, batch: list) -> int:
     return n + 1
 
 
+def _pasos_activos_tienen_media(modulo: Modulo) -> bool:
+    """True si algún PasoModulo activo ya trae media propia (video/imagen/pdf)."""
+    return (
+        pasos_activos_qs(modulo)
+        .exclude(media_url__isnull=True)
+        .exclude(media_url='')
+        .exclude(media_wa_apto=False)
+        .exists()
+    )
+
+
 def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | None]]:
-    """Lista (url, caption_opcional) de ArchivoModulo / video del módulo."""
+    """Lista (url, caption_opcional) de ArchivoModulo / video del módulo.
+
+    Si los pasos activos ya tienen media, no se reinyecta la pestaña Multimedia
+    ni el video legacy: evita el doble envío (archivo viejo + paso nuevo).
+    """
     from core.response_templates import obtener_video_url
+
+    if _pasos_activos_tienen_media(modulo):
+        return []
 
     items: list[tuple[str, str | None]] = []
     try:

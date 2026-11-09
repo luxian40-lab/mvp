@@ -189,6 +189,45 @@ class ModuleStepsModelTests(TestCase):
         self.assertNotIn('Aquí tiene el material del módulo', media_bloque[0])
         self.assertEqual(msg.count('Solo texto del paso'), 1)
 
+    @patch('core.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
+    def test_bloque_idx1_no_inyecta_multimedia_si_pasos_tienen_media(self, _mock_val):
+        """Finanzas: no mezclar ArchivoModulo viejo con el video/imagen del paso."""
+        from core.models_extras import ArchivoModulo
+
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.filter(modulo=self.mod).delete()
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Intro',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Texto del paso nuevo',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=2,
+            titulo='Video paso',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='',
+            media_url='https://cdn.example.com/paso_nuevo.mp4',
+            media_wa_apto=True,
+        )
+        ArchivoModulo.objects.create(
+            modulo=self.mod,
+            tipo='video',
+            titulo='Video viejo Multimedia',
+            url_externa='https://cdn.example.com/VIDEOS_FINANZAS/Modulo_viejo.mp4',
+            activo=True,
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.assertIn('[MEDIA:https://cdn.example.com/paso_nuevo.mp4]', msg)
+        self.assertIn('Texto del paso nuevo', msg)
+        self.assertNotIn('VIDEOS_FINANZAS/Modulo_viejo.mp4', msg)
+        self.assertNotIn('cdn.example.com/VIDEOS_FINANZAS', msg)
+
     def test_recordatorio_no_redetails_el_micro(self):
         from core.module_steps import mensaje_recordatorio_paso_actual
 
