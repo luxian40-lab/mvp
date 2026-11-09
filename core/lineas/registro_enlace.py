@@ -12,7 +12,8 @@ from urllib.parse import quote
 FRASE_GENERAL = 'HOLA EKI'
 TOKEN_GENERAL = 'registro-general'
 # El enlace de Agricapital no muestra el id. EKI C26 sigue abriendo lo mismo.
-_ALIAS_CLIENTE = {26: 'Hola eki agri'}
+# La frase canónica del QR la pisa admin con frase_para_cliente si hay setting.
+_ALIAS_CLIENTE = {26: 'Hola, AgriCapital me invitó a un curso gratis'}
 
 
 def numero_registro() -> str:

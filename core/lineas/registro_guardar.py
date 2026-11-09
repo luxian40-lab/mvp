@@ -64,8 +64,8 @@ def guardar_registro(telefono: str, datos: dict) -> str:
     nombre = ' '.join(str(datos.get('nombre') or '').split())[:100]
     cedula = normalizar_numero_documento(str(datos.get('cedula') or ''))[:32]
     municipio = ' '.join(str(datos.get('municipio') or '').split())[:100]
-    if not nombre or not cedula:
-        return 'Faltó el nombre o la cédula. Abra de nuevo el formulario y envíelos.'
+    if not nombre or not cedula or not municipio:
+        return 'Faltó el nombre, la cédula o el municipio. Abra de nuevo el formulario y envíelos.'
     destino = destino_de_token(str(datos.get('flow_token') or ''))
     cliente = None
     if destino and destino[0] == 'cliente':
@@ -97,6 +97,7 @@ def guardar_registro(telefono: str, datos: dict) -> str:
         except IntegrityError:
             logger.exception('registro_flow_integridad')
             return 'No pude guardar el registro. Inténtelo de nuevo en un momento.'
+        _cohorte_si_aplica(est, cliente)
         return _texto_listo(est, cliente, asignado=cliente is not None)
     campos = []
     if nombre and est.nombre != nombre:
@@ -124,7 +125,19 @@ def guardar_registro(telefono: str, datos: dict) -> str:
         est.save(update_fields=campos)
     if not est.wa_optin_fecha and not est.wa_optout_fecha:
         registrar_optin(est, 'flow_registro')
+    _cohorte_si_aplica(est, cliente)
     return _texto_listo(est, cliente, asignado=asignado or (cliente is not None and est.cliente_id == getattr(cliente, 'pk', None)))
+
+
+def _cohorte_si_aplica(est, cliente) -> None:
+    from django.db import DatabaseError
+
+    from core.lineas.registro_agricapital import aplicar_cohorte
+
+    try:
+        aplicar_cohorte(est, cliente)
+    except (DatabaseError, TypeError, ValueError):
+        logger.exception('registro_flow_cohorte')
 
 
 def responder_registro(telefono: str, body: str) -> str | None:
@@ -146,9 +159,14 @@ def responder_registro(telefono: str, body: str) -> str | None:
         logger.exception('registro_flow_sesion')
     enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
     if texto.startswith('Listo'):
+        from core.lineas.registro_agricapital import es_cliente_agricapital
         from core.lineas.registro_cursos import ofrecer_tras_registro
+        from core.utils_telefono import estudiante_por_telefono
 
-        ofrecer_tras_registro(telefono)
+        est = estudiante_por_telefono(telefono)
+        cliente_id = getattr(est, 'cliente_id', None) if est is not None else None
+        if es_cliente_agricapital(cliente_id):
+            ofrecer_tras_registro(telefono, cliente_id)
     return 'handled'
 
 

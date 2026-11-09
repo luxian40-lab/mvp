@@ -351,9 +351,10 @@ class ClienteAdmin(admin.ModelAdmin):
                     .first()
                 )
             extra_context['eki_cli_ultima_wa'] = ultimo_wa
+            from core.lineas.registro_agricapital import frase_para_cliente
             from core.lineas.registro_enlace import FRASE_GENERAL, enlace_whatsapp, frase_de_cliente
 
-            frase = frase_de_cliente(obj.pk)
+            frase = frase_para_cliente(obj.pk) or frase_de_cliente(obj.pk)
             extra_context['eki_registro_frase'] = frase
             extra_context['eki_registro_enlace'] = enlace_whatsapp(frase)
             extra_context['eki_registro_qr'] = reverse(
@@ -369,6 +370,7 @@ class ClienteAdmin(admin.ModelAdmin):
     def registro_qr_view(self, request, cliente_id):
         from django.http import Http404
 
+        from core.lineas.registro_agricapital import frase_para_cliente
         from core.lineas.registro_enlace import enlace_whatsapp, frase_de_cliente, png_qr
 
         obj = self.get_object(request, str(cliente_id))
@@ -376,7 +378,8 @@ class ClienteAdmin(admin.ModelAdmin):
             raise Http404
         if not self.has_view_permission(request, obj):
             raise PermissionDenied
-        return self._png_del_enlace(enlace_whatsapp(frase_de_cliente(obj.pk)), f'eki-registro-{obj.pk}.png')
+        frase = frase_para_cliente(obj.pk) or frase_de_cliente(obj.pk)
+        return self._png_del_enlace(enlace_whatsapp(frase), f'eki-registro-{obj.pk}.png')
 
     def registro_qr_general_view(self, request):
         from core.lineas.registro_enlace import FRASE_GENERAL, enlace_whatsapp

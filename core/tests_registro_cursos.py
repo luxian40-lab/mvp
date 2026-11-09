@@ -33,6 +33,7 @@ AJUSTES = dict(
     WHATSAPP_NUMERO_2_E164='573009536193',
     META_LINEAS='',
     EKI_LINEAS_BD_ENABLED=False,
+    EKI_AGRICAPITAL_CLIENTE_ID='7',
 )
 
 
@@ -87,6 +88,7 @@ class YaRegistradoTests(SimpleTestCase):
         flow.assert_not_called()
 
 
+@override_settings(**AJUSTES)
 class AtenderCursosTests(SimpleTestCase):
     def test_dos_cursos_con_foto_van_al_carrusel(self):
         cursos = [

@@ -1,8 +1,8 @@
-"""Cursos del enlace en la línea 3.
+"""Carrusel de cursos de AgriCapital en la línea 3.
 
-El carrusel es el de la organización que vino en el enlace, no el de la
-línea principal. Con una sola tarjeta WhatsApp no arma carrusel: sale un
-botón. Sin foto https, sale una lista.
+Solo AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID). Tras el Flow muestra el
+carrusel de cursos_whatsapp; Ver curso inscribe ese y abre la clase.
+Otros clientes de la línea 3 no pasan por aquí.
 """
 from __future__ import annotations
 
@@ -19,8 +19,14 @@ TEXTO_INSCRITO = 'Quedó en {nombre}.'
 TEXTO_OTRO_CURSO = 'Ese curso no está en el enlace de su organización.'
 
 
+def _solo_agricapital(cliente_id: int | None) -> bool:
+    from core.lineas.registro_agricapital import es_cliente_agricapital
+
+    return es_cliente_agricapital(cliente_id)
+
+
 def cursos_del_cliente(cliente_id: int):
-    """Los que la organización marcó para WhatsApp. Si no marcó, los suyos activos."""
+    """Los del carrusel WhatsApp. Si no marcó, los activos de la empresa."""
     from core.models import Cliente, Curso
 
     cliente = Cliente.objects.filter(pk=cliente_id, activo=True).first()
@@ -45,23 +51,28 @@ def modo_de_oferta(cantidad: int, con_foto: bool) -> str:
     return 'lista'
 
 
-def ofrecer_tras_registro(telefono: str) -> None:
-    """Después del formulario, en esta línea, muestra los cursos del enlace."""
+def ofrecer_tras_registro(telefono: str, cliente_id: int | None = None) -> None:
+    """Después del formulario, solo AgriCapital ve el carrusel."""
     from core.lineas.registro_abrir import _cliente_guardado, _ficha, es_turno_registro
 
     if not es_turno_registro():
         return
-    ficha = _ficha(telefono)
-    if ficha is None:
+    if cliente_id is None:
+        ficha = _ficha(telefono)
+        if ficha is None:
+            return
+        cliente_id = ficha.cliente_id or _cliente_guardado(telefono)
+    if not _solo_agricapital(cliente_id):
         return
-    cliente_id = ficha.cliente_id or _cliente_guardado(telefono)
     atender_cursos(telefono, '', cliente_id)
 
 
 def atender_cursos(telefono: str, body: str, cliente_id: int | None) -> None:
-    """Carrusel, botón o lista. Una tarjeta elegida inscribe, si es de este enlace."""
+    """Carrusel AgriCapital. Una tarjeta elegida inscribe ese curso."""
     from core.lineas.registro_abrir import _avisar
 
+    if not _solo_agricapital(cliente_id):
+        return
     if _es_info(body):
         _contar(telefono, _id_de_prefijo(body, 'info_curso_'), cliente_id)
         return

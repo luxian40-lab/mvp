@@ -3,11 +3,16 @@
 Una sola ficha para todos los clientes. El cliente no se pregunta:
 llega en la frase del QR. El teléfono llega en el mensaje de WhatsApp.
 Este módulo solo arma el JSON. No lo publica ni escribe la ficha.
+
+Nombre v2: municipio obligatorio + enlace de habeas en el OptIn.
+Subir código no reescribe el Flow publicado; hace falta publicar v2
+y actualizar EKI_LINEA_REGISTRO_FLOW_ID.
 """
 from __future__ import annotations
 
 PANTALLA = 'REGISTRO'
-NOMBRE_FLOW = 'eki_registro'
+NOMBRE_FLOW = 'eki_registro_v2'
+URL_HABEAS = 'https://www.eki.com.co/habeas-data'
 
 
 def flow_registro() -> dict:
@@ -28,8 +33,8 @@ def flow_registro() -> dict:
                         {
                             'type': 'TextBody',
                             'text': (
-                                'Para crear su registro necesitamos su nombre y su cédula. '
-                                'Su número de WhatsApp ya lo tenemos.'
+                                'Para crear su registro necesitamos su nombre, su cédula '
+                                'y su municipio. Su número de WhatsApp ya lo tenemos.'
                             ),
                         },
                         {
@@ -37,6 +42,10 @@ def flow_registro() -> dict:
                             'name': 'habeas',
                             'label': 'Acepto el tratamiento de mis datos para crear mi registro.',
                             'required': True,
+                            'on-click-action': {
+                                'name': 'open_url',
+                                'url': URL_HABEAS,
+                            },
                         },
                         {
                             'type': 'TextInput',
@@ -53,6 +62,13 @@ def flow_registro() -> dict:
                             'input-type': 'text',
                         },
                         {
+                            'type': 'TextInput',
+                            'name': 'municipio',
+                            'label': 'Municipio',
+                            'required': True,
+                            'input-type': 'text',
+                        },
+                        {
                             'type': 'Footer',
                             'label': 'Enviar',
                             'on-click-action': {
@@ -61,6 +77,7 @@ def flow_registro() -> dict:
                                     'habeas': '${form.habeas}',
                                     'nombre': '${form.nombre}',
                                     'cedula': '${form.cedula}',
+                                    'municipio': '${form.municipio}',
                                 },
                             },
                         },

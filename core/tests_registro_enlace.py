@@ -23,9 +23,10 @@ class FraseRegistroTests(TestCase):
     def test_frase_usa_el_id(self):
         self.assertEqual(frase_de_cliente(12), 'EKI C12')
 
-    def test_agricapital_abre_con_hola_eki_agri(self):
-        self.assertEqual(frase_de_cliente(26), 'Hola eki agri')
-        self.assertEqual(leer_frase('Hola eki agri'), ('cliente', 26))
+    def test_agricapital_abre_con_frase_canonica(self):
+        frase = 'Hola, AgriCapital me invitó a un curso gratis'
+        self.assertEqual(frase_de_cliente(26), frase)
+        self.assertEqual(leer_frase(frase), ('cliente', 26))
         self.assertEqual(leer_frase('EKI C26'), ('cliente', 26))
 
     def test_leer_cliente_y_general(self):

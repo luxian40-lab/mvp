@@ -358,6 +358,11 @@ EKI_LINEA_REGISTRO_E164 = os.environ.get('EKI_LINEA_REGISTRO_E164', '')
 EKI_LINEA_REGISTRO_PHONE_ID = os.environ.get('EKI_LINEA_REGISTRO_PHONE_ID', '')
 EKI_LINEA_REGISTRO_WABA_ID = os.environ.get('EKI_LINEA_REGISTRO_WABA_ID', '')
 EKI_LINEA_REGISTRO_FLOW_ID = os.environ.get('EKI_LINEA_REGISTRO_FLOW_ID', '')
+# AgriCapital en línea 3. Vacío = sin bienvenida/carrusel/cohorte especiales.
+# Prod: cliente 26. Grupo OP1 opcional; vacío = se crea «AgriCapital · cohorte noviembre».
+EKI_AGRICAPITAL_CLIENTE_ID = os.environ.get('EKI_AGRICAPITAL_CLIENTE_ID', '').strip()
+EKI_AGRICAPITAL_GRUPO_ID = os.environ.get('EKI_AGRICAPITAL_GRUPO_ID', '').strip()
+EKI_AGRICAPITAL_CURSO_ID = os.environ.get('EKI_AGRICAPITAL_CURSO_ID', '').strip()
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre
 META_LINEAS = os.environ.get('META_LINEAS', '')

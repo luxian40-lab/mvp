@@ -1,70 +1,209 @@
-"""Bienvenida del enlace de Agricapital en la línea 3.
+"""Bienvenida y cohorte AgriCapital en la línea 3.
 
-Solo el cliente 26. El enlace manda la bienvenida con un botón. El
-mensaje siguiente manda las dudas y abre el registro. Las explicaciones
-y las preguntas de esa copia son el Formador y el Compañero: todavía
-no salen con *listo*.
+Solo corre si EKI_AGRICAPITAL_CLIENTE_ID coincide con el enlace.
+Vacío = la línea 3 sigue igual para todos los clientes.
+Mete al grupo OP1 con los cursos del carrusel (cursos_whatsapp).
+No inscribe curso: eso lo hace Ver curso del carrusel.
 """
 from __future__ import annotations
 
-from core.lineas.registro_enlace import leer_frase
+import logging
+import unicodedata
 
-AGRICAPITAL_ID = 26
-BOTON_CONTINUAR = 'registro_continuar'
-TITULO_CONTINUAR = 'Cómo continuar'
+logger = logging.getLogger(__name__)
 
-BIENVENIDA = (
-    'Bienvenida\n'
-    '¡Hola! 👋 Bienvenido a tu curso de Agricapital con eki. '
-    'Aprenderás directamente por WhatsApp, desde tu celular y a tu ritmo.\n'
-    'Paso 2. Resolvamos tus dudas\n'
-    '¿Tienes alguna pregunta antes de empezar? Podemos explicarte cómo funciona '
-    'el curso, qué necesitas y cómo participar.\n'
-    'Paso 3. Inscripción\n'
-    '¿Estás listo para comenzar? Te haremos unas preguntas sencillas para '
-    'registrarte aquí mismo.'
+TEXTO_BIENVENIDA = (
+    'Bienvenido/a a eki. AgriCapital te invita a un curso gratis '
+    'por WhatsApp. Toca Registrarme para continuar.'
 )
-DUDAS_PRIMERO = (
-    '¿Dónde voy a ver el curso?\n'
-    'Todo el curso lo recibirás directamente en este chat de WhatsApp. '
-    'No necesitas entrar a ninguna otra página.\n'
-    '¿Tengo que descargar alguna aplicación?\n'
-    'No. Solo necesitas tener WhatsApp en tu celular.\n'
-    '¿Tengo que estudiar a una hora específica?\n'
-    'No. Puedes revisar los contenidos cuando tengas tiempo, desde tu celular.\n'
-    '¿Qué necesito para empezar el curso?\n'
-    'Solo tu celular con WhatsApp, conexión a internet y ganas de aprender.'
-)
-DUDAS_DESPUES = (
-    '¿Cómo hago para inscribirme?\n'
-    'Muy fácil. Aquí mismo, por WhatsApp, te pediremos unos datos básicos. '
-    'No necesitas llenar formularios en otras páginas.\n'
-    '¿Qué pasa si no tengo señal o me quedo sin internet?\n'
-    'No te preocupes. Cuando vuelvas a tener conexión, podrás revisar los '
-    'mensajes que hayas recibido.\n'
-    '¿Cómo hago las actividades del curso?\n'
-    'Te enviaremos explicaciones y preguntas por este mismo chat. Solo tendrás '
-    'que seguir las instrucciones y responder.\n'
-    '¿Qué hago si no entiendo algo o necesito ayuda?\n'
-    'Puedes escribir tu pregunta por este chat. eki cuenta con herramientas de '
-    'apoyo para resolver tus dudas.'
-)
+BOTON_ID_PREFIJO = 'registro-abrir-C'
+CTA_BIENVENIDA = 'Registrarme'
+# Canónica en el wa.me/QR. El match ignora mayúsculas, tildes y puntuación.
+FRASE_ENLACE = 'Hola, AgriCapital me invitó a un curso gratis'
+# Claves ya normalizadas (_norm_frase). Aliases cortos y QR viejos.
+FRASES_AGRI = frozenset({
+    'HOLA AGRICAPITAL ME INVITO A UN CURSO GRATIS',
+    'HOLA AGRICAPITAL ME INVITO A 1 CURSO GRATIS',
+    'HOLA AGRICAPITAL',
+    'HOLA EKI AGRI',
+    'EKI AGRI',
+})
+NOMBRE_GRUPO_COHORTE = 'AgriCapital · cohorte noviembre'
+
+
+def _norm_frase(frase: str) -> str:
+    """Mayúsculas, sin tildes ni puntuación; espacios colapsados."""
+    texto = unicodedata.normalize('NFD', ' '.join((frase or '').split()).upper())
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    for ch in ',.;:¡!¿?()[]{}"\'':
+        texto = texto.replace(ch, ' ')
+    return ' '.join(texto.split())
+
+
+def cliente_id_configurado() -> int | None:
+    from django.conf import settings
+
+    bruto = str(getattr(settings, 'EKI_AGRICAPITAL_CLIENTE_ID', '') or '').strip()
+    if not bruto.isdigit():
+        return None
+    return int(bruto)
+
+
+def es_cliente_agricapital(cliente_id: int | None) -> bool:
+    configurado = cliente_id_configurado()
+    return configurado is not None and cliente_id == configurado
+
+
+def frase_enlace_agricapital() -> str:
+    """Texto del enlace/QR. Vacío si AgriCapital no está configurado."""
+    if cliente_id_configurado() is None:
+        return ''
+    return FRASE_ENLACE
+
+
+def frase_para_cliente(cliente_id: int) -> str | None:
+    """Frase pública del enlace si este cliente es AgriCapital; si no, None."""
+    if not es_cliente_agricapital(int(cliente_id)):
+        return None
+    return FRASE_ENLACE
+
+
+def destino_frase_agri(frase: str) -> tuple[str, int] | None:
+    """('cliente', id) si la frase es la de AgriCapital; None si no."""
+    if _norm_frase(frase) not in FRASES_AGRI:
+        return None
+    cliente_id = cliente_id_configurado()
+    if cliente_id is None:
+        return None
+    return ('cliente', cliente_id)
 
 
 def es_enlace_agricapital(cliente_id: int | None, body: str) -> bool:
-    """True solo en el mensaje que trae la frase EKI C26."""
-    if cliente_id != AGRICAPITAL_ID:
-        return False
+    """True si este mensaje es la frase/enlace de AgriCapital."""
+    if destino_frase_agri(body):
+        return True
+    from core.lineas.registro_enlace import leer_frase
+
     destino = leer_frase(body)
-    return bool(destino and destino[0] == 'cliente' and destino[1] == AGRICAPITAL_ID)
+    if not (destino and destino[0] == 'cliente'):
+        return False
+    return es_cliente_agricapital(destino[1])
 
 
-def enviar_bienvenida(telefono: str) -> None:
+def es_boton_registrarme(body: str) -> int | None:
+    """Id de cliente si tocó Registrarme de la bienvenida AgriCapital."""
+    texto = (body or '').strip()
+    if not texto.startswith(BOTON_ID_PREFIJO):
+        return None
+    resto = texto[len(BOTON_ID_PREFIJO):]
+    if not resto.isdigit():
+        return None
+    cliente_id = int(resto)
+    if not es_cliente_agricapital(cliente_id):
+        return None
+    return cliente_id
+
+
+def mandar_bienvenida(telefono: str, cliente_id: int) -> bool:
+    """Bienvenida con botón Registrarme. True si Meta aceptó el envío."""
+    from django.db import DatabaseError
+    from requests import RequestException
+
     from core.lineas.envio import enviar_meta_botones
 
-    enviar_meta_botones(
-        telefono,
-        BIENVENIDA,
-        [(BOTON_CONTINUAR, TITULO_CONTINUAR)],
-        agente_evento='registro_flow',
+    try:
+        resultado = enviar_meta_botones(
+            telefono,
+            TEXTO_BIENVENIDA,
+            [(f'{BOTON_ID_PREFIJO}{int(cliente_id)}', CTA_BIENVENIDA)],
+            agente_evento='registro_agricapital',
+        )
+    except (DatabaseError, RequestException, OSError, TypeError, ValueError):
+        logger.exception('registro_agricapital_bienvenida')
+        return False
+    return bool(resultado and resultado.get('success'))
+
+
+enviar_bienvenida = mandar_bienvenida
+
+
+def _id_setting(nombre: str) -> int | None:
+    from django.conf import settings
+
+    bruto = str(getattr(settings, nombre, '') or '').strip()
+    if not bruto.isdigit():
+        return None
+    return int(bruto)
+
+
+def cursos_del_carrusel(cliente):
+    """Los del carrusel WhatsApp; si no marcó, los activos de la empresa."""
+    from core.models import Curso
+
+    seleccion = list(cliente.cursos_whatsapp.filter(activo=True).order_by('orden', 'nombre', 'id'))
+    if seleccion:
+        return seleccion
+    return list(
+        Curso.objects.filter(cliente=cliente, activo=True).order_by('orden', 'nombre', 'id')
     )
+
+
+def asegurar_grupo_cohorte(cliente):
+    """Grupo OP1 de la cohorte. Reusa EKI_AGRICAPITAL_GRUPO_ID o lo crea."""
+    from django.db import DatabaseError
+
+    from core.models.opciones import PLAN_CURSO_ASESOR
+    from core.models_extras import GrupoEstudiantes
+
+    grupo_id = _id_setting('EKI_AGRICAPITAL_GRUPO_ID')
+    try:
+        if grupo_id is not None:
+            grupo = GrupoEstudiantes.objects.filter(
+                pk=grupo_id, cliente_id=cliente.pk, activo=True,
+            ).first()
+            if grupo is None:
+                logger.warning('registro_agricapital_grupo_ausente id=%s', grupo_id)
+                return None
+        else:
+            grupo, _creado = GrupoEstudiantes.objects.get_or_create(
+                cliente=cliente,
+                nombre=NOMBRE_GRUPO_COHORTE,
+                defaults={
+                    'plan_linea_meta': PLAN_CURSO_ASESOR,
+                    'activo': True,
+                    'descripcion': 'Cohorte AgriCapital línea 3 · OP1',
+                },
+            )
+        if (grupo.plan_linea_meta or '') != PLAN_CURSO_ASESOR:
+            grupo.plan_linea_meta = PLAN_CURSO_ASESOR
+            grupo.save(update_fields=['plan_linea_meta'])
+        if not grupo.activo:
+            grupo.activo = True
+            grupo.save(update_fields=['activo'])
+        cursos = cursos_del_carrusel(cliente)
+        if cursos:
+            grupo.cursos.set(cursos)
+        return grupo
+    except DatabaseError:
+        logger.exception('registro_agricapital_grupo')
+        return None
+
+
+def aplicar_cohorte(est, cliente) -> None:
+    """Mete al grupo OP1 con los cursos del carrusel. Sin inscripción aún."""
+    if cliente is None or not es_cliente_agricapital(getattr(cliente, 'pk', None)):
+        return
+    if getattr(est, 'cliente_id', None) != getattr(cliente, 'pk', None):
+        return
+    grupo = asegurar_grupo_cohorte(cliente)
+    if grupo is not None:
+        _agregar_al_grupo(grupo, est)
+
+
+def _agregar_al_grupo(grupo, est) -> None:
+    from django.db import DatabaseError
+
+    try:
+        grupo.estudiantes.add(est)
+    except DatabaseError:
+        logger.exception('registro_agricapital_grupo_add')

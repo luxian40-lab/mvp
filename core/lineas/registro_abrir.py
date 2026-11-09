@@ -2,6 +2,7 @@
 
 En otra línea no hace nada: la principal y la línea 2 siguen igual.
 La frase EKI C{id} solo guarda la organización del enlace.
+AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida + Registrarme, sin FAQ.
 Si el Flow no está en Meta, lo publica en la WABA de esta línea.
 """
 from __future__ import annotations
@@ -11,11 +12,11 @@ import logging
 
 from core.lineas.perfil import USO_REGISTRO
 from core.lineas.registro_agricapital import (
-    AGRICAPITAL_ID,
-    DUDAS_DESPUES,
-    DUDAS_PRIMERO,
-    enviar_bienvenida,
+    destino_frase_agri,
+    es_boton_registrarme,
+    es_cliente_agricapital,
     es_enlace_agricapital,
+    mandar_bienvenida,
 )
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
@@ -43,7 +44,7 @@ MINIMO = (
 )
 TEXTOS_ENTRADA = (SALUDO, COMO_FUNCIONA, TUTO, MINIMO)
 TEXTO_FLOW = (
-    'Toque Registrarme y deje su nombre y su cédula. '
+    'Toque Registrarme y deje su nombre, su cédula y su municipio. '
     'Su número de WhatsApp ya lo tenemos.'
 )
 TEXTO_SIN_FLOW = 'El formulario de registro no está listo. Escriba de nuevo en un momento.'
@@ -69,7 +70,7 @@ def flow_id_registro() -> str:
 
 
 def publicar_flow_registro() -> str:
-    """Busca eki_registro en la WABA de la línea 3. Si no está, lo crea y lo publica."""
+    """Busca eki_registro_v2 en la WABA de la línea 3. Si no está, lo crea y lo publica."""
     import requests
     from django.conf import settings
 
@@ -99,7 +100,7 @@ def publicar_flow_registro() -> str:
         'publish': True,
     }
     try:
-        alta = requests.post(url, json=cuerpo, headers=headers, timeout=20)
+        alta = requests.post(url, headers=headers, json=cuerpo, timeout=20)
         creado = alta.json() if alta.content else {}
     except requests.RequestException:
         logger.exception('registro_flow_publicar')
@@ -122,14 +123,28 @@ def abrir_registro(telefono: str, body: str) -> str | None:
 
         atender_cursos(telefono, body, ficha.cliente_id or cliente_id)
         return 'handled'
-    if cliente_id == AGRICAPITAL_ID and not es_enlace_agricapital(cliente_id, body):
-        _avisar(telefono, DUDAS_PRIMERO)
-        _avisar(telefono, DUDAS_DESPUES)
+
+    cliente_boton = es_boton_registrarme(body)
+    if cliente_boton is not None:
+        _enviar_flow(telefono, cliente_boton)
+        return 'handled'
+
+    if es_enlace_agricapital(cliente_id, body):
+        destino = cliente_id
+        if destino is None:
+            agri = destino_frase_agri(body)
+            destino = agri[1] if agri else None
+        if destino is None:
+            return 'handled'
+        if mandar_bienvenida(telefono, destino):
+            return 'handled'
+        _avisar(telefono, TEXTO_REINTENTO)
+        return 'handled'
+
+    if es_cliente_agricapital(cliente_id):
         _enviar_flow(telefono, cliente_id)
         return 'handled'
-    if es_enlace_agricapital(cliente_id, body):
-        enviar_bienvenida(telefono)
-        return 'handled'
+
     for texto in TEXTOS_ENTRADA:
         _avisar(telefono, texto)
     _enviar_flow(telefono, cliente_id)
@@ -164,6 +179,10 @@ def _cliente_de_turno(telefono: str, body: str) -> int | None:
     if destino and destino[0] == 'cliente':
         _recordar(telefono, destino[1])
         return destino[1]
+    agri = destino_frase_agri(body)
+    if agri:
+        _recordar(telefono, agri[1])
+        return agri[1]
     guardado = _cliente_guardado(telefono)
     if guardado:
         return guardado
