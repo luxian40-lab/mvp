@@ -89,6 +89,7 @@ jobs:
             core/tests_presupuesto_llm.py \
             core/tests_antiflood.py \
             core/tests_campana_meta_v2.py \
+            core/tests_outbox_envio.py \
             core/tests_module_builder_contrato.py \
             portal/tests_tenant_isolation.py \
             core/tests_webhook_fallido.py \

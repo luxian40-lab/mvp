@@ -392,9 +392,9 @@ EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').s
 EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
-# True: los mensajes del mismo teléfono se aplican en el orden de llegada a la base.
-# False: el candado Redis evita simultáneos, pero un reintento puede adelantar al siguiente.
-EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (
+# True: cada envío por Sender deja fila PENDIENTE/ENVIANDO/ENVIADO/ERROR/INCIERTO.
+# False: no se escribe outbox; el Sender sigue igual. Distinto de EventOutbox (lago).
+EKI_OUTBOX_ENVIO = os.environ.get('EKI_OUTBOX_ENVIO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
@@ -1286,6 +1286,8 @@ WA_META_MPS_POR_LINEA = {
     if phone.strip() and mps.strip().isdigit() and int(mps) > 0
 }
 WA_DESTINO_GAP_SEG = int(os.environ.get('WA_DESTINO_GAP_SEG', '6'))
+# ENVIANDO sin status ni respuesta: pasa a INCIERTO. Plan bloque 2, default 10.
+WA_ENVIANDO_DUDOSO_MIN = int(os.environ.get('WA_ENVIANDO_DUDOSO_MIN', '10') or '10')
 META_LIMITE_CONTACTOS_24H = int(os.environ.get('META_LIMITE_CONTACTOS_24H', '1000'))
 CAMPANA_PAUSA_TASA_FALLO = float(os.environ.get('CAMPANA_PAUSA_TASA_FALLO', '0.15'))
 EKI_INFRA_HEALTH_TOKEN = os.environ.get('EKI_INFRA_HEALTH_TOKEN', '')

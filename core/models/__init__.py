@@ -152,6 +152,7 @@ from core.models.canal import (  # noqa: F401
     SandboxCanalSesion,
     EventOutbox,
 )
+from core.models.outbox_envio import OutboxEnvio  # noqa: F401
 
 
 from core.models.territorio import (  # noqa: F401
@@ -196,6 +197,7 @@ __all__ = [
     'ProductoCatalogo',
     'SandboxCanalSesion',
     'EventOutbox',
+    'OutboxEnvio',
     'SenalTerritorial',
     'AlertaTerritorial',
     'FichaNegocio',
