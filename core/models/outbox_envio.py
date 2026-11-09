@@ -121,3 +121,28 @@ def cerrar_con_wamid(correlacion: str, wamid: str) -> bool:
 def vencer_enviando(minutos: int | None = None) -> int:
     limite = timezone.now() - timedelta(minutes=minutos if minutos is not None else _minutos_dudosas())
     return OutboxEnvio.objects.filter(estado=ENVIANDO, intento_en__lt=limite).update(estado=INCIERTO)
+
+
+def ejecutar(*, correlacion: str, canal: str, telefono: str, phone_id: str, enviar):
+    """Claim, envía, marca. Flag off: solo llama enviar(). INCIERTO no se reenvía."""
+    if not outbox_activo():
+        return enviar()
+    fila = registrar(
+        correlacion=correlacion, canal=canal, telefono=telefono, phone_id=phone_id,
+    )
+    if fila is None:
+        return enviar()
+    if fila.estado == ENVIADO:
+        return {'success': True, 'mensaje_id': fila.wamid or None, 'response': 'ya_enviado'}
+    token = reclamar(fila.correlacion)
+    if token is None:
+        return {'success': False, 'mensaje_id': None, 'response': 'sin_claim'}
+    resultado = enviar()
+    if isinstance(resultado, dict) and resultado.get('success'):
+        marcar(
+            fila.correlacion, ENVIADO, token=token,
+            wamid=str(resultado.get('mensaje_id') or ''),
+        )
+    else:
+        marcar(fila.correlacion, INCIERTO, token=token)
+    return resultado

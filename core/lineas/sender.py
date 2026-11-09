@@ -43,17 +43,40 @@ class MetaSender:
 
         return salida_por_phone_id(self.phone_id)
 
-    def texto(self, telefono: str, texto: str, *, media_url: str | None = None, agente: str = '') -> dict:
+    def _con_outbox(self, telefono: str, correlacion: str, enviar):
+        from core.models.outbox_envio import ejecutar
+
+        return ejecutar(
+            correlacion=correlacion,
+            canal=self.canal,
+            telefono=telefono,
+            phone_id=self.phone_id,
+            enviar=enviar,
+        )
+
+    def texto(
+        self, telefono: str, texto: str, *, media_url: str | None = None, agente: str = '',
+        correlacion: str = '',
+    ) -> dict:
         from core.lineas.envio import enviar_meta
 
-        with self._salida():
-            return enviar_meta(telefono, texto, media_url=media_url, agente_evento=agente)
+        def _enviar():
+            with self._salida():
+                return enviar_meta(telefono, texto, media_url=media_url, agente_evento=agente)
 
-    def botones(self, telefono: str, texto: str, botones: list[tuple[str, str]], *, agente: str = '') -> dict:
+        return self._con_outbox(telefono, correlacion, _enviar)
+
+    def botones(
+        self, telefono: str, texto: str, botones: list[tuple[str, str]], *, agente: str = '',
+        correlacion: str = '',
+    ) -> dict:
         from core.lineas.envio import enviar_meta_botones
 
-        with self._salida():
-            return enviar_meta_botones(telefono, texto, botones, agente_evento=agente or 'sandbox_menu')
+        def _enviar():
+            with self._salida():
+                return enviar_meta_botones(telefono, texto, botones, agente_evento=agente or 'sandbox_menu')
+
+        return self._con_outbox(telefono, correlacion, _enviar)
 
     def lista(
         self,
@@ -64,34 +87,48 @@ class MetaSender:
         *,
         texto_respaldo: str = '',
         agente: str = '',
+        correlacion: str = '',
     ) -> dict:
         from core.lineas.envio import enviar_meta_lista
 
-        with self._salida():
-            return enviar_meta_lista(
-                telefono,
-                texto,
-                boton,
-                filas,
-                texto_respaldo=texto_respaldo,
-                agente_evento=agente or 'sandbox_menu',
-            )
+        def _enviar():
+            with self._salida():
+                return enviar_meta_lista(
+                    telefono,
+                    texto,
+                    boton,
+                    filas,
+                    texto_respaldo=texto_respaldo,
+                    agente_evento=agente or 'sandbox_menu',
+                )
 
-    def plantilla(self, telefono: str, nombre: str, variables: dict, *, agente: str = '') -> dict:
+        return self._con_outbox(telefono, correlacion, _enviar)
+
+    def plantilla(
+        self, telefono: str, nombre: str, variables: dict, *, agente: str = '',
+        correlacion: str = '',
+    ) -> dict:
         from core.lineas.envio import enviar_meta_plantilla
 
-        with self._salida():
-            return enviar_meta_plantilla(telefono, nombre, variables, agente_evento=agente or 'reenganche_drip')
+        def _enviar():
+            with self._salida():
+                return enviar_meta_plantilla(telefono, nombre, variables, agente_evento=agente or 'reenganche_drip')
+
+        return self._con_outbox(telefono, correlacion, _enviar)
 
     def plantilla_imagen(
-        self, telefono: str, nombre: str, media_url: str, variables: dict, *, agente: str = ''
+        self, telefono: str, nombre: str, media_url: str, variables: dict, *, agente: str = '',
+        correlacion: str = '',
     ) -> dict:
         from core.lineas.envio import enviar_meta_plantilla_imagen
 
-        with self._salida():
-            return enviar_meta_plantilla_imagen(
-                telefono, nombre, media_url, variables, agente_evento=agente or 'diploma_meta'
-            )
+        def _enviar():
+            with self._salida():
+                return enviar_meta_plantilla_imagen(
+                    telefono, nombre, media_url, variables, agente_evento=agente or 'diploma_meta'
+                )
+
+        return self._con_outbox(telefono, correlacion, _enviar)
 
 
 @dataclass(frozen=True)
@@ -101,15 +138,25 @@ class TwilioSender:
     from_number: str = ''
     canal: ClassVar[str] = 'twilio'
 
-    def texto(self, telefono: str, texto: str, *, media_url: str | None = None, agente: str = '') -> dict:
+    def texto(
+        self, telefono: str, texto: str, *, media_url: str | None = None, agente: str = '',
+        correlacion: str = '',
+    ) -> dict:
+        from core.models.outbox_envio import ejecutar
         from core.utils import enviar_whatsapp_twilio
 
-        return enviar_whatsapp_twilio(
-            telefono,
-            texto,
-            media_url=media_url,
-            from_number=self.from_number or None,
-            agente_evento=agente,
+        return ejecutar(
+            correlacion=correlacion,
+            canal=self.canal,
+            telefono=telefono,
+            phone_id='',
+            enviar=lambda: enviar_whatsapp_twilio(
+                telefono,
+                texto,
+                media_url=media_url,
+                from_number=self.from_number or None,
+                agente_evento=agente,
+            ),
         )
 
     def botones(self, telefono: str, texto: str, botones: list[tuple[str, str]], *, agente: str = '') -> dict:
