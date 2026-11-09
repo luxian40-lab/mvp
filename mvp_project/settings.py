@@ -387,6 +387,16 @@ EKI_ESTADO_LINEA_ESCRITURA = os.environ.get('EKI_ESTADO_LINEA_ESCRITURA', 'false
 EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: los mensajes del mismo teléfono se aplican en el orden de llegada a la base.
+# False: el candado Redis evita simultáneos, pero un reintento puede adelantar al siguiente.
+EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+# True: los mensajes del mismo teléfono se aplican en el orden de llegada a la base.
+# False: el candado Redis evita simultáneos, pero un reintento puede adelantar al siguiente.
+EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
 # Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (

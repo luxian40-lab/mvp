@@ -182,11 +182,44 @@ def _frenar_flood(telefono, avisar) -> bool:
     return True
 
 
+def _soltar_bandeja_si_fallo(task, args, exc):
+    from core.conversacion.bandeja_entrada import FueraDeTurno, soltar_turno_fallido
+    from core.webhook_evento import external_id_de_payload
+
+    if isinstance(exc, FueraDeTurno):
+        return
+    datos = args[0] if args else {}
+    if not isinstance(datos, dict):
+        return
+    soltar_turno_fallido(getattr(task, 'canal', '') or '', external_id_de_payload(datos))
+
+
+def _omitir_bandeja(canal, datos):
+    from core.conversacion.bandeja_entrada import omitir_turno
+    from core.webhook_evento import external_id_de_payload
+
+    if isinstance(datos, dict):
+        omitir_turno(canal, external_id_de_payload(datos))
+
+
+def _bajo_turno(canal, datos, telefono, aplicar):
+    from core.conversacion.bandeja_entrada import aplicar_con_turno
+    from core.webhook_evento import external_id_de_payload
+
+    ext = external_id_de_payload(datos if isinstance(datos, dict) else {})
+    return aplicar_con_turno(canal, ext, telefono, aplicar)
+
+
 def _reintentar_si_lock(task, exc):
     from celery.exceptions import SoftTimeLimitExceeded
 
     from core.salida_usuario import mensaje_ya_salio
 
+    from core.conversacion.bandeja_entrada import FueraDeTurno
+
+    if isinstance(exc, FueraDeTurno):
+        espera = min(2 ** task.request.retries, 30)
+        raise task.retry(exc=exc, countdown=espera)
     if isinstance(exc, SoftTimeLimitExceeded):
         if mensaje_ya_salio():
             logger.error(
@@ -207,6 +240,7 @@ class _TareaWebhook(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         _log_fallo_definitivo(self.canal, args)
         _guardar_webhook_fallido(self, exc, args, kwargs)
+        _soltar_bandeja_si_fallo(self, args, exc)
 
 
 class _TareaWebhookMeta(_TareaWebhook):
@@ -235,9 +269,11 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, post_data, {'forzar_canal': forzar_canal}):
+        _omitir_bandeja(self.canal, post_data)
         return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     if _frenar_flood(telefono, lambda: _aviso_flood_texto(telefono)):
+        _omitir_bandeja(self.canal, post_data)
         return None
     try:
         with telefono_lock(telefono):
@@ -248,8 +284,11 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
             )
             from core.wa_canal import CANAL_TWILIO, canal_webhook
 
-            with canal_webhook(CANAL_TWILIO):
-                return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
+            def _cuerpo():
+                with canal_webhook(CANAL_TWILIO):
+                    return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
+
+            return _bajo_turno(self.canal, post_data, telefono, _cuerpo)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 
@@ -273,17 +312,22 @@ def procesar_sandbox_meta_async(self, inbound: dict):
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, inbound):
+        _omitir_bandeja(self.canal, inbound)
         return None
     telefono = normalizar_telefono_whatsapp(str((inbound or {}).get('From') or '')) or 'sin-telefono'
     if _frenar_flood(telefono, lambda: _aviso_flood_meta(telefono, inbound)):
+        _omitir_bandeja(self.canal, inbound)
         return None
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Línea Meta | sid=%s", (inbound or {}).get('MessageSid', ''))
             from core.wa_canal import CANAL_META, canal_webhook
 
-            with canal_webhook(CANAL_META):
-                return _aplicar_sandbox_menu(inbound)
+            def _cuerpo():
+                with canal_webhook(CANAL_META):
+                    return _aplicar_sandbox_menu(inbound)
+
+            return _bajo_turno(self.canal, inbound, telefono, _cuerpo)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 
@@ -299,21 +343,25 @@ def procesar_twilio_webhook_async(self, post_data: dict):
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, post_data):
+        _omitir_bandeja(self.canal, post_data)
         return None
     telefono = normalizar_telefono_whatsapp(str((post_data or {}).get('From') or '')) or 'sin-telefono'
     if _frenar_flood(telefono, lambda: _aviso_flood_texto(telefono)):
+        _omitir_bandeja(self.canal, post_data)
         return None
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))
             from core.twilio_puerta import aplicar_puerta_twilio
-
-            if aplicar_puerta_twilio(post_data) != 'seguir':
-                return None
             from core.wa_canal import CANAL_TWILIO, canal_webhook
 
-            with canal_webhook(CANAL_TWILIO):
-                return _procesar_twilio_webhook(post_data)
+            def _cuerpo():
+                if aplicar_puerta_twilio(post_data) != 'seguir':
+                    return None
+                with canal_webhook(CANAL_TWILIO):
+                    return _procesar_twilio_webhook(post_data)
+
+            return _bajo_turno(self.canal, post_data, telefono, _cuerpo)
     except Exception as exc:
         _reintentar_si_lock(self, exc)
 

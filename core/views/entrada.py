@@ -7,6 +7,14 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 
+from core.conversacion.bandeja_entrada import (
+    FueraDeTurno,
+    anotar_fallo_id,
+    anotar_payload_meta,
+    anotar_payload_twilio,
+    aplicar_con_turno,
+    omitir_turno,
+)
 from core.webhook_evento import (
     CANAL_META,
     CANAL_TWILIO,
@@ -31,6 +39,12 @@ logger = logging.getLogger(__name__)
 
 def _sid_de(data) -> str:
     return str((data or {}).get('MessageSid') or '').strip()[:128]
+
+
+def _telefono_de(data) -> str:
+    from core.nati import normalizar_telefono_whatsapp
+
+    return normalizar_telefono_whatsapp(str((data or {}).get('From') or '')) or 'sin-telefono'
 
 
 def _error_sincronico(canal, external_id):
@@ -100,6 +114,7 @@ def _procesar_meta_por_mensaje(payload):
                 continue
             sid = _sid_de(inbound)
             if _sandbox_inbound_repetido(inbound):
+                omitir_turno(CANAL_META, sid)
                 continue
             try:
                 encolado = _encolar_sandbox_si_async(inbound)
@@ -108,8 +123,17 @@ def _procesar_meta_por_mensaje(payload):
             if encolado:
                 continue
             try:
-                last_sb = _aplicar_sandbox_menu(inbound)
+                last_sb = aplicar_con_turno(
+                    CANAL_META,
+                    sid,
+                    _telefono_de(inbound),
+                    lambda inbound=inbound: _aplicar_sandbox_menu(inbound),
+                )
+            except FueraDeTurno:
+                liberar_eventos(CANAL_META, [sid, *_posteriores(indice + 1)])
+                return HttpResponse('Error', status=500)
             except Exception:
+                anotar_fallo_id(CANAL_META, sid, 'sync')
                 liberar_eventos(CANAL_META, _posteriores(indice + 1))
                 return _error_sincronico(CANAL_META, sid)
         if isinstance(last_sb, HttpResponse):
@@ -119,8 +143,19 @@ def _procesar_meta_por_mensaje(payload):
     for indice, inbound in enumerate(inbounds):
         sid = _sid_de(inbound)
         try:
-            _procesar_meta_webhook(_payload_un_mensaje(payload, sid) if sid else payload)
+            aplicar_con_turno(
+                CANAL_META,
+                sid,
+                _telefono_de(inbound),
+                lambda payload=payload, sid=sid: _procesar_meta_webhook(
+                    _payload_un_mensaje(payload, sid) if sid else payload,
+                ),
+            )
+        except FueraDeTurno:
+            liberar_eventos(CANAL_META, [sid, *_posteriores(indice + 1)])
+            return HttpResponse('Error', status=500)
         except Exception:
+            anotar_fallo_id(CANAL_META, sid, 'sync')
             liberar_eventos(CANAL_META, _posteriores(indice + 1))
             return _error_sincronico(CANAL_META, sid)
     return None
@@ -130,6 +165,7 @@ def _procesar_twilio_reclamado(data, ids, es_comercial):
     from core.twilio_puerta import aplicar_puerta_twilio
 
     if aplicar_puerta_twilio(data) != 'seguir':
+        omitir_turno(CANAL_TWILIO, ids[0] if ids else _sid_de(data))
         return None
     sid = ids[0] if ids else _sid_de(data)
     try:
@@ -137,6 +173,7 @@ def _procesar_twilio_reclamado(data, ids, es_comercial):
     except Exception:
         return _error_sincronico(CANAL_TWILIO, sid)
     if sb is not None:
+        omitir_turno(CANAL_TWILIO, sid)
         return sb
     try:
         if es_comercial(data):
@@ -150,11 +187,25 @@ def _procesar_twilio_reclamado(data, ids, es_comercial):
     try:
         if es_comercial(data):
             logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado")
-            _procesar_bot_comercial_twilio_webhook(data)
+            aplicar_con_turno(
+                CANAL_TWILIO,
+                sid,
+                _telefono_de(data),
+                lambda: _procesar_bot_comercial_twilio_webhook(data),
+            )
             return None
         logger.info("🧭 Router webhook: Twilio destino educativo detectado")
-        return _procesar_twilio_webhook(data)
+        return aplicar_con_turno(
+            CANAL_TWILIO,
+            sid,
+            _telefono_de(data),
+            lambda: _procesar_twilio_webhook(data),
+        )
+    except FueraDeTurno:
+        liberar_eventos(CANAL_TWILIO, ids or ([sid] if sid else []))
+        return HttpResponse('Error', status=500)
     except Exception:
+        anotar_fallo_id(CANAL_TWILIO, sid, 'sync')
         return _error_sincronico(CANAL_TWILIO, sid)
 
 
@@ -210,6 +261,7 @@ def whatsapp_webhook(request):
                 ):
                     logger.warning('meta_webhook_firma_invalida')
                     return HttpResponse('Forbidden', status=403)
+                anotar_payload_meta(payload)
                 try:
                     from core.meta_estados import encolar_statuses
 
@@ -250,6 +302,7 @@ def whatsapp_webhook(request):
                         payload.get('To', ''),
                         payload.get('MessageSid', ''),
                     )
+                    anotar_payload_twilio(payload)
                     seguir_tw, ids_tw = reclamar_twilio(
                         payload,
                         es_status=_es_status_callback_twilio(payload),
@@ -281,6 +334,7 @@ def whatsapp_webhook(request):
                 request.POST.get('To', ''),
                 request.POST.get('MessageSid', ''),
             )
+            anotar_payload_twilio(request.POST)
             seguir_tw, ids_tw = reclamar_twilio(
                 request.POST,
                 es_status=_es_status_callback_twilio(request.POST),

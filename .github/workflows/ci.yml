@@ -84,6 +84,8 @@ jobs:
             core/tests_linea_bd.py \
             core/tests_webhook_idempotencia.py \
             core/tests_telefono_lock.py \
+            core/tests_bandeja_entrada.py \
+            core/tests_bandeja_entrada.py \
             core/tests_presupuesto_llm.py \
             core/tests_antiflood.py \
             core/tests_campana_meta_v2.py \

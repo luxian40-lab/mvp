@@ -53,20 +53,44 @@ def bot_comercial_webhook(request):
     if denied is not None:
         return denied
 
+    from core.conversacion.bandeja_entrada import anotar_payload_twilio, aplicar_con_turno, omitir_turno
+    from core.nati import normalizar_telefono_whatsapp
+    from core.webhook_evento import CANAL_TWILIO
+
+    def _sid(data):
+        return str(data.get('MessageSid') or '').strip()[:128]
+
+    def _tel(data):
+        return normalizar_telefono_whatsapp(str(data.get('From') or '')) or 'sin-telefono'
+
     try:
         try:
             payload = json.loads(request.body.decode('utf-8'))
+            anotar_payload_twilio(payload)
             sb = _aplicar_sandbox_menu(payload)
             if sb is not None:
+                omitir_turno(CANAL_TWILIO, _sid(payload))
                 return sb
             if not _encolar_bot_comercial_si_async(payload, forzar_canal=True):
-                _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
+                aplicar_con_turno(
+                    CANAL_TWILIO,
+                    _sid(payload),
+                    _tel(payload),
+                    lambda: _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True),
+                )
         except json.JSONDecodeError:
+            anotar_payload_twilio(request.POST)
             sb = _aplicar_sandbox_menu(request.POST)
             if sb is not None:
+                omitir_turno(CANAL_TWILIO, _sid(request.POST))
                 return sb
             if not _encolar_bot_comercial_si_async(request.POST, forzar_canal=True):
-                _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True)
+                aplicar_con_turno(
+                    CANAL_TWILIO,
+                    _sid(request.POST),
+                    _tel(request.POST),
+                    lambda: _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True),
+                )
         return HttpResponse('OK')
     except Exception as e:
         logger.error(f"❌ Error webhook bot comercial: {e}")

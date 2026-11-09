@@ -74,6 +74,78 @@ class TelefonoLockTests(SimpleTestCase):
             hilo.join(timeout=4)
         self.assertTrue(all(not hilo.is_alive() for hilo in hilos))
 
+    def test_el_reintento_deja_pasar_al_que_llego_despues(self):
+        """Hoy el candado no guarda el orden de llegada.
+
+        A llega primero, agota la espera y queda en reintento. B, que llegó
+        después, toma el candado y termina antes de que A vuelva a pedirlo.
+        La bandeja (EKI_BANDEJA_ENTRADA) cambia este orden: A y luego B.
+        """
+        _exige_redis(self)
+        from redis.exceptions import LockError
+
+        from core.locks import telefono_lock
+
+        telefono = '573000000088'
+        orden = []
+        errores = []
+        ocupado = threading.Event()
+        a_rindio = threading.Event()
+        b_salio = threading.Event()
+        soltar = threading.Event()
+
+        def ocupante():
+            try:
+                with telefono_lock(telefono, timeout=15, blocking_timeout=5):
+                    ocupado.set()
+                    soltar.wait(12)
+            except Exception as exc:
+                errores.append(exc)
+
+        def mensaje_a():
+            try:
+                if not ocupado.wait(8):
+                    raise AssertionError('el ocupante no tomó el candado')
+                try:
+                    with telefono_lock(telefono, timeout=15, blocking_timeout=0.4):
+                        orden.append('a')
+                except LockError:
+                    orden.append('a-reintenta')
+                    a_rindio.set()
+                    if not b_salio.wait(12):
+                        raise AssertionError('B no terminó antes del reintento de A')
+                    with telefono_lock(telefono, timeout=15, blocking_timeout=5):
+                        orden.append('a')
+                else:
+                    raise AssertionError('A obtuvo el candado en el primer intento')
+            except Exception as exc:
+                errores.append(exc)
+
+        def mensaje_b():
+            try:
+                if not a_rindio.wait(8):
+                    raise AssertionError('A no se rindió')
+                soltar.set()
+                with telefono_lock(telefono, timeout=15, blocking_timeout=5):
+                    orden.append('b')
+                b_salio.set()
+            except Exception as exc:
+                errores.append(exc)
+                b_salio.set()
+
+        hilos = [
+            threading.Thread(target=ocupante),
+            threading.Thread(target=mensaje_a),
+            threading.Thread(target=mensaje_b),
+        ]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=20)
+        self.assertFalse(errores, errores)
+        self.assertTrue(all(not hilo.is_alive() for hilo in hilos))
+        self.assertEqual(orden, ['a-reintenta', 'b', 'a'])
+
     def test_lock_ocupado_se_procesa_en_un_reintento(self):
         _exige_redis(self)
         celery = pytest.importorskip('celery')
