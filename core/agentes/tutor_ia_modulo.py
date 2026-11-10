@@ -744,8 +744,21 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
     perfil tecnicoagro, enriquece con el repositorio AGROSAVIA en vivo.
     """
     client = _get_client()
+    curso = None
+    if modulos_cubiertos:
+        curso = getattr(modulos_cubiertos[0], 'curso', None)
+
+    from core.lineas.agricapital_experiencia import (
+        NOMBRE_COMPANERO,
+        curso_es_agricapital,
+        prompt_companero_agricapital,
+    )
+
+    agri = curso_es_agricapital(curso)
     na = (nombre_asistente or "").strip()
-    if not na and modulos_cubiertos:
+    if agri:
+        na = NOMBRE_COMPANERO
+    elif not na and modulos_cubiertos:
         c = modulos_cubiertos[0].curso
         cl = getattr(c, "cliente", None) if c else None
         na = (
@@ -757,10 +770,6 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
 
     if not client:
         return _fallback_respuesta_asistente()
-
-    curso = None
-    if modulos_cubiertos:
-        curso = getattr(modulos_cubiertos[0], 'curso', None)
 
     dominio = _contexto_dominio_curso(curso, modulos_cubiertos)
 
@@ -818,11 +827,16 @@ no recorta el tema. Si la pregunta es de apiarios, abejas, muestreo o sanidad
 y el curso habla de eso, ayude con lo concreto. Rechace solo religión, política
 u otros temas ajenos al curso."""
 
+    system_asistente = (
+        prompt_companero_agricapital()
+        if agri
+        else _prompt_sistema_asistente(na)
+    )
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": ajustar_prompt_contexto(_prompt_sistema_asistente(na), curso)},
+                {"role": "system", "content": ajustar_prompt_contexto(system_asistente, curso)},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.5,
@@ -1147,6 +1161,13 @@ def generar_presentacion_agentes(
         etiqueta_rol_facilitador,
         nombre_display_facilitador,
     )
+    from core.lineas.agricapital_experiencia import (
+        curso_es_agricapital,
+        presentacion_inicio_agricapital,
+    )
+
+    if curso_es_agricapital(curso):
+        return presentacion_inicio_agricapital(curso_nombre, estudiante_nombre)
 
     nombre_tutor = 'Formador'
     if es_perfil_tecnicoagro(curso):

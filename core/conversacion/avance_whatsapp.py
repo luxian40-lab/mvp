@@ -152,5 +152,12 @@ def adaptar_mensaje_drip_bloqueo(texto: str, estudiante: Estudiante | None) -> s
 
 
 def texto_bloqueo_drip_cierre(cliente: Cliente | None, *, con_aviso: bool = False) -> str:
-    del cliente
+    from core.lineas.agricapital_experiencia import (
+        TEXTO_DRIP_CIERRE,
+        TEXTO_DRIP_CIERRE_AVISO,
+        cliente_es_agricapital,
+    )
+
+    if cliente_es_agricapital(cliente):
+        return TEXTO_DRIP_CIERRE_AVISO if con_aviso else TEXTO_DRIP_CIERRE
     return TEXTO_DRIP_BLOQUEO_CON_AVISO if con_aviso else TEXTO_DRIP_BLOQUEO_BOTON

@@ -23,6 +23,13 @@ def manejar(contexto: Contexto) -> Respuesta:
             "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
             "o escríbeme tu respuesta abierta final."
         )
+    elif _abierta_agricapital_no_califica(estudiante, msg_body):
+        from core.lineas.agricapital_experiencia import texto_reintento_reto_agricapital
+
+        texto_respuesta = (
+            texto_reintento_reto_agricapital()
+            + '\n\n_Sigue siendo la pregunta abierta final; aún no tiene nota._'
+        )
     else:
         ctx_open = estudiante.contexto_temporal or {}
         pregunta_id = ctx_open.get('pregunta_abierta_final_id')
@@ -248,3 +255,12 @@ def _calificar_pregunta_abierta(pregunta, progreso, estudiante, telefono_limpio,
     except Exception as e:
         logger.warning(f"⚠️ No se pudieron aplicar puntos por pregunta abierta final: {e}")
     return (curso_obj, feedback_final, puntos_msg)
+
+
+def _abierta_agricapital_no_califica(estudiante, msg_body: str) -> bool:
+    from core.lineas.agricapital_experiencia import (
+        es_mensaje_no_calificable_reto,
+        estudiante_es_agricapital,
+    )
+
+    return estudiante_es_agricapital(estudiante) and es_mensaje_no_calificable_reto(msg_body)

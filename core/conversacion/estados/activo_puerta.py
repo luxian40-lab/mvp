@@ -110,10 +110,18 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                     "Para avanzar, Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                 )
             else:
-                texto_respuesta = (
-                    "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
-                    "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
+                from core.lineas.agricapital_experiencia import (
+                    estudiante_es_agricapital,
+                    texto_no_entendi_agricapital,
                 )
+
+                if estudiante_es_agricapital(estudiante):
+                    texto_respuesta = texto_no_entendi_agricapital()
+                else:
+                    texto_respuesta = (
+                        "No entendí. Si quiere avanzar de módulo, pulse continuar, para seguir aprendiendo. "
+                        "Si necesitas ayuda, escribe *ayuda*.\n\n" + _MARCADOR_CONTINUEMOS
+                    )
             try:
                 from twilio.rest import Client as TwilioClient
                 account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')

@@ -36,6 +36,10 @@ def manejar(contexto: Contexto) -> Respuesta:
     if msg_lower in ['ayuda', 'soporte', 'ticket']:
         from core.security_handler import procesar_solicitud_soporte
         texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
+    elif _reto_agricapital_no_califica(estudiante, msg_body):
+        from core.lineas.agricapital_experiencia import texto_reintento_reto_agricapital
+
+        texto_respuesta = texto_reintento_reto_agricapital()
     elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
         # Audio no pudo ser transcrito — pedir reintento sin evaluar
         print(f"🎤 Audio no transcrito en reto — pidiendo reintento")
@@ -437,3 +441,12 @@ def _progreso_de(curso, estudiante, ctx):
             curso = curso
         progreso = _Vacio()
     return progreso
+
+
+def _reto_agricapital_no_califica(estudiante, msg_body: str) -> bool:
+    from core.lineas.agricapital_experiencia import (
+        es_mensaje_no_calificable_reto,
+        estudiante_es_agricapital,
+    )
+
+    return estudiante_es_agricapital(estudiante) and es_mensaje_no_calificable_reto(msg_body)

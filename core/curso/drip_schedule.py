@@ -126,7 +126,14 @@ def calendario_bloquea_modulo(estudiante: Estudiante | None, modulo: Modulo | No
     return timezone.now() < dt
 
 
-def _texto_bloqueo(f_txt: str, cierre: str) -> str:
+def _texto_bloqueo(f_txt: str, cierre: str, cliente=None, *, con_aviso: bool = False) -> str:
+    from core.lineas.agricapital_experiencia import (
+        cliente_es_agricapital,
+        texto_bloqueo_drip_agricapital,
+    )
+
+    if cliente_es_agricapital(cliente):
+        return texto_bloqueo_drip_agricapital(f_txt, con_aviso=con_aviso)
     return (
         '*¡Excelente energía!*\n\n'
         'Estamos preparando su siguiente sesión; aún no enviamos el siguiente módulo para que pueda asimilar lo aprendido.\n\n'
@@ -144,7 +151,7 @@ def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
         f_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
     else:
         f_txt = fecha_desbloqueo.strftime('%d/%m/%Y')
-    return _texto_bloqueo(f_txt, texto_bloqueo_drip_cierre(cliente))
+    return _texto_bloqueo(f_txt, texto_bloqueo_drip_cierre(cliente), cliente)
 
 
 def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None, *, con_aviso: bool = False) -> str:
@@ -152,7 +159,12 @@ def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None, *, 
     from core.avance_whatsapp import texto_bloqueo_drip_cierre
 
     f_txt = timezone.localtime(habilitado_desde).strftime('%d/%m/%Y a las %H:%M')
-    return _texto_bloqueo(f_txt, texto_bloqueo_drip_cierre(cliente, con_aviso=con_aviso))
+    return _texto_bloqueo(
+        f_txt,
+        texto_bloqueo_drip_cierre(cliente, con_aviso=con_aviso),
+        cliente,
+        con_aviso=con_aviso,
+    )
 
 
 def aviso_modulo_cubre(estudiante: Estudiante | None, modulo: Modulo | None, habilitado_desde) -> bool:

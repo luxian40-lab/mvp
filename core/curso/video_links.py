@@ -204,8 +204,12 @@ def video_usa_enlace(modulo, url: str) -> bool:
 
 def reescribir_videos_en_mensaje(mensaje: str, *, estudiante, curso, modulo) -> str:
     """Sustituye [MEDIA:video] por el enlace corto. El resto de adjuntos no cambia."""
-    if not mensaje or '[MEDIA:' not in mensaje or estudiante is None or curso is None:
+    from core.lineas.agricapital_experiencia import preparar_salida_agricapital
+
+    if not mensaje or estudiante is None:
         return mensaje
+    if '[MEDIA:' not in mensaje or curso is None:
+        return preparar_salida_agricapital(estudiante, mensaje)
 
     def _reemplazo(match: re.Match) -> str:
         url = (match.group(1) or '').strip()
@@ -223,7 +227,7 @@ def reescribir_videos_en_mensaje(mensaje: str, *, estudiante, curso, modulo) -> 
             return match.group(0)
         return f'🎥 Para ver el video:\n{url_publica(enlace)}'
 
-    return _MEDIA_RE.sub(_reemplazo, mensaje)
+    return preparar_salida_agricapital(estudiante, _MEDIA_RE.sub(_reemplazo, mensaje))
 
 
 def registrar_apertura(enlace, user_agent: str):

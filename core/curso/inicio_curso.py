@@ -97,6 +97,13 @@ def primera_entrega_al_confirmar(estudiante) -> str | None:
 
 def mensaje_primera_entrega(estudiante, progreso, modulo) -> str:
     """Saludo y el módulo actual. No marca el módulo como completado."""
+    from core.conversacion.multimsg import MULTI_MSG, SEP
+    from core.lineas.agricapital_experiencia import (
+        TEXTO_COMIENZA_MODULO,
+        TEXTO_PUNTOS_INICIO,
+        estudiante_es_agricapital,
+        preparar_salida_agricapital,
+    )
     from core.tutor_ia_modulo import generar_presentacion_agentes
 
     nombre = getattr(estudiante, 'nombre', None) or 'Estudiante'
@@ -110,16 +117,24 @@ def mensaje_primera_entrega(estudiante, progreso, modulo) -> str:
     partes = [msg_tutor, msg_asistente]
     cliente = getattr(estudiante, 'cliente', None)
     usar_puntos = bool(getattr(cliente, 'usar_gamificacion', True)) if cliente is not None else True
+    agri = estudiante_es_agricapital(estudiante)
     if usar_puntos:
-        partes.append(
-            '*Nuestra experiencia de formación funciona a través de puntos*\n\n'
-            'A medida que avance en el curso, tendrá retos que evaluar.\n\n'
-            '¡Vamos a aprender y avanzar juntos!'
-        )
-    partes.append('*Comenzamos con el primer módulo de su curso...*')
+        if agri:
+            partes.append(TEXTO_PUNTOS_INICIO)
+        else:
+            partes.append(
+                '*Nuestra experiencia de formación funciona a través de puntos*\n\n'
+                'A medida que avance en el curso, tendrá retos que evaluar.\n\n'
+                '¡Vamos a aprender y avanzar juntos!'
+            )
+    if agri:
+        partes.append(TEXTO_COMIENZA_MODULO)
+    else:
+        partes.append('*Comenzamos con el primer módulo de su curso...*')
     partes.extend(_partes_del_modulo(progreso, modulo))
     marcar_inicio_entregado(estudiante, progreso.curso_id)
-    return '[MULTI_MSG]' + '[SEP]'.join(p for p in partes if p)
+    texto = MULTI_MSG + SEP.join(p for p in partes if p)
+    return preparar_salida_agricapital(estudiante, texto)
 
 
 def _partes_del_modulo(progreso, modulo) -> list[str]:

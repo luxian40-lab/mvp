@@ -58,12 +58,26 @@ def es_pedido_reenvio_media(mensaje: str) -> bool:
     return False
 
 
+def _es_agri_duda_media(estudiante, mensaje: str) -> bool:
+    """Solo AgriCapital: «no descarga», «no puedo ver la imagen», etc."""
+    from core.lineas.agricapital_experiencia import (
+        es_duda_media_agricapital,
+        estudiante_es_agricapital,
+    )
+
+    return estudiante_es_agricapital(estudiante) and es_duda_media_agricapital(mensaje)
+
+
 def intentar_reenvio_media_curso(estudiante, mensaje: str) -> str | None:
     """
     Si el mensaje pide reenviar video/material, reenvía el paso/módulo actual
     sin avanzar el progreso. Devuelve texto (puede ser [MULTI_MSG]…) o None.
+
+    AgriCapital además reconoce dudas de descarga/imagen/video; si no hay
+    media que reenviar, responde con tip (sin «No entendí»).
     """
-    if not es_pedido_reenvio_media(mensaje):
+    agri_duda = _es_agri_duda_media(estudiante, mensaje)
+    if not es_pedido_reenvio_media(mensaje) and not agri_duda:
         return None
     from core.pqrs_acciones import texto_reenviar_modulo
 
@@ -74,4 +88,9 @@ def intentar_reenvio_media_curso(estudiante, mensaje: str) -> str | None:
             marcar_paquete_recuperado_por_telefono(estudiante.telefono or '')
         except Exception:
             pass
-    return out
+        return out
+    if agri_duda:
+        from core.lineas.agricapital_experiencia import texto_tip_media_agricapital
+
+        return texto_tip_media_agricapital()
+    return None
