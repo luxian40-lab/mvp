@@ -13,9 +13,10 @@ import unicodedata
 logger = logging.getLogger(__name__)
 
 TEXTO_BIENVENIDA = (
-    'Bienvenido/a a eki. AgriCapital te invita a un curso gratis '
-    'por WhatsApp. Toque Registrarme en el formulario para continuar.'
+    'Bienvenido/a a eki. AgriCapital le invita a un curso gratis '
+    'por WhatsApp. Toque Registrarme para continuar.'
 )
+NOMBRE_PUBLICO = 'AgriCapital'
 BOTON_ID_PREFIJO = 'registro-abrir-C'
 CTA_BIENVENIDA = 'Registrarme'
 # Canónica en el wa.me/QR. El match ignora mayúsculas, tildes y puntuación.
@@ -52,6 +53,15 @@ def cliente_id_configurado() -> int | None:
 def es_cliente_agricapital(cliente_id: int | None) -> bool:
     configurado = cliente_id_configurado()
     return configurado is not None and cliente_id == configurado
+
+
+def nombre_publico(cliente) -> str:
+    """Nombre para mensajes. AgriCapital siempre con A y C mayúsculas."""
+    if cliente is None:
+        return NOMBRE_PUBLICO
+    if es_cliente_agricapital(getattr(cliente, 'pk', None)):
+        return NOMBRE_PUBLICO
+    return (getattr(cliente, 'nombre', None) or NOMBRE_PUBLICO).strip() or NOMBRE_PUBLICO
 
 
 def frase_enlace_agricapital() -> str:

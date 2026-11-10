@@ -2,7 +2,8 @@
 
 En otra línea no hace nada: la principal y la línea 2 siguen igual.
 La frase EKI C{id} solo guarda la organización del enlace.
-AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida + Flow de una vez, sin FAQ.
+AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida con botón Registrarme;
+el Flow sale al tocar ese botón. Sin FAQ.
 Si el Flow no está en Meta, lo publica en la WABA de esta línea.
 """
 from __future__ import annotations
@@ -12,11 +13,11 @@ import logging
 
 from core.lineas.perfil import USO_REGISTRO
 from core.lineas.registro_agricapital import (
-    TEXTO_BIENVENIDA,
     destino_frase_agri,
     es_boton_registrarme,
     es_cliente_agricapital,
     es_enlace_agricapital,
+    mandar_bienvenida,
 )
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
@@ -138,8 +139,9 @@ def abrir_registro(telefono: str, body: str) -> str | None:
             destino = agri[1] if agri else None
         if destino is None:
             return 'handled'
-        _avisar(telefono, TEXTO_BIENVENIDA)
-        _enviar_flow(telefono, destino)
+        if mandar_bienvenida(telefono, destino):
+            return 'handled'
+        _avisar(telefono, TEXTO_REINTENTO)
         return 'handled'
 
     if es_cliente_agricapital(cliente_id):

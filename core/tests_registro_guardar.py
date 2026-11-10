@@ -3,7 +3,7 @@ import json
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from core.lineas.registro_guardar import datos_registro, guardar_registro, responder_registro
@@ -98,3 +98,21 @@ class GuardarRegistroTests(TestCase):
         self.assertEqual(Estudiante.objects.get(telefono='573009991006').cliente_id, self.cliente.pk)
         envio.assert_called_once()
         self.assertIsNone(responder_registro('573009991006', 'hola'))
+
+    @patch('core.lineas.registro_guardar._ofrecer_menu_tras_registro')
+    @patch('core.sandbox_menu.enviar_texto_sandbox')
+    @patch('core.sandbox_menu._get_or_create_sesion')
+    def test_agri_listo_dice_AgriCapital_y_abre_menu(self, sesion, envio, menu):
+        sesion.return_value.habeas_aceptado = False
+        with override_settings(EKI_AGRICAPITAL_CLIENTE_ID=str(self.cliente.pk)):
+            self.assertEqual(
+                responder_registro(
+                    '573009991007',
+                    _flow(f'registro-C{self.cliente.pk}', cedula='1099000777'),
+                ),
+                'handled',
+            )
+        texto = envio.call_args.args[2]
+        self.assertIn('AgriCapital', texto)
+        self.assertNotIn('Agricapital', texto)
+        menu.assert_called_once_with('573009991007')

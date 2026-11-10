@@ -117,45 +117,44 @@ class AbrirRegistroTests(SimpleTestCase):
         self.assertEqual(envio.call_args.kwargs['cta'], 'Registrarme')
         self.assertEqual(self.texto.call_count, 4)
 
-    def test_el_enlace_de_agricapital_abre_bienvenida_y_flow(self):
+    def test_el_enlace_de_agricapital_abre_bienvenida_con_boton(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
         ) as envio, patch(
-            'core.lineas.envio.enviar_meta_botones',
+            'core.lineas.envio.enviar_meta_botones', return_value={'success': True},
         ) as botones:
             self.assertEqual(abrir_registro('573001112233', 'EKI C26'), 'handled')
-        botones.assert_not_called()
+        envio.assert_not_called()
+        self.texto.assert_not_called()
         self.recordar.assert_called_once_with('573001112233', 26)
-        self.texto.assert_called_once()
-        self.assertEqual(self.texto.call_args.args[2], TEXTO_BIENVENIDA)
-        self.assertEqual(envio.call_args.kwargs['flow_token'], 'registro-C26')
-        self.assertEqual(envio.call_args.kwargs['cta'], 'Registrarme')
+        botones.assert_called_once()
+        self.assertEqual(botones.call_args.args[1], TEXTO_BIENVENIDA)
+        self.assertEqual(botones.call_args.args[2], [(BOTON_REGISTRARME, CTA_BIENVENIDA)])
 
-    def test_hola_eki_agri_tambien_abre_el_flow(self):
+    def test_hola_eki_agri_tambien_abre_bienvenida_con_boton(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
         ) as envio, patch(
-            'core.lineas.envio.enviar_meta_botones',
+            'core.lineas.envio.enviar_meta_botones', return_value={'success': True},
         ) as botones:
             self.assertEqual(abrir_registro('573001112233', 'Hola eki agri'), 'handled')
-        botones.assert_not_called()
+        envio.assert_not_called()
         self.recordar.assert_called_once_with('573001112233', 26)
-        self.assertEqual(self.texto.call_args.args[2], TEXTO_BIENVENIDA)
-        self.assertIn('AgriCapital', self.texto.call_args.args[2])
-        self.assertEqual(envio.call_args.kwargs['flow_token'], 'registro-C26')
+        self.assertIn('AgriCapital', botones.call_args.args[1])
+        self.assertIn('le invita', botones.call_args.args[1])
 
-    def test_frase_canonica_tambien_abre_el_flow(self):
+    def test_frase_canonica_tambien_abre_bienvenida_con_boton(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
         ) as envio, patch(
-            'core.lineas.envio.enviar_meta_botones',
+            'core.lineas.envio.enviar_meta_botones', return_value={'success': True},
         ) as botones:
             self.assertEqual(abrir_registro('573001112233', FRASE_ENLACE), 'handled')
-        botones.assert_not_called()
-        envio.assert_called_once()
+        envio.assert_not_called()
+        botones.assert_called_once()
         self.recordar.assert_called_once_with('573001112233', 26)
 
-    def test_boton_viejo_registrarme_sigue_abriendo_el_flow(self):
+    def test_boton_registrarme_abre_el_flow(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
         ) as envio, patch('core.lineas.envio.enviar_meta_botones') as botones:

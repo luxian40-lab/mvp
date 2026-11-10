@@ -160,14 +160,34 @@ def responder_registro(telefono: str, body: str) -> str | None:
     enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
     if texto.startswith('Listo'):
         from core.lineas.registro_agricapital import es_cliente_agricapital
-        from core.lineas.registro_cursos import ofrecer_tras_registro
         from core.utils_telefono import estudiante_por_telefono
 
         est = estudiante_por_telefono(telefono)
         cliente_id = getattr(est, 'cliente_id', None) if est is not None else None
         if es_cliente_agricapital(cliente_id):
-            ofrecer_tras_registro(telefono, cliente_id)
+            _ofrecer_menu_tras_registro(telefono)
     return 'handled'
+
+
+def _ofrecer_menu_tras_registro(telefono: str) -> None:
+    """Tras el Flow AgriCapital: pregunta Formación o Asesoría (plan OP1)."""
+    from django.db import DatabaseError
+    from requests import RequestException
+
+    from core.sandbox_menu import (
+        MODO_MENU,
+        _get_or_create_sesion,
+        _set_modo,
+        enviar_menu_sandbox,
+        sandbox_number,
+    )
+
+    try:
+        sesion = _get_or_create_sesion(telefono)
+        _set_modo(sesion, MODO_MENU)
+        enviar_menu_sandbox(telefono, sandbox_number())
+    except (DatabaseError, RequestException, OSError, TypeError, ValueError):
+        logger.exception('registro_menu_tras_flow')
 
 
 def _acepto(valor) -> bool:
@@ -177,10 +197,13 @@ def _acepto(valor) -> bool:
 
 
 def _texto_listo(est, cliente, asignado: bool) -> str:
+    from core.lineas.registro_agricapital import nombre_publico
+
     if cliente is not None and est.cliente_id == cliente.pk:
+        nombre = nombre_publico(cliente)
         if asignado:
-            return f'Listo. Su registro quedó en {cliente.nombre}.'
-        return f'Listo. Su registro sigue en {est.cliente.nombre}.'
+            return f'Listo. Su registro quedó en {nombre}.'
+        return f'Listo. Su registro sigue en {nombre}.'
     if est.cliente_id:
-        return f'Listo. Su registro sigue en {est.cliente.nombre}.'
+        return f'Listo. Su registro sigue en {nombre_publico(est.cliente)}.'
     return 'Listo. Su registro quedó en eki.'
