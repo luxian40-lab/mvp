@@ -4,7 +4,13 @@ from dataclasses import fields
 from django.test import SimpleTestCase, override_settings
 
 from core.lineas.meta import USO_COMPLETA, USO_SOLO_CURSOS, LineaMeta
-from core.lineas.perfil import PERFIL_COMPLETA, PERFIL_SOLO_CURSOS, PerfilLinea, perfil_por_uso
+from core.lineas.perfil import (
+    PERFIL_COMPLETA,
+    PERFIL_REGISTRO,
+    PERFIL_SOLO_CURSOS,
+    PerfilLinea,
+    perfil_por_uso,
+)
 from core.lineas.variante import es_modo_twilio, perfil_de
 
 LINEAS = 'PN_UNO|+573000000001|Principal;PN_DOS|+573000000002|Segunda|cursos'
@@ -27,6 +33,13 @@ class PerfilLineaTests(SimpleTestCase):
             _capacidades(PERFIL_SOLO_CURSOS),
             {'agentes_en_curso', 'certificado', 'campanas', 'curso_directo'},
         )
+
+    def test_linea_3_abre_menu_asesor_y_plan(self):
+        self.assertEqual(
+            _capacidades(PERFIL_REGISTRO),
+            {'menu', 'planes', 'asesores', 'agentes_en_curso', 'certificado'},
+        )
+        self.assertIs(perfil_por_uso('registro'), PERFIL_REGISTRO)
 
     def test_uso_desconocido_es_la_principal(self):
         self.assertIs(perfil_por_uso(''), PERFIL_COMPLETA)

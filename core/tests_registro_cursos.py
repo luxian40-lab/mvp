@@ -48,7 +48,28 @@ class ModoOfertaTests(SimpleTestCase):
 
 @override_settings(**AJUSTES)
 class YaRegistradoTests(SimpleTestCase):
-    def test_con_ficha_no_abre_el_formulario(self):
+    def test_con_ficha_menu_y_asesor_salen_al_menu(self):
+        ficha = SimpleNamespace(cliente_id=7, acepto_terminos=True, nombre='Ana', cedula='1')
+        with salida_por_phone_id(PHONE), patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.lineas.registro_abrir._cliente_guardado', return_value=7,
+        ), patch(
+            'core.lineas.registro_abrir._recordar',
+        ), patch(
+            'core.lineas.registro_abrir._modo_sandbox_activo', return_value=False,
+        ), patch(
+            'core.lineas.registro_cursos.atender_cursos',
+        ) as cursos, patch(
+            'core.lineas.envio.enviar_meta_flow',
+        ) as flow:
+            self.assertIsNone(abrir_registro('573001112233', 'hola'))
+            self.assertIsNone(abrir_registro('573001112233', 'asesor'))
+            self.assertIsNone(abrir_registro('573001112233', 'menu'))
+        flow.assert_not_called()
+        cursos.assert_not_called()
+
+    def test_con_ficha_listo_sigue_en_curso(self):
         ficha = SimpleNamespace(cliente_id=7, acepto_terminos=True, nombre='Ana', cedula='1')
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
@@ -61,9 +82,10 @@ class YaRegistradoTests(SimpleTestCase):
         ) as cursos, patch(
             'core.lineas.envio.enviar_meta_flow',
         ) as flow:
-            self.assertEqual(abrir_registro('573001112233', 'hola'), 'handled')
+            self.assertEqual(abrir_registro('573001112233', 'listo'), 'handled')
+            self.assertEqual(abrir_registro('573001112233', 'ver_curso_5'), 'handled')
         flow.assert_not_called()
-        cursos.assert_called_once_with('573001112233', 'hola', 7)
+        self.assertEqual(cursos.call_count, 2)
 
     def test_la_ficha_no_cambia_de_organizacion_por_otro_enlace(self):
         ficha = SimpleNamespace(cliente_id=7, acepto_terminos=True, nombre='Ana', cedula='1')
@@ -74,9 +96,12 @@ class YaRegistradoTests(SimpleTestCase):
         ), patch(
             'core.lineas.registro_abrir._recordar',
         ), patch(
+            'core.lineas.registro_abrir._modo_sandbox_activo', return_value=False,
+        ), patch(
             'core.lineas.registro_cursos.atender_cursos',
         ) as cursos:
-            abrir_registro('573001112233', 'EKI C12')
+            # EKI C12 no es elección de menú: sigue en cursos del enlace.
+            self.assertEqual(abrir_registro('573001112233', 'EKI C12'), 'handled')
         cursos.assert_called_once_with('573001112233', 'EKI C12', 7)
 
     def test_la_principal_sigue_sin_entrar(self):

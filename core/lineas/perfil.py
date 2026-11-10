@@ -55,8 +55,15 @@ PERFIL_SOLO_CURSOS = PerfilLinea(
     curso_directo=True,
 )
 
-# Línea 3: solo el Flow de registro. Sin menú, cursos ni asesores.
-PERFIL_REGISTRO = PerfilLinea(uso=USO_REGISTRO)
+# Línea 3: registro AgriCapital + menú/asesores del plan (OP1).
+PERFIL_REGISTRO = PerfilLinea(
+    uso=USO_REGISTRO,
+    menu=True,
+    planes=True,
+    asesores=True,
+    agentes_en_curso=True,
+    certificado=True,
+)
 
 _POR_USO = {
     USO_COMPLETA: PERFIL_COMPLETA,

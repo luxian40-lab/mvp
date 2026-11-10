@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 TEXTO_BIENVENIDA = (
     'Bienvenido/a a eki. AgriCapital te invita a un curso gratis '
-    'por WhatsApp. Toca Registrarme para continuar.'
+    'por WhatsApp. Toque Registrarme en el formulario para continuar.'
 )
 BOTON_ID_PREFIJO = 'registro-abrir-C'
 CTA_BIENVENIDA = 'Registrarme'

@@ -2,7 +2,7 @@
 
 En otra línea no hace nada: la principal y la línea 2 siguen igual.
 La frase EKI C{id} solo guarda la organización del enlace.
-AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida + Registrarme, sin FAQ.
+AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida + Flow de una vez, sin FAQ.
 Si el Flow no está en Meta, lo publica en la WABA de esta línea.
 """
 from __future__ import annotations
@@ -12,11 +12,11 @@ import logging
 
 from core.lineas.perfil import USO_REGISTRO
 from core.lineas.registro_agricapital import (
+    TEXTO_BIENVENIDA,
     destino_frase_agri,
     es_boton_registrarme,
     es_cliente_agricapital,
     es_enlace_agricapital,
-    mandar_bienvenida,
 )
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
@@ -119,6 +119,8 @@ def abrir_registro(telefono: str, body: str) -> str | None:
     cliente_id = _cliente_de_turno(telefono, body)
     ficha = _ficha(telefono)
     if ficha is not None:
+        if _cede_al_menu(telefono, body):
+            return None
         from core.lineas.registro_cursos import atender_cursos
 
         atender_cursos(telefono, body, ficha.cliente_id or cliente_id)
@@ -136,9 +138,8 @@ def abrir_registro(telefono: str, body: str) -> str | None:
             destino = agri[1] if agri else None
         if destino is None:
             return 'handled'
-        if mandar_bienvenida(telefono, destino):
-            return 'handled'
-        _avisar(telefono, TEXTO_REINTENTO)
+        _avisar(telefono, TEXTO_BIENVENIDA)
+        _enviar_flow(telefono, destino)
         return 'handled'
 
     if es_cliente_agricapital(cliente_id):
@@ -149,6 +150,61 @@ def abrir_registro(telefono: str, body: str) -> str | None:
         _avisar(telefono, texto)
     _enviar_flow(telefono, cliente_id)
     return 'handled'
+
+
+def _cede_al_menu(telefono: str, body: str) -> bool:
+    """True si el menú/asesoría de la línea deben atender este turno."""
+    from core.lineas.variante import perfil_de
+
+    perfil = perfil_de()
+    if not (perfil.menu or perfil.asesores):
+        return False
+    if _es_avance_de_curso(body):
+        return False
+    if _modo_sandbox_activo(telefono):
+        return True
+    from core.sandbox_menu import _normalizar_eleccion_raiz
+
+    return _normalizar_eleccion_raiz(body) is not None
+
+
+def _es_avance_de_curso(body: str) -> bool:
+    texto = (body or '').strip()
+    if texto.startswith(('ver_curso_', 'info_curso_')):
+        return True
+    from core.conversacion.response_templates import _es_mensaje_listo_avance_curso
+
+    return bool(_es_mensaje_listo_avance_curso(texto))
+
+
+def _modo_sandbox_activo(telefono: str) -> bool:
+    from django.db import DatabaseError
+
+    from core.lineas.sesion import sesion_de
+    from core.sandbox_menu import (
+        MODO_AGENTES,
+        MODO_ASESORIA,
+        MODO_CAFE,
+        MODO_COACH,
+        MODO_CURSOS,
+        MODO_FINANZAS,
+        MODO_FORMACION,
+        MODO_IA_CAMPO,
+        MODO_MENU,
+        MODO_NAT,
+        MODO_VENTAS,
+    )
+
+    modos = {
+        MODO_MENU, MODO_FORMACION, MODO_ASESORIA, MODO_AGENTES, MODO_CURSOS,
+        MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS, MODO_FINANZAS, MODO_CAFE,
+    }
+    try:
+        modo = (sesion_de(telefono).modo or '').strip()
+    except DatabaseError:
+        logger.exception('registro_modo_sesion')
+        return False
+    return modo in modos
 
 
 def _enviar_flow(telefono: str, cliente_id: int | None) -> None:
