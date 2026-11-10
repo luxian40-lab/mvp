@@ -5,7 +5,9 @@ from django.test import SimpleTestCase, override_settings
 
 from mvp_project.infra_redis import (
     LOCAL_REDIS_URL,
+    RedisDeProduccionObligatorio,
     env_truthy_local_redis,
+    exigir_redis_externo,
     is_external_redis_url,
     resolve_eb_celery_redis,
 )
@@ -92,6 +94,39 @@ class InfraRedisResolveTests(SimpleTestCase):
         self.assertTrue(env_truthy_local_redis('1'))
         self.assertFalse(env_truthy_local_redis('0'))
         self.assertFalse(env_truthy_local_redis('false'))
+
+    def test_flag_apagado_sigue_aceptando_local(self):
+        exigir_redis_externo('', fail_closed=False)
+        broker, _, mode = resolve_eb_celery_redis(
+            broker_env='',
+            on_elastic_beanstalk=True,
+            fail_closed=False,
+        )
+        self.assertEqual(mode, 'local')
+        self.assertEqual(broker, LOCAL_REDIS_URL)
+
+    def test_flag_prendido_sin_externo_no_arranca(self):
+        with self.assertRaises(RedisDeProduccionObligatorio):
+            exigir_redis_externo('', fail_closed=True)
+        with self.assertRaises(RedisDeProduccionObligatorio):
+            exigir_redis_externo('redis://127.0.0.1:6379/0', fail_closed=True)
+        with self.assertRaises(RedisDeProduccionObligatorio):
+            resolve_eb_celery_redis(
+                broker_env='',
+                on_elastic_beanstalk=True,
+                fail_closed=True,
+            )
+
+    def test_flag_prendido_con_elasticache_arranca(self):
+        url = 'redis://my-cache.xxx.cache.amazonaws.com:6379/0'
+        exigir_redis_externo(url, fail_closed=True)
+        broker, _, mode = resolve_eb_celery_redis(
+            broker_env=url,
+            on_elastic_beanstalk=True,
+            fail_closed=True,
+        )
+        self.assertEqual(mode, 'external')
+        self.assertEqual(broker, url)
 
     def test_is_external_helpers(self):
         self.assertFalse(is_external_redis_url(''))

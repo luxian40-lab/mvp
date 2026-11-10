@@ -397,6 +397,10 @@ EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().low
 EKI_OUTBOX_ENVIO = os.environ.get('EKI_OUTBOX_ENVIO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: en EB, sin Redis externo el proceso no arranca. False: cae a 127.0.0.1 como hoy.
+EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
 # Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (

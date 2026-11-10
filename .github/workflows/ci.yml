@@ -95,6 +95,7 @@ jobs:
             core/tests_webhook_fallido.py \
             core/tests_twilio_timeout.py \
             core/tests_infra_p3.py \
+            core/tests_infra_redis.py \
             aprende/tests.py \
             aprende/tests_admin.py \
             aprende/tests_aula_rate.py \

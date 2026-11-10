@@ -8,6 +8,10 @@ from __future__ import annotations
 LOCAL_REDIS_URL = 'redis://127.0.0.1:6379/0'
 
 
+class RedisDeProduccionObligatorio(Exception):
+    """En producción, sin Redis externo el proceso no arranca."""
+
+
 def env_truthy_local_redis(raw: str | None, default: str = '1') -> bool:
     """USE_LOCAL_REDIS: default True. 0/false/no/off → False."""
     val = (raw if raw is not None else default).strip().lower()
@@ -23,6 +27,14 @@ def is_external_redis_url(url: str) -> bool:
     return u.startswith('redis://') or u.startswith('rediss://')
 
 
+def exigir_redis_externo(broker_env: str, *, fail_closed: bool) -> None:
+    """Flag off: no hace nada. Flag on: sin URL externa, no hay plan B local."""
+    if fail_closed and not is_external_redis_url(broker_env):
+        raise RedisDeProduccionObligatorio(
+            'REDIS_URL o CELERY_BROKER_URL externo es obligatorio (EKI_REDIS_FAIL_CLOSED).'
+        )
+
+
 def resolve_eb_celery_redis(
     *,
     broker_env: str,
@@ -30,6 +42,7 @@ def resolve_eb_celery_redis(
     use_local_redis: bool = True,
     on_elastic_beanstalk: bool = True,
     default_local: str = LOCAL_REDIS_URL,
+    fail_closed: bool = False,
 ) -> tuple[str, str, str]:
     """
     Devuelve (broker_url, result_backend, mode).
@@ -43,6 +56,7 @@ def resolve_eb_celery_redis(
         return ('', '', 'unchanged')
 
     broker = (broker_env or '').strip()
+    exigir_redis_externo(broker, fail_closed=fail_closed)
     backend = (result_backend_env or '').strip()
 
     if broker and is_external_redis_url(broker):

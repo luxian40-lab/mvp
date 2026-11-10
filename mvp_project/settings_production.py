@@ -386,6 +386,20 @@ if 'SENDGRID_API_KEY' in os.environ:
 # PERFORMANCE - Producción
 # ============================================
 
+# True: sin Redis externo el proceso no arranca. False: cae a 127.0.0.1 como hoy.
+EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+from django.core.exceptions import ImproperlyConfigured
+
+from mvp_project.infra_redis import RedisDeProduccionObligatorio, exigir_redis_externo
+
+_broker_env_prod = (os.environ.get('CELERY_BROKER_URL') or os.environ.get('REDIS_URL') or '').strip()
+try:
+    exigir_redis_externo(_broker_env_prod, fail_closed=EKI_REDIS_FAIL_CLOSED)
+except RedisDeProduccionObligatorio as exc:
+    raise ImproperlyConfigured(str(exc)) from exc
+
 # Cache: Redis compartido web+workers si hay broker (evita LocMem stale en encode video).
 _redis_for_cache = (
     (os.environ.get('REDIS_CACHE_URL') or os.environ.get('REDIS_URL') or os.environ.get('CELERY_BROKER_URL') or '')
@@ -459,6 +473,7 @@ _broker_resolved, _backend_resolved, _redis_mode = resolve_eb_celery_redis(
     result_backend_env=os.environ.get('CELERY_RESULT_BACKEND') or '',
     use_local_redis=_use_local_redis,
     on_elastic_beanstalk=_ON_ELASTIC_BEANSTALK,
+    fail_closed=EKI_REDIS_FAIL_CLOSED,
 )
 if _redis_mode != 'unchanged':
     CELERY_BROKER_URL = _broker_resolved
