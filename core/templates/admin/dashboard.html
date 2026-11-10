@@ -300,7 +300,11 @@
                 <div class="m-card green"><span class="m-label">Estudiantes Activos</span><span id="kpi-total-estudiantes" class="m-value">{{ total_estudiantes }}</span></div>
                 <div class="m-card orange"><span class="m-label">Tasa Completación</span><span id="kpi-tasa-completacion" class="m-value">{{ tasa_completacion }}%</span><span id="kpi-cursos-completados-sub" class="m-sub">{{ cursos_completados }} cursos terminados</span></div>
                 <div class="m-card blue"><span class="m-label">Certificados Emitidos</span><span id="kpi-total-certificados" class="m-value">{{ total_certificados }}</span></div>
-                <div class="m-card"><span class="m-label">Cursos Activos</span><span id="kpi-total-cursos" class="m-value">{{ total_cursos }}</span></div>
+                <div class="m-card" title="NPS de la nota 1–10 al cerrar el curso. Promotores 9–10 menos detractores 1–6. El 7 y el 8 cuentan en la base. n={{ nps_n }}.">
+                    <span class="m-label">NPS</span>
+                    <span id="kpi-nps" class="m-value">{% if nps is None %}Sin notas{% else %}{% if nps > 0 %}+{% endif %}{{ nps }}{% endif %}</span>
+                    <span id="kpi-nps-n" class="m-sub">n={{ nps_n }}</span>
+                </div>
                 <div class="m-card green"><span class="m-label">Organizaciones</span><span id="kpi-total-clientes" class="m-value">{{ total_clientes }}</span></div>
                 <div class="m-card red"><span class="m-label">Leads B2B</span><span id="kpi-total-prospectos" class="m-value">{{ total_prospectos }}</span></div>
             </div>
@@ -1129,6 +1133,16 @@ function applyResumenPayload(payload) {
     setText('kpi-cursos-completados-sub', (k.cursos_completados ?? 0) + ' cursos terminados');
     setText('kpi-total-certificados', k.total_certificados ?? 0);
     setText('kpi-total-cursos', k.total_cursos ?? 0);
+    const npsEl = document.getElementById('kpi-nps');
+    if (npsEl) {
+        if (k.nps === null || k.nps === undefined) {
+            npsEl.textContent = 'Sin notas';
+        } else {
+            const n = Number(k.nps);
+            npsEl.textContent = (n > 0 ? '+' : '') + n;
+        }
+    }
+    setText('kpi-nps-n', 'n=' + (k.nps_n ?? 0));
     setText('kpi-total-clientes', k.total_clientes ?? 0);
     setText('kpi-total-prospectos', k.total_prospectos ?? 0);
 

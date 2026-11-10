@@ -14,6 +14,26 @@ logger = logging.getLogger(__name__)
 from ..models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
 from ..models_extras import ArchivoModulo, GrupoEstudiantes
 
+_NPS_VACIO = {
+    'nps': None,
+    'nps_n': 0,
+    'nps_promotores': 0,
+    'nps_pasivos': 0,
+    'nps_detractores': 0,
+}
+
+
+def _nps_pulso(*, cliente_id, curso_id, fecha_inicio_dt, fecha_fin_dt) -> dict:
+    """NPS de NotaCierreCurso para el Pulso (misma regla que el portal)."""
+    from core.analitica.nps_cierre import nps_campos_contexto
+
+    return nps_campos_contexto(
+        cliente_id=cliente_id,
+        curso_id=curso_id,
+        fecha_inicio=fecha_inicio_dt,
+        fecha_fin=fecha_fin_dt,
+    )
+
 
 def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     """Construye contexto y payload JSON del dashboard unificado usando filtros consistentes."""
@@ -139,6 +159,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             'tasa_completacion': 0,
             'ubicaciones_municipio': [],
             'progreso_por_curso': [],
+            **_NPS_VACIO,
         }
         return context, {}
 
@@ -335,6 +356,17 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     total_inscripciones = total_progreso
     tasa_completacion = round((cursos_completados / total_inscripciones * 100), 1) if total_inscripciones > 0 else 0
 
+    try:
+        nps_ctx = _nps_pulso(
+            cliente_id=cliente_id,
+            curso_id=curso_id,
+            fecha_inicio_dt=fecha_inicio_dt,
+            fecha_fin_dt=fecha_fin_dt,
+        )
+    except Exception:
+        logger.exception('dashboard_nps_pulso')
+        nps_ctx = dict(_NPS_VACIO)
+
     municipios = list(
         estudiantes_q.exclude(municipio__isnull=True)
         .exclude(municipio='')
@@ -505,6 +537,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             'puntos_promedio': round(float(puntos_promedio), 1),
             'total_prospectos': int(total_prospectos),
             'tasa_completacion': float(tasa_completacion),
+            'nps': nps_ctx['nps'],
+            'nps_n': int(nps_ctx['nps_n']),
+            'nps_promotores': int(nps_ctx['nps_promotores']),
+            'nps_pasivos': int(nps_ctx['nps_pasivos']),
+            'nps_detractores': int(nps_ctx['nps_detractores']),
         },
         'chart_mensajes': {
             'labels': chart_labels,
@@ -557,6 +594,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'tasa_completacion': tasa_completacion,
         'ubicaciones_municipio': ubicaciones_municipio,
         'progreso_por_curso': progreso_por_curso,
+        **nps_ctx,
         'chart_labels': json.dumps(chart_labels),
         'chart_values': json.dumps(chart_values),
         'chart_ubicaciones_labels': json.dumps(chart_ubicaciones_labels),
