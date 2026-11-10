@@ -5,6 +5,7 @@ Flag off: nadie escribe filas. El claim vive en PostgreSQL, no en Redis.
 from __future__ import annotations
 
 import uuid
+from contextvars import ContextVar
 from datetime import timedelta
 
 from django.conf import settings
@@ -18,6 +19,11 @@ ENVIADO = 'ENVIADO'
 ERROR = 'ERROR'
 INCIERTO = 'INCIERTO'
 _RECLAMABLE = (PENDIENTE,)
+_correlacion_envio: ContextVar[str] = ContextVar('outbox_correlacion', default='')
+
+
+def correlacion_en_vuelo() -> str:
+    return _correlacion_envio.get() or ''
 
 
 def outbox_activo() -> bool:
@@ -118,6 +124,24 @@ def cerrar_con_wamid(correlacion: str, wamid: str) -> bool:
     return n == 1
 
 
+def cerrar_por_status(*, wamid: str, opaco: str = '') -> bool:
+    """Cierra por wamid ya guardado o por biz_opaque outbox:<correlacion>."""
+    if not outbox_activo():
+        return False
+    mid = (wamid or '').strip()[:200]
+    if not mid:
+        return False
+    n = OutboxEnvio.objects.filter(
+        wamid=mid, estado__in=(ENVIANDO, INCIERTO),
+    ).update(estado=ENVIADO)
+    if n:
+        return True
+    bruto = (opaco or '').strip()
+    if not bruto.startswith('outbox:'):
+        return False
+    return cerrar_con_wamid(bruto.split(':', 1)[1].strip(), mid)
+
+
 def vencer_enviando(minutos: int | None = None) -> int:
     limite = timezone.now() - timedelta(minutes=minutos if minutos is not None else _minutos_dudosas())
     return OutboxEnvio.objects.filter(estado=ENVIANDO, intento_en__lt=limite).update(estado=INCIERTO)
@@ -137,7 +161,11 @@ def ejecutar(*, correlacion: str, canal: str, telefono: str, phone_id: str, envi
     token = reclamar(fila.correlacion)
     if token is None:
         return {'success': False, 'mensaje_id': None, 'response': 'sin_claim'}
-    resultado = enviar()
+    ctx = _correlacion_envio.set(fila.correlacion)
+    try:
+        resultado = enviar()
+    finally:
+        _correlacion_envio.reset(ctx)
     if isinstance(resultado, dict) and resultado.get('success'):
         marcar(
             fila.correlacion, ENVIADO, token=token,

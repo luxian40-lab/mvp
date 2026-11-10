@@ -119,6 +119,13 @@ def aplicar_statuses(statuses) -> int:
         mid = str(item.get('id') or '').strip()
         if not mid:
             continue
+        from core.models.outbox_envio import cerrar_por_status
+
+        if cerrar_por_status(
+            wamid=mid,
+            opaco=str(item.get('biz_opaque_callback_data') or ''),
+        ):
+            actualizados += 1
         toco_envio = _aplicar_status_envio(item, mid)
         if toco_envio:
             actualizados += 1

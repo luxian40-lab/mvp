@@ -16,6 +16,7 @@ from core.models.outbox_envio import (
     PENDIENTE,
     OutboxEnvio,
     cerrar_con_wamid,
+    cerrar_por_status,
     ejecutar,
     marcar,
     outbox_activo,
@@ -88,6 +89,27 @@ class OutboxEnvioTests(TestCase):
         self.assertEqual(fila.wamid, 'wamid.1')
 
     @override_settings(EKI_OUTBOX_ENVIO=True)
+    def test_status_con_opaco_cierra_incierto(self):
+        from core.canal.meta_estados import aplicar_statuses
+
+        registrar(correlacion='c1', canal='meta', telefono='573000000001')
+        reclamar('c1')
+        marcar('c1', INCIERTO, token=OutboxEnvio.objects.get(correlacion='c1').claim_token)
+        n = aplicar_statuses([{
+            'id': 'wamid.recon',
+            'status': 'sent',
+            'biz_opaque_callback_data': 'outbox:c1',
+        }])
+        self.assertGreaterEqual(n, 1)
+        fila = OutboxEnvio.objects.get(correlacion='c1')
+        self.assertEqual(fila.estado, ENVIADO)
+        self.assertEqual(fila.wamid, 'wamid.recon')
+
+    def test_status_con_flag_apagado_no_toca_filas(self):
+        with override_settings(EKI_OUTBOX_ENVIO=False):
+            self.assertFalse(cerrar_por_status(wamid='wamid.x', opaco='outbox:c1'))
+
+    @override_settings(EKI_OUTBOX_ENVIO=True)
     def test_error_no_se_confunde_con_el_lago(self):
         registrar(correlacion='c1', canal='meta', telefono='573000000001')
         token = reclamar('c1')
@@ -114,6 +136,12 @@ def _respuesta_graph(wamid='wamid.ok'):
     WHATSAPP_BUSINESS_ACCOUNT_ID_2='WABA_DOS',
 )
 class SenderConOutboxTests(TestCase):
+    def test_el_post_lleva_el_opaco_de_la_correlacion(self):
+        with patch('core.lineas.envio.requests.post', return_value=_respuesta_graph()) as post:
+            MetaSender('PN_DOS').texto('+573001112233', 'Hola', correlacion='c1')
+        payload = post.call_args.kwargs['json']
+        self.assertEqual(payload['biz_opaque_callback_data'], 'outbox:c1')
+
     def test_texto_deja_enviado_con_wamid(self):
         with patch('core.lineas.envio.requests.post', return_value=_respuesta_graph()) as post:
             res = MetaSender('PN_DOS').texto('+573001112233', 'Hola', correlacion='c1')

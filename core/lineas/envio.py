@@ -82,6 +82,14 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
         logger.error('sandbox_meta_sin_credenciales')
         return {'success': False, 'mensaje_id': None, 'response': 'Credentials not set'}
 
+    from core.models.outbox_envio import correlacion_en_vuelo, outbox_activo
+
+    corr = correlacion_en_vuelo()
+    if outbox_activo() and corr and 'biz_opaque_callback_data' not in payload:
+        tope = int(getattr(settings, 'META_OPAQUE_MAX', 512) or 512)
+        payload = dict(payload)
+        payload['biz_opaque_callback_data'] = f'outbox:{corr}'[:tope]
+
     log = WhatsappLog.objects.create(
         telefono=to,
         mensaje=texto_log or '[META]',
