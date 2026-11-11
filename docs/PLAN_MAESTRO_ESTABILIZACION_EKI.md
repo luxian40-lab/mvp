@@ -8,8 +8,9 @@ Canon corto del bloque 0. El detalle de cada bloque sigue en los planes de abajo
 | `docs/PLAN_ESCALABILIDAD_EKI.md` | P0–P8: CI, idempotencia, Redis, campañas, tope de LLM, tenancy, índices |
 | `docs/PLAN_WORKERS_EKI.md` | Quién consume cada cola en las dos cajas. Va con el bloque 2, no abre otra flota. |
 | `docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md` | Constructor oficial, después de que el webhook esté ordenado |
+| `docs/PLAN_EXPEDIENTE_APRENDIZAJE_EKI.md` | Qué significa “completó el curso”. Corte paralelo al bloque 2. No abre el padrón. Camino a 8: bloque A. |
 
-Orden de salida: tronco y checklist corto, **bandeja**, **outbox** junto con el mapa de workers (`docs/PLAN_WORKERS_EKI.md`), versiones de cohorte, constructor, ciclo bajo 30 (después del padrón), campañas y conservación, contrato del IQ Rural. H1 ya está en producción (28 oct). Un bloque a la vez. `core` sigue siendo la única app de dominio.
+Orden de salida: tronco y checklist corto, **bandeja**, **outbox** junto con el mapa de workers (`docs/PLAN_WORKERS_EKI.md`), versiones de cohorte, constructor, ciclo bajo 30 (después del padrón), campañas y conservación, contrato del IQ Rural. H1 ya está en producción (28 oct). Un bloque a la vez. `core` sigue siendo la única app de dominio. El expediente de aprendizaje se puede cortar **en paralelo**: un commit no mezcla diploma con outbox ni con sleeps.
 
 ## Cifra de ciclo (8 de noviembre de 2026)
 
