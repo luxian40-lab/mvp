@@ -3,8 +3,9 @@ from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from core.analitica.nps_cierre import nps_nota_cierre
+from core.analitica.nps_cierre import nps_nota_cierre, nps_por_curso
 from core.models import Cliente, Curso, Estudiante, NotaCierreCurso
+from core.models_extras import GrupoEstudiantes
 
 
 class NpsNotaCierreUnitTests(TestCase):
@@ -67,6 +68,32 @@ class NpsNotaCierreUnitTests(TestCase):
         self.assertEqual(solo['n'], 1)
         self.assertEqual(solo['nps'], 100)
 
+    def test_filtro_grupo_y_desglose_call_center(self):
+        grupo = GrupoEstudiantes.objects.create(nombre='Cohorte A', cliente=self.org)
+        for est, nota in zip(self.ests, (10, 9, 8, 6)):
+            NotaCierreCurso.objects.create(estudiante=est, curso=self.curso, nota=nota)
+        grupo.estudiantes.add(self.ests[0], self.ests[3])  # 10 y 6 → NPS 0, n=2
+        out = nps_nota_cierre(cliente_id=self.org.id, grupo_id=grupo.id)
+        self.assertEqual(out['n'], 2)
+        self.assertEqual(out['nps'], 0)
+        self.assertEqual(out['promotores'], 1)
+        self.assertEqual(out['detractores'], 1)
+        self.assertEqual(out['pct_promotores'], 50)
+        self.assertEqual(out['pct_detractores'], 50)
+        self.assertEqual(out['por_nota'][9]['nota'], 10)
+        self.assertEqual(out['por_nota'][9]['n'], 1)
+
+    def test_nps_por_curso_lista(self):
+        otro = Curso.objects.create(nombre='Otro', descripcion='d', cliente=self.org)
+        NotaCierreCurso.objects.create(estudiante=self.ests[0], curso=self.curso, nota=10)
+        NotaCierreCurso.objects.create(estudiante=self.ests[1], curso=self.curso, nota=9)
+        NotaCierreCurso.objects.create(estudiante=self.ests[2], curso=otro, nota=1)
+        filas = nps_por_curso(cliente_id=self.org.id)
+        self.assertEqual(len(filas), 2)
+        self.assertEqual(filas[0]['nombre'], 'Curso NPS')
+        self.assertEqual(filas[0]['n'], 2)
+        self.assertEqual(filas[0]['nps'], 100)
+
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class NpsEnDashboardPulsoTests(TestCase):
@@ -106,6 +133,31 @@ class NpsEnDashboardPulsoTests(TestCase):
         compact = payload.replace(' ', '')
         self.assertIn('"nps":25', compact)
         self.assertIn('"nps_n":4', compact)
+        self.assertIn('id="pulso-nps-detalle"', html)
+        self.assertIn('id="kpi-nps-promotores"', html)
+        self.assertIn('name="grupo"', html)
+
+    def test_embudo_oculta_carrusel_general(self):
+        Curso.objects.create(
+            nombre='Vitrina Carrusel',
+            descripcion='d',
+            cliente=None,
+            activo=True,
+            catalogo_menu=True,
+        )
+        propio = Curso.objects.create(
+            nombre='Cohorte Real',
+            descripcion='d',
+            cliente=self.org,
+            activo=True,
+        )
+        url = reverse('dashboard_unificado') + '?tab=learning&section=embudo'
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        cursos = list(resp.context['cursos'].values_list('nombre', flat=True))
+        self.assertIn('Cohorte Real', cursos)
+        self.assertNotIn('Vitrina Carrusel', cursos)
+        self.assertIn(propio.id, list(resp.context['cursos'].values_list('id', flat=True)))
 
 
 class PulsoChartsClaimTemplateTests(SimpleTestCase):

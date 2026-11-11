@@ -20,7 +20,27 @@ _NPS_VACIO = {
     'nps_promotores': 0,
     'nps_pasivos': 0,
     'nps_detractores': 0,
+    'nps_pct_promotores': 0,
+    'nps_pct_pasivos': 0,
+    'nps_pct_detractores': 0,
+    'nps_por_nota': [{'nota': i, 'n': 0} for i in range(1, 11)],
+    'nps_por_curso': [],
 }
+
+
+def _cursos_selector_analitica(*, cliente_id=None, para_embudo=False):
+    """Lista de cursos del filtro. Embudo excluye vitrina/carrusel general."""
+    from django.db.models import Q
+
+    qs = Curso.objects.filter(activo=True).select_related('cliente')
+    if cliente_id:
+        qs = qs.filter(cliente_id=cliente_id)
+    elif para_embudo:
+        # Sin org: no inundar con catálogo Formación (carrusel).
+        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
+    if para_embudo:
+        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
+    return qs.order_by('cliente__nombre', 'orden', 'nombre', 'id')
 
 
 def _charts_y_nps_pulso(
@@ -30,6 +50,7 @@ def _charts_y_nps_pulso(
     fecha_fin_dt,
     cliente_id,
     curso_id,
+    grupo_id,
     fecha_inicio_dt,
 ):
     """Series del Pulso + NPS (fuera del cuerpo para no engordar el contexto)."""
@@ -73,6 +94,7 @@ def _charts_y_nps_pulso(
         nps_ctx = nps_campos_contexto(
             cliente_id=cliente_id,
             curso_id=curso_id,
+            grupo_id=grupo_id,
             fecha_inicio=fecha_inicio_dt,
             fecha_fin=fecha_fin_dt,
         )
@@ -221,12 +243,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         return context, {}
 
     clientes_all = Cliente.objects.all().order_by('nombre')
-    # Con organización elegida: solo cursos de esa org (no el catálogo completo).
-    cursos_all = Curso.objects.all().order_by('nombre')
-    if cliente_id:
-        cursos_all = cursos_all.filter(cliente_id=cliente_id)
-        if curso_id and not cursos_all.filter(pk=curso_id).exists():
-            curso_id = None
+    # Embudo: sin vitrina/carrusel. Otras pestañas: con org, solo cursos de esa org.
+    para_embudo = learning_section == 'embudo'
+    cursos_all = _cursos_selector_analitica(cliente_id=cliente_id, para_embudo=para_embudo)
+    if curso_id and not cursos_all.filter(pk=curso_id).exists():
+        curso_id = None
 
     estudiantes_q = Estudiante.objects.filter(activo=True)
     if cliente_id:
@@ -387,6 +408,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         fecha_fin_dt=fecha_fin_dt,
         cliente_id=cliente_id,
         curso_id=curso_id,
+        grupo_id=grupo_id,
         fecha_inicio_dt=fecha_inicio_dt,
     )
     ubicaciones_municipio = pulso_extra['ubicaciones_municipio']
