@@ -1,0 +1,32 @@
+# Postgres y Redis de prueba. No es RDS. No usa el puerto 5432
+# (en esta máquina 5432 es otra aplicación: no se toca).
+#
+#   docker compose -f docker-compose.test.yml up -d
+#   docs/ENTORNO_PRUEBAS_LOCAL.md
+
+services:
+  eki-test-pg:
+    image: postgres:15
+    container_name: eki-test-pg
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: eki_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d eki_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  eki-test-redis:
+    image: redis:7
+    container_name: eki-test-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

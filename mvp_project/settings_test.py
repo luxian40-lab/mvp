@@ -1,16 +1,21 @@
 """Settings de pytest/CI: PostgreSQL obligatorio. Sin fallback a SQLite."""
 import os
 
+from .postgres_prueba import host_puerto_postgres_prueba
 from .settings import *  # noqa: F403
 
+_pg_host, _pg_port = host_puerto_postgres_prueba(
+    os.environ.get('POSTGRES_HOST'),
+    os.environ.get('POSTGRES_PORT'),
+)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRES_DB", "eki_test"),
         "USER": os.environ.get("POSTGRES_USER", "postgres"),
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "HOST": _pg_host,
+        "PORT": _pg_port,
     }
 }
 

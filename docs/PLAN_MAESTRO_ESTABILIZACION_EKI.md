@@ -9,6 +9,7 @@ Canon corto del bloque 0. El detalle de cada bloque sigue en los planes de abajo
 | `docs/PLAN_WORKERS_EKI.md` | Quién consume cada cola en las dos cajas. Va con el bloque 2, no abre otra flota. |
 | `docs/PLAN_CONSTRUCTOR_CURSOS_EKI.md` | Constructor oficial, después de que el webhook esté ordenado |
 | `docs/PLAN_EXPEDIENTE_APRENDIZAJE_EKI.md` | Qué significa “completó el curso”. Corte paralelo al bloque 2. No abre el padrón. Camino a 8: bloque A. |
+| `docs/ENTORNO_PRUEBAS_LOCAL.md` | Postgres y Redis de prueba en Docker (puerto 5433). Nunca RDS. Nunca el 5432 de otra app. |
 
 Orden de salida: tronco y checklist corto, **bandeja**, **outbox** junto con el mapa de workers (`docs/PLAN_WORKERS_EKI.md`), versiones de cohorte, constructor, ciclo bajo 30 (después del padrón), campañas y conservación, contrato del IQ Rural. H1 ya está en producción (28 oct). Un bloque a la vez. `core` sigue siendo la única app de dominio. El expediente de aprendizaje se puede cortar **en paralelo**: un commit no mezcla diploma con outbox ni con sleeps.
 
@@ -31,7 +32,7 @@ Orden de salida: tronco y checklist corto, **bandeja**, **outbox** junto con el 
 
 ## Suite
 
-El pull request corre solo el checklist de `.github/workflows/ci.yml`. Ese pytest tiene tope de 8 minutos. Entran los contratos cortos de presupuesto LLM, antiflood, campañas Meta v2, tenancy y el contrato del Builder. La UI del Builder (65 tests) y Playwright se quedan fuera.
+El pull request corre solo el checklist de `.github/workflows/ci.yml`. Ese pytest tiene tope de 8 minutos. Entran los contratos cortos de presupuesto LLM, antiflood, campañas Meta v2, tenancy y el contrato del Builder. La UI del Builder (65 tests) y Playwright se quedan fuera. En el PC, los tests usan Docker en **5433** (`docs/ENTORNO_PRUEBAS_LOCAL.md`). RDS no se alcanza y no se usa. El 5432 local es otra base: no se toca.
 
 `pytest .` vive en `.github/workflows/ci-suite-nocturna.yml`: 01:00 Bogotá, y a mano con `workflow_dispatch`. Falla si aparece un fallo que no está en `scripts/baseline_failures_before.txt`. No frena el merge.
 
