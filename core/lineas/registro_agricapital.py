@@ -12,9 +12,10 @@ import unicodedata
 
 logger = logging.getLogger(__name__)
 
+# Cuerpo del Flow (un solo mensaje): el CTA abre el formulario.
 TEXTO_BIENVENIDA = (
-    'Bienvenido/a a eki. AgriCapital le invita a un curso gratis '
-    'por WhatsApp. Toque Registrarme para continuar.'
+    '¡Qué bueno tenerte aquí! Estás a pocos pasos de empezar tu curso por WhatsApp. '
+    'Toca *«Registrarme»* para comenzar.'
 )
 NOMBRE_PUBLICO = 'AgriCapital'
 BOTON_ID_PREFIJO = 'registro-abrir-C'

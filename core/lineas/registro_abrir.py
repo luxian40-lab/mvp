@@ -2,8 +2,8 @@
 
 En otra línea no hace nada: la principal y la línea 2 siguen igual.
 La frase EKI C{id} solo guarda la organización del enlace.
-AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): bienvenida con botón Registrarme;
-el Flow sale al tocar ese botón. Sin FAQ.
+AgriCapital (EKI_AGRICAPITAL_CLIENTE_ID): abre el Flow de una vez con copy
+propio. Sin FAQ. El botón viejo de bienvenida sigue abriendo el Flow.
 Si el Flow no está en Meta, lo publica en la WABA de esta línea.
 """
 from __future__ import annotations
@@ -13,11 +13,11 @@ import logging
 
 from core.lineas.perfil import USO_REGISTRO
 from core.lineas.registro_agricapital import (
+    TEXTO_BIENVENIDA,
     destino_frase_agri,
     es_boton_registrarme,
     es_cliente_agricapital,
     es_enlace_agricapital,
-    mandar_bienvenida,
 )
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
@@ -129,7 +129,7 @@ def abrir_registro(telefono: str, body: str) -> str | None:
 
     cliente_boton = es_boton_registrarme(body)
     if cliente_boton is not None:
-        _enviar_flow(telefono, cliente_boton)
+        _enviar_flow(telefono, cliente_boton, texto=TEXTO_BIENVENIDA)
         return 'handled'
 
     if es_enlace_agricapital(cliente_id, body):
@@ -139,13 +139,11 @@ def abrir_registro(telefono: str, body: str) -> str | None:
             destino = agri[1] if agri else None
         if destino is None:
             return 'handled'
-        if mandar_bienvenida(telefono, destino):
-            return 'handled'
-        _avisar(telefono, TEXTO_REINTENTO)
+        _enviar_flow(telefono, destino, texto=TEXTO_BIENVENIDA)
         return 'handled'
 
     if es_cliente_agricapital(cliente_id):
-        _enviar_flow(telefono, cliente_id)
+        _enviar_flow(telefono, cliente_id, texto=TEXTO_BIENVENIDA)
         return 'handled'
 
     for texto in TEXTOS_ENTRADA:
@@ -209,7 +207,7 @@ def _modo_sandbox_activo(telefono: str) -> bool:
     return modo in modos
 
 
-def _enviar_flow(telefono: str, cliente_id: int | None) -> None:
+def _enviar_flow(telefono: str, cliente_id: int | None, texto: str | None = None) -> None:
     flow_id = flow_id_registro()
     if not flow_id:
         _avisar(telefono, TEXTO_SIN_FLOW)
@@ -218,7 +216,7 @@ def _enviar_flow(telefono: str, cliente_id: int | None) -> None:
 
     resultado = enviar_meta_flow(
         telefono,
-        TEXTO_FLOW,
+        (texto or TEXTO_FLOW).strip() or TEXTO_FLOW,
         flow_id,
         pantalla=PANTALLA,
         flow_token=token_de_cliente(cliente_id),

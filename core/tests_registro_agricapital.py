@@ -83,7 +83,7 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
         patch('core.lineas.registro_abrir._cliente_guardado', return_value=None).start()
         self.addCleanup(patch.stopall)
 
-    def test_eki_c_agricapital_manda_bienvenida_con_boton(self):
+    def test_eki_c_agricapital_abre_el_flow_de_una_vez(self):
         with salida_por_phone_id(PHONE), patch(
             'core.sandbox_menu.enviar_texto_sandbox',
         ) as texto, patch(
@@ -93,17 +93,15 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
         ) as flow:
             self.assertEqual(abrir_registro('573001112233', f'EKI C{AGRI_ID}'), 'handled')
         texto.assert_not_called()
-        flow.assert_not_called()
-        botones.assert_called_once()
-        self.assertEqual(botones.call_args.args[1], TEXTO_BIENVENIDA)
-        self.assertIn('le invita', TEXTO_BIENVENIDA)
-        self.assertIn('AgriCapital', TEXTO_BIENVENIDA)
-        self.assertEqual(
-            botones.call_args.args[2],
-            [(f'{BOTON_ID_PREFIJO}{AGRI_ID}', 'Registrarme')],
-        )
+        botones.assert_not_called()
+        flow.assert_called_once()
+        self.assertEqual(flow.call_args.args[1], TEXTO_BIENVENIDA)
+        self.assertEqual(flow.call_args.kwargs['cta'], 'Registrarme')
+        self.assertEqual(flow.call_args.kwargs['flow_token'], f'registro-C{AGRI_ID}')
+        self.assertIn('pocos pasos', TEXTO_BIENVENIDA)
+        self.assertNotIn('Bienvenido', TEXTO_BIENVENIDA)
 
-    def test_hola_agricapital_manda_bienvenida_con_boton(self):
+    def test_hola_agricapital_abre_el_flow_con_copy_nuevo(self):
         with salida_por_phone_id(PHONE), patch(
             'core.sandbox_menu.enviar_texto_sandbox',
         ) as texto, patch(
@@ -116,10 +114,11 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
                 'handled',
             )
         texto.assert_not_called()
-        flow.assert_not_called()
-        botones.assert_called_once()
+        botones.assert_not_called()
+        flow.assert_called_once()
+        self.assertEqual(flow.call_args.args[1], TEXTO_BIENVENIDA)
 
-    def test_boton_registrarme_abre_el_flow(self):
+    def test_boton_registrarme_viejo_sigue_abriendo_el_flow(self):
         with salida_por_phone_id(PHONE), patch(
             'core.lineas.envio.enviar_meta_flow', return_value={'success': True},
         ) as flow, patch('core.lineas.envio.enviar_meta_botones') as botones:
@@ -131,6 +130,7 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
         flow.assert_called_once()
         self.assertEqual(flow.call_args.kwargs['flow_token'], f'registro-C{AGRI_ID}')
         self.assertEqual(flow.call_args.kwargs['cta'], 'Registrarme')
+        self.assertEqual(flow.call_args.args[1], TEXTO_BIENVENIDA)
 
     def test_otro_cliente_sigue_abriendo_el_flow_al_instante(self):
         with salida_por_phone_id(PHONE), patch(
