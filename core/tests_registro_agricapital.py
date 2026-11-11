@@ -96,10 +96,12 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
         botones.assert_not_called()
         flow.assert_called_once()
         self.assertEqual(flow.call_args.args[1], TEXTO_BIENVENIDA)
-        self.assertEqual(flow.call_args.kwargs['cta'], 'Registrarme')
+        self.assertEqual(flow.call_args.kwargs['cta'], 'Confirmar mis datos')
         self.assertEqual(flow.call_args.kwargs['flow_token'], f'registro-C{AGRI_ID}')
         self.assertIn('pocos pasos', TEXTO_BIENVENIDA)
+        self.assertIn('Confirmar mis datos', TEXTO_BIENVENIDA)
         self.assertNotIn('Bienvenido', TEXTO_BIENVENIDA)
+        self.assertLessEqual(len(flow.call_args.kwargs['cta']), 20)
 
     def test_hola_agricapital_abre_el_flow_con_copy_nuevo(self):
         with salida_por_phone_id(PHONE), patch(
@@ -129,7 +131,7 @@ class BienvenidaAgriCapitalTests(SimpleTestCase):
         botones.assert_not_called()
         flow.assert_called_once()
         self.assertEqual(flow.call_args.kwargs['flow_token'], f'registro-C{AGRI_ID}')
-        self.assertEqual(flow.call_args.kwargs['cta'], 'Registrarme')
+        self.assertEqual(flow.call_args.kwargs['cta'], 'Confirmar mis datos')
         self.assertEqual(flow.call_args.args[1], TEXTO_BIENVENIDA)
 
     def test_otro_cliente_sigue_abriendo_el_flow_al_instante(self):

@@ -13,13 +13,14 @@ import unicodedata
 logger = logging.getLogger(__name__)
 
 # Cuerpo del Flow (un solo mensaje): el CTA abre el formulario.
+# Título del botón Meta: máx. 20 caracteres.
 TEXTO_BIENVENIDA = (
     '¡Qué bueno tenerte aquí! Estás a pocos pasos de empezar tu curso por WhatsApp. '
-    'Toca *«Registrarme»* para comenzar.'
+    'Toca *«Confirmar mis datos»* para comenzar.'
 )
 NOMBRE_PUBLICO = 'AgriCapital'
 BOTON_ID_PREFIJO = 'registro-abrir-C'
-CTA_BIENVENIDA = 'Registrarme'
+CTA_BIENVENIDA = 'Confirmar mis datos'
 # Canónica en el wa.me/QR. El match ignora mayúsculas, tildes y puntuación.
 FRASE_ENLACE = 'Hola, AgriCapital me invitó a un curso gratis'
 # Claves ya normalizadas (_norm_frase). Aliases cortos y QR viejos.
@@ -102,7 +103,7 @@ def es_enlace_agricapital(cliente_id: int | None, body: str) -> bool:
 
 
 def es_boton_registrarme(body: str) -> int | None:
-    """Id de cliente si tocó Registrarme de la bienvenida AgriCapital."""
+    """Id de cliente si tocó el CTA de bienvenida AgriCapital."""
     texto = (body or '').strip()
     if not texto.startswith(BOTON_ID_PREFIJO):
         return None
@@ -116,7 +117,7 @@ def es_boton_registrarme(body: str) -> int | None:
 
 
 def mandar_bienvenida(telefono: str, cliente_id: int) -> bool:
-    """Bienvenida con botón Registrarme. True si Meta aceptó el envío."""
+    """Bienvenida con botón Confirmar mis datos. True si Meta aceptó el envío."""
     from django.db import DatabaseError
     from requests import RequestException
 
