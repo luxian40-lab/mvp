@@ -47,22 +47,51 @@ def _abrir_imagen_campo(file_field):
         return None
 
 
-def _cargar_fuentes():
-    fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+def _tope_maestro():
+    try:
+        from django.conf import settings
+        return int(getattr(settings, 'CERT_MAESTRO_LADO_MAX', 4096) or 4096)
+    except Exception:
+        return 4096
+
+
+def _preparar_lienzo(fondo, *, max_lado=None):
+    """Fondo a tamaño nativo (tope de lado). Escala = alto / 848. Sin fondo: 1200×848."""
+    if max_lado is None:
+        max_lado = _tope_maestro()
+    if fondo is None:
+        return None, ANCHO, ALTO, 1.0
+    img = fondo.convert('RGB') if fondo.mode != 'RGB' else fondo.copy()
+    w, h = img.size
+    largo = max(w, h)
+    if largo > max_lado:
+        escala_cap = max_lado / float(largo)
+        img = img.resize(
+            (max(1, int(w * escala_cap)), max(1, int(h * escala_cap))),
+            Image.Resampling.LANCZOS,
+        )
+        w, h = img.size
+    return img, w, h, h / float(ALTO)
+
+
+def _px(valor, escala):
+    return max(1, int(round(valor * escala)))
+
+
+def _cargar_fuentes(escala=1.0):
+    escala = max(escala, 0.25)
+    aqui = os.path.dirname(os.path.abspath(__file__))
     candidatas = [
-        (os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 56, 24, 22, 18),
-        ('arial.ttf', 42, 20, 18, 14),
-        ('C:\\Windows\\Fonts\\arial.ttf', 42, 20, 18, 14),
-        ('C:\\Windows\\Fonts\\arialbd.ttf', 42, 20, 18, 14),
+        os.path.join(aqui, 'fonts', 'GreatVibes-Regular.ttf'),
+        os.path.join(aqui, '..', 'fonts', 'GreatVibes-Regular.ttf'),
+        'arial.ttf',
+        'C:\\Windows\\Fonts\\arial.ttf',
+        'C:\\Windows\\Fonts\\arialbd.ttf',
     ]
-    for path, s1, s2, s3, s4 in candidatas:
+    bases = (56, 24, 22, 18)
+    for path in candidatas:
         try:
-            return (
-                ImageFont.truetype(path, s1),
-                ImageFont.truetype(path, s2),
-                ImageFont.truetype(path, s3),
-                ImageFont.truetype(path, s4),
-            )
+            return tuple(ImageFont.truetype(path, _px(b, escala)) for b in bases)
         except (IOError, OSError):
             continue
     default = ImageFont.load_default()
@@ -96,40 +125,44 @@ def render_certificado_diseno_eki(
     texto_certificado = (getattr(plantilla, 'texto_certificado', None) or 'CERTIFICADO DE FINALIZACIÓN').strip()
 
     fondo = _abrir_imagen_campo(getattr(plantilla, 'imagen_fondo', None) if plantilla else None)
-    if fondo:
-        img = fondo.resize((ANCHO, ALTO), Image.Resampling.LANCZOS)
-    else:
-        img = Image.new('RGB', (ANCHO, ALTO), (255, 255, 255))
+    img, ancho, alto, escala = _preparar_lienzo(fondo)
+    if img is None:
+        img = Image.new('RGB', (ancho, alto), (255, 255, 255))
         draw_bg = ImageDraw.Draw(img)
-        margin = 36
+        margin = _px(36, escala)
         draw_bg.rectangle(
-            (margin, margin, ANCHO - margin, ALTO - margin),
+            (margin, margin, ancho - margin, alto - margin),
             outline=color_primario,
-            width=4,
+            width=_px(4, escala),
         )
         draw_bg.rectangle(
-            (margin + 10, margin + 10, ANCHO - margin - 10, ALTO - margin - 10),
+            (margin + _px(10, escala), margin + _px(10, escala),
+             ancho - margin - _px(10, escala), alto - margin - _px(10, escala)),
             outline=color_secundario,
-            width=2,
+            width=_px(2, escala),
         )
 
     draw = ImageDraw.Draw(img)
-    font_titulo, font_nombre, font_medio, font_peq = _cargar_fuentes()
+    font_titulo, font_nombre, font_medio, font_peq = _cargar_fuentes(escala)
 
     logo = _abrir_imagen_campo(getattr(plantilla, 'logo_institucion', None) if plantilla else None)
     if logo:
-        logo.thumbnail((140, 140), Image.Resampling.LANCZOS)
-        img.paste(logo, ((ANCHO - logo.width) // 2, 42))
+        logo.thumbnail((_px(140, escala), _px(140, escala)), Image.Resampling.LANCZOS)
+        img.paste(logo, ((ancho - logo.width) // 2, _px(42, escala)))
 
-    _texto_centrado(draw, 170, texto_superior, font_medio, color_primario)
-    _texto_centrado(draw, 230, texto_certificado, font_titulo, color_secundario)
-    draw.line((220, 290, ANCHO - 220, 290), fill=color_secundario, width=3)
+    _texto_centrado(draw, _px(170, escala), texto_superior, font_medio, color_primario, ancho=ancho)
+    _texto_centrado(draw, _px(230, escala), texto_certificado, font_titulo, color_secundario, ancho=ancho)
+    draw.line(
+        (_px(220, escala), _px(290, escala), ancho - _px(220, escala), _px(290, escala)),
+        fill=color_secundario,
+        width=_px(3, escala),
+    )
 
-    _texto_centrado(draw, 330, 'Se otorga el presente certificado a', font_peq, (30, 30, 30))
-    _texto_centrado(draw, 380, (nombre_estudiante or NOMBRE_DEMO).upper(), font_nombre, color_primario)
-    _texto_centrado(draw, 470, 'Por haber completado satisfactoriamente el curso', font_peq, (30, 30, 30))
-    _texto_centrado(draw, 520, curso_nombre or CURSO_DEMO, font_medio, color_secundario)
-    _texto_centrado(draw, 590, f'Calificación final: {calificacion_final}%', font_peq, (30, 30, 30))
+    _texto_centrado(draw, _px(330, escala), 'Se otorga el presente certificado a', font_peq, (30, 30, 30), ancho=ancho)
+    _texto_centrado(draw, _px(380, escala), (nombre_estudiante or NOMBRE_DEMO).upper(), font_nombre, color_primario, ancho=ancho)
+    _texto_centrado(draw, _px(470, escala), 'Por haber completado satisfactoriamente el curso', font_peq, (30, 30, 30), ancho=ancho)
+    _texto_centrado(draw, _px(520, escala), curso_nombre or CURSO_DEMO, font_medio, color_secundario, ancho=ancho)
+    _texto_centrado(draw, _px(590, escala), f'Calificación final: {calificacion_final}%', font_peq, (30, 30, 30), ancho=ancho)
 
     if not fecha_emision:
         fecha_emision = timezone.localdate()
@@ -137,19 +170,19 @@ def render_certificado_diseno_eki(
         fecha_txt = fecha_emision.strftime('%d/%m/%Y')
     else:
         fecha_txt = str(fecha_emision)
-    _texto_centrado(draw, 640, f'Fecha de emisión: {fecha_txt}', font_peq, (80, 80, 80))
+    _texto_centrado(draw, _px(640, escala), f'Fecha de emisión: {fecha_txt}', font_peq, (80, 80, 80), ancho=ancho)
 
     codigo = f'Código: {codigo_verificacion}'
-    bbox = draw.textbbox((0, 0), codigo, font=font_peq)
-    draw.text((48, ALTO - 56), codigo, font=font_peq, fill=(120, 120, 120))
+    draw.text((_px(48, escala), alto - _px(56, escala)), codigo, font=font_peq, fill=(120, 120, 120))
 
     try:
         import qrcode
+        qr_lado = _px(110, escala)
         qr = qrcode.QRCode(version=1, box_size=4, border=1)
         qr.add_data(url_verificacion or 'https://certificados.eki.technology/verificar/')
         qr.make(fit=True)
-        qr_img = qr.make_image(fill_color='black', back_color='white').resize((110, 110))
-        img.paste(qr_img, (ANCHO - 150, ALTO - 150))
+        qr_img = qr.make_image(fill_color='black', back_color='white').resize((qr_lado, qr_lado))
+        img.paste(qr_img, (ancho - _px(150, escala), alto - _px(150, escala)))
     except Exception as exc:
         logger.warning('QR no generado en diseño eki: %s', exc)
 

@@ -16,6 +16,7 @@ from core.certificados.certificado_artefacto import (
     png_maestro_acotado,
     png_para_whatsapp,
 )
+from core.certificados.certificado_diseno_eki import ANCHO, ALTO, _preparar_lienzo
 
 
 def _png(size, color=(255, 255, 255)) -> BytesIO:
@@ -98,3 +99,19 @@ def test_nombres_s3_envio_prefiere_whatsapp():
 def test_nombres_s3_envio_sin_whatsapp_usa_maestro():
     assert nombres_s3_envio('', 'certs/maestro.png') == ['certs/maestro.png']
     assert nombres_s3_envio(None, None) == []
+
+
+def test_preparar_lienzo_fondo_grande_no_baja_a_1200():
+    fondo = Image.new('RGB', (2400, 1700), (200, 200, 210))
+    img, w, h, escala = _preparar_lienzo(fondo, max_lado=4096)
+    assert (w, h) != (ANCHO, ALTO)
+    assert (w, h) == (2400, 1700)
+    assert img.size == (2400, 1700)
+    assert abs(escala - (1700 / 848)) < 0.001
+
+
+def test_preparar_lienzo_sin_fondo_sigue_1200x848():
+    img, w, h, escala = _preparar_lienzo(None, max_lado=4096)
+    assert img is None
+    assert (w, h) == (ANCHO, ALTO)
+    assert escala == 1.0

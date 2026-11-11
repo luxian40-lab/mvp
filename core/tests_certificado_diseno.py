@@ -96,6 +96,27 @@ def test_render_diseno_eki_genera_png():
     data = buf.getvalue()
     assert data[:8] == b'\x89PNG\r\n\x1a\n'
     assert len(data) > 5000
+    img = Image.open(BytesIO(data))
+    assert img.size == (1200, 848)
+
+
+@pytest.mark.django_db
+def test_render_diseno_eki_fondo_grande_no_es_1200x848():
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    fondo = BytesIO()
+    Image.new('RGB', (2400, 1700), (210, 210, 220)).save(fondo, format='PNG')
+    p = PlantillaCertificado(
+        nombre='Fondo HD',
+        modo_plantilla='diseno_eki',
+    )
+    p.imagen_fondo = SimpleUploadedFile(
+        'fondo.png', fondo.getvalue(), content_type='image/png',
+    )
+    buf = render_certificado_diseno_eki(plantilla=p)
+    img = Image.open(buf)
+    assert img.size != (1200, 848)
+    assert img.size == (2400, 1700)
 
 
 @pytest.mark.django_db
