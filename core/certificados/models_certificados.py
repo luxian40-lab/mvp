@@ -76,6 +76,12 @@ class Certificado(models.Model):
         blank=True,
         help_text="Certificado en imagen (PNG/JPG)"
     )
+    archivo_imagen_whatsapp = models.ImageField(
+        upload_to='Certificadosestudiantes/',
+        null=True,
+        blank=True,
+        help_text='Copia liviana del diploma para WhatsApp. Vacío = se envía archivo_imagen.',
+    )
     
     # Metadata
     enviado_whatsapp = models.BooleanField(

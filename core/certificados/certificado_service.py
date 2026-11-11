@@ -144,14 +144,16 @@ def obtener_url_pdf_certificado(certificado) -> str | None:
 
 def _guardar_cert_s3(certificado, img_buffer, label=""):
     """
-    Sube PNG (+ PDF derivado) a S3 via boto3 DIRECTO y actualiza el modelo.
-    Retorna True si el PNG se guardó.
+    Sube PNG maestro (+ PDF A4 + copia WhatsApp) a S3 via boto3 DIRECTO.
+    El hash SHA-256 es del maestro. Retorna True si el PNG maestro se guardó.
     """
     from io import BytesIO
 
+    from .certificado_artefacto import png_maestro_acotado, png_para_whatsapp
+
     filename = f"certificado_{certificado.codigo_verificacion}.png"
-    img_buffer.seek(0)
-    raw = img_buffer.read()
+    maestro = png_maestro_acotado(img_buffer)
+    raw = maestro.read()
     digest = hash_sha256_buffer(BytesIO(raw))
     s3_key, public_url = _subir_imagen_s3_directo(BytesIO(raw), filename)
     if not s3_key:
@@ -173,6 +175,22 @@ def _guardar_cert_s3(certificado, img_buffer, label=""):
             logger.warning('⚠️ PDF no subió a S3 para %s (PNG sí)', certificado.codigo_verificacion)
     except Exception as e:
         logger.warning('⚠️ No se pudo generar/subir PDF para %s: %s', certificado.codigo_verificacion, e)
+
+    try:
+        wa_buf = png_para_whatsapp(BytesIO(raw))
+        wa_raw = wa_buf.getvalue()
+        if wa_raw and wa_raw != raw:
+            es_jpeg = wa_raw[:2] == b'\xff\xd8'
+            ext = 'jpg' if es_jpeg else 'png'
+            ctype = 'image/jpeg' if es_jpeg else 'image/png'
+            wa_name = f"certificado_{certificado.codigo_verificacion}_wa.{ext}"
+            wa_key, _ = _subir_bytes_s3_directo(BytesIO(wa_raw), wa_name, content_type=ctype)
+            if wa_key:
+                certificado.archivo_imagen_whatsapp.name = wa_key
+            else:
+                logger.warning('⚠️ Copia WhatsApp no subió a S3 para %s', certificado.codigo_verificacion)
+    except Exception as e:
+        logger.warning('⚠️ No se pudo generar copia WhatsApp para %s: %s', certificado.codigo_verificacion, e)
 
     logger.info(f"✅ {label}: S3 key={s3_key}, URL={public_url}, hash={digest[:12]}…")
     return True
@@ -215,62 +233,62 @@ def asegurar_pdf_certificado(certificado) -> bool:
         return False
 
 
+def _nombres_s3_imagen_cert(certificado) -> list[str]:
+    """Copia WhatsApp primero; si no hay, el PNG maestro. Diplomas viejos solo tienen maestro."""
+    from .certificado_artefacto import nombres_s3_envio
+
+    wa = getattr(certificado, 'archivo_imagen_whatsapp', None)
+    img = getattr(certificado, 'archivo_imagen', None)
+    return nombres_s3_envio(
+        getattr(wa, 'name', None) if wa else None,
+        getattr(img, 'name', None) if img else None,
+    )
+
+
+def _resolver_key_s3_cert(s3_client, bucket: str, s3_key: str) -> str | None:
+    try:
+        s3_client.head_object(Bucket=bucket, Key=s3_key)
+        return s3_key
+    except Exception:
+        logger.warning('⚠️ S3 key no existe: %s, intentando variantes...', s3_key)
+        variantes = [
+            f"media/{s3_key}" if not s3_key.startswith("media/") else s3_key.replace("media/", "", 1),
+            f"{S3_CERT_PREFIX}/{s3_key.split('/')[-1]}",
+        ]
+        for v in variantes:
+            try:
+                s3_client.head_object(Bucket=bucket, Key=v)
+                logger.info('✅ Encontrado en variante: %s', v)
+                return v
+            except Exception:
+                continue
+        return None
+
+
 def obtener_url_certificado_twilio(certificado):
     """
-    Obtiene URL pública del certificado para enviar via Twilio.
-    Twilio NECESITA poder hacer GET a la URL.
-    
-    Usa URL pública directa (ACL public-read) en lugar de presigned URLs
-    para evitar URLs largas que podrían causar problemas con [MEDIA:] parsing.
-    
-    Prioridad:
-    1. URL pública directa desde S3 key (verificado con HEAD)
-    2. None
+    URL pública para enviar el diploma por WhatsApp (copia liviana si existe).
     """
-    if not certificado.archivo_imagen:
-        logger.warning(f"⚠️ obtener_url: Certificado sin archivo_imagen")
+    claves = _nombres_s3_imagen_cert(certificado)
+    if not claves:
+        logger.warning('⚠️ obtener_url: Certificado sin archivo_imagen')
         return None
-    
+
+    bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
     try:
-        s3_key = str(certificado.archivo_imagen.name)
-        bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
-        
         s3_client = _get_s3_client()
-        
-        # Verificar que existe en S3
-        try:
-            s3_client.head_object(Bucket=bucket, Key=s3_key)
-        except Exception:
-            logger.warning(f"⚠️ S3 key no existe: {s3_key}, intentando variantes...")
-            variantes = [
-                f"media/{s3_key}" if not s3_key.startswith("media/") else s3_key.replace("media/", "", 1),
-                f"{S3_CERT_PREFIX}/{s3_key.split('/')[-1]}",
-            ]
-            found = False
-            for v in variantes:
-                try:
-                    s3_client.head_object(Bucket=bucket, Key=v)
-                    s3_key = v
-                    found = True
-                    logger.info(f"✅ Encontrado en variante: {v}")
-                    break
-                except Exception:
-                    continue
-            if not found:
-                logger.error(f"❌ Certificado no encontrado en S3 en ninguna variante: {s3_key}")
-                return None
-        
-        # URL pública directa (ACL public-read asegurado en upload)
-        public_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
-        logger.info(f"✅ URL pública cert: {public_url}")
-        return public_url
-        
+        for s3_key in claves:
+            found = _resolver_key_s3_cert(s3_client, bucket, s3_key)
+            if found:
+                public_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{found}"
+                logger.info('✅ URL pública cert: %s', public_url)
+                return public_url
+        logger.error('❌ Certificado no encontrado en S3: %s', claves)
+        return None
     except Exception as e:
-        logger.error(f"❌ Error generando URL certificado: {e}")
+        logger.error('❌ Error generando URL certificado: %s', e)
         try:
-            s3_key = str(certificado.archivo_imagen.name)
-            bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
-            return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+            return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{claves[0]}"
         except Exception:
             return None
 
@@ -630,13 +648,13 @@ def _variables_plantilla_certificado(certificado) -> dict:
 
 
 def _media_url_certificado(certificado) -> str | None:
-    if certificado.archivo_imagen:
-        media_url = obtener_url_certificado_twilio(certificado)
-        if media_url:
-            return media_url
-        s3_key = str(certificado.archivo_imagen.name)
+    media_url = obtener_url_certificado_twilio(certificado)
+    if media_url:
+        return media_url
+    claves = _nombres_s3_imagen_cert(certificado)
+    if claves:
         bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
-        return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+        return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{claves[0]}"
     if certificado.archivo_pdf:
         return certificado.archivo_pdf.url
     return None

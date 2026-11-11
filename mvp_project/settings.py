@@ -852,6 +852,17 @@ CERT_VERIFICATION_ALLOWED_ORIGIN = os.environ.get(
     'CERT_VERIFICATION_ALLOWED_ORIGIN',
     '*',
 ).strip().rstrip('/')
+# Copia WhatsApp del diploma. Cloud API: imagen ≤5 MB (WHATSAPP_IMAGE_MAX_BYTES,
+# verificado 2026-10-04). Lado 1600: nítido en el teléfono; Meta comprime igual.
+# Maestro 4096: tope para no guardar PNG de 20k px. Verificado 2026-11-11.
+try:
+    CERT_WA_LADO_MAX = int(os.environ.get('CERT_WA_LADO_MAX', '1600') or '1600')
+except (TypeError, ValueError):
+    CERT_WA_LADO_MAX = 1600
+try:
+    CERT_MAESTRO_LADO_MAX = int(os.environ.get('CERT_MAESTRO_LADO_MAX', '4096') or '4096')
+except (TypeError, ValueError):
+    CERT_MAESTRO_LADO_MAX = 4096
 
 # ==========================================
 # 🌱 AGRONEXO — alias legacy de BOT_COMERCIAL (canal unificado bot_comercial)
