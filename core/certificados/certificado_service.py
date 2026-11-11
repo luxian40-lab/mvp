@@ -100,39 +100,12 @@ def hash_sha256_buffer(buffer) -> str:
 
 def png_buffer_a_pdf(png_buffer):
     """
-    Convierte un PNG (BytesIO) a PDF de una página con el diploma a tamaño real.
+    Convierte un PNG (BytesIO) a PDF de una página A4.
     WhatsApp sigue usando PNG; el PDF es el artefacto descargable/verificable.
     """
-    from io import BytesIO
+    from .certificado_artefacto import png_buffer_a_pdf_a4
 
-    from PIL import Image
-    from reportlab.lib.utils import ImageReader
-    from reportlab.pdfgen import canvas
-
-    png_buffer.seek(0)
-    raw = png_buffer.read()
-    with Image.open(BytesIO(raw)) as img:
-        w_px, h_px = img.size
-        max_w, max_h = 1100, 850
-        scale = min(max_w / float(w_px), max_h / float(h_px), 1.0)
-        page_w = max(1, int(w_px * scale))
-        page_h = max(1, int(h_px * scale))
-
-    out = BytesIO()
-    c = canvas.Canvas(out, pagesize=(page_w, page_h))
-    c.drawImage(
-        ImageReader(BytesIO(raw)),
-        0,
-        0,
-        width=page_w,
-        height=page_h,
-        preserveAspectRatio=True,
-        mask='auto',
-    )
-    c.showPage()
-    c.save()
-    out.seek(0)
-    return out
+    return png_buffer_a_pdf_a4(png_buffer)
 
 
 def organizacion_emisora_de(certificado) -> str:
