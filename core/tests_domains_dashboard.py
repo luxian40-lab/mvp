@@ -7,6 +7,7 @@ from django.urls import reverse
 from core.domains.analytics.metricas import calcular_semaforo
 from core.domains.dashboard import (
     API_TIPO_ALIASES,
+    DASHBOARD_DEFAULT_TAB,
     LEGACY_DASHBOARD_REDIRECTS,
     resolve_dashboard_tab,
     resolve_learning_section,
@@ -34,6 +35,7 @@ class DomainRegistryTests(SimpleTestCase):
 
 class DashboardTabResolverTests(SimpleTestCase):
     def test_aliases_legacy_a_canonicos(self):
+        self.assertEqual(DASHBOARD_DEFAULT_TAB, 'learning')
         self.assertEqual(resolve_dashboard_tab('resumen'), 'executive')
         self.assertEqual(resolve_dashboard_tab('reportes'), 'learning')
         self.assertEqual(resolve_dashboard_tab('auditoria'), 'ai_ops')
@@ -84,3 +86,25 @@ class LegacyDashboardRedirectTests(TestCase):
     def test_legacy_map_completo(self):
         self.assertIn('dashboard_antiguo', LEGACY_DASHBOARD_REDIRECTS)
         self.assertIn('dashboard_analytics', LEGACY_DASHBOARD_REDIRECTS)
+
+    def test_dashboard_sin_query_abre_learning(self):
+        resp = self.client.get(reverse('dashboard_unificado'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['tab_actual'], 'learning')
+        self.assertEqual(resp.context['learning_section'], 'reportes')
+        html = resp.content.decode()
+        self.assertIn('id="tab-reportes" class="tab-content active"', html)
+        self.assertNotIn('id="tab-resumen" class="tab-content active"', html)
+        self.assertIn('Profundidad por dominio:', html)
+        self.assertNotIn('Inicio = pulso del día', html)
+
+    def test_dashboard_tab_executive_sigue_pulso(self):
+        resp = self.client.get(reverse('dashboard_unificado') + '?tab=executive')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['tab_actual'], 'executive')
+        html = resp.content.decode()
+        self.assertIn('id="tab-resumen" class="tab-content active"', html)
+        self.assertIn('id="pulso-kpi"', html)
+        self.assertIn('id="kpi-nps"', html)
+        self.assertIn('<details class="pulso-mas-datos"', html)
+        self.assertNotIn('<details class="pulso-mas-datos" open', html)

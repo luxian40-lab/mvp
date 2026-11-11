@@ -23,16 +23,72 @@ _NPS_VACIO = {
 }
 
 
-def _nps_pulso(*, cliente_id, curso_id, fecha_inicio_dt, fecha_fin_dt) -> dict:
-    """NPS de NotaCierreCurso para el Pulso (misma regla que el portal)."""
+def _charts_y_nps_pulso(
+    *,
+    estudiantes_q,
+    whatsapp_q,
+    fecha_fin_dt,
+    cliente_id,
+    curso_id,
+    fecha_inicio_dt,
+):
+    """Series del Pulso + NPS (fuera del cuerpo para no engordar el contexto)."""
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
+
     from core.analitica.nps_cierre import nps_campos_contexto
 
-    return nps_campos_contexto(
-        cliente_id=cliente_id,
-        curso_id=curso_id,
-        fecha_inicio=fecha_inicio_dt,
-        fecha_fin=fecha_fin_dt,
+    ubicaciones_municipio = (
+        estudiantes_q.exclude(municipio__isnull=True)
+        .exclude(municipio='')
+        .values('municipio')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:10]
     )
+    chart_ubicaciones_labels = [u['municipio'] for u in ubicaciones_municipio]
+    chart_ubicaciones_values = [u['total'] for u in ubicaciones_municipio]
+
+    hoy = fecha_fin_dt or timezone.localdate()
+    hace_7_dias = hoy - timedelta(days=6)
+    mensajes_por_dia = (
+        whatsapp_q.filter(fecha__date__gte=hace_7_dias, fecha__date__lte=hoy)
+        .annotate(dia=TruncDate('fecha'))
+        .values('dia')
+        .annotate(total=Count('id'))
+        .order_by('dia')
+    )
+    mensajes_por_dia_map = {m['dia']: int(m['total']) for m in mensajes_por_dia}
+    chart_labels = []
+    chart_values = []
+    for i in range(7):
+        dia = hoy - timedelta(days=6 - i)
+        chart_labels.append(dia.strftime('%d/%m'))
+        chart_values.append(int(mensajes_por_dia_map.get(dia, 0)))
+
+    tipos_msg = whatsapp_q.values('tipo').annotate(total=Count('id')).order_by('-total')
+    chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
+    chart_tipos_values = [int(t['total']) for t in tipos_msg]
+    try:
+        nps_ctx = nps_campos_contexto(
+            cliente_id=cliente_id,
+            curso_id=curso_id,
+            fecha_inicio=fecha_inicio_dt,
+            fecha_fin=fecha_fin_dt,
+        )
+    except Exception:
+        logger.exception('dashboard_nps_pulso')
+        nps_ctx = dict(_NPS_VACIO)
+    return {
+        'ubicaciones_municipio': ubicaciones_municipio,
+        'chart_ubicaciones_labels': chart_ubicaciones_labels,
+        'chart_ubicaciones_values': chart_ubicaciones_values,
+        'chart_labels': chart_labels,
+        'chart_values': chart_values,
+        'chart_tipos_labels': chart_tipos_labels,
+        'chart_tipos_values': chart_tipos_values,
+        'nps_ctx': nps_ctx,
+    }
 
 
 def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
@@ -62,7 +118,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     fecha_inicio_raw = (request.GET.get('fecha_inicio') or '').strip()
     fecha_fin_raw = (request.GET.get('fecha_fin') or '').strip()
     municipio_filtro = (request.GET.get('municipio') or '').strip()
-    tab_raw = (request.GET.get('tab') or 'executive').strip().lower()
+    # Sin ?tab= → learning (DASHBOARD_DEFAULT_TAB). No forzar executive aquí.
+    tab_raw = (request.GET.get('tab') or '').strip().lower()
     from core.domains.dashboard import resolve_dashboard_tab, resolve_learning_section
 
     tab_actual = resolve_dashboard_tab(tab_raw)
@@ -310,38 +367,6 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     except Exception:
         pass
 
-    ubicaciones_municipio = (
-        estudiantes_q.exclude(municipio__isnull=True)
-        .exclude(municipio='')
-        .values('municipio')
-        .annotate(total=Count('id'))
-        .order_by('-total')[:10]
-    )
-    chart_ubicaciones_labels = [u['municipio'] for u in ubicaciones_municipio]
-    chart_ubicaciones_values = [u['total'] for u in ubicaciones_municipio]
-
-    hoy = fecha_fin_dt or timezone.localdate()
-    hace_7_dias = hoy - timedelta(days=6)
-    mensajes_por_dia = (
-        whatsapp_q.filter(fecha__date__gte=hace_7_dias, fecha__date__lte=hoy)
-        .annotate(dia=TruncDate('fecha'))
-        .values('dia')
-        .annotate(total=Count('id'))
-        .order_by('dia')
-    )
-    mensajes_por_dia_map = {m['dia']: int(m['total']) for m in mensajes_por_dia}
-
-    chart_labels = []
-    chart_values = []
-    for i in range(7):
-        dia = hoy - timedelta(days=6 - i)
-        chart_labels.append(dia.strftime('%d/%m'))
-        chart_values.append(int(mensajes_por_dia_map.get(dia, 0)))
-
-    tipos_msg = whatsapp_q.values('tipo').annotate(total=Count('id')).order_by('-total')
-    chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
-    chart_tipos_values = [int(t['total']) for t in tipos_msg]
-
     try:
         from ..models import ProspectoB2B
         prospectos_q = ProspectoB2B.objects.all()
@@ -356,16 +381,22 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     total_inscripciones = total_progreso
     tasa_completacion = round((cursos_completados / total_inscripciones * 100), 1) if total_inscripciones > 0 else 0
 
-    try:
-        nps_ctx = _nps_pulso(
-            cliente_id=cliente_id,
-            curso_id=curso_id,
-            fecha_inicio_dt=fecha_inicio_dt,
-            fecha_fin_dt=fecha_fin_dt,
-        )
-    except Exception:
-        logger.exception('dashboard_nps_pulso')
-        nps_ctx = dict(_NPS_VACIO)
+    pulso_extra = _charts_y_nps_pulso(
+        estudiantes_q=estudiantes_q,
+        whatsapp_q=whatsapp_q,
+        fecha_fin_dt=fecha_fin_dt,
+        cliente_id=cliente_id,
+        curso_id=curso_id,
+        fecha_inicio_dt=fecha_inicio_dt,
+    )
+    ubicaciones_municipio = pulso_extra['ubicaciones_municipio']
+    chart_ubicaciones_labels = pulso_extra['chart_ubicaciones_labels']
+    chart_ubicaciones_values = pulso_extra['chart_ubicaciones_values']
+    chart_labels = pulso_extra['chart_labels']
+    chart_values = pulso_extra['chart_values']
+    chart_tipos_labels = pulso_extra['chart_tipos_labels']
+    chart_tipos_values = pulso_extra['chart_tipos_values']
+    nps_ctx = pulso_extra['nps_ctx']
 
     municipios = list(
         estudiantes_q.exclude(municipio__isnull=True)
@@ -537,11 +568,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             'puntos_promedio': round(float(puntos_promedio), 1),
             'total_prospectos': int(total_prospectos),
             'tasa_completacion': float(tasa_completacion),
-            'nps': nps_ctx['nps'],
-            'nps_n': int(nps_ctx['nps_n']),
-            'nps_promotores': int(nps_ctx['nps_promotores']),
-            'nps_pasivos': int(nps_ctx['nps_pasivos']),
-            'nps_detractores': int(nps_ctx['nps_detractores']),
+            **nps_ctx,
         },
         'chart_mensajes': {
             'labels': chart_labels,
@@ -675,7 +702,7 @@ def dashboard_unificado(request):
         return export_dashboard_excel(
             context=context,
             resumen_payload=resumen_payload,
-            tab=context.get('tab_actual', 'executive'),
+            tab=context.get('tab_actual', 'learning'),
             learning_section=context.get('learning_section', 'reportes'),
         )
 

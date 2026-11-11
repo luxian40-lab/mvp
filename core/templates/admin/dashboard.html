@@ -15,8 +15,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
     :root {
-        --eki-primary: #9A6CAC;
-        --eki-primary-soft: rgba(154, 108, 172, 0.12);
+        /* Acento sigue el tono Unfold (Cielo/Marca/Oscuro); Marca cae a #9A6CAC. */
+        --eki-primary: var(--color-primary-600, #9A6CAC);
+        --eki-primary-soft: color-mix(in srgb, var(--eki-primary) 12%, transparent);
         --eki-success: #2f9e44;
         --eki-warning: #f59f00;
         --eki-danger: #e03131;
@@ -75,6 +76,126 @@
     .m-card .m-label { font-size: 0.78rem; font-weight: 600; color: var(--eki-muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .m-card .m-value { font-size: 1.85rem; font-weight: 700; color: var(--eki-text); }
     .m-card .m-sub { font-size: 0.78rem; color: var(--eki-muted); }
+
+    /* Pulso slices 1–2: KPI quiet (sin arcoíris) + gamificación en details */
+    #tab-resumen .pulso-kpi { margin-bottom: 20px; }
+    #tab-resumen .pulso-kpi__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin: 0;
+    }
+    #tab-resumen .pulso-kpi .m-card {
+        border-left: none;
+        box-shadow: none;
+        border: 1px solid var(--eki-border);
+        padding: 16px 18px;
+        gap: 6px;
+        cursor: default;
+    }
+    #tab-resumen .pulso-kpi .m-value {
+        font-size: 1.7rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--eki-text);
+    }
+    #tab-resumen .pulso-kpi .m-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+    }
+    #tab-resumen .pulso-progreso {
+        margin-bottom: 20px;
+        background: var(--eki-card);
+        padding: 20px;
+        border-radius: var(--eki-radius);
+        border: 1px solid var(--eki-border);
+        box-shadow: none;
+    }
+    #tab-resumen .pulso-progreso h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--eki-text);
+        margin: 0 0 14px 0;
+    }
+    #tab-resumen .pulso-ce-link {
+        display: inline-flex;
+        margin: 0 0 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--eki-primary);
+        text-decoration: none;
+    }
+    #tab-resumen .pulso-ce-link:hover { text-decoration: underline; }
+    #tab-resumen .pulso-mas-datos {
+        border: 1px solid var(--eki-border);
+        border-radius: var(--eki-radius);
+        background: var(--eki-card);
+        padding: 0;
+        margin-bottom: 8px;
+    }
+    #tab-resumen .pulso-mas-datos > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 14px 18px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--eki-muted);
+        user-select: none;
+    }
+    #tab-resumen .pulso-mas-datos > summary::-webkit-details-marker { display: none; }
+    #tab-resumen .pulso-mas-datos > summary::before {
+        content: '▸ ';
+        color: var(--eki-primary);
+    }
+    #tab-resumen .pulso-mas-datos[open] > summary::before { content: '▾ '; }
+    #tab-resumen .pulso-mas-datos__body { padding: 0 18px 18px; }
+    #tab-resumen .pulso-mas-datos .pulso-leads {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--eki-primary) 6%, transparent);
+        border: 1px solid var(--eki-border);
+    }
+    #tab-resumen .pulso-mas-datos .pulso-leads .m-label { margin: 0; }
+    #tab-resumen .pulso-mas-datos .pulso-leads .m-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--eki-text);
+        font-variant-numeric: tabular-nums;
+    }
+    #tab-resumen .pulso-chart-empty {
+        margin: 0 0 8px;
+        padding: 28px 12px;
+        text-align: center;
+        font-size: 0.88rem;
+        color: var(--eki-muted);
+        border: 1px dashed var(--eki-border);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--eki-primary) 4%, transparent);
+    }
+    #tab-resumen .pulso-chart-empty[hidden] { display: none !important; }
+    #tab-resumen .chart-card.is-empty canvas { display: none; }
+    #tab-resumen .pulso-empty-cell {
+        text-align: center;
+        color: var(--eki-muted);
+        padding: 18px 12px;
+        font-size: 0.9rem;
+    }
+    .pulso-visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
 
     .section { margin-bottom: 28px; }
     .section-title { font-size: 1.15rem; font-weight: 700; color: var(--eki-text); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--eki-border); }
@@ -252,8 +373,7 @@
         <div>
             <h1>Analítica eki</h1>
             <p class="dash-ts" style="margin:6px 0 0;max-width:42rem;line-height:1.4;">
-                Inicio = pulso del día. Aquí = profundidad por dominio.
-                Elige la pestaña según la pregunta (cursos, retención, Nat o Twilio).
+                Profundidad por dominio: cursos, retención, Nat y Twilio.
             </p>
         </div>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -279,7 +399,7 @@
         <a href="{% url 'gei_panel' %}" class="sub-tab-link">Panel GEI →</a>
     </div>
 
-    <!-- ===== EXECUTIVE ===== -->
+    <!-- ===== EXECUTIVE / PULSO (slices 1–2: glance quiet + gamificación en Más datos) ===== -->
     <div id="tab-resumen" class="tab-content {% if tab_actual == 'executive' %}active{% endif %}">
 
         <form method="get" class="filters-bar">
@@ -293,113 +413,144 @@
             <a href="?tab=executive" class="btn-excel" style="background:#495057;">Limpiar</a>
         </form>
 
-        <!-- KPIs Principales -->
-        <div class="section">
-            <div class="section-title">KPIs Principales</div>
-            <div class="metrics-grid">
-                <div class="m-card green"><span class="m-label">Estudiantes Activos</span><span id="kpi-total-estudiantes" class="m-value">{{ total_estudiantes }}</span></div>
-                <div class="m-card orange"><span class="m-label">Tasa Completación</span><span id="kpi-tasa-completacion" class="m-value">{{ tasa_completacion }}%</span><span id="kpi-cursos-completados-sub" class="m-sub">{{ cursos_completados }} cursos terminados</span></div>
-                <div class="m-card blue"><span class="m-label">Certificados Emitidos</span><span id="kpi-total-certificados" class="m-value">{{ total_certificados }}</span></div>
+        <div id="pulso-kpi" class="pulso-kpi">
+            <div class="pulso-kpi__grid">
+                <div class="m-card" title="Estudiantes en el filtro actual (organización / curso / fechas).">
+                    <span class="m-label">Estudiantes</span>
+                    <span id="kpi-total-estudiantes" class="m-value">{{ total_estudiantes }}</span>
+                </div>
+                <div class="m-card" title="Completación = cursos terminados ÷ inscripciones del filtro. Base visible al pasar el mouse.">
+                    <span class="m-label">Completación</span>
+                    <span id="kpi-tasa-completacion" class="m-value">{{ tasa_completacion }}%</span>
+                    <span id="kpi-cursos-completados-sub" class="pulso-visually-hidden">{{ cursos_completados }} cursos terminados</span>
+                </div>
+                <div class="m-card" title="Certificados emitidos en el filtro actual.">
+                    <span class="m-label">Certificados</span>
+                    <span id="kpi-total-certificados" class="m-value">{{ total_certificados }}</span>
+                </div>
                 <div class="m-card" title="NPS de la nota 1–10 al cerrar el curso. Promotores 9–10 menos detractores 1–6. El 7 y el 8 cuentan en la base. n={{ nps_n }}.">
                     <span class="m-label">NPS</span>
                     <span id="kpi-nps" class="m-value">{% if nps is None %}Sin notas{% else %}{% if nps > 0 %}+{% endif %}{{ nps }}{% endif %}</span>
-                    <span id="kpi-nps-n" class="m-sub">n={{ nps_n }}</span>
+                    <span id="kpi-nps-n" class="pulso-visually-hidden">n={{ nps_n }}</span>
                 </div>
-                <div class="m-card green"><span class="m-label">Organizaciones</span><span id="kpi-total-clientes" class="m-value">{{ total_clientes }}</span></div>
-                <div class="m-card red"><span class="m-label">Leads B2B</span><span id="kpi-total-prospectos" class="m-value">{{ total_prospectos }}</span></div>
+                <div class="m-card" title="Organizaciones (clientes) en el filtro actual.">
+                    <span class="m-label">Organizaciones</span>
+                    <span id="kpi-total-clientes" class="m-value">{{ total_clientes }}</span>
+                </div>
             </div>
         </div>
 
-        <!-- Progreso por curso + Top 10 -->
-        <div class="charts-row">
-            <div class="chart-card">
-                <h3>Progreso por Curso</h3>
-                <table class="eki-table">
-                    <thead><tr><th>Curso</th><th>Estudiantes</th><th>Completados</th><th>%</th></tr></thead>
-                    <tbody>
-                        {% for curso in progreso_por_curso %}
-                        <tr>
-                            <td>{{ curso.nombre }}</td>
-                            <td>{{ curso.total_estudiantes }}</td>
-                            <td>{{ curso.completados }}</td>
-                            <td>{% if curso.total_estudiantes > 0 %}{% widthratio curso.completados curso.total_estudiantes 100 %}%{% else %}0%{% endif %}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" style="text-align:center;color:#aaa;">Sin datos</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="chart-card">
-                <h3>Top 10 Gamificación</h3>
-                {% if top_estudiantes %}
-                <ol class="ranking-list">
-                    {% for perfil in top_estudiantes %}
-                    <li>
-                        <span class="ranking-pos {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</span>
-                        <span class="ranking-name">{{ perfil.estudiante.nombre }}{% if perfil.estudiante.cliente %} <small style="color:#aaa">({{ perfil.estudiante.cliente.nombre|truncatechars:15 }})</small>{% endif %}</span>
-                        <span class="ranking-pts">{{ perfil.puntos_totales }} pts</span>
-                    </li>
+        <div id="pulso-progreso" class="pulso-progreso">
+            <h3>Progreso por curso</h3>
+            <table class="eki-table">
+                <thead><tr><th>Curso</th><th>Estudiantes</th><th>Completados</th><th>%</th></tr></thead>
+                <tbody>
+                    {% for curso in progreso_por_curso %}
+                    <tr>
+                        <td>{{ curso.nombre }}</td>
+                        <td>{{ curso.total_estudiantes }}</td>
+                        <td>{{ curso.completados }}</td>
+                        <td>{% if curso.total_estudiantes > 0 %}{% widthratio curso.completados curso.total_estudiantes 100 %}%{% else %}0%{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="pulso-empty-cell">Sin datos en el filtro</td></tr>
                     {% endfor %}
-                </ol>
-                {% else %}
-                <p style="color:#aaa;text-align:center;padding:20px;">Sin datos de gamificación</p>
+                </tbody>
+            </table>
+        </div>
+
+        <a class="pulso-ce-link" href="?tab=retencion{% if cliente_filtro %}&amp;cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&amp;curso={{ curso_filtro }}{% endif %}">Atención → Centro de Éxito</a>
+
+        <details class="pulso-mas-datos">
+            <summary>Más datos (gamificación, leads y gráficos)</summary>
+            <div id="pulso-mas-datos" class="pulso-mas-datos__body">
+                <div class="pulso-leads" title="Prospectos / leads B2B en el filtro. Fuera del glance: no responde la pregunta de aprendizaje.">
+                    <span class="m-label">Leads B2B</span>
+                    <span id="kpi-total-prospectos" class="m-value">{{ total_prospectos }}</span>
+                    <span class="m-label" style="margin-left:auto;">Cursos</span>
+                    <span id="kpi-total-cursos" class="m-value">{{ total_cursos }}</span>
+                </div>
+
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3>Top 10 Gamificación</h3>
+                        {% if top_estudiantes %}
+                        <ol class="ranking-list">
+                            {% for perfil in top_estudiantes %}
+                            <li>
+                                <span class="ranking-pos {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</span>
+                                <span class="ranking-name">{{ perfil.estudiante.nombre }}{% if perfil.estudiante.cliente %} <small style="color:#aaa">({{ perfil.estudiante.cliente.nombre|truncatechars:15 }})</small>{% endif %}</span>
+                                <span class="ranking-pts">{{ perfil.puntos_totales }} pts</span>
+                            </li>
+                            {% endfor %}
+                        </ol>
+                        {% else %}
+                        <p style="color:#aaa;text-align:center;padding:20px;">Sin datos de gamificación</p>
+                        {% endif %}
+                    </div>
+                    <div class="chart-card" id="pulso-chart-mensajes">
+                        <h3>Tráfico WA del filtro (7 días)</h3>
+                        <p class="pulso-chart-empty" id="chartMensajesEmpty" hidden>Sin datos en el filtro</p>
+                        <canvas id="chartMensajes" height="220"></canvas>
+                    </div>
+                </div>
+
+                <div class="charts-row">
+                    <div class="chart-card" id="pulso-chart-ubicaciones">
+                        <h3>Dónde están los estudiantes del filtro</h3>
+                        <p class="pulso-chart-empty" id="chartUbicacionesEmpty" hidden>Sin datos en el filtro</p>
+                        <canvas id="chartUbicaciones" height="220"></canvas>
+                    </div>
+                </div>
+
+                {% if ranking_gamificacion_completo %}
+                <div class="section">
+                    <div class="section-title">Ranking de gamificación (completo en el filtro actual)</div>
+                    <p style="color:#666;font-size:0.88rem;margin-bottom:12px;">
+                        Hasta 2000 filas según organización / curso / fechas del filtro. El recuadro de la derecha es el mismo orden con <strong>solo cédula</strong> para copiar o cruzar datos.
+                    </p>
+                    <div class="charts-row" style="align-items: flex-start;">
+                        <div class="chart-card" style="flex:2;">
+                            <h3>Por nombre y cédula</h3>
+                            <div class="ranking-full-wrap">
+                                <table class="eki-table">
+                                    <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Puntos</th><th>Organización</th></tr></thead>
+                                    <tbody>
+                                    {% for perfil in ranking_gamificacion_completo %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ perfil.estudiante.nombre|default:"—" }}</td>
+                                        <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
+                                        <td><strong>{{ perfil.puntos_totales }}</strong></td>
+                                        <td>{% if perfil.estudiante.cliente %}{{ perfil.estudiante.cliente.nombre }}{% else %}—{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="chart-card" style="flex:1;">
+                            <h3>Solo cédula y puntos</h3>
+                            <div class="ranking-full-wrap">
+                                <table class="eki-table">
+                                    <thead><tr><th>#</th><th>Cédula</th><th>Puntos</th></tr></thead>
+                                    <tbody>
+                                    {% for perfil in ranking_gamificacion_completo %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
+                                        <td><strong>{{ perfil.puntos_totales }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
             </div>
-        </div>
-
-        {% if ranking_gamificacion_completo %}
-        <div class="section">
-            <div class="section-title">Ranking de gamificación (completo en el filtro actual)</div>
-            <p style="color:#666;font-size:0.88rem;margin-bottom:12px;">
-                Hasta 2000 filas según organización / curso / fechas del filtro. El recuadro de la derecha es el mismo orden con <strong>solo cédula</strong> para copiar o cruzar datos.
-            </p>
-            <div class="charts-row" style="align-items: flex-start;">
-                <div class="chart-card" style="flex:2;">
-                    <h3>Por nombre y cédula</h3>
-                    <div class="ranking-full-wrap">
-                        <table class="eki-table">
-                            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Puntos</th><th>Organización</th></tr></thead>
-                            <tbody>
-                            {% for perfil in ranking_gamificacion_completo %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td>{{ perfil.estudiante.nombre|default:"—" }}</td>
-                                <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
-                                <td><strong>{{ perfil.puntos_totales }}</strong></td>
-                                <td>{% if perfil.estudiante.cliente %}{{ perfil.estudiante.cliente.nombre }}{% else %}—{% endif %}</td>
-                            </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="chart-card" style="flex:1;">
-                    <h3>Solo cédula y puntos</h3>
-                    <div class="ranking-full-wrap">
-                        <table class="eki-table">
-                            <thead><tr><th>#</th><th>Cédula</th><th>Puntos</th></tr></thead>
-                            <tbody>
-                            {% for perfil in ranking_gamificacion_completo %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
-                                <td><strong>{{ perfil.puntos_totales }}</strong></td>
-                            </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Gráficos -->
-        <div class="charts-row">
-            <div class="chart-card"><h3>Mensajes WhatsApp (últimos 7 días)</h3><canvas id="chartMensajes" height="220"></canvas></div>
-            <div class="chart-card"><h3>Estudiantes por Municipio</h3><canvas id="chartUbicaciones" height="220"></canvas></div>
-        </div>
+        </details>
     </div>
 
     <!-- ===== LEARNING: REPORTES B2B ===== -->
@@ -419,10 +570,7 @@
         </form>
 
         <p class="la-funnel-help" style="margin-top:0;">
-            Vista rápida: filtros + KPIs. Las tablas por organización/persona son pesadas:
-            cárgalas solo cuando las necesites (o descarga Excel).
-            Semáforos de una empresa → <strong>Métricas por Empresa</strong>;
-            posición hoy → <strong>Embudo por módulo</strong>.
+            Vista rápida con KPIs. Tablas y Excel al pedirlas · semáforos en Métricas · posición en Embudo.
         </p>
 
         <div class="section">
@@ -930,7 +1078,7 @@ let resumenRefreshTimer = null;
 const dashboardConfig = document.getElementById('dashboard-config');
 const resumenPayloadNode = document.getElementById('dashboard-resumen-payload');
 const resumenDataEndpoint = (dashboardConfig && dashboardConfig.dataset.resumenEndpoint) || '/admin/dashboard/resumen-data/';
-const tabActual = (dashboardConfig && dashboardConfig.dataset.tabActual) || 'executive';
+const tabActual = (dashboardConfig && dashboardConfig.dataset.tabActual) || 'learning';
 const learningSectionActual = (dashboardConfig && dashboardConfig.dataset.learningSection) || 'reportes';
 const TAB_PANELS = {
     executive: 'tab-resumen',
@@ -955,7 +1103,7 @@ const TAB_ALIASES = {
 };
 
 function normalizeTab(tab) {
-    return TAB_ALIASES[tab] || tab || 'executive';
+    return TAB_ALIASES[tab] || tab || 'learning';
 }
 
 function showPanel(panelId) {
@@ -994,9 +1142,36 @@ function setText(id, value) {
     }
 }
 
+function pulsoAccentRgba(alpha) {
+    const raw = (getComputedStyle(document.documentElement).getPropertyValue('--eki-primary') || '#9A6CAC').trim();
+    const hex = raw.startsWith('#') ? raw.slice(1) : '9A6CAC';
+    if (hex.length !== 6) return 'rgba(154,108,172,' + alpha + ')';
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function pulsoToggleChartEmpty(cardId, emptyId, hasData) {
+    const card = document.getElementById(cardId);
+    const empty = document.getElementById(emptyId);
+    if (empty) empty.hidden = !!hasData;
+    if (card) card.classList.toggle('is-empty', !hasData);
+}
+
 function ensureResumenMensajesChart(data) {
     const canvas = document.getElementById('chartMensajes');
     if (!canvas) return;
+    const values = data.values || [];
+    const hasData = values.some(function (v) { return Number(v) > 0; });
+    pulsoToggleChartEmpty('pulso-chart-mensajes', 'chartMensajesEmpty', hasData);
+    if (!hasData) {
+        if (resumenMensajesChart) {
+            resumenMensajesChart.destroy();
+            resumenMensajesChart = null;
+        }
+        return;
+    }
 
     if (!resumenMensajesChart) {
         resumenMensajesChart = new Chart(canvas, {
@@ -1005,8 +1180,8 @@ function ensureResumenMensajesChart(data) {
                 labels: data.labels || [],
                 datasets: [{
                     label: 'Mensajes',
-                    data: data.values || [],
-                    backgroundColor: 'rgba(59,91,219,0.7)',
+                    data: values,
+                    backgroundColor: pulsoAccentRgba(0.72),
                     borderRadius: 6,
                     barThickness: 28,
                 }],
@@ -1021,23 +1196,35 @@ function ensureResumenMensajesChart(data) {
     }
 
     resumenMensajesChart.data.labels = data.labels || [];
-    resumenMensajesChart.data.datasets[0].data = data.values || [];
+    resumenMensajesChart.data.datasets[0].data = values;
+    resumenMensajesChart.data.datasets[0].backgroundColor = pulsoAccentRgba(0.72);
     resumenMensajesChart.update();
 }
 
 function ensureResumenUbicacionesChart(data) {
     const canvas = document.getElementById('chartUbicaciones');
     if (!canvas) return;
+    const labels = data.labels || [];
+    const values = data.values || [];
+    const hasData = labels.length > 0 && values.some(function (v) { return Number(v) > 0; });
+    pulsoToggleChartEmpty('pulso-chart-ubicaciones', 'chartUbicacionesEmpty', hasData);
+    if (!hasData) {
+        if (resumenUbicacionesChart) {
+            resumenUbicacionesChart.destroy();
+            resumenUbicacionesChart = null;
+        }
+        return;
+    }
 
     if (!resumenUbicacionesChart) {
         resumenUbicacionesChart = new Chart(canvas, {
             type: 'bar',
             data: {
-                labels: data.labels || [],
+                labels: labels,
                 datasets: [{
                     label: 'Estudiantes',
-                    data: data.values || [],
-                    backgroundColor: 'rgba(47,158,68,0.7)',
+                    data: values,
+                    backgroundColor: pulsoAccentRgba(0.72),
                     borderRadius: 4,
                     barThickness: 20,
                 }],
@@ -1052,8 +1239,9 @@ function ensureResumenUbicacionesChart(data) {
         return;
     }
 
-    resumenUbicacionesChart.data.labels = data.labels || [];
-    resumenUbicacionesChart.data.datasets[0].data = data.values || [];
+    resumenUbicacionesChart.data.labels = labels;
+    resumenUbicacionesChart.data.datasets[0].data = values;
+    resumenUbicacionesChart.data.datasets[0].backgroundColor = pulsoAccentRgba(0.72);
     resumenUbicacionesChart.update();
 }
 
@@ -1133,18 +1321,15 @@ function applyResumenPayload(payload) {
     setText('kpi-cursos-completados-sub', (k.cursos_completados ?? 0) + ' cursos terminados');
     setText('kpi-total-certificados', k.total_certificados ?? 0);
     setText('kpi-total-cursos', k.total_cursos ?? 0);
-    const npsEl = document.getElementById('kpi-nps');
-    if (npsEl) {
-        if (k.nps === null || k.nps === undefined) {
-            npsEl.textContent = 'Sin notas';
-        } else {
-            const n = Number(k.nps);
-            npsEl.textContent = (n > 0 ? '+' : '') + n;
-        }
-    }
-    setText('kpi-nps-n', 'n=' + (k.nps_n ?? 0));
     setText('kpi-total-clientes', k.total_clientes ?? 0);
     setText('kpi-total-prospectos', k.total_prospectos ?? 0);
+    if (k.nps === null || k.nps === undefined) {
+        setText('kpi-nps', 'Sin notas');
+    } else {
+        const npsNum = Number(k.nps);
+        setText('kpi-nps', (npsNum > 0 ? '+' : '') + npsNum);
+    }
+    setText('kpi-nps-n', 'n=' + (k.nps_n ?? 0));
 
     setText('kpi-total-mensajes', k.total_mensajes_whatsapp ?? 0);
     setText('kpi-total-mensajes-sub', 'Enviados: ' + (k.mensajes_enviados ?? 0) + ' | Recibidos: ' + (k.mensajes_recibidos ?? 0));

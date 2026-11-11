@@ -100,8 +100,23 @@ class NpsEnDashboardPulsoTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
         self.assertIn('id="kpi-nps"', html)
+        self.assertIn('id="pulso-kpi"', html)
         self.assertContains(resp, '+25')
         payload = resp.context['resumen_payload_json']
         compact = payload.replace(' ', '')
         self.assertIn('"nps":25', compact)
         self.assertIn('"nps_n":4', compact)
+
+
+class PulsoChartsClaimTemplateTests(SimpleTestCase):
+    def test_claims_y_empty_states_en_template(self):
+        from pathlib import Path
+
+        html = (
+            Path(__file__).resolve().parent / 'templates' / 'admin' / 'dashboard.html'
+        ).read_text(encoding='utf-8')
+        self.assertIn('Tráfico WA del filtro (7 días)', html)
+        self.assertIn('Dónde están los estudiantes del filtro', html)
+        self.assertIn('id="chartMensajesEmpty"', html)
+        self.assertIn('id="chartUbicacionesEmpty"', html)
+        self.assertIn('Sin datos en el filtro', html)
