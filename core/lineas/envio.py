@@ -943,17 +943,32 @@ def enviar_respuesta_linea(
     *,
     media_url: str | None = None,
     agente: str = 'curso',
+    correlacion: str = '',
 ) -> dict:
     """Respuesta del curso por la línea de Meta que recibió el mensaje.
 
     El aula no pasa por aquí. Un arreglo de botón o de texto llama esta
     función y no abre el cuerpo del webhook ni el cliente de Twilio.
+    Sin phone id del turno (tests, Twilio), sigue enviando por Graph directo.
     """
-    return enviar_meta(
+    from core.sandbox_canal import phone_id_de_salida
+
+    pnid = phone_id_de_salida()
+    if not pnid:
+        return enviar_meta(
+            telefono,
+            texto,
+            media_url=media_url,
+            agente_evento=agente or 'curso',
+        )
+    from core.lineas.sender import sender_de_linea
+
+    return sender_de_linea(pnid).texto(
         telefono,
         texto,
         media_url=media_url,
-        agente_evento=agente or 'curso',
+        agente=agente or 'curso',
+        correlacion=correlacion or '',
     )
 
 

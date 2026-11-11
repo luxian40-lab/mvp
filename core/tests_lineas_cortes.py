@@ -2,7 +2,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 
 class CortesLineaTests(SimpleTestCase):
@@ -118,3 +118,32 @@ class EntregaMarcadaTests(TestCase):
             )
         medias = [call.kwargs['media_url'] for call in enviado.call_args_list]
         self.assertIn('https://cdn.example.com/a.jpg', medias)
+
+
+LINEAS = 'PN_UNO|+573000000001|Principal;PN_DOS|+573000000002|Segunda|cursos'
+
+
+@override_settings(
+    META_LINEAS=LINEAS,
+    WHATSAPP_BUSINESS_ACCOUNT_ID='WABA_UNO',
+    WHATSAPP_BUSINESS_ACCOUNT_ID_2='WABA_DOS',
+)
+class CursoPorSenderTests(TestCase):
+    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
+    def test_con_phone_id_sale_por_el_sender(self, meta, _pn):
+        from core.lineas.envio import enviar_respuesta_linea
+
+        r = enviar_respuesta_linea('573001110001', 'Su módulo sigue.', agente='curso', correlacion='leccion:1')
+        self.assertTrue(r['success'])
+        meta.assert_called_once()
+        self.assertEqual(meta.call_args.kwargs['agente_evento'], 'curso')
+
+    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
+    def test_flag_apagado_no_escribe_outbox(self, _meta, _pn):
+        from core.lineas.envio import enviar_respuesta_linea
+        from core.models.outbox_envio import OutboxEnvio
+
+        enviar_respuesta_linea('573001110001', 'Su módulo sigue.', correlacion='leccion:1')
+        self.assertEqual(OutboxEnvio.objects.count(), 0)
