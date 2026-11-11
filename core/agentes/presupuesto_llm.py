@@ -1,6 +1,7 @@
 """Tope diario de IA. El día cambia a medianoche en Bogotá.
 
-Si Redis no responde, la llamada sigue: un corte de Redis no apaga el curso ni a Nat.
+Si Redis no responde o el tope se agotó, no hay llamada de pago.
+El curso y Nat siguen con la respuesta degradada que ya existe.
 """
 from __future__ import annotations
 
@@ -83,7 +84,7 @@ def nivel(cliente_id=None) -> str:
 
 
 def debe_degradar(cliente_id=None) -> bool:
-    return nivel(cliente_id) == 'agotado'
+    return nivel(cliente_id) in ('agotado', 'redis_caido')
 
 
 def modelo_segun_presupuesto(modelo: str, cliente_id=None) -> str:

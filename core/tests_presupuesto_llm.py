@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from django.test import TestCase, override_settings
 
 from core.intent_detector import detect_intent
-from core.presupuesto_llm import dia_bogota, modelo_segun_presupuesto
+from core.presupuesto_llm import debe_degradar, dia_bogota, modelo_segun_presupuesto
 from core.sandbox_agentes import responder_agente_sandbox
 
 
@@ -61,3 +61,16 @@ class PresupuestoLlmTests(TestCase):
     def test_redis_caido_no_cambia_el_modelo(self):
         with patch('core.presupuesto_llm._cliente', side_effect=ConnectionError('redis')):
             self.assertEqual(modelo_segun_presupuesto('gpt-5'), 'gpt-5')
+
+    def test_redis_caido_debe_degradar(self):
+        with patch('core.presupuesto_llm._cliente', side_effect=ConnectionError('redis')):
+            self.assertTrue(debe_degradar())
+
+    @override_settings(OPENAI_API_KEY='sk-test')
+    def test_redis_caido_no_invoca_al_proveedor(self):
+        with patch('core.presupuesto_llm._cliente', side_effect=ConnectionError('redis')):
+            with patch('openai.OpenAI') as openai:
+                texto = responder_agente_sandbox('coach', 'estoy estancado como lider')
+            openai.assert_not_called()
+        self.assertTrue(texto)
+        self.assertEqual(detect_intent('listo'), 'continuar_leccion')
