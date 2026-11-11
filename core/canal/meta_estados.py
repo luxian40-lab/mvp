@@ -121,9 +121,15 @@ def aplicar_statuses(statuses) -> int:
             continue
         from core.models.outbox_envio import cerrar_por_status
 
+        errores_status = item.get('errors') or []
+        codigo_status = ''
+        if errores_status and isinstance(errores_status[0], dict):
+            codigo_status = str(errores_status[0].get('code') or '')[:32]
         if cerrar_por_status(
             wamid=mid,
             opaco=str(item.get('biz_opaque_callback_data') or ''),
+            status=str(item.get('status') or ''),
+            codigo_error=codigo_status,
         ):
             actualizados += 1
         toco_envio = _aplicar_status_envio(item, mid)

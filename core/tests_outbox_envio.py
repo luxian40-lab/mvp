@@ -110,6 +110,24 @@ class OutboxEnvioTests(TestCase):
             self.assertFalse(cerrar_por_status(wamid='wamid.x', opaco='outbox:c1'))
 
     @override_settings(EKI_OUTBOX_ENVIO=True)
+    def test_failed_no_marca_enviado(self):
+        from core.canal.meta_estados import aplicar_statuses
+
+        registrar(correlacion='c1', canal='meta', telefono='573000000001')
+        reclamar('c1')
+        marcar('c1', INCIERTO, token=OutboxEnvio.objects.get(correlacion='c1').claim_token)
+        aplicar_statuses([{
+            'id': 'wamid.fail',
+            'status': 'failed',
+            'biz_opaque_callback_data': 'outbox:c1',
+            'errors': [{'code': 131047, 'title': 'Re-engagement message'}],
+        }])
+        fila = OutboxEnvio.objects.get(correlacion='c1')
+        self.assertEqual(fila.estado, ERROR)
+        self.assertEqual(fila.codigo_error, '131047')
+        self.assertNotEqual(fila.estado, ENVIADO)
+
+    @override_settings(EKI_OUTBOX_ENVIO=True)
     def test_error_no_se_confunde_con_el_lago(self):
         registrar(correlacion='c1', canal='meta', telefono='573000000001')
         token = reclamar('c1')

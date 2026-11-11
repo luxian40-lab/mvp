@@ -115,31 +115,40 @@ def marcar(correlacion: str, estado: str, *, token, wamid: str = '', codigo_erro
     return n == 1
 
 
-def cerrar_con_wamid(correlacion: str, wamid: str) -> bool:
-    """El status de Meta cierra ENVIANDO o INCIERTO. No reenvía."""
+def cerrar_con_wamid(correlacion: str, wamid: str, *, estado: str = ENVIADO, codigo_error: str = '') -> bool:
+    """El status de Meta cierra ENVIANDO o INCIERTO. failed no cuenta como enviado."""
+    if estado not in (ENVIADO, ERROR):
+        estado = ENVIADO
     n = OutboxEnvio.objects.filter(
         correlacion=(correlacion or '').strip(),
         estado__in=(ENVIANDO, INCIERTO),
-    ).update(estado=ENVIADO, wamid=(wamid or '')[:200])
+    ).update(
+        estado=estado,
+        wamid=(wamid or '')[:200],
+        codigo_error=(codigo_error or '')[:32],
+    )
     return n == 1
 
 
-def cerrar_por_status(*, wamid: str, opaco: str = '') -> bool:
+def cerrar_por_status(*, wamid: str, opaco: str = '', status: str = '', codigo_error: str = '') -> bool:
     """Cierra por wamid ya guardado o por biz_opaque outbox:<correlacion>."""
     if not outbox_activo():
         return False
     mid = (wamid or '').strip()[:200]
     if not mid:
         return False
+    destino = ERROR if (status or '').strip().lower() == 'failed' else ENVIADO
     n = OutboxEnvio.objects.filter(
         wamid=mid, estado__in=(ENVIANDO, INCIERTO),
-    ).update(estado=ENVIADO)
+    ).update(estado=destino, codigo_error=(codigo_error or '')[:32])
     if n:
         return True
     bruto = (opaco or '').strip()
     if not bruto.startswith('outbox:'):
         return False
-    return cerrar_con_wamid(bruto.split(':', 1)[1].strip(), mid)
+    return cerrar_con_wamid(
+        bruto.split(':', 1)[1].strip(), mid, estado=destino, codigo_error=codigo_error,
+    )
 
 
 def vencer_enviando(minutos: int | None = None) -> int:
