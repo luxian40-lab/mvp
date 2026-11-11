@@ -449,10 +449,15 @@ class CatalogoFormacionTests(TestCase):
                 nombre=nombre, descripcion='d', cliente=None, activo=True, catalogo_menu=True,
             )
         tarjetas = {t['titulo']: t for t in tarjetas_catalogo()}
+        imagenes = []
         for nombre, url in esperadas.items():
             self.assertEqual(tarjetas[nombre]['url'], url)
             self.assertIn(url, tarjetas[nombre]['body'])
             self.assertLessEqual(len(tarjetas[nombre]['body']), 160)
+            imagenes.append(tarjetas[nombre]['imagen'])
+        self.assertEqual(len(set(imagenes)), len(imagenes))
+        self.assertTrue(all(img.startswith('https://') for img in imagenes))
+        self.assertTrue(all('carrusel_tiempo' not in img for img in imagenes))
         self.assertEqual(_url_de_curso('Gestión de tiempo y productividad personal'), URL_TIEMPO)
 
     def test_ver_curso_no_borra_otro_progreso(self):

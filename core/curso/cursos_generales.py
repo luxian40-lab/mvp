@@ -147,6 +147,12 @@ def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> di
 
 
 _IMAGEN_POR_NOMBRE = {item['nombre']: item['imagen'] for item in CATALOGO}
+_IMAGEN_POR_NOMBRE.update({
+    'Comercialización y ventas': 'carrusel_comercializacion.jpg',
+    'Gestión de costos agropecuarios': 'carrusel_costos.jpg',
+    'Maquinaria y Herramientas para el Agro': 'carrusel_maquinaria.jpg',
+    'Introducción a un modelo de negocios Rural Sostenible': 'carrusel_modelo_rural.jpg',
+})
 _URL_POR_NOMBRE = {item['nombre']: item['url'] for item in CATALOGO}
 _URL_POR_NOMBRE.update({
     'Comercialización y ventas': URL_COMERCIALIZACION,
