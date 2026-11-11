@@ -152,6 +152,8 @@ def cerrar_por_status(*, wamid: str, opaco: str = '', status: str = '', codigo_e
 
 
 def vencer_enviando(minutos: int | None = None) -> int:
+    if not outbox_activo():
+        return 0
     limite = timezone.now() - timedelta(minutes=minutos if minutos is not None else _minutos_dudosas())
     return OutboxEnvio.objects.filter(estado=ENVIANDO, intento_en__lt=limite).update(estado=INCIERTO)
 

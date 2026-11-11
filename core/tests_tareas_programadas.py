@@ -20,6 +20,14 @@ class BeatRegistradoTests(SimpleTestCase):
             modulo = spec['task'].rsplit('.', 1)[0]
             self.assertIn(modulo, importados, entrada)
 
+    def test_vencer_outbox_esta_en_el_beat(self):
+        from mvp_project.celery import app
+
+        self.assertEqual(
+            app.conf.beat_schedule['vencer-outbox-enviando']['task'],
+            'core.tasks.vencer_outbox_enviando',
+        )
+
 
 class ReporteActividadTests(TestCase):
     def test_cuenta_mensajes_de_la_ultima_hora(self):

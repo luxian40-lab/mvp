@@ -83,6 +83,10 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.correlacionar_alertas_territoriales',
         'schedule': crontab(minute=20),
     },
+    'vencer-outbox-enviando': {
+        'task': 'core.tasks.vencer_outbox_enviando',
+        'schedule': 60.0,
+    },
 }
 
 

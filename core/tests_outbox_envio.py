@@ -127,6 +127,17 @@ class OutboxEnvioTests(TestCase):
         self.assertEqual(fila.codigo_error, '131047')
         self.assertNotEqual(fila.estado, ENVIADO)
 
+    def test_vencer_con_flag_apagado_no_toca(self):
+        with override_settings(EKI_OUTBOX_ENVIO=True):
+            registrar(correlacion='c1', canal='meta', telefono='573000000001')
+            reclamar('c1')
+            OutboxEnvio.objects.filter(correlacion='c1').update(
+                intento_en=timezone.now() - timedelta(minutes=11),
+            )
+        with override_settings(EKI_OUTBOX_ENVIO=False):
+            self.assertEqual(vencer_enviando(), 0)
+        self.assertEqual(OutboxEnvio.objects.get(correlacion='c1').estado, ENVIANDO)
+
     @override_settings(EKI_OUTBOX_ENVIO=True)
     def test_error_no_se_confunde_con_el_lago(self):
         registrar(correlacion='c1', canal='meta', telefono='573000000001')

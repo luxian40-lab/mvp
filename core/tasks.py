@@ -1025,3 +1025,14 @@ def ejecutar_campana_meta_async(self, campana_id):
     except Exception as exc:
         logger.error('campana_meta_async_fail id=%s err=%s', campana_id, exc)
         raise self.retry(exc=exc)
+
+
+@shared_task
+def vencer_outbox_enviando():
+    """ENVIANDO viejo pasa a INCIERTO. Con el flag apagado no toca filas."""
+    from core.models.outbox_envio import vencer_enviando
+
+    n = vencer_enviando()
+    if n:
+        logger.info('outbox_envio_vencidas=%s', n)
+    return n
