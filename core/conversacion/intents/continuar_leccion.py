@@ -123,7 +123,10 @@ def responder(intent, nombre_usuario, kwargs):
 def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_url, dividir_contenido_seguro, parte_mensaje_con_media):
     _ctx_show = dict(estudiante.contexto_temporal or {})
     if modulo_actual and _ctx_show.get('post_reto_entregar_modulo_id') == modulo_actual.id:
+        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+
         _ctx_show.pop('post_reto_entregar_modulo_id', None)
+        _ctx_show.pop(CLAVE_ESPERA_CONTINUAR_POST_RETO, None)
         estudiante.contexto_temporal = _ctx_show or None
         estudiante.save(update_fields=['contexto_temporal'])
 
@@ -782,7 +785,10 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
             reset_progreso_pasos_modulo,
         )
 
+        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+
         _ctx_reto.pop('post_reto_entregar_modulo_id', None)
+        _ctx_reto.pop(CLAVE_ESPERA_CONTINUAR_POST_RETO, None)
         estudiante.contexto_temporal = _ctx_reto or None
         estudiante.save(update_fields=['contexto_temporal'])
 

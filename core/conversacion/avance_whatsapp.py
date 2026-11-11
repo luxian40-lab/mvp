@@ -45,6 +45,43 @@ TEXTO_NO_ENTENDI = (
     "Si necesitas ayuda, escribe *ayuda*.\n\n" + MARCADOR_BOTON_CONTINUEMOS
 )
 
+# Tras calificar un reto intermedio: texto libre no debe sonar a error.
+TEXTO_POST_RETO_CONTINUAR = (
+    "Ya revisamos su reto. Para seguir con el curso, pulse Continuar.\n\n"
+    + MARCADOR_BOTON_CONTINUEMOS
+)
+TEXTO_POST_RETO_CONTINUAR_TU = (
+    "Ya revisamos tu reto. Para seguir con el curso, toca Continuar.\n\n"
+    + MARCADOR_BOTON_CONTINUEMOS
+)
+
+CLAVE_ESPERA_CONTINUAR_POST_RETO = 'espera_continuar_post_reto'
+
+
+def espera_continuar_post_reto(estudiante) -> bool:
+    ctx = getattr(estudiante, 'contexto_temporal', None) or {}
+    return bool(
+        ctx.get(CLAVE_ESPERA_CONTINUAR_POST_RETO)
+        or ctx.get('post_reto_entregar_modulo_id')
+    )
+
+
+def texto_cuando_no_es_listo(estudiante) -> str:
+    """Copy de la puerta ACTIVO si el mensaje no es Continuar/listo."""
+    from core.lineas.agricapital_experiencia import (
+        estudiante_es_agricapital,
+        texto_no_entendi_agricapital,
+    )
+
+    if espera_continuar_post_reto(estudiante):
+        if estudiante_es_agricapital(estudiante):
+            return TEXTO_POST_RETO_CONTINUAR_TU
+        return TEXTO_POST_RETO_CONTINUAR
+    if estudiante_es_agricapital(estudiante):
+        return texto_no_entendi_agricapital()
+    return TEXTO_NO_ENTENDI
+
+
 # Misma plantilla que core.whatsapp_service (evita import circular en tests).
 SID_BOTON_LISTO_DEFAULT = 'HX33af3a0f2bb63715e03965c2bd642285'
 

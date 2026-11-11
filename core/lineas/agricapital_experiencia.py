@@ -82,6 +82,15 @@ _NO_CALIFICABLE_EXACTAS = frozenset({
     'soporte',
     'ticket',
     'help',
+    'no',
+    'si',
+    'sí',
+    'ok',
+    'okay',
+    'vale',
+    'bien',
+    'malo',
+    'gracias',
     'no entendi',
     'no entendí',
     'no entiendo',
@@ -99,6 +108,15 @@ _NO_CALIFICABLE_EXACTAS = frozenset({
     'no carga la imagen',
     'no carga el video',
 })
+
+# Misma regla, trato de usted (Lhaura y resto). AgriCapital sigue en tú.
+TEXTO_REINTENTO_RETO_USTED = (
+    'Eso no cuenta como respuesta al reto, así que no recibe nota.\n\n'
+    'Cuando pueda, escriba con sus palabras qué haría, o mande un audio '
+    'o una foto de su evidencia.\n\n'
+    '_Si el problema es que no descarga o no ve una imagen, dígalo y le ayudamos '
+    'sin calificar el reto._'
+)
 
 def _norm(texto: str) -> str:
     t = (texto or '').strip().lower()
@@ -169,6 +187,13 @@ def es_mensaje_no_calificable_reto(mensaje: str) -> bool:
 
 def texto_reintento_reto_agricapital() -> str:
     return TEXTO_REINTENTO_RETO
+
+
+def texto_reintento_reto(estudiante=None) -> str:
+    """Copy de reintento: AgriCapital en tú; el resto en usted."""
+    if estudiante is not None and estudiante_es_agricapital(estudiante):
+        return TEXTO_REINTENTO_RETO
+    return TEXTO_REINTENTO_RETO_USTED
 
 
 def texto_tip_media_agricapital() -> str:

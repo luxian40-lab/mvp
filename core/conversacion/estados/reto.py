@@ -36,10 +36,11 @@ def manejar(contexto: Contexto) -> Respuesta:
     if msg_lower in ['ayuda', 'soporte', 'ticket']:
         from core.security_handler import procesar_solicitud_soporte
         texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
-    elif _reto_agricapital_no_califica(estudiante, msg_body):
-        from core.lineas.agricapital_experiencia import texto_reintento_reto_agricapital
+    elif _reto_respuesta_no_califica(msg_body):
+        # Cortas / ayuda / duda de media: no reciben nota (todas las líneas).
+        from core.lineas.agricapital_experiencia import texto_reintento_reto
 
-        texto_respuesta = texto_reintento_reto_agricapital()
+        texto_respuesta = texto_reintento_reto(estudiante)
     elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
         # Audio no pudo ser transcrito — pedir reintento sin evaluar
         print(f"🎤 Audio no transcrito en reto — pidiendo reintento")
@@ -238,6 +239,9 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
                     ]
                 )
                 _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
+            from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+
+            _base_ctx[CLAVE_ESPERA_CONTINUAR_POST_RETO] = True
             estudiante.contexto_temporal = _base_ctx
             estudiante.save(
                 update_fields=['contexto_temporal', 'estado_onboarding']
@@ -248,6 +252,9 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
                 + _MARCADOR_CONTINUEMOS
             )
     else:
+        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+
+        _base_ctx[CLAVE_ESPERA_CONTINUAR_POST_RETO] = True
         estudiante.contexto_temporal = _base_ctx
         estudiante.save(
             update_fields=['contexto_temporal', 'estado_onboarding']
@@ -443,10 +450,7 @@ def _progreso_de(curso, estudiante, ctx):
     return progreso
 
 
-def _reto_agricapital_no_califica(estudiante, msg_body: str) -> bool:
-    from core.lineas.agricapital_experiencia import (
-        es_mensaje_no_calificable_reto,
-        estudiante_es_agricapital,
-    )
+def _reto_respuesta_no_califica(msg_body: str) -> bool:
+    from core.lineas.agricapital_experiencia import es_mensaje_no_calificable_reto
 
-    return estudiante_es_agricapital(estudiante) and es_mensaje_no_calificable_reto(msg_body)
+    return es_mensaje_no_calificable_reto(msg_body)
