@@ -275,6 +275,21 @@ def estudiante_logout(request):
     return redirect('/aprende/')
 
 
+def _diploma_emitido(estudiante, curso):
+    from core.models_certificados import Certificado
+
+    return (
+        Certificado.objects.filter(
+            estudiante=estudiante,
+            curso=curso,
+            emitido=True,
+            anulado=False,
+        )
+        .order_by('-id')
+        .first()
+    )
+
+
 @requiere_estudiante_aprende
 def estudiante_cursos(request):
     est = request.aprende_estudiante
@@ -314,6 +329,7 @@ def estudiante_curso(request, curso_id: int):
         'progreso': progreso,
         'modulos': modulos,
         'curso_tab': 'modulos',
+        'diploma': _diploma_emitido(est, progreso.curso),
     })
 
 

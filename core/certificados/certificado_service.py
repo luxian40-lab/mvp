@@ -747,6 +747,12 @@ def _enviar_plantilla_media_twilio(telefono: str, content_sid: str, variables: d
     return enviar_plantilla_twilio(telefono, content_sid, variables=variables)
 
 
+def texto_descarga_alta_calidad(certificado) -> str:
+    """El globo no es HD. El PDF nítido vive en la ficha de verificación."""
+    url = certificado.obtener_url_verificacion()
+    return f'Para imprimir, descargue en alta calidad:\n{url}'
+
+
 def enviar_certificado_whatsapp(
     certificado,
     *,
@@ -796,6 +802,7 @@ def enviar_certificado_whatsapp(
         )
         if mencion:
             caption_corto += f"\n🏆 {mencion}"
+        caption_corto += f"\n{texto_descarga_alta_calidad(certificado)}"
 
         if sid_media:
             # MODO IDEAL: plantilla aprobada con imagen del certificado en el header.
@@ -849,11 +856,9 @@ Has completado exitosamente el curso:
 
             mensaje += f"""
 
-📜 Tu certificado digital está listo:
-🔗 {media_url}
+📜 Tu certificado digital está listo.
 
-✅ Puedes verificar su autenticidad aquí:
-{verificacion_url}
+📄 {texto_descarga_alta_calidad(certificado)}
 
 🔐 Código de verificación:
 `{certificado.codigo_verificacion}`

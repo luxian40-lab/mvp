@@ -195,6 +195,26 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'is-active')
         self.assertContains(r, self.curso.nombre)
 
+    def test_estudiante_curso_muestra_diploma_alta_calidad(self):
+        from django.utils import timezone
+        from core.models_certificados import Certificado
+
+        Certificado.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            calificacion_final=95,
+            fecha_inicio='2026-01-01',
+            fecha_completado='2026-02-01',
+            emitido=True,
+            fecha_emision=timezone.now(),
+            codigo_verificacion='eki-TEST-APRENDE-HD1',
+        )
+        self._login_estudiante()
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'alta calidad')
+        self.assertContains(r, '/descargar-certificado/eki-TEST-APRENDE-HD1/')
+
     def test_quiz_web_modulo_practica(self):
         from core.models import PreguntaModulo
         PreguntaModulo.objects.create(

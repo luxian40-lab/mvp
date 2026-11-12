@@ -403,14 +403,14 @@
         {% if descarga_url or pdf_url or imagen_url %}
         <div class="actions" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
           {% if descarga_url or pdf_url %}
-          <a class="btn" href="{{ descarga_url|default:pdf_url }}" rel="noopener">Descargar PDF</a>
+          <a class="btn" href="{{ descarga_url|default:pdf_url }}" rel="noopener">Descargar en alta calidad</a>
           {% endif %}
           {% if imagen_url %}
           <a class="btn btn-ghost" href="{{ imagen_url }}" target="_blank" rel="noopener">Ver imagen</a>
           {% endif %}
         </div>
         {% endif %}
-        <p class="foot">{% if organizacion %}Emitido con eki para {{ organizacion }}. {% endif %}Este documento figura en el registro público de eki.</p>
+        <p class="foot">{% if organizacion %}Emitido con eki para {{ organizacion }}. {% endif %}La foto de WhatsApp es una copia. Este PDF es el diploma para imprimir.</p>
       {% else %}
         <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
           <circle cx="28" cy="28" r="26" fill="#c92a2a"/>

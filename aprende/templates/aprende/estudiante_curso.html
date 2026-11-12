@@ -36,6 +36,14 @@
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
 {% endif %}
 
+{% if diploma %}
+<aside class="eki-wa-bridge" aria-label="Diploma en alta calidad">
+    <strong>Diploma en alta calidad</strong>
+    <span>La foto de WhatsApp es una copia. Aquí está el PDF para imprimir.</span>
+    <a class="eki-btn eki-btn--primary eki-btn--sm" style="margin-top:0.65rem;" href="/descargar-certificado/{{ diploma.codigo_verificacion }}/">Descargar en alta calidad</a>
+</aside>
+{% endif %}
+
 {% if progreso.curso.es_modo_clases %}
 <aside class="eki-wa-bridge" aria-label="Biblioteca">
     <strong>Biblioteca · mis clases guardadas</strong>
