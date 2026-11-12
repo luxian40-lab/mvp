@@ -863,6 +863,12 @@ try:
     CERT_MAESTRO_LADO_MAX = int(os.environ.get('CERT_MAESTRO_LADO_MAX', '4096') or '4096')
 except (TypeError, ValueError):
     CERT_MAESTRO_LADO_MAX = 4096
+# Corte 1b. Off: el diploma se pinta en el turno del chat (comportamiento actual).
+# On: crear_certificado_automatico encola generar_certificado_async y el cierre
+# dice «se está generando»; el worker pinta y envía. Default off hasta smoke.
+EKI_CERTIFICADO_ASYNC = os.environ.get('EKI_CERTIFICADO_ASYNC', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 
 # ==========================================
 # 🌱 AGRONEXO — alias legacy de BOT_COMERCIAL (canal unificado bot_comercial)

@@ -368,29 +368,36 @@ def procesar_twilio_webhook_async(self, post_data: dict):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def generar_certificado_async(self, certificado_id):
-    """
-    Genera un certificado PDF de forma asíncrona.
-    """
+    """Pinta el diploma HD (PNG maestro + PDF A4 + copia WA) y lo envía."""
     try:
-        from core.models import Certificado
+        from core.models_certificados import Certificado
+        from core.certificado_service import (
+            enviar_certificado_whatsapp,
+            generar_y_guardar_certificado,
+        )
+
         certificado = Certificado.objects.select_related(
-            'estudiante', 'curso', 'plantilla'
+            'estudiante', 'curso',
         ).get(id=certificado_id)
 
-        logger.info(f"[Celery] Generando certificado para {certificado.estudiante.nombre} - {certificado.curso.nombre}")
+        logger.info(
+            '[Celery] Generando certificado para %s - %s',
+            certificado.estudiante.nombre,
+            certificado.curso.nombre,
+        )
 
-        from core.generador_certificados import generar_certificado_pdf
-        resultado = generar_certificado_pdf(certificado, plantilla=certificado.plantilla)
+        if not generar_y_guardar_certificado(certificado):
+            logger.error('[Celery] Error generando certificado %s', certificado.id)
+            return False
 
-        if resultado:
-            certificado.generado = True
-            certificado.fecha_generacion = timezone.now()
-            certificado.save(update_fields=['generado', 'fecha_generacion'])
-            logger.info(f"[Celery] Certificado generado OK: {certificado.id}")
-        else:
-            logger.error(f"[Celery] Error generando certificado {certificado.id}")
-
-        return resultado
+        certificado.refresh_from_db()
+        enviado = enviar_certificado_whatsapp(certificado)
+        logger.info(
+            '[Celery] Certificado %s generado OK enviar=%s',
+            certificado.id,
+            enviado,
+        )
+        return True
 
     except Exception as exc:
         logger.error(f"[Celery] Error generando certificado {certificado_id}: {exc}")

@@ -990,13 +990,46 @@ def mensaje_whatsapp_sin_certificado(estudiante, curso, motivo: str | None = Non
     )
 
 
-def crear_certificado_automatico(estudiante, curso):
+def _debe_encolar_certificado(encolar) -> bool:
+    if encolar is not None:
+        return bool(encolar)
+    return bool(getattr(settings, 'EKI_CERTIFICADO_ASYNC', False))
+
+
+def _encolar_generacion_certificado(certificado) -> bool:
+    """Encola el pintado HD. No-op si ya hay archivo o si otro turno ya encoló."""
+    if certificado.archivo_imagen or certificado.archivo_pdf:
+        return False
+    from django.core.cache import cache
+
+    key = f'eki:cert:async:{certificado.pk}'
+    if not cache.add(key, 1, timeout=600):
+        return False
+    try:
+        from core.tasks import generar_certificado_async
+
+        generar_certificado_async.delay(certificado.pk)
+    except Exception:
+        cache.delete(key)
+        raise
+    return True
+
+
+def completar_archivo_certificado_si_falta(certificado) -> bool:
+    """Reintento síncrono del cierre. Con EKI_CERTIFICADO_ASYNC no pinta en el turno."""
+    if _debe_encolar_certificado(None):
+        return False
+    return bool(generar_y_guardar_certificado(certificado, force=True))
+
+
+def crear_certificado_automatico(estudiante, curso, *, encolar=None):
     """
     Crea automáticamente un certificado cuando el estudiante completa el curso
     
     Args:
         estudiante: Instancia de Estudiante
         curso: Instancia de Curso
+        encolar: None usa EKI_CERTIFICADO_ASYNC. False (admin/smoke) pinta aquí.
     
     Returns:
         Certificado o None si falla
@@ -1022,6 +1055,10 @@ def crear_certificado_automatico(estudiante, curso):
     
     if certificado_existente:
         logger.info(f"Ya existe certificado para {estudiante.nombre} - {curso.nombre}")
+        if _debe_encolar_certificado(encolar) and not (
+            certificado_existente.archivo_imagen or certificado_existente.archivo_pdf
+        ):
+            _encolar_generacion_certificado(certificado_existente)
         return certificado_existente
 
     puede, motivo = evaluar_elegibilidad_certificado(estudiante, curso)
@@ -1056,8 +1093,10 @@ def crear_certificado_automatico(estudiante, curso):
             fecha_completado=fecha_completado,
         )
         
-        # Generar PDF automáticamente
-        generar_y_guardar_certificado(certificado)
+        if _debe_encolar_certificado(encolar):
+            _encolar_generacion_certificado(certificado)
+        else:
+            generar_y_guardar_certificado(certificado)
         
         logger.info(f"✅ Certificado creado para {estudiante.nombre} - {curso.nombre} ({calificacion}%)")
         return certificado

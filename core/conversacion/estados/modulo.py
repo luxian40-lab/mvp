@@ -219,10 +219,10 @@ def _texto_cierre_curso(pregunta_abierta, contexto_limpio, estudiante, progreso,
                 msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
                 logger.info(f"📄 Certificado PDF URL: {cert_url}")
             elif cert:
-                logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-                from core.certificado_service import generar_y_guardar_certificado
-                generar_y_guardar_certificado(cert, force=True)
-                cert.refresh_from_db()
+                from core.certificado_service import completar_archivo_certificado_si_falta
+                if completar_archivo_certificado_si_falta(cert):
+                    logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
+                    cert.refresh_from_db()
                 if cert.archivo_imagen:
                     cert_url = obtener_url_certificado_twilio(cert)
                     if cert_url:

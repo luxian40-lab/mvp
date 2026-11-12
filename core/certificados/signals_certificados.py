@@ -39,10 +39,12 @@ def generar_certificado_al_completar(sender, instance, created, **kwargs):
             certificado = crear_certificado_automatico(instance.estudiante, instance.curso)
             
             if certificado:
-                # Asegurar que tiene imagen/PDF generado
-                if not certificado.archivo_imagen and not certificado.archivo_pdf:
-                    logger.info(f"📄 Generando archivo del certificado...")
-                    generar_y_guardar_certificado(certificado)
+                from django.conf import settings as _settings_cert
+
+                if not getattr(_settings_cert, 'EKI_CERTIFICADO_ASYNC', False):
+                    if not certificado.archivo_imagen and not certificado.archivo_pdf:
+                        logger.info(f"📄 Generando archivo del certificado...")
+                        generar_y_guardar_certificado(certificado)
                 
                 logger.info(f"✅ Certificado generado: {certificado.codigo_verificacion} (envío via views.py)")
             else:

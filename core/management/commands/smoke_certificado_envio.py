@@ -105,7 +105,7 @@ class Command(BaseCommand):
 
         cert = Certificado.objects.filter(estudiante=est, curso=curso).first()
         if not cert:
-            cert = crear_certificado_automatico(est, curso)
+            cert = crear_certificado_automatico(est, curso, encolar=False)
         if not cert:
             # Fallback directo si elegibilidad bloquea en smoke
             cert = Certificado.objects.create(

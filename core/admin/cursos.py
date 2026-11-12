@@ -3053,7 +3053,9 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
             certificado = Certificado.objects.filter(estudiante=progreso.estudiante, curso=progreso.curso).first()
             if not certificado:
                 try:
-                    certificado = crear_certificado_automatico(progreso.estudiante, progreso.curso)
+                    certificado = crear_certificado_automatico(
+                        progreso.estudiante, progreso.curso, encolar=False,
+                    )
                     if certificado and not certificado.emitido:
                         generar_y_guardar_certificado(certificado)
                     if certificado and certificado.emitido:
