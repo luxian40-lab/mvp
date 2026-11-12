@@ -15,6 +15,8 @@ ALTO = 848
 A4_ANCHO_DEFAULT = 3508
 A4_ALTO_DEFAULT = 2480
 PAPEL_EKI = (247, 244, 250)
+TEXTO_MARCA_DEFAULT = 'eki'
+TEXTO_MARCA_LEGADO = 'eki - Soluciones Educativas'
 NOMBRE_DEMO = 'MARÍA GONZÁLEZ PÉREZ'
 CURSO_DEMO = 'Curso de demostración eki'
 
@@ -184,6 +186,25 @@ def _texto_superior_con_eki(draw, y, texto, font_eki, font_ui, fill, ancho=ANCHO
         draw.text((x, y), after, font=font_ui, fill=fill)
 
 
+def _texto_marca(texto) -> str:
+    """La marca es solo eki. El legado 'Soluciones Educativas' no se pinta."""
+    raw = (texto or '').strip()
+    if not raw or raw.lower() == TEXTO_MARCA_LEGADO.lower():
+        return TEXTO_MARCA_DEFAULT
+    return raw
+
+
+def _margen_interno(escala):
+    """Hueco dentro del doble marco para QR y código."""
+    return _px(48, escala) + _px(14, escala) + _px(18, escala)
+
+
+def _caja_qr(ancho, alto, escala, lado=None):
+    lado = lado if lado is not None else _px(110, escala)
+    hueco = _margen_interno(escala)
+    return ancho - hueco - lado, alto - hueco - lado, lado
+
+
 def _pintar_preset_eki(img, color_primario, color_secundario, escala):
     """Marco eki cuando no hay Canva: papel, bandas y doble recuadro."""
     draw = ImageDraw.Draw(img)
@@ -220,7 +241,7 @@ def render_certificado_diseno_eki(
 
     color_primario = _hex_a_rgb(getattr(plantilla, 'color_primario', None), (44, 62, 80))
     color_secundario = _hex_a_rgb(getattr(plantilla, 'color_secundario', None), (52, 152, 219))
-    texto_superior = (getattr(plantilla, 'texto_superior', None) or 'eki - Soluciones Educativas').strip()
+    texto_superior = _texto_marca(getattr(plantilla, 'texto_superior', None))
     texto_certificado = (getattr(plantilla, 'texto_certificado', None) or 'CERTIFICADO DE FINALIZACIÓN').strip()
 
     fondo = _abrir_imagen_campo(getattr(plantilla, 'imagen_fondo', None) if plantilla else None)
@@ -261,18 +282,19 @@ def render_certificado_diseno_eki(
         fecha_txt = str(fecha_emision)
     _texto_centrado(draw, _px(640, escala), f'Fecha de emisión: {fecha_txt}', font_peq, (80, 80, 80), ancho=ancho)
 
+    hueco = _margen_interno(escala)
     codigo = f'Código: {codigo_verificacion}'
-    draw.text((_px(48, escala), alto - _px(56, escala)), codigo, font=font_peq, fill=(120, 120, 120))
+    draw.text((hueco, alto - hueco - _px(22, escala)), codigo, font=font_peq, fill=(120, 120, 120))
 
     try:
         from core.certificados.certificado_qr import png_qr_nitido
 
-        qr_lado = _px(110, escala)
+        x_qr, y_qr, qr_lado = _caja_qr(ancho, alto, escala)
         qr_img = png_qr_nitido(
             url_verificacion or 'https://certificados.eki.technology/verificar/',
             qr_lado,
         )
-        img.paste(qr_img, (ancho - _px(150, escala), alto - _px(150, escala)))
+        img.paste(qr_img, (int(x_qr), int(y_qr)))
     except Exception as exc:
         logger.warning('QR no generado en diseño eki: %s', exc)
 

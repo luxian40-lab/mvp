@@ -313,8 +313,8 @@ class PlantillaCertificado(models.Model):
     # Textos personalizables
     texto_superior = models.CharField(
         max_length=200,
-        default="eki - Soluciones Educativas",
-        help_text="Texto en la parte superior"
+        default="eki",
+        help_text="Texto en la parte superior. Vacío o el legado 'eki - Soluciones Educativas' se pinta solo como eki."
     )
     texto_certificado = models.CharField(
         max_length=100,

@@ -391,11 +391,29 @@ def test_fuentes_diseno_eki_son_de_marca():
     assert eki.getname()[0] == 'Covered By Your Grace'
 
 
+def test_render_legado_soluciones_es_solo_eki():
+    from types import SimpleNamespace
+
+    from PIL import ImageChops
+
+    a = Image.open(render_certificado_diseno_eki()).convert('RGB')
+    legado = SimpleNamespace(
+        color_primario=None,
+        color_secundario=None,
+        texto_superior='eki - Soluciones Educativas',
+        texto_certificado=None,
+        imagen_fondo=None,
+        logo_institucion=None,
+    )
+    b = Image.open(render_certificado_diseno_eki(plantilla=legado)).convert('RGB')
+    assert ImageChops.difference(a, b).getbbox() is None
+
+
 def test_render_diseno_eki_con_marca_eki_no_rompe():
     plantilla = PlantillaCertificado(
         nombre='Marca',
         modo_plantilla='diseno_eki',
-        texto_superior='eki - Soluciones Educativas',
+        texto_superior='eki - Alitic',
         texto_certificado='CERTIFICADO DE FINALIZACIÓN',
         color_primario='#5F3A6E',
         color_secundario='#9A6CAC',

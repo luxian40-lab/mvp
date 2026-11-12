@@ -27,6 +27,38 @@ def test_qr_nitido_lado_pedido():
     assert (255, 255, 255) in _colores(img)
 
 
+def test_texto_marca_quita_soluciones_educativas():
+    from core.certificado_diseno_eki import _texto_marca
+
+    assert _texto_marca(None) == 'eki'
+    assert _texto_marca('') == 'eki'
+    assert _texto_marca('eki - Soluciones Educativas') == 'eki'
+    assert _texto_marca('eki - Alitic') == 'eki - Alitic'
+
+
+def test_qr_diseno_eki_dentro_del_marco():
+    from core.certificado_diseno_eki import (
+        ALTO,
+        _caja_qr,
+        _px,
+        render_certificado_diseno_eki,
+    )
+
+    buf = render_certificado_diseno_eki(url_verificacion=URL)
+    img = Image.open(buf).convert('RGB')
+    w, h = img.size
+    escala = h / float(ALTO)
+    x, y, lado = _caja_qr(w, h, escala)
+    inner = _px(48, escala) + _px(14, escala)
+    assert x >= inner
+    assert y >= inner
+    assert x + lado <= w - inner
+    assert y + lado <= h - inner
+    crop = np.array(img.crop((x, y, x + lado, y + lado)))
+    assert crop.min() < 40
+    assert crop.max() > 200
+
+
 def test_qr_diseno_eki_esquina_sin_grises():
     from core.certificado_diseno_eki import render_certificado_diseno_eki
 

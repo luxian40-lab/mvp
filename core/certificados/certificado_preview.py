@@ -184,7 +184,7 @@ def plantilla_desde_request(post_data: dict, plantilla_id: str | None = None):
             modo_plantilla=post_data.get('modo_plantilla') or 'imagen',
             color_primario=post_data.get('color_primario') or '#2C3E50',
             color_secundario=post_data.get('color_secundario') or '#3498DB',
-            texto_superior=post_data.get('texto_superior') or 'eki - Soluciones Educativas',
+            texto_superior=post_data.get('texto_superior') or 'eki',
             texto_certificado=post_data.get('texto_certificado') or 'CERTIFICADO DE FINALIZACIÓN',
             url_plantilla_imagen=(post_data.get('url_plantilla_imagen') or '').strip() or None,
         )
