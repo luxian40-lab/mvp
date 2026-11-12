@@ -97,7 +97,10 @@ def test_render_diseno_eki_genera_png():
     assert data[:8] == b'\x89PNG\r\n\x1a\n'
     assert len(data) > 5000
     img = Image.open(BytesIO(data))
-    assert img.size == (1200, 848)
+    from core.certificado_diseno_eki import A4_ALTO_DEFAULT, A4_ANCHO_DEFAULT, PAPEL_EKI
+    assert img.size == (A4_ANCHO_DEFAULT, A4_ALTO_DEFAULT)
+    assert img.getpixel((20, 20)) != (255, 255, 255)
+    assert img.getpixel((img.size[0] // 2, img.size[1] // 2)) == PAPEL_EKI
 
 
 @pytest.mark.django_db

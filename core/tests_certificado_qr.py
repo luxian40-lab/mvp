@@ -30,10 +30,13 @@ def test_qr_nitido_lado_pedido():
 def test_qr_diseno_eki_esquina_sin_grises():
     from core.certificado_diseno_eki import render_certificado_diseno_eki
 
+    from core.certificado_diseno_eki import ALTO
+
     buf = render_certificado_diseno_eki(url_verificacion=URL)
     img = Image.open(buf).convert('RGB')
     w, h = img.size
-    crop = img.crop((w - 150, h - 150, w, h))
+    region = max(80, int(round(150 * h / float(ALTO))))
+    crop = img.crop((w - region, h - region, w, h))
     grises = {
         c for c in _colores(crop)
         if c not in {(0, 0, 0), (255, 255, 255)} and min(c) == max(c)

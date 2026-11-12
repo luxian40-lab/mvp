@@ -863,6 +863,16 @@ try:
     CERT_MAESTRO_LADO_MAX = int(os.environ.get('CERT_MAESTRO_LADO_MAX', '4096') or '4096')
 except (TypeError, ValueError):
     CERT_MAESTRO_LADO_MAX = 4096
+# Diseño eki sin fondo subido: A4 apaisado ~300 DPI (297×210 mm).
+# Verificado 2026-11-12. El fondo de Canva, si existe, manda el tamaño.
+try:
+    CERT_DISENO_EKI_ANCHO = int(os.environ.get('CERT_DISENO_EKI_ANCHO', '3508') or '3508')
+except (TypeError, ValueError):
+    CERT_DISENO_EKI_ANCHO = 3508
+try:
+    CERT_DISENO_EKI_ALTO = int(os.environ.get('CERT_DISENO_EKI_ALTO', '2480') or '2480')
+except (TypeError, ValueError):
+    CERT_DISENO_EKI_ALTO = 2480
 # Corte 1b. Off: el diploma se pinta en el turno del chat (comportamiento actual).
 # On: crear_certificado_automatico encola generar_certificado_async y el cierre
 # dice «se está generando»; el worker pinta y envía. Default off hasta smoke.

@@ -110,8 +110,10 @@ def test_preparar_lienzo_fondo_grande_no_baja_a_1200():
     assert abs(escala - (1700 / 848)) < 0.001
 
 
-def test_preparar_lienzo_sin_fondo_sigue_1200x848():
+def test_preparar_lienzo_sin_fondo_es_a4():
+    from core.certificados.certificado_diseno_eki import A4_ALTO_DEFAULT, A4_ANCHO_DEFAULT
+
     img, w, h, escala = _preparar_lienzo(None, max_lado=4096)
     assert img is None
-    assert (w, h) == (ANCHO, ALTO)
-    assert escala == 1.0
+    assert (w, h) == (A4_ANCHO_DEFAULT, A4_ALTO_DEFAULT)
+    assert abs(escala - (A4_ALTO_DEFAULT / ALTO)) < 0.001

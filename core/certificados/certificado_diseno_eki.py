@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 ANCHO = 1200
 ALTO = 848
+A4_ANCHO_DEFAULT = 3508
+A4_ALTO_DEFAULT = 2480
+PAPEL_EKI = (247, 244, 250)
 NOMBRE_DEMO = 'MARÍA GONZÁLEZ PÉREZ'
 CURSO_DEMO = 'Curso de demostración eki'
 
@@ -55,12 +58,24 @@ def _tope_maestro():
         return 4096
 
 
+def _tamano_diseno_sin_fondo():
+    """A4 apaisado si no hay fondo. Layout sigue midiendo en 1200×848."""
+    try:
+        from django.conf import settings
+        w = int(getattr(settings, 'CERT_DISENO_EKI_ANCHO', A4_ANCHO_DEFAULT) or A4_ANCHO_DEFAULT)
+        h = int(getattr(settings, 'CERT_DISENO_EKI_ALTO', A4_ALTO_DEFAULT) or A4_ALTO_DEFAULT)
+        return max(800, w), max(600, h)
+    except Exception:
+        return A4_ANCHO_DEFAULT, A4_ALTO_DEFAULT
+
+
 def _preparar_lienzo(fondo, *, max_lado=None):
-    """Fondo a tamaño nativo (tope de lado). Escala = alto / 848. Sin fondo: 1200×848."""
+    """Fondo a tamaño nativo (tope de lado). Escala = alto / 848. Sin fondo: A4."""
     if max_lado is None:
         max_lado = _tope_maestro()
     if fondo is None:
-        return None, ANCHO, ALTO, 1.0
+        w, h = _tamano_diseno_sin_fondo()
+        return None, w, h, h / float(ALTO)
     img = fondo.convert('RGB') if fondo.mode != 'RGB' else fondo.copy()
     w, h = img.size
     largo = max(w, h)
@@ -169,6 +184,27 @@ def _texto_superior_con_eki(draw, y, texto, font_eki, font_ui, fill, ancho=ANCHO
         draw.text((x, y), after, font=font_ui, fill=fill)
 
 
+def _pintar_preset_eki(img, color_primario, color_secundario, escala):
+    """Marco eki cuando no hay Canva: papel, bandas y doble recuadro."""
+    draw = ImageDraw.Draw(img)
+    ancho, alto = img.size
+    banda = _px(22, escala)
+    draw.rectangle((0, 0, ancho, banda), fill=color_primario)
+    draw.rectangle((0, alto - banda, ancho, alto), fill=color_primario)
+    margin = _px(48, escala)
+    draw.rectangle(
+        (margin, margin, ancho - margin, alto - margin),
+        outline=color_primario,
+        width=_px(4, escala),
+    )
+    inner = margin + _px(14, escala)
+    draw.rectangle(
+        (inner, inner, ancho - inner, alto - inner),
+        outline=color_secundario,
+        width=_px(2, escala),
+    )
+
+
 def render_certificado_diseno_eki(
     *,
     plantilla=None,
@@ -190,20 +226,8 @@ def render_certificado_diseno_eki(
     fondo = _abrir_imagen_campo(getattr(plantilla, 'imagen_fondo', None) if plantilla else None)
     img, ancho, alto, escala = _preparar_lienzo(fondo)
     if img is None:
-        img = Image.new('RGB', (ancho, alto), (255, 255, 255))
-        draw_bg = ImageDraw.Draw(img)
-        margin = _px(36, escala)
-        draw_bg.rectangle(
-            (margin, margin, ancho - margin, alto - margin),
-            outline=color_primario,
-            width=_px(4, escala),
-        )
-        draw_bg.rectangle(
-            (margin + _px(10, escala), margin + _px(10, escala),
-             ancho - margin - _px(10, escala), alto - margin - _px(10, escala)),
-            outline=color_secundario,
-            width=_px(2, escala),
-        )
+        img = Image.new('RGB', (ancho, alto), PAPEL_EKI)
+        _pintar_preset_eki(img, color_primario, color_secundario, escala)
 
     draw = ImageDraw.Draw(img)
     font_titulo, font_nombre, font_medio, font_peq, font_eki = _cargar_fuentes(escala)

@@ -79,7 +79,10 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 'color_primario', 'color_secundario',
                 'texto_superior', 'texto_certificado',
             ),
-            'description': 'Elementos adicionales de eki: colores y textos. La vista previa muestra un ejemplo.',
+            'description': (
+                'Sin Canva: logo, colores y textos. El diploma sale en A4. '
+                'El fondo es opcional.'
+            ),
         }),
         ('PDF', {
             'classes': ['tab'],
