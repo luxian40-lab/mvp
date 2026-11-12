@@ -16,7 +16,6 @@ import os
 import logging
 import requests
 import numpy as np
-import qrcode
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from django.conf import settings
@@ -263,8 +262,9 @@ def generar_certificado_marcadores(
         )
     
     # 7. Generar y pegar QR (centrado en el marcador con ajuste)
-    qr_img = qrcode.make(url_verificacion)
-    qr_img = qr_img.resize((tamaño_qr, tamaño_qr))
+    from core.certificados.certificado_qr import png_qr_nitido
+
+    qr_img = png_qr_nitido(url_verificacion, int(tamaño_qr))
     x_qr = pos_qr[0] - tamaño_qr // 2
     y_qr = pos_qr[1] - tamaño_qr // 2 + ajuste_qr_y
     plantilla.paste(qr_img, (int(x_qr), int(y_qr)))

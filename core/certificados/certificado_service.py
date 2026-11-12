@@ -365,8 +365,9 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
     
     # QR en esquina inferior derecha
     try:
-        import qrcode
-        qr_img = qrcode.make(url_verificacion).resize((130, 130))
+        from core.certificados.certificado_qr import png_qr_nitido
+
+        qr_img = png_qr_nitido(url_verificacion, 130)
         plantilla.paste(qr_img, (ancho - 220, alto - 220))
     except Exception as qr_e:
         logger.warning(f"⚠️ No se pudo generar QR: {qr_e}")

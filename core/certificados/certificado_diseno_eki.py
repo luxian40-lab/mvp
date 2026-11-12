@@ -176,12 +176,13 @@ def render_certificado_diseno_eki(
     draw.text((_px(48, escala), alto - _px(56, escala)), codigo, font=font_peq, fill=(120, 120, 120))
 
     try:
-        import qrcode
+        from core.certificados.certificado_qr import png_qr_nitido
+
         qr_lado = _px(110, escala)
-        qr = qrcode.QRCode(version=1, box_size=4, border=1)
-        qr.add_data(url_verificacion or 'https://certificados.eki.technology/verificar/')
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color='black', back_color='white').resize((qr_lado, qr_lado))
+        qr_img = png_qr_nitido(
+            url_verificacion or 'https://certificados.eki.technology/verificar/',
+            qr_lado,
+        )
         img.paste(qr_img, (ancho - _px(150, escala), alto - _px(150, escala)))
     except Exception as exc:
         logger.warning('QR no generado en diseño eki: %s', exc)
