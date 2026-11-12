@@ -78,24 +78,53 @@ def _px(valor, escala):
     return max(1, int(round(valor * escala)))
 
 
-def _cargar_fuentes(escala=1.0):
-    escala = max(escala, 0.25)
+def _dirs_fuentes():
     aqui = os.path.dirname(os.path.abspath(__file__))
-    candidatas = [
-        os.path.join(aqui, 'fonts', 'GreatVibes-Regular.ttf'),
-        os.path.join(aqui, '..', 'fonts', 'GreatVibes-Regular.ttf'),
-        'arial.ttf',
-        'C:\\Windows\\Fonts\\arial.ttf',
-        'C:\\Windows\\Fonts\\arialbd.ttf',
-    ]
-    bases = (56, 24, 22, 18)
-    for path in candidatas:
+    return (
+        os.path.join(aqui, '..', 'fonts'),
+        os.path.join(aqui, 'fonts'),
+    )
+
+
+def _truetype(nombres, size):
+    for carpeta in _dirs_fuentes():
+        for nombre in nombres:
+            path = os.path.normpath(os.path.join(carpeta, nombre))
+            try:
+                return ImageFont.truetype(path, size)
+            except (IOError, OSError):
+                continue
+    for path in ('arial.ttf', r'C:\Windows\Fonts\arial.ttf', r'C:\Windows\Fonts\arialbd.ttf'):
         try:
-            return tuple(ImageFont.truetype(path, _px(b, escala)) for b in bases)
+            return ImageFont.truetype(path, size)
         except (IOError, OSError):
             continue
-    default = ImageFont.load_default()
-    return default, default, default, default
+    return ImageFont.load_default()
+
+
+def _peso_variable(font, nombre):
+    try:
+        names = font.get_variation_names()
+        clave = nombre.encode('ascii') if isinstance(nombre, str) else nombre
+        if clave in names:
+            font.set_variation_by_name(nombre)
+    except Exception:
+        pass
+    return font
+
+
+def _cargar_fuentes(escala=1.0):
+    """Expletus Sans para el diploma; Covered By Your Grace solo para la palabra eki."""
+    escala = max(escala, 0.25)
+    ui = ('ExpletusSans-Variable.ttf',)
+    marca = ('CoveredByYourGrace.ttf',)
+    fallback = ('GreatVibes-Regular.ttf',)
+    titulo = _peso_variable(_truetype(ui + fallback, _px(40, escala)), 'SemiBold')
+    nombre = _peso_variable(_truetype(ui + fallback, _px(36, escala)), 'SemiBold')
+    medio = _truetype(ui + fallback, _px(22, escala))
+    peq = _truetype(ui + fallback, _px(18, escala))
+    eki = _truetype(marca + fallback, _px(44, escala))
+    return titulo, nombre, medio, peq, eki
 
 
 def _texto_centrado(draw, y, texto, font, fill, ancho=ANCHO):
@@ -104,6 +133,40 @@ def _texto_centrado(draw, y, texto, font, fill, ancho=ANCHO):
     bbox = draw.textbbox((0, 0), texto, font=font)
     w = bbox[2] - bbox[0]
     draw.text(((ancho - w) // 2, y), texto, font=font, fill=fill)
+
+
+def _ancho_texto(draw, texto, font):
+    if not texto:
+        return 0
+    bbox = draw.textbbox((0, 0), texto, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _texto_superior_con_eki(draw, y, texto, font_eki, font_ui, fill, ancho=ANCHO):
+    """Covered By Your Grace solo en la palabra eki; el resto en Expletus."""
+    import re
+
+    texto = (texto or '').strip()
+    if not texto:
+        return
+    m = re.search(r'(?i)\beki\b', texto)
+    if not m:
+        _texto_centrado(draw, y, texto, font_ui, fill, ancho=ancho)
+        return
+    before, word, after = texto[:m.start()], texto[m.start():m.end()], texto[m.end():]
+    total = (
+        _ancho_texto(draw, before, font_ui)
+        + _ancho_texto(draw, word, font_eki)
+        + _ancho_texto(draw, after, font_ui)
+    )
+    x = (ancho - total) // 2
+    if before:
+        draw.text((x, y), before, font=font_ui, fill=fill)
+        x += _ancho_texto(draw, before, font_ui)
+    draw.text((x, y), word, font=font_eki, fill=fill)
+    x += _ancho_texto(draw, word, font_eki)
+    if after:
+        draw.text((x, y), after, font=font_ui, fill=fill)
 
 
 def render_certificado_diseno_eki(
@@ -143,14 +206,16 @@ def render_certificado_diseno_eki(
         )
 
     draw = ImageDraw.Draw(img)
-    font_titulo, font_nombre, font_medio, font_peq = _cargar_fuentes(escala)
+    font_titulo, font_nombre, font_medio, font_peq, font_eki = _cargar_fuentes(escala)
 
     logo = _abrir_imagen_campo(getattr(plantilla, 'logo_institucion', None) if plantilla else None)
     if logo:
         logo.thumbnail((_px(140, escala), _px(140, escala)), Image.Resampling.LANCZOS)
         img.paste(logo, ((ancho - logo.width) // 2, _px(42, escala)))
 
-    _texto_centrado(draw, _px(170, escala), texto_superior, font_medio, color_primario, ancho=ancho)
+    _texto_superior_con_eki(
+        draw, _px(170, escala), texto_superior, font_eki, font_medio, color_primario, ancho=ancho,
+    )
     _texto_centrado(draw, _px(230, escala), texto_certificado, font_titulo, color_secundario, ancho=ancho)
     draw.line(
         (_px(220, escala), _px(290, escala), ancho - _px(220, escala), _px(290, escala)),

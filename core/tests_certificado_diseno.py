@@ -9,7 +9,7 @@ from PIL import Image
 
 from django.test import TestCase
 
-from core.certificado_diseno_eki import render_certificado_diseno_eki
+from core.certificado_diseno_eki import _cargar_fuentes, render_certificado_diseno_eki
 from core.certificado_service import resolver_plantilla_certificado
 from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
@@ -379,3 +379,25 @@ def test_reemplazo_archivo_actualiza_url_segunda_vez():
         assert src == p.archivo_plantilla_imagen.url
     else:
         assert isinstance(src, (bytes, bytearray)) and len(src) > 50
+
+
+def test_fuentes_diseno_eki_son_de_marca():
+    titulo, nombre, _medio, _peq, eki = _cargar_fuentes(1.0)
+    assert 'Expletus' in titulo.getname()[0]
+    assert 'Expletus' in nombre.getname()[0]
+    assert eki.getname()[0] == 'Covered By Your Grace'
+
+
+def test_render_diseno_eki_con_marca_eki_no_rompe():
+    plantilla = PlantillaCertificado(
+        nombre='Marca',
+        modo_plantilla='diseno_eki',
+        texto_superior='eki - Soluciones Educativas',
+        texto_certificado='CERTIFICADO DE FINALIZACIÓN',
+        color_primario='#5F3A6E',
+        color_secundario='#9A6CAC',
+    )
+    buf = render_certificado_diseno_eki(plantilla=plantilla)
+    img = Image.open(buf)
+    img.load()
+    assert img.size[0] >= 1200
