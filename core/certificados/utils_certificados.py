@@ -136,6 +136,39 @@ def cargar_fuente(nombre_fuente='GreatVibes-Regular.ttf', tamaño=80):
         return ImageFont.load_default()
 
 
+def resolver_layout_stickers(layout) -> dict | None:
+    """Coords del lienzo. None = seguir con marcadores RGB de Canva."""
+    if not isinstance(layout, dict) or not layout:
+        return None
+    out = {}
+    for clave in ('nombre', 'cedula', 'qr'):
+        pieza = layout.get(clave)
+        if not isinstance(pieza, dict):
+            return None
+        try:
+            x, y = int(pieza['x']), int(pieza['y'])
+        except (KeyError, TypeError, ValueError):
+            return None
+        if x < 0 or y < 0:
+            return None
+        item = {'x': x, 'y': y}
+        if clave == 'qr' and pieza.get('lado') is not None:
+            try:
+                item['lado'] = max(21, int(pieza['lado']))
+            except (TypeError, ValueError):
+                pass
+        out[clave] = item
+    fecha = layout.get('fecha')
+    if isinstance(fecha, dict) and 'x' in fecha and 'y' in fecha:
+        try:
+            fx, fy = int(fecha['x']), int(fecha['y'])
+        except (TypeError, ValueError):
+            fx = fy = None
+        if fx is not None and fy is not None and fx >= 0 and fy >= 0:
+            out['fecha'] = {'x': fx, 'y': fy}
+    return out
+
+
 def generar_certificado_marcadores(
     plantilla_url_o_path=None,
     *,
@@ -150,6 +183,7 @@ def generar_certificado_marcadores(
     fuente_fecha_size=FUENTE_FECHA_DEFAULT,
     tamaño_qr=TAMAÑO_QR_DEFAULT,
     ajuste_qr_y=20,
+    layout=None,
 ):
     """
     Genera un certificado usando detección de marcadores de color.
@@ -190,35 +224,48 @@ def generar_certificado_marcadores(
     fuente_cedula = cargar_fuente('GreatVibes-Regular.ttf', fuente_cedula_size)
     fuente_fecha = cargar_fuente('GreatVibes-Regular.ttf', fuente_fecha_size)
     
-    # 3. Detectar marcadores RGB
-    np_img = np.array(plantilla)
-    
-    pos_nombre = encontrar_marcador(np_img, MARCADOR_NOMBRE)
-    pos_cedula = encontrar_marcador(np_img, MARCADOR_CEDULA)
-    pos_fecha = encontrar_marcador(np_img, MARCADOR_FECHA)
-    pos_qr = encontrar_marcador(np_img, MARCADOR_QR)
-    
-    if pos_nombre is None:
-        raise ValueError("No se encontró el marcador de NOMBRE (Gris RGB 128,128,128) en la plantilla.")
-    if pos_cedula is None:
-        raise ValueError("No se encontró el marcador de CÉDULA (Rojo RGB 255,0,0) en la plantilla.")
-    if pos_qr is None:
-        raise ValueError("No se encontró el marcador de QR (Azul RGB 0,0,255) en la plantilla.")
-    
-    logger.info(
-        f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, "
-        f"Fecha: {pos_fecha}, QR: {pos_qr}"
-    )
-    
-    # 4. Borrar marcadores (reemplazar con color local del fondo)
-    todos_marcadores = [pos_nombre, pos_cedula, pos_fecha, pos_qr]
-    for pos in todos_marcadores:
-        if pos is not None:
-            x, y = pos
-            # Tomar el color del pixel cercano como fondo
-            color_fondo = plantilla.getpixel((max(x - 25, 0), min(y + 25, alto_img - 1)))
-            # Radio grande (20px) para borrar completamente el marcador
-            draw.ellipse([x - 20, y - 20, x + 20, y + 20], fill=color_fondo)
+    # 3. Stickers del lienzo, o marcadores RGB de Canva
+    layout_ok = resolver_layout_stickers(layout)
+    if layout_ok:
+        pos_nombre = (layout_ok['nombre']['x'], layout_ok['nombre']['y'])
+        pos_cedula = (layout_ok['cedula']['x'], layout_ok['cedula']['y'])
+        pos_qr = (layout_ok['qr']['x'], layout_ok['qr']['y'])
+        pos_fecha = None
+        if 'fecha' in layout_ok:
+            pos_fecha = (layout_ok['fecha']['x'], layout_ok['fecha']['y'])
+        if layout_ok['qr'].get('lado'):
+            tamaño_qr = int(layout_ok['qr']['lado'])
+        ajuste_qr_y = 0
+        logger.info(
+            '📍 Stickers - Nombre: %s, Cédula: %s, Fecha: %s, QR: %s',
+            pos_nombre, pos_cedula, pos_fecha, pos_qr,
+        )
+    else:
+        np_img = np.array(plantilla)
+
+        pos_nombre = encontrar_marcador(np_img, MARCADOR_NOMBRE)
+        pos_cedula = encontrar_marcador(np_img, MARCADOR_CEDULA)
+        pos_fecha = encontrar_marcador(np_img, MARCADOR_FECHA)
+        pos_qr = encontrar_marcador(np_img, MARCADOR_QR)
+
+        if pos_nombre is None:
+            raise ValueError("No se encontró el marcador de NOMBRE (Gris RGB 128,128,128) en la plantilla.")
+        if pos_cedula is None:
+            raise ValueError("No se encontró el marcador de CÉDULA (Rojo RGB 255,0,0) en la plantilla.")
+        if pos_qr is None:
+            raise ValueError("No se encontró el marcador de QR (Azul RGB 0,0,255) en la plantilla.")
+
+        logger.info(
+            f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, "
+            f"Fecha: {pos_fecha}, QR: {pos_qr}"
+        )
+
+        todos_marcadores = [pos_nombre, pos_cedula, pos_fecha, pos_qr]
+        for pos in todos_marcadores:
+            if pos is not None:
+                x, y = pos
+                color_fondo = plantilla.getpixel((max(x - 25, 0), min(y + 25, alto_img - 1)))
+                draw.ellipse([x - 20, y - 20, x + 20, y + 20], fill=color_fondo)
     
     # 5. Estampar NOMBRE (centrado horizontalmente, baseline en el marcador)
     nombre_capitalizado = nombre_estudiante.strip().title()

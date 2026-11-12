@@ -528,6 +528,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     fecha_emision=getattr(certificado, 'fecha_emision', None)
                     or getattr(certificado, 'fecha_completado', None)
                     or timezone.localdate(),
+                    layout=getattr(plantilla, 'layout_stickers', None),
                     **plantilla.tamanos_fuente_marcadores(),
                 )
                 if img_buffer:

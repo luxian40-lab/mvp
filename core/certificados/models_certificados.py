@@ -362,6 +362,15 @@ class PlantillaCertificado(models.Model):
         verbose_name='Tamaño fecha (px)',
         help_text='Fecha sobre el marcador amarillo. Por defecto 29.',
     )
+    layout_stickers = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Posiciones en el diploma',
+        help_text=(
+            'Click en la vista previa (nombre, cédula, fecha, QR). '
+            'Vacío = marcadores RGB de Canva.'
+        ),
+    )
 
     # Página pública certificados.eki.technology (ficha de verificación)
     VERIFICACION_HERO_CHOICES = [

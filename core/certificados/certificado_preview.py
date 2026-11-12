@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from io import BytesIO
 
@@ -75,6 +76,27 @@ def _aplicar_campos_post(plantilla, post_data: dict) -> None:
             setattr(plantilla, field, int(raw))
         except (TypeError, ValueError):
             continue
+    if 'layout_stickers' in post_data:
+        parsed = _parsear_layout_stickers(post_data.get('layout_stickers'))
+        if parsed is not None:
+            plantilla.layout_stickers = parsed
+
+
+def _parsear_layout_stickers(raw):
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    text = str(raw).strip()
+    if not text:
+        return {}
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
 
 
 def _resolver_fuente_imagen(plantilla, uploaded_img=None) -> tuple[str | None, str | bytes | None]:
@@ -223,6 +245,7 @@ def generar_preview_certificado(
     }
     if hasattr(plantilla, 'tamanos_fuente_marcadores'):
         kwargs.update(plantilla.tamanos_fuente_marcadores())
+    kwargs['layout'] = getattr(plantilla, 'layout_stickers', None)
     try:
         if kind == 'url':
             return generar_certificado_marcadores(plantilla_url_o_path=src, **kwargs)
