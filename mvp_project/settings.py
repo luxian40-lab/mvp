@@ -401,6 +401,11 @@ EKI_OUTBOX_ENVIO = os.environ.get('EKI_OUTBOX_ENVIO', 'false').strip().lower() i
 EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: el worker de eki-prod-final no escucha media_encode; lo deja a eki-ai-workers.
+# False: las dos cajas lo escuchan, como hoy. Lo lee scripts/run_worker.sh (el env, no Django).
+EKI_MEDIA_ENCODE_SOLO_AI = os.environ.get('EKI_MEDIA_ENCODE_SOLO_AI', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
 # Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (

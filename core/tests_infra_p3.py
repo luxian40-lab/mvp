@@ -67,6 +67,25 @@ class ColasYRolTests(SimpleTestCase):
         self.assertIn('RUN_BEAT:-0', texto)
         self.assertIn('sleep infinity', texto)
 
+    def test_flag_media_encode_solo_ai_apagado_por_defecto(self):
+        self.assertFalse(settings.EKI_MEDIA_ENCODE_SOLO_AI)
+
+    def test_con_flag_el_encode_queda_en_ai_workers(self):
+        worker = Path('scripts/run_worker.sh').read_text(encoding='utf-8')
+        proc_ai = Path('Procfile.ai').read_text(encoding='utf-8')
+        self.assertIn('EKI_MEDIA_ENCODE_SOLO_AI', worker)
+        self.assertIn('if [ -z "${CELERY_QUEUES:-}" ]', worker)
+        self.assertIn(
+            'QUEUES="conversacion,masivo,celery,llm,certificados"',
+            worker,
+        )
+        self.assertNotIn(
+            'QUEUES="conversacion,masivo,celery,llm,certificados,media_encode"',
+            worker,
+        )
+        self.assertIn('-Q media_encode', proc_ai)
+        self.assertIn('[ "${EKI_EB_ROLE:-}" = "ai_workers" ]', worker)
+
 
 class MigrateLockedTests(SimpleTestCase):
     def test_sin_postgres_no_pide_advisory_lock(self):

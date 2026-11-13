@@ -25,6 +25,15 @@ case "$CONC" in
   ''|*[!0-9]*) echo "CELERY_CONCURRENCY invalido: $CONC" >&2; exit 1 ;;
 esac
 QUEUES="${CELERY_QUEUES:-conversacion,masivo,celery,media_encode,llm,certificados}"
+# Flag off: las dos cajas escuchan encode. Flag on y sin CELERY_QUEUES: solo eki-ai-workers.
+if [ -z "${CELERY_QUEUES:-}" ]; then
+  _solo_ai="$(printf '%s' "${EKI_MEDIA_ENCODE_SOLO_AI:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$_solo_ai" in
+    1|true|yes|on)
+      QUEUES="conversacion,masivo,celery,llm,certificados"
+      ;;
+  esac
+fi
 POOL_ARG=()
 if [ "$POOL" = "threads" ]; then
   POOL_ARG=(--pool=threads)
