@@ -63,6 +63,7 @@ PERFIL_REGISTRO = PerfilLinea(
     asesores=True,
     agentes_en_curso=True,
     certificado=True,
+    nota_cierre=True,
 )
 
 _POR_USO = {

@@ -37,9 +37,13 @@ class PerfilLineaTests(SimpleTestCase):
     def test_linea_3_abre_menu_asesor_y_plan(self):
         self.assertEqual(
             _capacidades(PERFIL_REGISTRO),
-            {'menu', 'planes', 'asesores', 'agentes_en_curso', 'certificado'},
+            {
+                'menu', 'planes', 'asesores', 'agentes_en_curso',
+                'certificado', 'nota_cierre',
+            },
         )
         self.assertIs(perfil_por_uso('registro'), PERFIL_REGISTRO)
+        self.assertTrue(PERFIL_REGISTRO.nota_cierre)
 
     def test_uso_desconocido_es_la_principal(self):
         self.assertIs(perfil_por_uso(''), PERFIL_COMPLETA)
