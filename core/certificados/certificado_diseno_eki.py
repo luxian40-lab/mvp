@@ -18,7 +18,7 @@ PAPEL_EKI = (247, 244, 250)
 TEXTO_MARCA_DEFAULT = 'eki'
 TEXTO_MARCA_LEGADO = 'eki - Soluciones Educativas'
 NOMBRE_DEMO = 'MARÍA GONZÁLEZ PÉREZ'
-CURSO_DEMO = 'Curso de demostración eki'
+CURSO_DEMO = '[Nombre del curso]'
 
 
 def _hex_a_rgb(hex_color: str, default=(44, 62, 80)) -> tuple[int, int, int]:

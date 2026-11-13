@@ -193,6 +193,38 @@ def test_preview_diseno_eki_sin_guardar():
     assert len(data) > 3000
 
 
+def test_preview_diseno_eki_usa_nombre_del_curso():
+    from types import SimpleNamespace
+
+    from core.certificado_diseno_eki import CURSO_DEMO
+    from core.certificado_preview import _curso_nombre_para_preview
+
+    plantilla = SimpleNamespace(
+        curso=SimpleNamespace(nombre='Comercialización y ventas'),
+        curso_id=56,
+    )
+    assert _curso_nombre_para_preview(plantilla, {}) == 'Comercialización y ventas'
+    assert 'demostración' not in CURSO_DEMO.lower()
+
+    buf = generar_preview_certificado(
+        SimpleNamespace(
+            modo_plantilla='diseno_eki',
+            color_primario='#5F3A6E',
+            color_secundario='#9A6CAC',
+            texto_superior='eki',
+            texto_certificado='CERTIFICADO DE FINALIZACIÓN',
+            imagen_fondo=None,
+            logo_institucion=None,
+            curso=SimpleNamespace(nombre='Gestión de costos agropecuarios'),
+            curso_id=57,
+            modo_efectivo=lambda: 'diseno_eki',
+        ),
+        post_data={'modo_plantilla': 'diseno_eki'},
+    )
+    assert buf is not None
+    assert len(buf.getvalue()) > 1000
+
+
 @pytest.mark.django_db
 def test_preview_imagen_desde_bytes_sin_marcadores():
     plantilla = PlantillaCertificado(

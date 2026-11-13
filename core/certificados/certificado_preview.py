@@ -40,6 +40,29 @@ def _modo_preview(plantilla, post_data: dict) -> str:
     return 'imagen'
 
 
+def _curso_nombre_para_preview(plantilla, post_data: dict | None = None) -> str:
+    """Nombre real del curso de la plantilla (o del POST). Sin inventar 'demostración'."""
+    post_data = post_data or {}
+    raw = (post_data.get('curso') or '').strip()
+    if raw.isdigit():
+        from core.models import Curso
+
+        nom = Curso.objects.filter(pk=int(raw)).values_list('nombre', flat=True).first()
+        if nom:
+            return nom
+    curso = getattr(plantilla, 'curso', None)
+    if curso is not None and getattr(curso, 'nombre', None):
+        return curso.nombre
+    cid = getattr(plantilla, 'curso_id', None)
+    if cid:
+        from core.models import Curso
+
+        nom = Curso.objects.filter(pk=cid).values_list('nombre', flat=True).first()
+        if nom:
+            return nom
+    return ''
+
+
 def _leer_bytes_archivo(file_field) -> bytes | None:
     if not file_field:
         return None
@@ -177,7 +200,11 @@ def plantilla_desde_request(post_data: dict, plantilla_id: str | None = None):
     plantilla = None
     pk = (plantilla_id or post_data.get('plantilla_id') or '').strip()
     if pk.isdigit():
-        plantilla = PlantillaCertificado.objects.filter(pk=int(pk)).first()
+        plantilla = (
+            PlantillaCertificado.objects.select_related('curso')
+            .filter(pk=int(pk))
+            .first()
+        )
 
     if plantilla is None:
         plantilla = PlantillaCertificado(
@@ -228,7 +255,12 @@ def generar_preview_certificado(
     modo = _modo_preview(plantilla, post_data)
 
     if modo == 'diseno_eki':
-        return render_certificado_diseno_eki(plantilla=plantilla)
+        return render_certificado_diseno_eki(
+            plantilla=plantilla,
+            nombre_estudiante=nombre,
+            curso_nombre=_curso_nombre_para_preview(plantilla, post_data),
+            url_verificacion=url_demo,
+        )
 
     if modo == 'pdf':
         return _preview_pdf_placeholder()
