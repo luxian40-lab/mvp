@@ -13,6 +13,12 @@
         "timeout": 30
       }
     ],
+    "afterFileEdit": [
+      {
+        "command": "python .cursor/hooks/telefono_qa_tests.py",
+        "timeout": 10
+      }
+    ],
     "beforeShellExecution": [
       {
         "command": "python .cursor/hooks/antes_de_deploy.py",

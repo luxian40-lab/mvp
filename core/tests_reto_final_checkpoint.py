@@ -1,12 +1,6 @@
-"""Regresión anclada a AgriCapital prod (2026-11-13/14).
+"""Regresión anclada a fallos AgriCapital prod (2026-11-13/14), sin PII de campo.
 
-Casos reales:
-- Maryuri: último módulo → Compañero anuncia reto final → *continuemos*/«Ok»
-  no debe decir «Ya completaste»; debe lanzar Formador. Antes fallaba porque
-  progreso.completado=True se marcaba al abrir el checkpoint.
-- Elsa: checkpoint mid-curso (asistente_dario) + «Ok» → Formador.
-- Legado atrapado: alumnos ya en prod con completado=True + checkpoint
-  siguen pudiendo pasar al Formador (bypass).
+Teléfono de fixture: solo el QA interno 573026480629 (3026480629).
 """
 from unittest.mock import patch
 
@@ -20,11 +14,14 @@ from core.intent_detector import (
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.response_templates import get_response_for_intent
 
+# Regla eki: tests / smoke usan solo este número (ver .cursor/hooks/telefono_qa_tests.py).
+TEL_QA = '573026480629'
 
-def _cliente_curso_mods(*, cedula, telefono, nombre, gamificacion=True):
+
+def _cliente_curso_mods(*, cedula, nombre, gamificacion=True, numeros=(4, 5)):
     cli = Cliente.objects.create(nombre='AgriCapital QA', usar_gamificacion=gamificacion)
     curso = Curso.objects.create(
-        nombre='Innovación e IA para nuevos emprendedores',
+        nombre='Curso QA reto final',
         usar_gamificacion=gamificacion,
         usar_agentes_ia=True,
         cliente=cli,
@@ -33,12 +30,12 @@ def _cliente_curso_mods(*, cedula, telefono, nombre, gamificacion=True):
         Modulo.objects.create(
             curso=curso, numero=n, titulo=f'M{n}', descripcion='d', contenido=f'c{n}',
         )
-        for n in (4, 5)
+        for n in numeros
     ]
     est = Estudiante.objects.create(
         cedula=cedula,
         nombre=nombre,
-        telefono=telefono,
+        telefono=TEL_QA,
         cliente=cli,
         activo=True,
         acepto_terminos=True,
@@ -48,14 +45,13 @@ def _cliente_curso_mods(*, cedula, telefono, nombre, gamificacion=True):
     return cli, curso, mods, est
 
 
-class MaryuriCierreSinCompletadoPrematuroTests(TestCase):
-    """Prod: Maryuri Giraldo — Innovación e IA, es_reto_final, dijo Ok."""
+class CierreSinCompletadoPrematuroTests(TestCase):
+    """Caso prod: cierre con es_reto_final; continuemos/Ok deben lanzar Formador."""
 
     def setUp(self):
         _cli, self.curso, self.mods, self.est = _cliente_curso_mods(
-            cedula='QA-MARYURI',
-            telefono='573145707550',
-            nombre='Maryuri Giraldo Orozco',
+            cedula='QA-CIERRE-001',
+            nombre='QA Cierre Final',
         )
         self.prog = ProgresoEstudiante.objects.create(
             estudiante=self.est,
@@ -77,7 +73,7 @@ class MaryuriCierreSinCompletadoPrematuroTests(TestCase):
     def _continuar(self, trigger):
         with patch(
             'core.tutor_ia_modulo.generar_reto_facilitador',
-            return_value='RETO_FINAL_PROD_MARYURI',
+            return_value='RETO_FINAL_QA',
         ):
             return get_response_for_intent(
                 'continuar_leccion',
@@ -88,7 +84,7 @@ class MaryuriCierreSinCompletadoPrematuroTests(TestCase):
 
     def test_continuemos_lanza_formador_y_progreso_sigue_activo(self):
         out = self._continuar('continuemos')
-        self.assertIn('RETO_FINAL_PROD_MARYURI', out)
+        self.assertIn('RETO_FINAL_QA', out)
         self.assertNotIn('Ya completaste', out)
         self.est.refresh_from_db()
         self.prog.refresh_from_db()
@@ -98,19 +94,18 @@ class MaryuriCierreSinCompletadoPrematuroTests(TestCase):
 
     def test_ok_tambien_lanza_formador(self):
         out = self._continuar('Ok')
-        self.assertIn('RETO_FINAL_PROD_MARYURI', out)
+        self.assertIn('RETO_FINAL_QA', out)
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
 
 
-class MaryuriLegadoCompletadoPrematuroTests(TestCase):
-    """Alumnos ya marcados completado=True en prod antes del deploy del refactor."""
+class LegadoCompletadoPrematuroTests(TestCase):
+    """Alumnos ya marcados completado=True en prod antes del refactor."""
 
     def setUp(self):
         _cli, self.curso, self.mods, self.est = _cliente_curso_mods(
-            cedula='QA-MARYURI-LEG',
-            telefono='573145707551',
-            nombre='Maryuri Legado',
+            cedula='QA-CIERRE-LEG',
+            nombre='QA Cierre Legado',
         )
         self.prog = ProgresoEstudiante.objects.create(
             estudiante=self.est,
@@ -133,7 +128,7 @@ class MaryuriLegadoCompletadoPrematuroTests(TestCase):
     def test_bypass_no_responde_ya_completaste(self):
         with patch(
             'core.tutor_ia_modulo.generar_reto_facilitador',
-            return_value='RETO_LEGADO',
+            return_value='RETO_LEGADO_QA',
         ):
             out = get_response_for_intent(
                 'continuar_leccion',
@@ -141,46 +136,28 @@ class MaryuriLegadoCompletadoPrematuroTests(TestCase):
                 estudiante_id=self.est.id,
                 mensaje_original='continuemos',
             )
-        self.assertIn('RETO_LEGADO', out)
+        self.assertIn('RETO_LEGADO_QA', out)
         self.assertNotIn('Ya completaste', out)
 
 
-class ElsaCheckpointMidCursoTests(TestCase):
-    """Prod: Elsa Yubely — Tome las riendas, checkpoint mód. 1-3, sin Formador."""
+class CheckpointMidCursoTests(TestCase):
+    """Caso prod: checkpoint mid-curso; Ok debe lanzar Formador."""
 
     def setUp(self):
-        cli = Cliente.objects.create(nombre='AgriCapital Elsa QA', usar_gamificacion=True)
-        curso = Curso.objects.create(
-            nombre='Tome las riendas de su dinero',
-            usar_gamificacion=True,
-            usar_agentes_ia=True,
-            cliente=cli,
-        )
-        mods = [
-            Modulo.objects.create(
-                curso=curso, numero=n, titulo=f'M{n}', descripcion='d', contenido=f'c{n}',
-            )
-            for n in (1, 2, 3)
-        ]
-        self.est = Estudiante.objects.create(
-            cedula='QA-ELSA',
-            nombre='Elsa Yubely Volveras',
-            telefono='573142656878',
-            cliente=cli,
-            activo=True,
-            acepto_terminos=True,
-            estado_chat='ACTIVO',
-            estado_onboarding='esperando_respuesta_asistente',
+        _cli, self.curso, mods, self.est = _cliente_curso_mods(
+            cedula='QA-MID-001',
+            nombre='QA Checkpoint Mid',
+            numeros=(1, 2, 3),
         )
         self.prog = ProgresoEstudiante.objects.create(
             estudiante=self.est,
-            curso=curso,
+            curso=self.curso,
             modulo_actual=mods[-1],
             completado=False,
         )
         self.est.contexto_temporal = {
             'tipo': 'asistente_dario',
-            'curso_activo_id': curso.id,
+            'curso_activo_id': self.curso.id,
             'modulo_id': mods[-1].id,
             'progreso_id': self.prog.id,
             'modulos_reto_ids': [m.id for m in mods],
@@ -191,7 +168,7 @@ class ElsaCheckpointMidCursoTests(TestCase):
     def test_ok_lanza_formador_mid_curso(self):
         with patch(
             'core.tutor_ia_modulo.generar_reto_facilitador',
-            return_value='RETO_ELSA_MID',
+            return_value='RETO_MID_QA',
         ):
             out = get_response_for_intent(
                 'continuar_leccion',
@@ -199,7 +176,7 @@ class ElsaCheckpointMidCursoTests(TestCase):
                 estudiante_id=self.est.id,
                 mensaje_original='Ok',
             )
-        self.assertIn('RETO_ELSA_MID', out)
+        self.assertIn('RETO_MID_QA', out)
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
         self.assertFalse((self.est.contexto_temporal or {}).get('es_final', False))
