@@ -220,7 +220,16 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
         from core.sandbox_canal import _MetaSid, enviar_meta, sandbox_meta_activo
 
         if sandbox_meta_activo():
-            result = enviar_meta(to_number, body or '', media_url=media_url)
+            # Diploma del chat (reto/MULTI_MSG): misma salida que admin (plantilla o sesión).
+            from core.views.diploma_meta import entregar_si_es_diploma
+
+            diploma = entregar_si_es_diploma(
+                to_number, body or '', media_url, agente_evento='diploma_meta',
+            )
+            if diploma is not None:
+                result = diploma
+            else:
+                result = enviar_meta(to_number, body or '', media_url=media_url)
             # Los llamadores leen mensaje.sid como en Twilio.
             sid = _MetaSid(result.get('mensaje_id') or '')
             return [(sid, body or '')] if result.get('success') else []
