@@ -338,3 +338,96 @@ def mensaje_declina_preguntas(mensaje: str) -> bool:
     if t in _DECLINA_PREGUNTAS_SOLO:
         return True
     return any(frase == t or f' {frase} ' in f' {t} ' for frase in _DECLINA_PREGUNTAS_FRASES)
+
+
+# Cierres cortos en la pausa del Compañero (avanzan al Formador). Solo aquí.
+_CIERRE_CORTO_COMPANERO = frozenset({
+    'nada',
+    'gracias',
+    'perfecto',
+    'todo bien',
+    'muy bien',
+    'esta bien',
+    'está bien',
+    'asi esta',
+    'así esta',
+    'asi está',
+    'así está',
+    'ya esta',
+    'ya está',
+    'listo gracias',
+    'no gracias',
+})
+_CIERRE_CORTO_MAX_TOKENS = 4
+
+# Señales claras de pregunta (pausa Compañero). No basta la longitud.
+_INTERROGATIVAS_COMPANERO = frozenset({
+    'que', 'qué', 'como', 'cómo', 'cuando', 'cuándo', 'cuanto', 'cuánto',
+    'donde', 'dónde', 'cual', 'cuál', 'quien', 'quién',
+})
+_PEDIDO_EXPLICAR = (
+    'explica', 'expliqueme', 'explíqueme', 'expliqueme',
+    'dime', 'cuenteme', 'cuénteme',
+    'ayudeme', 'ayúdeme', 'ayudame', 'ayúdame',
+)
+_DUDA_PROSA = (
+    'no entiendo',
+    'no me quedo claro',
+    'no me quedó claro',
+    'no me queda claro',
+)
+
+
+def _texto_companero_normalizado(mensaje: str) -> str:
+    t = str(mensaje).strip().lower()
+    t = re.sub(r'[*_]+', '', t).strip()
+    t = re.sub(r'[^\w\s¿?]', ' ', t, flags=re.UNICODE)
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+def mensaje_cierre_corto_companero(mensaje: str) -> bool:
+    """True si el mensaje es un cierre corto (nada, gracias, todo bien…)."""
+    if not mensaje or not str(mensaje).strip():
+        return False
+    t = _texto_companero_normalizado(mensaje)
+    t = t.replace('¿', ' ').replace('?', ' ')
+    t = re.sub(r'\s+', ' ', t).strip()
+    if not t or t == 'audio_no_transcrito':
+        return False
+    tokens = t.split()
+    if len(tokens) > _CIERRE_CORTO_MAX_TOKENS:
+        return False
+    return t in _CIERRE_CORTO_COMPANERO
+
+
+def mensaje_parece_pregunta_companero(mensaje: str) -> bool:
+    """True solo con señales claras de pregunta (pausa Compañero).
+
+    No dispara por longitud sola. Dudas en prosa necesitan marcador
+    (¿?, interrogativa, «explíqueme», «no entiendo…»).
+    """
+    if not mensaje or not str(mensaje).strip():
+        return False
+    crudo = str(mensaje)
+    if '¿' in crudo or '?' in crudo:
+        return True
+    t = _texto_companero_normalizado(mensaje)
+    t = t.replace('¿', ' ').replace('?', ' ')
+    t = re.sub(r'\s+', ' ', t).strip()
+    if not t or t == 'audio_no_transcrito':
+        return False
+    tokens = t.split()
+    if any(tok in _INTERROGATIVAS_COMPANERO for tok in tokens):
+        return True
+    # «por qué» / «porque» al inicio (primeras 3 palabras)
+    cabeza = tokens[:3]
+    for i, tok in enumerate(cabeza):
+        if tok in ('porque', 'porqué'):
+            return True
+        if tok == 'por' and i + 1 < len(cabeza) and cabeza[i + 1] in ('que', 'qué'):
+            return True
+    if any(re.search(rf'(?<!\w){re.escape(p)}(?!\w)', t) for p in _PEDIDO_EXPLICAR):
+        return True
+    if len(tokens) > 3 and any(frase in t for frase in _DUDA_PROSA):
+        return True
+    return False
