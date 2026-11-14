@@ -3,6 +3,7 @@ import logging
 
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
+from core.intent_detector import mensaje_declina_preguntas as _mensaje_declina_preguntas
 from core.intent_detector import mensaje_indica_listo_o_confirma_handoff as _mensaje_indica_listo
 
 logger = logging.getLogger('core.views.webhook_twilio')
@@ -51,8 +52,13 @@ def manejar(contexto: Contexto) -> Respuesta:
                 "Si no tiene preguntas, Pulse continuar, para seguir aprendiendo.\n\n[SEND_BUTTON:continuemos]"
             ),
         )
-    elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
+    elif (
+        _mensaje_indica_listo(msg_body)
+        or _mensaje_declina_preguntas(msg_body)
+        or preguntas_hechas >= 2
+    ):
         # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
+        # o al declinar preguntas («No tengo preguntas»).
         texto_respuesta = _reto_tras_asistente(texto_respuesta, progreso_id, modulos_reto_ids, ctx, estudiante, contexto_limpio, logger)
     else:
         # Student asked a question to Darío — answer from RAG (max 2)

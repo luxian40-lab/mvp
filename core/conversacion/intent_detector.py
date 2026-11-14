@@ -291,3 +291,50 @@ def mensaje_indica_listo_o_confirma_handoff(mensaje: str) -> bool:
     t = re.sub(r'[*_]+', '', t).strip()
     tokens = re.findall(r'\w+', t, flags=re.UNICODE)
     return len(tokens) == 1 and tokens[0] in _AVANCE_HANDOFF_CONFIRMA
+
+
+# Frases de la pausa del Compañero: declina preguntas y sigue al Formador.
+# No mezclar con mensaje_indica_listo (no debe avanzar el curso fuera de esa pausa).
+_DECLINA_PREGUNTAS_FRASES = (
+    'no tengo preguntas',
+    'no tengo pregunta',
+    'no tengo mas preguntas',
+    'no tengo más preguntas',
+    'no tengo mas pregunta',
+    'no tengo más pregunta',
+    'no tengo dudas',
+    'no tengo duda',
+    'no tengo mas dudas',
+    'no tengo más dudas',
+    'sin preguntas',
+    'sin dudas',
+    'ninguna pregunta',
+    'ninguna duda',
+    'nada que preguntar',
+    'no quiero preguntar',
+    'no hay preguntas',
+)
+_DECLINA_PREGUNTAS_SOLO = frozenset({'ninguna'})
+_DECLINA_PREGUNTAS_MAX_TOKENS = 10
+
+
+def mensaje_declina_preguntas(mensaje: str) -> bool:
+    """True si el estudiante dice que no tiene preguntas (pausa Compañero).
+
+    Mensajes cortos o con la frase completa. No dispara en prosa que
+    mezcla «no tengo preguntas» con una pregunta real.
+    """
+    if not mensaje or not str(mensaje).strip():
+        return False
+    t = str(mensaje).strip().lower()
+    t = re.sub(r'[*_]+', '', t).strip()
+    t = re.sub(r'[^\w\s]', ' ', t, flags=re.UNICODE)
+    t = re.sub(r'\s+', ' ', t).strip()
+    if not t or t == 'audio_no_transcrito':
+        return False
+    tokens = t.split()
+    if len(tokens) > _DECLINA_PREGUNTAS_MAX_TOKENS:
+        return False
+    if t in _DECLINA_PREGUNTAS_SOLO:
+        return True
+    return any(frase == t or f' {frase} ' in f' {t} ' for frase in _DECLINA_PREGUNTAS_FRASES)
