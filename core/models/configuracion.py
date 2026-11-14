@@ -30,6 +30,8 @@ class ConfiguracionGlobal(models.Model):
             'Nombre de la plantilla aprobada en Meta (no es un HX de Twilio). '
             'Encabezado: imagen. Cuerpo: {{1}} nombre, {{2}} curso, {{3}} código. '
             'Vacío: el diploma se manda como imagen solo si la persona escribió en las últimas 24 horas. '
+            'Con nombre: chat (reto/MULTI_MSG) y admin usan la misma salida (core.lineas.diploma_entrega). '
+            'Smoke: manage.py smoke_certificado_envio --telefono 57… (mira plantilla_meta=). '
             'Si META_TEMPLATE_DIPLOMA está en el entorno, ese valor gana.'
         ),
     )

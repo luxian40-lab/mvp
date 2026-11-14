@@ -117,7 +117,14 @@ class MetaSender:
         return self._con_outbox(telefono, correlacion, _enviar)
 
     def plantilla_imagen(
-        self, telefono: str, nombre: str, media_url: str, variables: dict, *, agente: str = '',
+        self,
+        telefono: str,
+        nombre: str,
+        media_url: str,
+        variables: dict,
+        *,
+        idioma: str = 'es',
+        agente: str = '',
         correlacion: str = '',
     ) -> dict:
         from core.lineas.envio import enviar_meta_plantilla_imagen
@@ -125,7 +132,12 @@ class MetaSender:
         def _enviar():
             with self._salida():
                 return enviar_meta_plantilla_imagen(
-                    telefono, nombre, media_url, variables, agente_evento=agente or 'diploma_meta'
+                    telefono,
+                    nombre,
+                    media_url,
+                    variables,
+                    idioma=idioma,
+                    agente_evento=agente or 'diploma_meta',
                 )
 
         return self._con_outbox(telefono, correlacion, _enviar)

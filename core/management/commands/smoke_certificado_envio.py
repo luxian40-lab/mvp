@@ -27,6 +27,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Solo generar/verificar, no enviar WhatsApp',
         )
+        parser.add_argument(
+            '--verificar-plantilla',
+            action='store_true',
+            help='Solo imprime si hay plantilla Meta configurada (exit 1 si vacía)',
+        )
 
     def handle(self, *args, **options):
         from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
@@ -36,6 +41,25 @@ class Command(BaseCommand):
             enviar_certificado_whatsapp,
             generar_y_guardar_certificado,
         )
+        from django.conf import settings
+
+        from core.lineas.diploma_entrega import nombre_plantilla_diploma
+
+        plantilla = nombre_plantilla_diploma()
+        self.stdout.write(
+            f'plantilla_meta={plantilla or "(vacia → sesion 24h)"} '
+            f'idioma={getattr(settings, "META_TEMPLATE_DIPLOMA_IDIOMA", "es")}'
+        )
+        if options.get('verificar_plantilla'):
+            if plantilla:
+                self.stdout.write(self.style.SUCCESS(f'Plantilla lista: {plantilla}'))
+                return
+            self.stderr.write(
+                self.style.ERROR(
+                    'Sin plantilla: llene Configuración Global o META_TEMPLATE_DIPLOMA'
+                )
+            )
+            raise SystemExit(1)
 
         tel = ''.join(c for c in str(options['telefono']) if c.isdigit())
         if tel.startswith('0'):
