@@ -521,6 +521,10 @@ META_TEMPLATE_DIPLOMA_IDIOMA = os.environ.get('META_TEMPLATE_DIPLOMA_IDIOMA', 'e
 EKI_RETO_SI_CERT_EMITIDO = os.environ.get('EKI_RETO_SI_CERT_EMITIDO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# C5: permite --aplicar en reconciliar_certificados_wa. Default off.
+EKI_RECONCILIA_CERT_WA_APLICAR = os.environ.get(
+    'EKI_RECONCILIA_CERT_WA_APLICAR', 'false'
+).strip().lower() in ('1', 'true', 'yes', 'on')
 # Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
 # Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:
