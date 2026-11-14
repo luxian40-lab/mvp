@@ -132,6 +132,12 @@ def _reto_tras_asistente(texto_respuesta, progreso_id, modulos_reto_ids, ctx, es
             modulos_reto_ids = [m.id for m in modulos_reto]
 
     if modulos_reto and progreso:
+        from core.lineas.diploma_cierre import cerrar_limbo_reto_si_cert
+
+        _cta_cert = cerrar_limbo_reto_si_cert(estudiante, progreso)
+        if _cta_cert is not None:
+            return _cta_cert
+
         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
         from core.facilitador_perfil import nombre_display_facilitador
 

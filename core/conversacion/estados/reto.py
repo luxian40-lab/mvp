@@ -26,6 +26,16 @@ def manejar(contexto: Contexto) -> Respuesta:
     reto_texto = ctx.get('reto_texto', '')
     progreso_id = ctx.get('progreso_id')
 
+    # C3: con flag ON y cert ya emitido, no pedir evidencia otra vez.
+    if progreso_id:
+        from core.models import ProgresoEstudiante
+        from core.lineas.diploma_cierre import cerrar_limbo_reto_si_cert
+
+        _prog_cierre = ProgresoEstudiante.objects.filter(id=progreso_id).first()
+        _cta = cerrar_limbo_reto_si_cert(estudiante, _prog_cierre)
+        if _cta is not None:
+            return Respuesta(texto=_cta)
+
     # 📸 Foto como evidencia del reto: guardar y calificar con visión.
     _salida = _leer_evidencia_foto(evidencia_imagen_url, progreso_id, evidencia_imagen_type, estudiante, _mensaje_indica_listo, msg_body, reto_texto, modulos_reto_ids, logger)
     if not isinstance(_salida, tuple):

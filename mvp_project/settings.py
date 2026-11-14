@@ -516,6 +516,11 @@ EKI_AVISO_MODULO_PAUSA_SEG = float(os.environ.get('EKI_AVISO_MODULO_PAUSA_SEG', 
 # Verificado 2026-10-08: header image + body {{1}} {{2}} {{3}} es el contrato de Graph.
 META_TEMPLATE_DIPLOMA = os.environ.get('META_TEMPLATE_DIPLOMA', '')
 META_TEMPLATE_DIPLOMA_IDIOMA = os.environ.get('META_TEMPLATE_DIPLOMA_IDIOMA', 'es')
+# C3: si True, con cert ya emitido no se deja limbo en esperando_respuesta_reto.
+# Default false = comportamiento actual. Verificado plan fricción 2026-11-14.
+EKI_RETO_SI_CERT_EMITIDO = os.environ.get('EKI_RETO_SI_CERT_EMITIDO', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
 # Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:
