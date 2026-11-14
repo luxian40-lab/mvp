@@ -370,10 +370,6 @@ def _texto_siguiente_modulo(modulo_actual, logger, progreso, total_modulos, usar
 
 
 def _cerrar_o_reto_final(texto_respuesta, timezone, progreso, _pregunta_abierta_final_pendiente, estudiante, contexto_limpio, modulo_actual, mensaje_respuesta, logger, _texto_cierre_curso, _radar_msg_si_aplica):
-    progreso.completado = True
-    progreso.fecha_completado = timezone.now()
-    progreso.save()
-
     # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
     _skip_cert = False
     pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
@@ -384,6 +380,14 @@ def _cerrar_o_reto_final(texto_respuesta, timezone, progreso, _pregunta_abierta_
     usar_agentes_ia_final = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
     # Reto final solo si el curso usa gamificación Y agentes IA.
     activar_reto_final = usar_gamificacion_final and usar_agentes_ia_final
+
+    if not activar_reto_final:
+        from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+        marcar_progreso_curso_completado(progreso)
+    else:
+        progreso.fecha_ultimo_avance = timezone.now()
+        progreso.save(update_fields=['fecha_ultimo_avance'])
 
     if activar_reto_final:
         try:

@@ -3,7 +3,7 @@ import logging
 
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
-from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
+from core.intent_detector import mensaje_indica_listo_o_confirma_handoff as _mensaje_indica_listo
 
 logger = logging.getLogger('core.views.webhook_twilio')
 

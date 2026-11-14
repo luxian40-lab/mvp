@@ -239,10 +239,8 @@ def _generar_completado_final(estudiante, curso_id):
                 if len(modulos_all) >= 2:
                     modulos_final_range = f"los módulos {modulos_all[0].numero} a {modulos_all[-1].numero}"
 
-                progreso.completado = True
-                progreso.fecha_completado = timezone.now()
                 progreso.fecha_ultimo_avance = timezone.now()
-                progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+                progreso.save(update_fields=['fecha_ultimo_avance'])
 
                 _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                 estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
@@ -277,10 +275,9 @@ def _generar_completado_final(estudiante, curso_id):
                     )
                 )
 
-            progreso.completado = True
-            progreso.fecha_completado = timezone.now()
-            progreso.fecha_ultimo_avance = timezone.now()
-            progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+            from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+            marcar_progreso_curso_completado(progreso)
             estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
                 'tipo': 'pregunta_abierta_final',
                 'curso_id': curso.id,

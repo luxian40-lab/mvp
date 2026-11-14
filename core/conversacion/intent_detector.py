@@ -256,6 +256,9 @@ def detect_intent(mensaje: str) -> str:
 _AVANCE_CURSO_TRIGGERS = frozenset({'listo', 'continuar', 'continuemos'})
 # Typos cortos vistos en campo (Yuli: «Listi»). Solo token único.
 _AVANCE_CURSO_TYPOS = frozenset({'listi', 'listoo', 'lsito'})
+# Solo handoff Compañero → Formador (Maryuri: «Ok»). No ensanchar mensaje_indica_listo
+# global: en reto/PQRS/módulo un «sí» suelto no debe contar como avance de curso.
+_AVANCE_HANDOFF_CONFIRMA = frozenset({'ok', 'dale', 'si', 'sí', 'claro', 'vamos'})
 
 
 def mensaje_indica_listo(mensaje: str) -> bool:
@@ -276,3 +279,15 @@ def mensaje_indica_listo(mensaje: str) -> bool:
     if len(tokens) <= 4 and any(tok in _AVANCE_CURSO_TRIGGERS for tok in tokens):
         return True
     return False
+
+
+def mensaje_indica_listo_o_confirma_handoff(mensaje: str) -> bool:
+    """listo/continuar, o confirmación de una palabra solo en checkpoint Compañero."""
+    if mensaje_indica_listo(mensaje):
+        return True
+    if not mensaje or not str(mensaje).strip():
+        return False
+    t = str(mensaje).strip().lower()
+    t = re.sub(r'[*_]+', '', t).strip()
+    tokens = re.findall(r'\w+', t, flags=re.UNICODE)
+    return len(tokens) == 1 and tokens[0] in _AVANCE_HANDOFF_CONFIRMA

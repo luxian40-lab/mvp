@@ -321,10 +321,9 @@ def _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actua
         )
 
         if pregunta_abierta and not usar_gamificacion_final:
-            progreso.completado = True
-            progreso.fecha_completado = timezone.now()
-            progreso.fecha_ultimo_avance = timezone.now()
-            progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+            from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+            marcar_progreso_curso_completado(progreso)
 
             ctx = estudiante.contexto_temporal or {}
             ctx.update({
@@ -338,15 +337,19 @@ def _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actua
             estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
             return _mensaje_pregunta_abierta_final(pregunta_abierta.pregunta)
 
-        # Marcar curso como completado
-        progreso.completado = True
-        progreso.fecha_completado = timezone.now()
-        progreso.fecha_ultimo_avance = timezone.now()
-        progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
-    
+        # Reto final (gamificación): no marcar completado aún — lo hace el cierre
+        # post-Formador. Sin gamificación: marcar antes del certificado directo.
+        if not usar_gamificacion_final:
+            from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+            marcar_progreso_curso_completado(progreso)
+        else:
+            progreso.fecha_ultimo_avance = timezone.now()
+            progreso.save(update_fields=['fecha_ultimo_avance'])
+
         perfil.refresh_from_db()
         porcentaje = progreso.porcentaje_avance()
-    
+
         # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
         # Activar Darío + Claudia con reto que cubre TODOS los módulos
         return _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_limpio, pregunta_abierta, _barra_progreso, porcentaje, perfil)
@@ -404,8 +407,11 @@ def _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"⚠️ Reto final falló: {e}, generando certificado directo")
-    
+
     # Fallback: certificado directo (sin gamificación o si falla el reto)
+    from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+    marcar_progreso_curso_completado(progreso)
     barra = _barra_progreso(porcentaje)
     
     mensaje = (
@@ -677,9 +683,11 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
         _ctx_sesion_asistente.get('tipo') == 'asistente_dario'
         and estudiante.estado_onboarding == 'esperando_respuesta_asistente'
     ):
-        # *listo* / *continuar* → pasar a Claudia (mismo contrato que el webhook).
+        # *listo* / *continuar* / confirma corta (ok) → Formador (mismo contrato que estados/asistente).
         # Antes solo se reenviaba el nudge y el alumno veía el mismo mensaje muchas veces.
-        if _es_mensaje_listo_avance_curso(mensaje_original or ''):
+        from core.intent_detector import mensaje_indica_listo_o_confirma_handoff
+
+        if mensaje_indica_listo_o_confirma_handoff(mensaje_original or ''):
             from core.tutor_ia_modulo import (
                 cargar_modulos_reto,
                 generar_reto_facilitador,
@@ -958,6 +966,23 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
     ).order_by('-fecha_inicio')
 
     if not progresos_activos.exists():
+        # Alumnos ya atrapados en prod (completado=True + checkpoint Compañero).
+        # El cierre nuevo ya no marca completado antes del Formador.
+        _ctx_fin = estudiante.contexto_temporal or {}
+        if (
+            estudiante.estado_onboarding == 'esperando_respuesta_asistente'
+            and _ctx_fin.get('tipo') == 'asistente_dario'
+            and _ctx_fin.get('progreso_id')
+        ):
+            progreso_checkpoint = (
+                ProgresoEstudiante.objects.filter(
+                    id=_ctx_fin['progreso_id'],
+                    estudiante_id=estudiante.id,
+                )
+                .select_related('curso', 'modulo_actual')
+            )
+            if progreso_checkpoint.exists():
+                return (estudiante, mensaje_original, progreso_checkpoint)
         completados = (
             ProgresoEstudiante.objects.filter(
                 estudiante=estudiante,

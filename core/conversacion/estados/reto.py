@@ -268,6 +268,11 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
 
 
 def _cerrar_reto_final(texto_respuesta, ctx, progreso, estudiante, _pregunta_abierta_final_pendiente, logger, contexto_limpio, msg_eval, _radar_msg_si_aplica):
+    from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+    # Cierre real del curso: Formador ya evaluó el reto final.
+    marcar_progreso_curso_completado(progreso)
+
     pregunta_abierta = None
     pregunta_abierta_ctx_id = ctx.get('pregunta_abierta_final_id')
     if pregunta_abierta_ctx_id:
