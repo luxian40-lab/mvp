@@ -43,13 +43,12 @@ def responder_evaluacion_paso(estudiante, msg_body, msg_from, telefono_limpio, e
     return True
 
 
-def _entregar_paso(estudiante, msg_from, resp, enviar) -> None:
-    import time
-
-    from core.conversacion.marcas import PAUSA, PLANTILLA, es_marcado, partes, separar_media
+def _entregar_paso(estudiante, msg_from, resp, enviar, *, desde_idx: int = 0) -> None:
+    from core.conversacion.marcas import PLANTILLA, es_marcado, separar_media
+    from core.lineas.entrega_delays import recorrer_partes
     from core.views.twilio_transporte import youtube_hace_solo_enlace_en_texto
 
-    def _una(texto, media):
+    def _enviar_texto(texto, media):
         if media and youtube_hace_solo_enlace_en_texto(media):
             logger.warning(
                 '📎 [pasos] URL parece YouTube (no MP4 directo) | est=%s',
@@ -57,15 +56,24 @@ def _entregar_paso(estudiante, msg_from, resp, enviar) -> None:
             )
         enviar(msg_from, texto, media_url=media, agente='paso')
 
+    def _una(parte) -> bool:
+        if parte.tipo == PLANTILLA:
+            _enviar_texto(*separar_media(parte.texto))
+        else:
+            _enviar_texto(parte.texto, parte.media)
+        return True
+
     if es_marcado(resp):
-        for parte in partes(resp):
-            if parte.tipo == PAUSA:
-                time.sleep(parte.segundos)
-                continue
-            if parte.tipo == PLANTILLA:
-                _una(*separar_media(parte.texto))
-            else:
-                _una(parte.texto, parte.media)
-            time.sleep(0.5)
+        recorrer_partes(
+            resp,
+            desde_idx=desde_idx,
+            on_parte=_una,
+            canal='paso',
+            payload_continuacion={
+                'estudiante_id': estudiante.id,
+                'msg_from': msg_from,
+            },
+        )
         return
-    _una(*separar_media((resp or '').strip()))
+    if int(desde_idx or 0) == 0:
+        _enviar_texto(*separar_media((resp or '').strip()))

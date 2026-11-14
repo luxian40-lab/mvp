@@ -1,11 +1,10 @@
 """Envio por WhatsApp Cloud API. El curso llama estos nombres y no abre el webhook."""
 import logging
-import time
 
 import requests
 from django.conf import settings
 
-from core.conversacion.marcas import PAUSA, PLANTILLA, es_marcado, partes
+from core.conversacion.marcas import PLANTILLA, es_marcado
 from core.nati import normalizar_telefono_whatsapp
 
 logger = logging.getLogger(__name__)
@@ -394,27 +393,43 @@ def _enviar_partes_marcadas(
     media_url: str | None,
     canal_evento: str,
     agente_evento: str,
+    desde_idx: int = 0,
 ) -> dict:
     """Texto armado por el curso: un mensaje por parte, en orden.
 
     Las plantillas de Twilio no existen en Meta y se omiten.
+    Con EKI_ENTREGA_DELAYS_CELERY, una pausa DELAY encola la continuación.
     """
+    from core.lineas.entrega_delays import recorrer_partes
+
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
-    if media_url:
+    if media_url and int(desde_idx or 0) == 0:
         last = enviar_meta(to, '', media_url=media_url, canal_evento=canal_evento, agente_evento=agente_evento)
-    for parte in partes(texto):
-        if parte.tipo == PAUSA:
-            time.sleep(parte.segundos)
-            continue
+
+    def _una(parte) -> bool:
+        nonlocal last
         if parte.tipo == PLANTILLA:
             logger.warning('meta_partes_plantilla_twilio_omitida to=***%s', to[-4:])
-            continue
+            return True
         last = enviar_meta(
             to, parte.texto, media_url=parte.media, canal_evento=canal_evento, agente_evento=agente_evento,
         )
-        if not last.get('success'):
-            return last
-        time.sleep(0.5)
+        return bool(last.get('success'))
+
+    resultado = recorrer_partes(
+        texto,
+        desde_idx=desde_idx,
+        on_parte=_una,
+        canal='meta',
+        payload_continuacion={
+            'to': to,
+            'media_url': None,
+            'canal_evento': canal_evento,
+            'agente_evento': agente_evento,
+        },
+    )
+    if resultado == 'fail':
+        return last
     return last
 
 

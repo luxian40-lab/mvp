@@ -55,7 +55,7 @@ class Linea2CursoDirectoTests(TestCase):
             return {'success': True, 'mensaje_id': f'wamid.{len(self.enviados)}', 'response': ''}
 
         patch('core.lineas.envio._post_graph', side_effect=graph).start()
-        patch('core.lineas.envio.time.sleep').start()
+        patch('core.lineas.entrega_delays.time.sleep').start()
         self.addCleanup(patch.stopall)
         self.org = Cliente.objects.create(
             nombre='Org L2', contacto_principal='C', email='l2@eki.test', telefono='573000000666',

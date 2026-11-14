@@ -406,6 +406,10 @@ EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip()
 EKI_MEDIA_ENCODE_SOLO_AI = os.environ.get('EKI_MEDIA_ENCODE_SOLO_AI', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: las pausas DELAY entre burbujas van a Celery countdown. False: el worker sigue durmiendo.
+EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
 # Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (
@@ -1236,6 +1240,7 @@ CELERY_TASK_ROUTES = {
     'core.tasks.procesar_statuses_meta_async': {'queue': 'conversacion'},
     'core.tasks.procesar_twilio_webhook_async': {'queue': 'conversacion'},
     'core.tasks.procesar_bot_comercial_webhook_async': {'queue': 'conversacion'},
+    'core.tasks.continuar_entrega_marcada_async': {'queue': 'conversacion'},
     'core.tasks.enviar_campanas_programadas': {'queue': 'masivo'},
     'core.tasks.ejecutar_campana_async': {'queue': 'masivo'},
     'core.tasks.ejecutar_campana_meta_async': {'queue': 'masivo'},

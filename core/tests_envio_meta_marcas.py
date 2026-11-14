@@ -18,7 +18,7 @@ class EnvioMetaMarcasTests(TestCase):
             return {'success': True, 'mensaje_id': f'wamid.{len(self.enviados)}', 'response': ''}
 
         self.graph = patch('core.lineas.envio._post_graph', side_effect=graph).start()
-        self.pausas = patch('core.lineas.envio.time.sleep').start()
+        self.pausas = patch('core.lineas.entrega_delays.time.sleep').start()
         self.addCleanup(patch.stopall)
 
     def _textos(self):

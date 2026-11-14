@@ -489,6 +489,10 @@ def _flag_async(nombre: str) -> bool:
 NAT_WEBHOOK_CELERY_ASYNC = _flag_async('NAT_WEBHOOK_CELERY_ASYNC')
 WEBHOOK_CELERY_ASYNC = _flag_async('WEBHOOK_CELERY_ASYNC')
 SANDBOX_CELERY_ASYNC = _flag_async('SANDBOX_CELERY_ASYNC')
+# G3: off en prod hasta validar workers; prender con EKI_ENTREGA_DELAYS_CELERY=true.
+EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'True').lower() in (
     '1', 'true', 'yes', 'on',
 )

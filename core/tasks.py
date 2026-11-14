@@ -469,6 +469,64 @@ def enviar_archivo_modulo_async(self, telefono, archivo_id):
         raise self.retry(exc=exc)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=5, acks_late=True, soft_time_limit=55, time_limit=60)
+def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx: int = 0, **kwargs):
+    """Continúa un mensaje partido tras una pausa DELAY, sin sleep en el worker (G3)."""
+    from core.locks import telefono_lock
+    from core.nati import normalizar_telefono_whatsapp
+
+    telefono_raw = (
+        kwargs.get('to')
+        or kwargs.get('telefono_limpio')
+        or kwargs.get('msg_from')
+        or ''
+    )
+    telefono = normalizar_telefono_whatsapp(str(telefono_raw)) or str(telefono_raw) or 'sin-telefono'
+    try:
+        with telefono_lock(telefono):
+            if canal == 'meta':
+                from core.lineas.envio import _enviar_partes_marcadas
+
+                return _enviar_partes_marcadas(
+                    kwargs.get('to') or telefono,
+                    texto,
+                    media_url=kwargs.get('media_url'),
+                    canal_evento=kwargs.get('canal_evento') or 'whatsapp_sandbox',
+                    agente_evento=kwargs.get('agente_evento') or '',
+                    desde_idx=int(desde_idx or 0),
+                )
+            if canal == 'twilio_marcado':
+                from core.lineas.entrega import enviar_marcado
+
+                return enviar_marcado(
+                    kwargs.get('msg_from') or telefono,
+                    kwargs.get('telefono_limpio') or telefono,
+                    texto,
+                    registro=kwargs.get('registro') or 'segmentos',
+                    desde_idx=int(desde_idx or 0),
+                )
+            if canal == 'paso':
+                from core.lineas.envio import enviar_respuesta_linea
+                from core.lineas.paso import _entregar_paso
+                from core.models import Estudiante
+
+                est = Estudiante.objects.filter(pk=kwargs.get('estudiante_id')).first()
+                if not est:
+                    logger.warning('continuar_entrega paso sin estudiante id=%s', kwargs.get('estudiante_id'))
+                    return None
+                return _entregar_paso(
+                    est,
+                    kwargs.get('msg_from') or telefono,
+                    texto,
+                    enviar_respuesta_linea,
+                    desde_idx=int(desde_idx or 0),
+                )
+            logger.warning('continuar_entrega canal desconocido=%s', canal)
+            return None
+    except LockError as exc:
+        _reintentar_si_lock(self, exc)
+
+
 # ==========================================
 # TAREAS PROGRAMADAS (Beat)
 # ==========================================
