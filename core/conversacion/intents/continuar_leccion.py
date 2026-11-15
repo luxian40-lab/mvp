@@ -688,68 +688,17 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
         from core.intent_detector import mensaje_indica_listo_o_confirma_handoff
 
         if mensaje_indica_listo_o_confirma_handoff(mensaje_original or ''):
-            from core.tutor_ia_modulo import (
-                cargar_modulos_reto,
-                generar_reto_facilitador,
-                listar_modulos_cobertura_reto,
-            )
-            from core.models import Modulo as ModuloRetoCtx
+            from core.conversacion.checkpoint_handoff import lanzar_reto_tras_companero
 
-            progreso_id = _ctx_sesion_asistente.get('progreso_id') or progreso.id
-            modulos_reto_ids = list(_ctx_sesion_asistente.get('modulos_reto_ids') or [])
-            try:
-                progreso_reto = ProgresoEstudiante.objects.get(id=progreso_id)
-            except ProgresoEstudiante.DoesNotExist:
-                progreso_reto = progreso
-            modulos_reto = cargar_modulos_reto(
-                modulos_reto_ids, progreso_reto.curso_id if progreso_reto else None
+            logger.info(
+                "continuar_leccion: Darío→Claudia por *listo* | estudiante_id=%s",
+                estudiante.id,
             )
-            if not modulos_reto and progreso_reto and _ctx_sesion_asistente.get('modulo_id'):
-                _mchk = ModuloRetoCtx.objects.filter(
-                    id=_ctx_sesion_asistente['modulo_id'],
-                    curso_id=progreso_reto.curso_id,
-                ).first()
-                if _mchk:
-                    modulos_reto = listar_modulos_cobertura_reto(_mchk, progreso_reto.curso)
-                    modulos_reto_ids = [m.id for m in modulos_reto]
-            if modulos_reto and progreso_reto:
-                _cliente = (
-                    estudiante.cliente
-                    if getattr(estudiante, 'cliente_id', None)
-                    else None
-                )
-                nombre_tutor = 'Formador'
-                reto = generar_reto_facilitador(
-                    modulos_reto, progreso_reto.curso.nombre,
-                    estudiante_nombre=estudiante.nombre or 'Estudiante',
-                    curso=progreso_reto.curso,
-                    modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
-                    estudiante=estudiante,
-                )
-                _prev_ts = _ctx_sesion_asistente.get('_ts_leccion', 0)
-                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal, {
-                    'tipo': 'reto_facilitador',
-                    'modulos_reto_ids': modulos_reto_ids,
-                    'reto_texto': reto,
-                    'progreso_id': progreso_id,
-                    'es_final': _ctx_sesion_asistente.get('es_reto_final', False),
-                    '_ts_leccion': _prev_ts,
-                })
-                estudiante.estado_onboarding = 'esperando_respuesta_reto'
-                estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-                logger.info(
-                    "continuar_leccion: Darío→Claudia por *listo* | estudiante_id=%s",
-                    estudiante.id,
-                )
-                from core.tutor_ia_modulo import bloque_reto_whatsapp
-
-                return bloque_reto_whatsapp(nombre_tutor, reto)
-            estudiante.estado_onboarding = 'completado'
-            estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-            estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-            return (
-                "Seguimos con tu curso. Escribí *listo* para continuar "
-                "o *ayuda* si necesitás soporte."
+            return lanzar_reto_tras_companero(
+                estudiante,
+                _ctx_sesion_asistente,
+                contexto_limpio,
+                progreso_si_falta=progreso,
             )
         logger.info(
             "continuar_leccion: ya hay sesión activa con el compañero | estudiante_id=%s",
