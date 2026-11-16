@@ -270,10 +270,15 @@ class ConstructorMediaEvalTests(TestCase):
                 correcta='C',
             )
 
-    @override_settings(EKI_CONSTRUCTOR_CURSOS=True, EKI_CAMPANA_META_PRUEBA_NUMEROS=['573026480629'], WHATSAPP_PHONE_ID='phone-1')
-    def test_editar_subir_drip_calendario_y_prueba_interna(self):
+    @override_settings(
+        EKI_CONSTRUCTOR_CURSOS=True,
+        EKI_CAMPANA_META_PRUEBA_NUMEROS=['573026480629'],
+        WHATSAPP_PHONE_ID='phone-1',
+        WHATSAPP_PHONE_NUMBER_ID_2='phone-2',
+    )
+    def test_editar_subir_drip_calendario_cert_y_prueba_dos_lineas(self):
         from datetime import datetime
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.utils import timezone
@@ -281,12 +286,14 @@ class ConstructorMediaEvalTests(TestCase):
         from core.cursos.constructor.servicio import (
             actualizar_calendario_modulo,
             actualizar_drip,
+            asignar_plantilla_certificado,
+            crear_plantilla_certificado,
             editar_mensaje,
             probar_mensaje_interno,
             resumen_certificado,
             subir_archivo_mensaje,
         )
-        from core.models import Curso
+        from core.models import Curso, PlantillaCertificado
 
         curso = Curso.objects.create(nombre='Ctor prod', descripcion='d')
         mod = crear_modulo(curso, titulo='M1')
@@ -316,14 +323,27 @@ class ConstructorMediaEvalTests(TestCase):
         self.assertIsNotNone(mod.habilitado_desde)
         self.assertFalse(resumen_certificado(curso)['listo'])
 
+        creada = crear_plantilla_certificado(curso, nombre='Diploma piloto')
+        self.assertEqual(creada.curso_id, curso.id)
+        self.assertTrue(resumen_certificado(curso)['listo'])
+        otra = PlantillaCertificado.objects.create(
+            nombre='Libre', modo_plantilla='diseno_eki', activa=True,
+        )
+        asignar_plantilla_certificado(curso, otra.id)
+        otra.refresh_from_db()
+        self.assertEqual(otra.curso_id, curso.id)
+
         with self.assertRaises(ValueError):
             probar_mensaje_interno(msg, '573009990000')
-        with patch('core.lineas.sender.sender_de_linea') as fabrica:
-            fabrica.return_value.texto.return_value = {'success': True}
-            ok = probar_mensaje_interno(msg, '573026480629')
-        self.assertTrue(ok.get('success', True))
-        fabrica.return_value.texto.assert_called_once()
-        self.assertEqual(fabrica.return_value.texto.call_args.args[0], '573026480629')
+        sender = MagicMock()
+        sender.texto.return_value = {'success': True}
+        with patch('core.lineas.sender.sender_de_linea', return_value=sender) as fabrica:
+            ok = probar_mensaje_interno(msg, '573026480629', lineas='ambas')
+        self.assertTrue(ok['success'])
+        self.assertEqual(len(ok['envios']), 2)
+        self.assertEqual({e['linea'] for e in ok['envios']}, {'principal', 'linea_2'})
+        self.assertEqual(fabrica.call_count, 2)
+        self.assertEqual(sender.texto.call_count, 2)
 
     def test_media_eval_flag_off(self):
         from core.models import Curso, Modulo, PasoModulo, SeccionModulo

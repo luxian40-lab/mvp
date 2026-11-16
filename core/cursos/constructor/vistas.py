@@ -30,8 +30,10 @@ def constructor_curso_view(model_admin, request, curso_id):
         actualizar_calendario_modulo,
         actualizar_drip,
         adjuntar_media_mensaje,
+        asignar_plantilla_certificado,
         constructor_activo,
         crear_bloque,
+        crear_plantilla_certificado,
         crear_mensaje_evaluacion,
         crear_mensaje_texto,
         crear_modulo,
@@ -208,12 +210,28 @@ def constructor_curso_view(model_admin, request, curso_id):
                 if not paso:
                     raise ValueError('mensaje no encontrado en este curso')
                 resultado = probar_mensaje_interno(
-                    paso, request.POST.get('telefono') or '',
+                    paso,
+                    request.POST.get('telefono') or '',
+                    lineas=(request.POST.get('lineas') or 'ambas').strip(),
                 )
                 if resultado.get('success') is False:
                     error = resultado.get('error') or 'la prueba no salió'
                 else:
-                    mensaje = 'Prueba enviada al número interno. No inscribe a nadie.'
+                    etiquetas = ', '.join(e['linea'] for e in resultado.get('envios') or [])
+                    mensaje = (
+                        f'Prueba enviada ({etiquetas or "línea"}). '
+                        'No inscribe a nadie.'
+                    )
+            elif accion == 'crear_certificado':
+                crear_plantilla_certificado(
+                    curso, nombre=request.POST.get('nombre') or '',
+                )
+                mensaje = 'Plantilla de certificado creada para este curso.'
+            elif accion == 'asignar_certificado':
+                asignar_plantilla_certificado(
+                    curso, int(request.POST.get('plantilla_id') or 0),
+                )
+                mensaje = 'Plantilla de certificado asignada al curso.'
             elif accion == 'publicar_version':
                 if not versiones_activas():
                     error = 'EKI_CURSO_VERSIONES está apagado. No se publicó ninguna versión.'

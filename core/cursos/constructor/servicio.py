@@ -460,9 +460,70 @@ def actualizar_calendario_modulo(modulo, *, habilitado_desde, duracion_dias: int
 
 
 def resumen_certificado(curso) -> dict:
-    """Si el curso ya tiene plantilla de certificado. Solo lectura."""
-    n = curso.plantillas_certificados.count()
-    return {'plantillas': n, 'listo': n > 0}
+    """Plantillas del curso y candidatas libres (sin curso o del mismo cliente)."""
+    from django.db.models import Q
+
+    from core.models import PlantillaCertificado
+
+    propias = list(
+        curso.plantillas_certificados.filter(activa=True)
+        .order_by('nombre', 'id')
+        .values('id', 'nombre')
+    )
+    filtro = Q(curso__isnull=True)
+    if getattr(curso, 'cliente_id', None):
+        filtro &= Q(cliente_id=curso.cliente_id) | Q(cliente__isnull=True)
+    else:
+        filtro &= Q(cliente__isnull=True)
+    candidatas = (
+        PlantillaCertificado.objects.filter(activa=True)
+        .filter(filtro)
+        .order_by('nombre', 'id')
+        .values('id', 'nombre')[:50]
+    )
+    return {
+        'plantillas': len(propias),
+        'listo': bool(propias),
+        'propias': propias,
+        'candidatas': list(candidatas),
+    }
+
+
+def crear_plantilla_certificado(curso, *, nombre: str):
+    """Crea plantilla diseño eki ligada al curso. Flag off → None."""
+    if not constructor_activo():
+        return None
+    from core.models import PlantillaCertificado
+
+    titulo = (nombre or '').strip() or f'Certificado — {curso.nombre}'
+    return PlantillaCertificado.objects.create(
+        nombre=titulo[:100],
+        curso=curso,
+        cliente=getattr(curso, 'cliente', None),
+        modo_plantilla='diseno_eki',
+        formato_certificado='pdf',
+        activa=True,
+    )
+
+
+def asignar_plantilla_certificado(curso, plantilla_id: int):
+    """Asigna una plantilla existente a este curso. Flag off → None."""
+    if not constructor_activo():
+        return None
+    from core.models import PlantillaCertificado
+
+    plantilla = PlantillaCertificado.objects.filter(pk=plantilla_id, activa=True).first()
+    if not plantilla:
+        raise ValueError('plantilla no encontrada')
+    if plantilla.curso_id and plantilla.curso_id != curso.id:
+        raise ValueError('esa plantilla ya está ligada a otro curso')
+    plantilla.curso = curso
+    campos = ['curso']
+    if getattr(curso, 'cliente_id', None) and not plantilla.cliente_id:
+        plantilla.cliente_id = curso.cliente_id
+        campos.append('cliente')
+    plantilla.save(update_fields=campos)
+    return plantilla
 
 
 def numeros_prueba_interna() -> set[str]:
@@ -470,22 +531,58 @@ def numeros_prueba_interna() -> set[str]:
     return {''.join(ch for ch in str(p) if ch.isdigit()) for p in crudos}
 
 
-def probar_mensaje_interno(paso, telefono: str) -> dict:
-    """Envía el texto del mensaje solo a un número de la lista interna. No inscribe."""
+def lineas_prueba_meta() -> list[tuple[str, str]]:
+    """[(phone_id, etiqueta), ...] principal y línea 2 si hay."""
+    filas = []
+    p1 = (getattr(settings, 'WHATSAPP_PHONE_ID', '') or '').strip()
+    if p1:
+        filas.append((p1, 'principal'))
+    p2 = (getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID_2', '') or '').strip()
+    if p2 and p2 != p1:
+        filas.append((p2, 'linea_2'))
+    return filas
+
+
+def probar_mensaje_interno(paso, telefono: str, *, lineas: str = 'ambas') -> dict:
+    """Envía el mensaje al número interno por una o las dos líneas Meta. No inscribe.
+
+    ``lineas``: ``principal`` | ``linea_2`` | ``ambas``.
+    """
     if not constructor_activo():
-        return {'success': False, 'error': 'constructor apagado'}
+        return {'success': False, 'error': 'constructor apagado', 'envios': []}
     tel = ''.join(ch for ch in (telefono or '') if ch.isdigit())
     if tel not in numeros_prueba_interna():
         raise ValueError('ese número no está autorizado para la prueba interna')
     cuerpo = (paso.contenido or '').strip()
     if not cuerpo:
         raise ValueError('el mensaje no tiene texto')
-    phone_id = (getattr(settings, 'WHATSAPP_PHONE_ID', '') or '').strip()
-    if not phone_id:
-        raise ValueError('WHATSAPP_PHONE_ID vacío: no hay línea Meta para la prueba')
+    disponibles = lineas_prueba_meta()
+    if not disponibles:
+        raise ValueError('no hay phone id Meta configurado')
+    if lineas == 'principal':
+        elegidas = [f for f in disponibles if f[1] == 'principal']
+    elif lineas == 'linea_2':
+        elegidas = [f for f in disponibles if f[1] == 'linea_2']
+    else:
+        elegidas = disponibles
+    if not elegidas:
+        raise ValueError('esa línea Meta no está configurada')
+
     from core.lineas.sender import sender_de_linea
 
     media = (paso.media_url or '').strip() or None
-    return sender_de_linea(phone_id).texto(
-        tel, cuerpo[:1024], media_url=media, agente='constructor_prueba',
-    )
+    envios = []
+    for phone_id, etiqueta in elegidas:
+        resp = sender_de_linea(phone_id).texto(
+            tel, cuerpo[:1024], media_url=media, agente=f'constructor_prueba_{etiqueta}',
+        )
+        envios.append({
+            'linea': etiqueta,
+            'phone_id': phone_id,
+            'success': bool(resp.get('success', True)),
+            'respuesta': resp,
+        })
+    return {
+        'success': all(e['success'] for e in envios),
+        'envios': envios,
+    }
