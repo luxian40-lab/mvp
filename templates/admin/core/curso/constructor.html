@@ -1,251 +1,277 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .eki-ctor { max-width: 52rem; }
+  .eki-ctor h1 { font-size: 1.35rem; margin: 0 0 0.35rem; color: #1f1a24; }
+  .eki-ctor .eki-ctor-lead { color: #6b6575; margin: 0 0 1rem; font-size: 0.95rem; }
+  .eki-ctor-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.25rem; }
+  .eki-ctor-flash { padding: 0.65rem 0.85rem; margin: 0 0 1rem; border-radius: 0.35rem; font-size: 0.92rem; }
+  .eki-ctor-flash-ok { background: #f3eef6; border: 1px solid #d4c4de; color: #3d2a4a; }
+  .eki-ctor-flash-err { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+  .eki-ctor-sec { margin: 0 0 1.5rem; padding: 0; border: 0; }
+  .eki-ctor-sec h2 { font-size: 1.05rem; margin: 0 0 0.5rem; color: #3d2a4a; }
+  .eki-ctor-sec h3 { font-size: 0.95rem; margin: 0.75rem 0 0.35rem; color: #5F3A6E; }
+  .eki-ctor-mod { border-top: 1px solid #e8e4ec; padding-top: 1rem; margin-top: 1.25rem; }
+  .eki-ctor-bloque { margin: 0.75rem 0 0.75rem 0.25rem; padding-left: 0.75rem; border-left: 3px solid #9A6CAC; }
+  .eki-ctor-meta { color: #6b6575; font-size: 0.85rem; margin: 0.15rem 0 0.5rem; }
+  .eki-ctor-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.4rem 0; }
+  .eki-ctor input[type="text"],
+  .eki-ctor input[type="url"],
+  .eki-ctor input[type="number"],
+  .eki-ctor input[type="datetime-local"],
+  .eki-ctor textarea,
+  .eki-ctor select { max-width: 100%; }
+  .eki-ctor textarea { width: min(100%, 36rem); }
+  .eki-ctor .button { margin: 0; }
+  .eki-ctor-msg { list-style: none; padding: 0; margin: 0.5rem 0; }
+  .eki-ctor-msg li { padding: 0.5rem 0; border-bottom: 1px solid #f0ecf3; }
+  .eki-ctor-preview {
+    font-size: 0.78rem; max-height: 12rem; overflow: auto;
+    background: #faf8fb; padding: 0.65rem; border: 1px solid #e8e4ec; border-radius: 0.35rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Constructor — {{ curso.nombre }}</h1>
-<p>
-  Slice 5.1: módulos, bloques y mensajes de texto.
-  Guardar aquí <strong>no publica</strong> ni envía WhatsApp.
-  Flag <code>EKI_CONSTRUCTOR_CURSOS</code> activo.
-</p>
-<p><a href="{{ volver_url }}" class="button">Volver al curso</a></p>
-
-{% if mensaje %}
-<p style="padding:0.6rem 0.8rem;background:#ecfdf5;border:1px solid #a7f3d0;">{{ mensaje }}</p>
-{% endif %}
-{% if error %}
-<p style="padding:0.6rem 0.8rem;background:#fef2f2;border:1px solid #fecaca;">{{ error }}</p>
-{% endif %}
-
-<section style="margin:1.5rem 0;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;">
-  <h2>Ritmo, calendario y certificado</h2>
-  <p style="font-size:0.9rem;color:#6b6575;">
-    La espera es la del curso (0 = libre). El calendario es «disponible desde» de cada módulo.
-    {% if certificado.listo %}
-    Certificado: hay {{ certificado.plantillas }} plantilla(s) de este curso.
-    {% else %}
-    Certificado: este curso todavía no tiene plantilla. Se asigna en Plantillas de certificado.
-    {% endif %}
+<div class="eki-ctor" data-eki-ctor="1">
+  <h1>Constructor — {{ curso.nombre }}</h1>
+  <p class="eki-ctor-lead">
+    Guardar aquí no publica ni envía WhatsApp. Un Continuemos entrega un bloque.
   </p>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="drip">
-    <label>Días de espera entre módulos
-      <input type="number" name="dias_espera" min="0" max="365" value="{{ curso.dias_espera_entre_modulos }}" style="width:5rem;">
-    </label>
-    <input type="submit" class="button" value="Guardar espera">
-  </form>
-  <p style="font-size:0.85rem;color:#6b6575;">Prueba interna solo a: {{ numeros_prueba|default:"(lista vacía)" }}</p>
-</section>
-
-<section style="margin:1.5rem 0;">
-  <h2>Añadir módulo</h2>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="crear_modulo">
-    <p>
-      <label>Título<br>
-        <input type="text" name="titulo" maxlength="200" required style="width:min(100%,28rem);">
-      </label>
-    </p>
-    <p>
-      <label>Descripción (opcional)<br>
-        <input type="text" name="descripcion" maxlength="500" style="width:min(100%,28rem);">
-      </label>
-    </p>
-    <input type="submit" class="default" value="Crear módulo">
-  </form>
-</section>
-
-<section style="margin:1.5rem 0;padding:1rem;background:#faf5ff;border:1px solid #e9d5ff;">
-  <h2>Revisar y publicar versión</h2>
-  {% if puede_publicar %}
-  <p style="font-size:0.9rem;color:#6b6575;">
-    Congela el ensamblado actual. No mueve la cohorte. Pide confirmación.
-  </p>
-  {% if version_publicada %}
-  <p>Versión publicada hoy: <strong>v{{ version_publicada.numero }}</strong>.</p>
-  {% else %}
-  <p>Aún no hay versión publicada.</p>
-  {% endif %}
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="publicar_version">
-    <p>
-      <label>Nota (opcional)
-        <input type="text" name="nota" maxlength="200" style="width:min(100%,28rem);">
-      </label>
-    </p>
-    <input type="submit" class="default" value="Revisar publicación">
-  </form>
-  {% else %}
-  <p style="color:#6b6575;">Flag <code>EKI_CURSO_VERSIONES</code> apagado. Publicar queda oculto.</p>
-  {% endif %}
-</section>
-
-<section style="margin:1.5rem 0;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;">
-  <h2>Vista previa (ensamblador real)</h2>
-  <p style="color:#6b6575;font-size:0.9rem;margin-top:0;">
-    Misma congelación que «Publicar versión». No imita con JavaScript.
-  </p>
-  <pre style="white-space:pre-wrap;font-size:0.8rem;max-height:16rem;overflow:auto;background:#fff;padding:0.75rem;border:1px solid #e5e7eb;">{{ preview_json }}</pre>
-</section>
-
-{% for mod in arbol.modulos %}
-<section style="margin:1.75rem 0;padding-top:1rem;border-top:1px solid #e5e7eb;">
-  <h2>Módulo {{ mod.numero }} — {{ mod.titulo }}</h2>
-  <p style="color:#6b6575;font-size:0.9rem;">
-    id={{ mod.id }}
-    {% if mod.publicado_wa %}· publicado WA{% else %}· borrador{% endif %}
-  </p>
-  <form method="post" style="display:inline-flex;gap:0.35rem;margin:0.35rem 0 0.75rem;">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="mover_modulo">
-    <input type="hidden" name="modulo_id" value="{{ mod.id }}">
-    <button type="submit" name="direction" value="up" class="button" title="Subir">↑</button>
-    <button type="submit" name="direction" value="down" class="button" title="Bajar">↓</button>
-  </form>
-
-  <form method="post" style="margin:0.35rem 0 0.75rem;">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="calendario">
-    <input type="hidden" name="modulo_id" value="{{ mod.id }}">
-    <label>Disponible desde
-      <input type="datetime-local" name="habilitado_desde">
-    </label>
-    <label style="margin-left:0.5rem;">Días estimados
-      <input type="number" name="duracion_dias" min="1" max="365" value="7" style="width:4rem;">
-    </label>
-    <input type="submit" class="button" value="Guardar calendario">
-  </form>
-
-  <form method="post" style="margin:0.75rem 0 1rem;">
-    {% csrf_token %}
-    <input type="hidden" name="accion" value="crear_bloque">
-    <input type="hidden" name="modulo_id" value="{{ mod.id }}">
-    <label>Nuevo bloque
-      <input type="text" name="titulo" maxlength="200" placeholder="Bloque…" style="width:min(100%,20rem);">
-    </label>
-    <input type="submit" class="button" value="Añadir bloque">
-  </form>
-
-  {% for bloque in mod.bloques %}
-  <div style="margin:1rem 0 1rem 0.5rem;padding-left:0.75rem;border-left:3px solid #9A6CAC;">
-    <h3 style="display:inline;">Bloque {{ bloque.orden }}{% if bloque.titulo %} — {{ bloque.titulo }}{% endif %}</h3>
-    <form method="post" style="display:inline-flex;gap:0.35rem;margin-left:0.5rem;">
-      {% csrf_token %}
-      <input type="hidden" name="accion" value="mover_bloque">
-      <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
-      <button type="submit" name="direction" value="up" class="button" title="Subir bloque">↑</button>
-      <button type="submit" name="direction" value="down" class="button" title="Bajar bloque">↓</button>
-    </form>
-    <ul>
-      {% for msg in bloque.mensajes %}
-      <li style="margin:0.4rem 0;">
-        <strong>#{{ msg.orden }}</strong> [{{ msg.tipo }}]
-        {% if msg.titulo %}{{ msg.titulo }} — {% endif %}
-        {{ msg.contenido|truncatechars:120 }}
-        {% if msg.media_url %}· media{% endif %}
-        {% if msg.activo %}<em>(activo)</em>{% else %}<em>(inactivo)</em>{% endif %}
-        <form method="post" style="margin:0.35rem 0;">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="editar_mensaje">
-          <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-          <textarea name="contenido" rows="2" required style="width:min(100%,36rem);">{{ msg.contenido }}</textarea>
-          <input type="text" name="titulo" value="{{ msg.titulo }}" maxlength="200" placeholder="título interno">
-          <label><input type="checkbox" name="activo" value="1" {% if msg.activo %}checked{% endif %}> Activo</label>
-          <input type="submit" class="button" value="Guardar texto">
-        </form>
-        <form method="post" style="display:inline-flex;gap:0.35rem;margin-left:0.35rem;">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="probar_interno">
-          <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-          <input type="text" name="telefono" inputmode="numeric" placeholder="573…" style="width:10rem;">
-          <input type="submit" class="button" value="Probar en número interno">
-        </form>
-        <form method="post" style="display:inline-flex;gap:0.25rem;margin-left:0.35rem;">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="mover_mensaje">
-          <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-          <button type="submit" name="direction" value="up" class="button" title="Subir dentro de este bloque">↑</button>
-          <button type="submit" name="direction" value="down" class="button" title="Bajar dentro de este bloque">↓</button>
-        </form>
-      </li>
-      {% empty %}
-      <li style="color:#6b6575;">Sin mensajes aún.</li>
-      {% endfor %}
-    </ul>
-    <form method="post" style="margin-top:0.5rem;">
-      {% csrf_token %}
-      <input type="hidden" name="accion" value="crear_mensaje">
-      <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
-      <p>
-        <label>Mensaje de texto<br>
-          <textarea name="contenido" rows="3" required style="width:min(100%,36rem);"></textarea>
-        </label>
-      </p>
-      <p>
-        <label>Título interno (opcional)
-          <input type="text" name="titulo" maxlength="200" style="width:min(100%,20rem);">
-        </label>
-        <label style="margin-left:1rem;">
-          <input type="checkbox" name="activo" value="1"> Activo
-        </label>
-      </p>
-      <input type="submit" class="button" value="Añadir mensaje de texto">
-    </form>
-    <form method="post" style="margin-top:0.75rem;">
-      {% csrf_token %}
-      <input type="hidden" name="accion" value="crear_evaluacion">
-      <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
-      <p><label>Evaluación (pregunta)<br>
-        <textarea name="pregunta" rows="2" required style="width:min(100%,36rem);"></textarea>
-      </label></p>
-      <p>
-        A <input type="text" name="opcion_a" required style="width:min(40%,12rem);">
-        B <input type="text" name="opcion_b" required style="width:min(40%,12rem);">
-      </p>
-      <p>
-        C <input type="text" name="opcion_c" style="width:min(40%,12rem);">
-        D <input type="text" name="opcion_d" style="width:min(40%,12rem);">
-      </p>
-      <p>
-        Correcta
-        <select name="correcta">
-          <option>A</option><option>B</option><option>C</option><option>D</option>
-        </select>
-        <label style="margin-left:1rem;"><input type="checkbox" name="activo" value="1"> Activo</label>
-      </p>
-      <input type="submit" class="button" value="Añadir evaluación A–D">
-    </form>
-    {% for msg in bloque.mensajes %}
-    {% if msg.tipo == 'contenido' %}
-    <form method="post" enctype="multipart/form-data" style="margin-top:0.5rem;">
-      {% csrf_token %}
-      <input type="hidden" name="accion" value="subir_archivo">
-      <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-      <label>Archivo (pasa el tope y el video de Meta)
-        <input type="file" name="archivo" required>
-      </label>
-      <input type="submit" class="button" value="Subir archivo">
-    </form>
-    <form method="post" style="margin-top:0.5rem;">
-      {% csrf_token %}
-      <input type="hidden" name="accion" value="adjuntar_media">
-      <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-      <label>O URL https para #{{ msg.orden }}
-        <input type="url" name="media_url" placeholder="https://…" style="width:min(100%,28rem);">
-      </label>
-      <input type="submit" class="button" value="Adjuntar URL">
-    </form>
-    {% endif %}
-    {% endfor %}
+  <div class="eki-ctor-bar">
+    <a href="{{ volver_url }}" class="button">Volver al curso</a>
   </div>
+
+  {% if mensaje %}
+  <p class="eki-ctor-flash eki-ctor-flash-ok" data-eki-ctor-ok>{{ mensaje }}</p>
+  {% endif %}
+  {% if error %}
+  <p class="eki-ctor-flash eki-ctor-flash-err" data-eki-ctor-err>{{ error }}</p>
+  {% endif %}
+
+  <section class="eki-ctor-sec" data-eki-ctor-sec="ritmo">
+    <h2>Ritmo y certificado</h2>
+    <p class="eki-ctor-meta">
+      {% if certificado.listo %}
+      Hay {{ certificado.plantillas }} plantilla(s) de este curso.
+      {% else %}
+      Este curso aún no tiene plantilla de certificado.
+      {% endif %}
+      Prueba interna: {{ numeros_prueba|default:"(lista vacía)" }}.
+    </p>
+    <form method="post" class="eki-ctor-row">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="drip">
+      <label>Días de espera
+        <input type="number" name="dias_espera" min="0" max="365" value="{{ curso.dias_espera_entre_modulos }}" style="width:5rem;">
+      </label>
+      <input type="submit" class="button" value="Guardar espera">
+    </form>
+    <form method="post" class="eki-ctor-row" data-eki-ctor-accion="crear_certificado">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="crear_certificado">
+      <input type="text" name="nombre" maxlength="100" placeholder="Nombre de la plantilla" style="width:min(100%,20rem);">
+      <input type="submit" class="button default" value="Crear plantilla certificado">
+    </form>
+    {% if certificado.candidatas %}
+    <form method="post" class="eki-ctor-row" data-eki-ctor-accion="asignar_certificado">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="asignar_certificado">
+      <select name="plantilla_id" required>
+        <option value="">Asignar plantilla existente…</option>
+        {% for p in certificado.candidatas %}
+        <option value="{{ p.id }}">{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+      <input type="submit" class="button" value="Asignar">
+    </form>
+    {% endif %}
+    {% if certificado.propias %}
+    <p class="eki-ctor-meta">Del curso:
+      {% for p in certificado.propias %}{{ p.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </section>
+
+  {% if puede_publicar %}
+  <section class="eki-ctor-sec" data-eki-ctor-sec="publicar">
+    <h2>Publicar versión</h2>
+    <p class="eki-ctor-meta">Congela el ensamblado. No mueve la cohorte. Pide confirmación.</p>
+    {% if version_publicada %}
+    <p class="eki-ctor-meta">Publicada hoy: v{{ version_publicada.numero }}</p>
+    {% endif %}
+    <form method="post" class="eki-ctor-row">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="publicar_version">
+      <input type="text" name="nota" maxlength="200" placeholder="Nota (opcional)" style="width:min(100%,20rem);">
+      <input type="submit" class="default" value="Revisar publicación">
+    </form>
+  </section>
+  {% else %}
+  <p class="eki-ctor-meta">Publicar oculto: <code>EKI_CURSO_VERSIONES</code> apagado.</p>
+  {% endif %}
+
+  <section class="eki-ctor-sec" data-eki-ctor-sec="preview">
+    <h2>Vista previa (ensamblador)</h2>
+    <pre class="eki-ctor-preview">{{ preview_json }}</pre>
+  </section>
+
+  <section class="eki-ctor-sec" data-eki-ctor-sec="nuevo-modulo">
+    <h2>Añadir módulo</h2>
+    <form method="post" data-eki-ctor-accion="crear_modulo">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="crear_modulo">
+      <p><label>Título<br>
+        <input type="text" name="titulo" maxlength="200" required style="width:min(100%,28rem);">
+      </label></p>
+      <p><label>Descripción (opcional)<br>
+        <input type="text" name="descripcion" maxlength="500" style="width:min(100%,28rem);">
+      </label></p>
+      <input type="submit" class="default" value="Crear módulo">
+    </form>
+  </section>
+
+  {% for mod in arbol.modulos %}
+  <section class="eki-ctor-mod" data-eki-ctor-modulo="{{ mod.id }}">
+    <h2>Módulo {{ mod.numero }} — {{ mod.titulo }}</h2>
+    <p class="eki-ctor-meta">
+      {% if mod.publicado_wa %}publicado WA{% else %}borrador{% endif %}
+    </p>
+    <form method="post" class="eki-ctor-row">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="mover_modulo">
+      <input type="hidden" name="modulo_id" value="{{ mod.id }}">
+      <button type="submit" name="direction" value="up" class="button" title="Subir">↑</button>
+      <button type="submit" name="direction" value="down" class="button" title="Bajar">↓</button>
+    </form>
+    <form method="post" class="eki-ctor-row">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="calendario">
+      <input type="hidden" name="modulo_id" value="{{ mod.id }}">
+      <label>Disponible desde
+        <input type="datetime-local" name="habilitado_desde">
+      </label>
+      <label>Días
+        <input type="number" name="duracion_dias" min="1" max="365" value="7" style="width:4rem;">
+      </label>
+      <input type="submit" class="button" value="Guardar calendario">
+    </form>
+    <form method="post" class="eki-ctor-row">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="crear_bloque">
+      <input type="hidden" name="modulo_id" value="{{ mod.id }}">
+      <input type="text" name="titulo" maxlength="200" placeholder="Nuevo bloque…" style="width:min(100%,16rem);">
+      <input type="submit" class="button" value="Añadir bloque">
+    </form>
+
+    {% for bloque in mod.bloques %}
+    <div class="eki-ctor-bloque" data-eki-ctor-bloque="{{ bloque.id }}">
+      <h3>Bloque {{ bloque.orden }}{% if bloque.titulo %} — {{ bloque.titulo }}{% endif %}</h3>
+      <form method="post" class="eki-ctor-row" style="display:inline-flex;">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="mover_bloque">
+        <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
+        <button type="submit" name="direction" value="up" class="button" title="Subir bloque">↑</button>
+        <button type="submit" name="direction" value="down" class="button" title="Bajar bloque">↓</button>
+      </form>
+      <ul class="eki-ctor-msg">
+        {% for msg in bloque.mensajes %}
+        <li data-eki-ctor-mensaje="{{ msg.id }}">
+          <span class="eki-ctor-meta">#{{ msg.orden }} · {{ msg.tipo }}{% if msg.media_url %} · media{% endif %} · {% if msg.activo %}activo{% else %}inactivo{% endif %}</span>
+          <form method="post" data-eki-ctor-accion="editar_mensaje">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="editar_mensaje">
+            <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+            <textarea name="contenido" rows="2" required>{{ msg.contenido }}</textarea>
+            <div class="eki-ctor-row">
+              <input type="text" name="titulo" value="{{ msg.titulo }}" maxlength="200" placeholder="título interno">
+              <label><input type="checkbox" name="activo" value="1" {% if msg.activo %}checked{% endif %}> Activo</label>
+              <input type="submit" class="button" value="Guardar texto">
+            </div>
+          </form>
+          <form method="post" class="eki-ctor-row" data-eki-ctor-accion="probar_interno">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="probar_interno">
+            <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+            <input type="text" name="telefono" inputmode="numeric" placeholder="573…" style="width:10rem;">
+            <select name="lineas">
+              <option value="ambas">Ambas líneas</option>
+              <option value="principal">Solo principal</option>
+              <option value="linea_2">Solo línea 2</option>
+            </select>
+            <input type="submit" class="button" value="Probar WhatsApp">
+          </form>
+          <form method="post" class="eki-ctor-row">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="mover_mensaje">
+            <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+            <button type="submit" name="direction" value="up" class="button" title="Subir dentro de este bloque">↑</button>
+            <button type="submit" name="direction" value="down" class="button" title="Bajar dentro de este bloque">↓</button>
+          </form>
+          {% if msg.tipo == 'contenido' %}
+          <form method="post" enctype="multipart/form-data" class="eki-ctor-row">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="subir_archivo">
+            <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+            <input type="file" name="archivo" required>
+            <input type="submit" class="button" value="Subir archivo">
+          </form>
+          <form method="post" class="eki-ctor-row">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="adjuntar_media">
+            <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+            <input type="url" name="media_url" placeholder="https://…" style="width:min(100%,22rem);">
+            <input type="submit" class="button" value="Adjuntar URL">
+          </form>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="eki-ctor-meta">Sin mensajes aún.</li>
+        {% endfor %}
+      </ul>
+      <form method="post" data-eki-ctor-accion="crear_mensaje">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear_mensaje">
+        <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
+        <p><label>Mensaje de texto<br>
+          <textarea name="contenido" rows="3" required></textarea>
+        </label></p>
+        <div class="eki-ctor-row">
+          <input type="text" name="titulo" maxlength="200" placeholder="título interno">
+          <label><input type="checkbox" name="activo" value="1"> Activo</label>
+          <input type="submit" class="button" value="Añadir mensaje">
+        </div>
+      </form>
+      <form method="post" style="margin-top:0.75rem;" data-eki-ctor-accion="crear_evaluacion">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear_evaluacion">
+        <input type="hidden" name="bloque_id" value="{{ bloque.id }}">
+        <p><label>Evaluación<br>
+          <textarea name="pregunta" rows="2" required></textarea>
+        </label></p>
+        <div class="eki-ctor-row">
+          A <input type="text" name="opcion_a" required style="width:8rem;">
+          B <input type="text" name="opcion_b" required style="width:8rem;">
+          C <input type="text" name="opcion_c" style="width:8rem;">
+          D <input type="text" name="opcion_d" style="width:8rem;">
+        </div>
+        <div class="eki-ctor-row">
+          Correcta
+          <select name="correcta"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+          <label><input type="checkbox" name="activo" value="1"> Activo</label>
+          <input type="submit" class="button" value="Añadir evaluación">
+        </div>
+      </form>
+    </div>
+    {% empty %}
+    <p class="eki-ctor-meta">Sin bloques.</p>
+    {% endfor %}
+  </section>
   {% empty %}
-  <p style="color:#6b6575;">Sin bloques.</p>
+  <p class="eki-ctor-meta">Este curso aún no tiene módulos.</p>
   {% endfor %}
-</section>
-{% empty %}
-<p style="color:#6b6575;">Este curso aún no tiene módulos en el constructor.</p>
-{% endfor %}
+</div>
 {% endblock %}
