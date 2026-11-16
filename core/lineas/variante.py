@@ -56,3 +56,13 @@ def perfil_de(phone_id: str | None = None) -> PerfilLinea:
 def es_modo_twilio(phone_id: str | None = None) -> bool:
     """Misma regla que es_solo_cursos; nombre de producto."""
     return es_solo_cursos(phone_id)
+
+
+def e164_linea_principal() -> str:
+    """E.164 de la primera línea completa (menú Formación/Asesoría). Vacío si no hay."""
+    from core.lineas.perfil import USO_COMPLETA
+
+    for linea in lineas_producto():
+        if linea.uso == USO_COMPLETA and (linea.e164 or '').strip():
+            return str(linea.e164).strip()
+    return ''

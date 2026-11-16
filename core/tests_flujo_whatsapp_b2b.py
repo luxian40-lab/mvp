@@ -1,11 +1,21 @@
 """Flujo WhatsApp B2B: sin menú 1-2-3; avance con listo y orden por campaña."""
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from core.correccion_datos import construir_menu_principal_texto
 from core.flujo_whatsapp_b2b import (
     es_estudiante_b2b,
     mensaje_curso_por_campana,
+    respuesta_tras_keyword_menu,
     salir_seleccion_curso_legacy,
+)
+from core.lineas.meta import LineaMeta
+from core.lineas.perfil import (
+    PERFIL_COMPLETA,
+    PERFIL_SOLO_CURSOS,
+    USO_COMPLETA,
+    USO_SOLO_CURSOS,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.response_templates import get_response_for_intent
@@ -129,3 +139,34 @@ class FlujoWhatsappB2BTests(TestCase):
         msg = mensaje_curso_por_campana(self.est_b2b)
         self.assertIn('Cultivo Básico', msg)
         self.assertIn('[send_button:continuemos]', msg.lower())
+
+    def test_menu_b2b_con_activo_sigue_continuar_leccion(self):
+        with patch('core.lineas.variante.perfil_de', return_value=PERFIL_COMPLETA):
+            msg = respuesta_tras_keyword_menu(self.est_b2b, self.est_b2b.nombre, 'menu')
+        self.assertIn('Cultivo Básico', msg)
+        self.assertNotIn('Ya completaste', msg)
+        self.assertNotIn('línea principal', msg.lower())
+        self.assertNotIn('1️⃣', msg)
+
+    def test_menu_b2b_sin_activos_en_principal_abre_menu_plataforma(self):
+        ProgresoEstudiante.objects.filter(estudiante=self.est_b2b).update(completado=True)
+        with patch('core.lineas.variante.perfil_de', return_value=PERFIL_COMPLETA):
+            msg = respuesta_tras_keyword_menu(self.est_b2b, self.est_b2b.nombre, 'menu')
+        self.assertNotIn('Ya completaste', msg)
+        self.assertIn('1️⃣', msg)
+        self.assertIn('Explorar cursos', msg)
+
+    def test_menu_b2b_sin_activos_linea2_handoff_sin_asesores(self):
+        ProgresoEstudiante.objects.filter(estudiante=self.est_b2b).update(completado=True)
+        principal = LineaMeta('pid-1', '573001111111', 'Principal', uso=USO_COMPLETA)
+        linea2 = LineaMeta('pid-2', '573009536193', 'Línea 2', uso=USO_SOLO_CURSOS)
+        with patch('core.lineas.variante.perfil_de', return_value=PERFIL_SOLO_CURSOS), patch(
+            'core.lineas.variante.lineas_producto', return_value=(principal, linea2),
+        ):
+            msg = respuesta_tras_keyword_menu(self.est_b2b, self.est_b2b.nombre, 'Menú')
+        self.assertNotIn('Ya completaste', msg)
+        self.assertIn('573001111111', msg)
+        self.assertIn('*ayuda*', msg)
+        self.assertIn('línea principal', msg.lower())
+        self.assertNotIn('1️⃣', msg)
+        self.assertNotIn('[SEND_BUTTON:continuemos]', msg)

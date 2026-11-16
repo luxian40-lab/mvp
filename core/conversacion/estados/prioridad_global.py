@@ -95,17 +95,14 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         from core.flujo_whatsapp_b2b import (
             es_estudiante_b2b,
             es_keyword_retomar,
-            salir_seleccion_curso_legacy,
+            respuesta_tras_keyword_menu,
         )
-        from core.response_templates import get_response_for_intent
 
         if es_estudiante_b2b(estudiante) and es_keyword_retomar(texto_norm):
-            salir_seleccion_curso_legacy(estudiante)
-            texto_respuesta = get_response_for_intent(
-                'continuar_leccion',
-                estudiante.nombre,
-                estudiante_id=estudiante.id,
-                mensaje_original=msg_body,
+            # menu/hola/inicio: con curso activo sigue el curso; sin activos,
+            # menú OP (línea con menu) o handoff a principal (línea 2).
+            texto_respuesta = respuesta_tras_keyword_menu(
+                estudiante, estudiante.nombre, msg_body,
             )
             enviar_whatsapp_twilio(msg_from, texto_respuesta)
             return CORTAR

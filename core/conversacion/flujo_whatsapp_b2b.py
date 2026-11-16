@@ -23,7 +23,7 @@ def es_estudiante_b2b(estudiante) -> bool:
 
 
 def es_keyword_retomar(texto_norm: str) -> bool:
-    return texto_norm in {'menu', 'inicio', 'hola'}
+    return texto_norm in {'menu', 'menú', 'inicio', 'hola'}
 
 
 def progresos_activos_qs(estudiante):
@@ -201,8 +201,32 @@ def respuesta_b2b_sin_menu(estudiante, intent: str, nombre_usuario: str, kwargs:
     return None
 
 
+def _texto_menu_handoff_linea_2(nombre: str) -> str:
+    """Línea 2: sin asesores aquí; apunta a la línea principal para Formación/Asesoría."""
+    from core.lineas.variante import e164_linea_principal
+
+    primero = (nombre or '').split()[0] if nombre else 'estudiante'
+    e164 = e164_linea_principal()
+    base = (
+        f"Hola {primero}. En esta línea ya cerró su curso (Formador y Compañero).\n\n"
+        "Si necesita soporte, escriba *ayuda*.\n"
+        "Si su organización le asigna otro curso, escriba *continuar* aquí."
+    )
+    if e164:
+        return (
+            f"{base}\n\n"
+            f"Para *Formación* o *Asesoría*, escriba *menu* al "
+            f"*{e164}* (línea principal)."
+        )
+    return (
+        f"{base}\n\n"
+        "Para *Formación* o *Asesoría*, use la línea principal de eki."
+    )
+
+
 def respuesta_tras_keyword_menu(estudiante, nombre: str, mensaje_original: str = '') -> str:
-    """B2B retoma con continuar_leccion (menú si hay varios cursos); sandbox saludo 1-2-3."""
+    """B2B con curso activo: continuar o picker. Sin activos: menú OP o handoff línea 2."""
+    from core.lineas.variante import perfil_de
     from core.response_templates import get_response_for_intent
 
     if es_estudiante_b2b(estudiante):
@@ -212,12 +236,18 @@ def respuesta_tras_keyword_menu(estudiante, nombre: str, mensaje_original: str =
                 prefijo=f"🌱 Hola {nombre.split()[0] if nombre else 'estudiante'}.",
             )
         salir_seleccion_curso_legacy(estudiante)
-        return get_response_for_intent(
-            'continuar_leccion',
-            nombre,
-            estudiante_id=estudiante.id,
-            mensaje_original=mensaje_original,
-        )
+        if progresos_activos_qs(estudiante).exists():
+            return get_response_for_intent(
+                'continuar_leccion',
+                nombre,
+                estudiante_id=estudiante.id,
+                mensaje_original=mensaje_original,
+            )
+        # Curso terminado (o sin inscripción activa): no dead-end «Ya completaste».
+        if perfil_de().menu:
+            # Sin estudiante_id: mismo menú numerado que no-B2B (Formación vía explorar cursos).
+            return get_response_for_intent('saludo', nombre)
+        return _texto_menu_handoff_linea_2(nombre)
     return get_response_for_intent('saludo', nombre, estudiante_id=estudiante.id)
 
 
