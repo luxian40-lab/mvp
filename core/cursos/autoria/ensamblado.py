@@ -7,14 +7,31 @@ from __future__ import annotations
 
 def congelar_ensamblado(curso) -> dict:
     """Snapshot JSON-serializable del curso tal como está en BD ahora."""
+    from django.db.models import Prefetch
+
     from core.models import Modulo, PasoModulo, SeccionModulo
 
+    modulos_qs = (
+        Modulo.objects.filter(curso=curso)
+        .order_by('numero', 'id')
+        .prefetch_related(
+            Prefetch(
+                'secciones',
+                queryset=SeccionModulo.objects.order_by('orden', 'id').prefetch_related(
+                    Prefetch(
+                        'pasos',
+                        queryset=PasoModulo.objects.order_by('orden', 'id'),
+                    ),
+                ),
+            ),
+        )
+    )
     modulos = []
-    for mod in Modulo.objects.filter(curso=curso).order_by('numero', 'id'):
+    for mod in modulos_qs:
         secciones = []
-        for sec in SeccionModulo.objects.filter(modulo=mod).order_by('orden', 'id'):
+        for sec in mod.secciones.all():
             pasos = []
-            for paso in PasoModulo.objects.filter(seccion=sec).order_by('orden', 'id'):
+            for paso in sec.pasos.all():
                 pasos.append({
                     'id': paso.id,
                     'orden': paso.orden,

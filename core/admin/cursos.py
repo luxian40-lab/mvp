@@ -357,6 +357,7 @@ class CursoAdmin(admin.ModelAdmin):
         'course_engine_voz_preview',
         'tope_whatsapp_resumen',
         'version_en_curso_resumen',
+        'constructor_oficial_enlace',
     )
     actions = [
         'ver_todos_modulos', 'añadir_clase_rapida',
@@ -397,6 +398,13 @@ class CursoAdmin(admin.ModelAdmin):
                 'Para anclar a la publicada use '
                 '<em>Migrar cohorte a la versión publicada</em>.</p>'
                 '<p>Con <code>EKI_CURSO_VERSIONES</code> apagado no escribe ni cambia la entrega.</p>'
+            ),
+        }),
+        ('Constructor oficial', {
+            'fields': ('constructor_oficial_enlace',),
+            'description': mark_safe(
+                '<p>Bloque 5: módulos, bloques y mensajes de texto. '
+                'Guardar no publica. Requiere <code>EKI_CONSTRUCTOR_CURSOS</code>.</p>'
             ),
         }),
         ('Ritmo drip y acceso', {
@@ -508,6 +516,11 @@ class CursoAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.publicar_modulos_curso_view),
                 name='core_curso_publicar_modulos',
             ),
+            path(
+                '<int:curso_id>/constructor/',
+                self.admin_site.admin_view(self.constructor_curso_view),
+                name='core_curso_constructor',
+            ),
         ]
         return custom + urls
 
@@ -570,6 +583,11 @@ class CursoAdmin(admin.ModelAdmin):
         if not n and not errs:
             messages.info(request, 'No hay módulos borrador listos.')
         return redirect('admin:core_curso_change', curso_id)
+
+    def constructor_curso_view(self, request, curso_id):
+        from core.cursos.constructor.vistas import constructor_curso_view
+
+        return constructor_curso_view(self, request, curso_id)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
@@ -755,7 +773,11 @@ class CursoAdmin(admin.ModelAdmin):
 
     @admin.action(description='➕ Añadir clase rápida (abre editor Clase)')
     def añadir_clase_rapida(self, request, queryset):
-        """Crea módulo + sección + 1 paso vacío y abre pestaña Clase."""
+        """Crea módulo + sección + 1 paso vacío y abre pestaña Clase.
+
+        Camino distinto de ``core.cursos.constructor.crear_modulo``
+        (pasos, publicado_wa=False, bloque «Bloque 1»). No unificar sin corte propio.
+        """
         if queryset.count() != 1:
             self.message_user(
                 request,
@@ -800,6 +822,25 @@ class CursoAdmin(admin.ModelAdmin):
             level=messages.SUCCESS,
         )
         return redirect('admin:core_modulo_change', modulo.pk)
+
+    @admin.display(description='Constructor')
+    def constructor_oficial_enlace(self, obj):
+        from django.urls import reverse
+
+        from core.cursos.constructor.servicio import constructor_activo
+
+        if not obj or not obj.pk:
+            return 'Guarde el curso para abrir el constructor.'
+        if not constructor_activo():
+            return mark_safe(
+                '<span style="color:#6b6575;">Flag '
+                '<code>EKI_CONSTRUCTOR_CURSOS</code> apagado.</span>'
+            )
+        url = reverse('admin:core_curso_constructor', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="font-weight:600;">Abrir constructor</a>',
+            url,
+        )
 
     @admin.display(description='Versión publicada y cohorte')
     def version_en_curso_resumen(self, obj):

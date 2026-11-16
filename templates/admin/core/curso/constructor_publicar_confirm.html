@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Publicar versión</h1>
+<p>
+  Curso: <strong>{{ curso.nombre }}</strong>.
+  {% if version_actual %}
+  Versión publicada hoy: <strong>v{{ version_actual.numero }}</strong>
+  (pasará a archivada).
+  {% else %}
+  Aún no hay versión publicada; esta será la <strong>v1</strong>.
+  {% endif %}
+</p>
+<p>
+  Se congela el ensamblado actual. Hay <strong>{{ n_activos }}</strong>
+  progreso(s) activo(s): <em>no se mueven</em>.
+</p>
+<form method="post" action="{{ volver_url }}">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="publicar_version">
+  <input type="hidden" name="post" value="yes">
+  <input type="hidden" name="nota" value="{{ nota }}">
+  <input type="submit" value="Sí, publicar versión" class="default">
+  <a href="{{ volver_url }}" class="button cancel-link">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,1 +1,1 @@
-"""Servicios de cursos fuera del webhook (autoría, versiones)."""
+"""Servicios de cursos fuera del webhook (autoría, versiones, constructor)."""

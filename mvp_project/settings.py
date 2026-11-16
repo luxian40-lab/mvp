@@ -415,6 +415,11 @@ EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false')
 EKI_CURSO_VERSIONES = os.environ.get('EKI_CURSO_VERSIONES', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: superficie constructor oficial (bloque 5) puede escribir módulos/bloques/mensajes.
+# False: lectura de estructura ok; mutaciones no escriben (default seguro).
+EKI_CONSTRUCTOR_CURSOS = os.environ.get('EKI_CONSTRUCTOR_CURSOS', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: una línea con cursos en Líneas de WhatsApp ofrece solo esos (cursos empezados, primer módulo al confirmar).
 # Con la lectura prendida, la línea de curso lineal pone en foco su único curso abierto. Lista vacía = todos.
 EKI_CURSOS_POR_LINEA = os.environ.get('EKI_CURSOS_POR_LINEA', 'false').strip().lower() in (
