@@ -35,6 +35,7 @@ from core.models.cursos import (  # noqa: F401
     HabilitacionModuloDripCliente,
     HabilitacionModuloEstudiante,
 )
+from core.cursos.autoria.modelos import CursoVersion  # noqa: F401
 from core.models.avisos import (  # noqa: F401
     AvisoModuloDisponible,
     AvisoModuloEnviado,

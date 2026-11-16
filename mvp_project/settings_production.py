@@ -493,6 +493,10 @@ SANDBOX_CELERY_ASYNC = _flag_async('SANDBOX_CELERY_ASYNC')
 EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Bloque 4: versiones de cohorte. Default apagado = entrega como hoy.
+EKI_CURSO_VERSIONES = os.environ.get('EKI_CURSO_VERSIONES', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'True').lower() in (
     '1', 'true', 'yes', 'on',
 )

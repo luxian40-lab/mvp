@@ -245,6 +245,17 @@ class Curso(models.Model):
         ),
     )
 
+    # Bloque 4: versión publicada (null = entrega como hoy, sin fijar cohorte).
+    version_publicada = models.ForeignKey(
+        'core.CursoVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Versión publicada',
+        help_text='Con EKI_CURSO_VERSIONES apagado no se usa. Publicar no mueve a quien ya estudia.',
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

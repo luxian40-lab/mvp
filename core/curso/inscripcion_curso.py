@@ -80,10 +80,16 @@ def primer_modulo_curso(curso: Curso) -> Modulo | None:
 
 def defaults_progreso_nuevo(curso: Curso) -> dict:
     """Defaults al crear ProgresoEstudiante (sin campo inventado `progreso`)."""
+    from core.cursos.autoria.servicio import version_para_inscripcion
+
     defaults = {'completado': False}
     m1 = primer_modulo_curso(curso)
     if m1 is not None:
         defaults['modulo_actual'] = m1
+    # Bloque 4: con flag apagado no fija nada. Con flag on, ancla a version_publicada.
+    version = version_para_inscripcion(curso)
+    if version is not None:
+        defaults['curso_version'] = version
     return defaults
 
 

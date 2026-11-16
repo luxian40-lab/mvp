@@ -506,6 +506,16 @@ class ProgresoEstudiante(models.Model):
         blank=True,
         related_name='+',
     )
+    # Bloque 4: cohorte fijada a la versión de inscripción (null = comportamiento actual).
+    curso_version = models.ForeignKey(
+        'core.CursoVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='progresos',
+        verbose_name='Versión del curso',
+        help_text='Con EKI_CURSO_VERSIONES apagado queda vacío; la entrega sigue el curso vivo.',
+    )
 
     class Meta:
         verbose_name = "Progreso de Estudiante"
