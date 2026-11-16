@@ -353,12 +353,17 @@ class CursoAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
-    readonly_fields = ('course_engine_voz_preview', 'tope_whatsapp_resumen')
+    readonly_fields = (
+        'course_engine_voz_preview',
+        'tope_whatsapp_resumen',
+        'version_en_curso_resumen',
+    )
     actions = [
         'ver_todos_modulos', 'añadir_clase_rapida',
         'indexar_documentos_rag', 'indexar_contenido_modulos',
         'activar_cursos', 'desactivar_cursos', 'copiar_a_otro_cliente', 'copiar_a_analytics_pruebas',
         'publicar_modulos_seleccionados',
+        'migrar_cohorte_accion',
     ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
@@ -380,6 +385,15 @@ class CursoAdmin(admin.ModelAdmin):
                 '(se apagan solos al guardar). Use un nombre claro para la lista Excel '
                 '(ej. «Cenipalma - Clases Aprende», guión simple).</li>'
                 '</ul>'
+            ),
+        }),
+        ('Versión en curso', {
+            'fields': ('version_en_curso_resumen',),
+            'description': mark_safe(
+                '<p>La cohorte viva queda fijada a la versión de su inscripción. '
+                'Publicar no la mueve. Para anclar a la publicada use la acción '
+                '<em>Migrar cohorte a la versión publicada</em> (pide confirmación).</p>'
+                '<p>Con <code>EKI_CURSO_VERSIONES</code> apagado no cambia la entrega.</p>'
             ),
         }),
         ('Ritmo drip y acceso', {
@@ -783,6 +797,95 @@ class CursoAdmin(admin.ModelAdmin):
             level=messages.SUCCESS,
         )
         return redirect('admin:core_modulo_change', modulo.pk)
+
+    @admin.display(description='Versión publicada y cohorte')
+    def version_en_curso_resumen(self, obj):
+        from core.cursos.autoria.servicio import (
+            conteo_progresos_por_version,
+            versiones_activas,
+        )
+
+        if not obj or not obj.pk:
+            return '—'
+        flag = 'prendido' if versiones_activas() else 'apagado'
+        vp = obj.version_publicada
+        if vp is None:
+            return f'Sin versión publicada (flag {flag}).'
+        from core.models import CursoVersion
+
+        filas = conteo_progresos_por_version(obj)
+        numeros = {
+            v.id: v.numero
+            for v in CursoVersion.objects.filter(curso=obj).only('id', 'numero')
+        }
+        partes = []
+        for fila in filas:
+            vid = fila['curso_version_id']
+            if vid is None:
+                etiqueta = 'sin versión'
+            elif vid == vp.id:
+                etiqueta = f'v{vp.numero} (publicada)'
+            else:
+                etiqueta = f'v{numeros.get(vid, vid)}'
+            partes.append(f'{etiqueta}: {fila["n"]}')
+        detalle = '; '.join(partes) if partes else 'nadie activo'
+        return f'Publicada v{vp.numero}. Activos → {detalle}. Flag {flag}.'
+
+    @admin.action(description='Migrar cohorte a la versión publicada')
+    def migrar_cohorte_accion(self, request, queryset):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+        from django.template.response import TemplateResponse
+
+        from core.cursos.autoria.servicio import migrar_cohorte, versiones_activas
+        from core.models import ProgresoEstudiante
+
+        if not versiones_activas():
+            self.message_user(
+                request,
+                'EKI_CURSO_VERSIONES está apagado. No se migró a nadie.',
+                level=messages.WARNING,
+            )
+            return None
+        if queryset.count() != 1:
+            self.message_user(request, 'Elija un solo curso.', level=messages.ERROR)
+            return None
+        curso = queryset.select_related('version_publicada').get()
+        version = curso.version_publicada
+        if version is None:
+            self.message_user(
+                request,
+                'Ese curso no tiene versión publicada. Publique antes de migrar.',
+                level=messages.ERROR,
+            )
+            return None
+        n_afectados = (
+            ProgresoEstudiante.objects.filter(curso=curso, completado=False)
+            .exclude(curso_version=version)
+            .count()
+        )
+        if request.POST.get('post') != 'yes':
+            return TemplateResponse(
+                request,
+                'admin/core/curso/migrar_cohorte_confirm.html',
+                {
+                    **self.admin_site.each_context(request),
+                    'title': 'Migrar cohorte',
+                    'curso': curso,
+                    'version': version,
+                    'n_afectados': n_afectados,
+                    'queryset': queryset,
+                    'action_checkbox_name': ACTION_CHECKBOX_NAME,
+                    'cancel_url': reverse('admin:core_curso_changelist'),
+                    'opts': self.model._meta,
+                },
+            )
+        movidos = migrar_cohorte(curso)
+        self.message_user(
+            request,
+            f'Cohorte migrada: {movidos} progreso(s) anclado(s) a v{version.numero}.',
+            level=messages.SUCCESS,
+        )
+        return None
 
     @admin.action(description='✅ Activar cursos seleccionados')
     def activar_cursos(self, request, queryset):

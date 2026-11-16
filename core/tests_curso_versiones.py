@@ -8,7 +8,12 @@ from core.cursos.autoria.contrato import (
     PUBLICAR_CREA_VERSION_INMUTABLE,
 )
 from core.cursos.autoria.ensamblado import congelar_ensamblado
-from core.cursos.autoria.servicio import publicar, version_de_progreso, versiones_activas
+from core.cursos.autoria.servicio import (
+    migrar_cohorte,
+    publicar,
+    version_de_progreso,
+    versiones_activas,
+)
 
 
 class ContratoAutoriaTests(SimpleTestCase):
@@ -171,3 +176,41 @@ class VersionesServicioTests(TestCase):
         prog_nuevo, creado = inscribir_estudiante_en_curso(nuevo, curso)
         self.assertTrue(creado)
         self.assertEqual(prog_nuevo.curso_version_id, publicada.id)
+
+    def test_migrar_cohorte_flag_off_cero(self):
+        from core.models import Curso
+
+        curso = Curso.objects.create(nombre='Mig off', descripcion='d')
+        with override_settings(EKI_CURSO_VERSIONES=False):
+            self.assertEqual(migrar_cohorte(curso), 0)
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_migrar_cohorte_ancla_activos_sin_tocar_completados(self):
+        from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Mig on', descripcion='d')
+        Modulo.objects.create(curso=curso, numero=1, titulo='M1', descripcion='', contenido='x')
+        v1 = publicar(curso, nota='v1')
+        activo = Estudiante.objects.create(
+            nombre='Activo', telefono='573009990099', cedula='CC990099', activo=True,
+        )
+        hecho = Estudiante.objects.create(
+            nombre='Hecho', telefono='573009990100', cedula='CC990100', activo=True,
+        )
+        prog_a = ProgresoEstudiante.objects.create(estudiante=activo, curso=curso)
+        prog_h = ProgresoEstudiante.objects.create(
+            estudiante=hecho, curso=curso, completado=True,
+        )
+        self.assertIsNone(prog_a.curso_version_id)
+        n = migrar_cohorte(curso)
+        self.assertEqual(n, 1)
+        prog_a.refresh_from_db()
+        prog_h.refresh_from_db()
+        self.assertEqual(prog_a.curso_version_id, v1.id)
+        self.assertIsNone(prog_h.curso_version_id)
+
+        v2 = publicar(curso, nota='v2')
+        n2 = migrar_cohorte(curso)
+        self.assertEqual(n2, 1)
+        prog_a.refresh_from_db()
+        self.assertEqual(prog_a.curso_version_id, v2.id)

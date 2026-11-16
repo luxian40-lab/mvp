@@ -65,3 +65,39 @@ def publicar(curso, *, nota: str = ''):
     # El caller sigue con el mismo objeto en memoria.
     curso.version_publicada = version
     return version
+
+
+def migrar_cohorte(curso, *, version=None) -> int:
+    """Ancla progresos activos del curso a la versión publicada (o la indicada).
+
+    Acción explícita: publicar no llama esto. Flag apagado → 0.
+    No toca progresos ya completados.
+    """
+    if not versiones_activas():
+        return 0
+
+    from core.models import ProgresoEstudiante
+
+    destino = version or getattr(curso, 'version_publicada', None)
+    if destino is None:
+        return 0
+    return (
+        ProgresoEstudiante.objects.filter(curso=curso, completado=False)
+        .exclude(curso_version=destino)
+        .update(curso_version=destino)
+    )
+
+
+def conteo_progresos_por_version(curso) -> list[dict]:
+    """Resumen para admin: versión → cuántos progresos activos."""
+    from django.db.models import Count
+
+    from core.models import ProgresoEstudiante
+
+    filas = (
+        ProgresoEstudiante.objects.filter(curso=curso, completado=False)
+        .values('curso_version_id')
+        .annotate(n=Count('id'))
+        .order_by('curso_version_id')
+    )
+    return list(filas)

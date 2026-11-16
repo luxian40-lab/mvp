@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Migrar cohorte</h1>
+<p>
+  Curso: <strong>{{ curso.nombre }}</strong>.
+  Versión destino: <strong>v{{ version.numero }}</strong>
+  {% if version.nota %}({{ version.nota }}){% endif %}.
+</p>
+<p>
+  Se anclarán <strong>{{ n_afectados }}</strong> progreso(s) activo(s) que aún no están en esa versión.
+  Quien ya completó el curso no se mueve. Publicar no hace esto solo: es una acción explícita.
+</p>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="migrar_cohorte_accion">
+  <input type="hidden" name="post" value="yes">
+  {% for obj in queryset %}
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="submit" value="Sí, migrar cohorte" class="default">
+  <a href="{{ cancel_url }}" class="button cancel-link">Cancelar</a>
+</form>
+{% endblock %}
