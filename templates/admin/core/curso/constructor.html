@@ -17,6 +17,27 @@
 <p style="padding:0.6rem 0.8rem;background:#fef2f2;border:1px solid #fecaca;">{{ error }}</p>
 {% endif %}
 
+<section style="margin:1.5rem 0;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;">
+  <h2>Ritmo, calendario y certificado</h2>
+  <p style="font-size:0.9rem;color:#6b6575;">
+    La espera es la del curso (0 = libre). El calendario es «disponible desde» de cada módulo.
+    {% if certificado.listo %}
+    Certificado: hay {{ certificado.plantillas }} plantilla(s) de este curso.
+    {% else %}
+    Certificado: este curso todavía no tiene plantilla. Se asigna en Plantillas de certificado.
+    {% endif %}
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="drip">
+    <label>Días de espera entre módulos
+      <input type="number" name="dias_espera" min="0" max="365" value="{{ curso.dias_espera_entre_modulos }}" style="width:5rem;">
+    </label>
+    <input type="submit" class="button" value="Guardar espera">
+  </form>
+  <p style="font-size:0.85rem;color:#6b6575;">Prueba interna solo a: {{ numeros_prueba|default:"(lista vacía)" }}</p>
+</section>
+
 <section style="margin:1.5rem 0;">
   <h2>Añadir módulo</h2>
   <form method="post">
@@ -85,6 +106,19 @@
     <button type="submit" name="direction" value="down" class="button" title="Bajar">↓</button>
   </form>
 
+  <form method="post" style="margin:0.35rem 0 0.75rem;">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="calendario">
+    <input type="hidden" name="modulo_id" value="{{ mod.id }}">
+    <label>Disponible desde
+      <input type="datetime-local" name="habilitado_desde">
+    </label>
+    <label style="margin-left:0.5rem;">Días estimados
+      <input type="number" name="duracion_dias" min="1" max="365" value="7" style="width:4rem;">
+    </label>
+    <input type="submit" class="button" value="Guardar calendario">
+  </form>
+
   <form method="post" style="margin:0.75rem 0 1rem;">
     {% csrf_token %}
     <input type="hidden" name="accion" value="crear_bloque">
@@ -113,6 +147,22 @@
         {{ msg.contenido|truncatechars:120 }}
         {% if msg.media_url %}· media{% endif %}
         {% if msg.activo %}<em>(activo)</em>{% else %}<em>(inactivo)</em>{% endif %}
+        <form method="post" style="margin:0.35rem 0;">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="editar_mensaje">
+          <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+          <textarea name="contenido" rows="2" required style="width:min(100%,36rem);">{{ msg.contenido }}</textarea>
+          <input type="text" name="titulo" value="{{ msg.titulo }}" maxlength="200" placeholder="título interno">
+          <label><input type="checkbox" name="activo" value="1" {% if msg.activo %}checked{% endif %}> Activo</label>
+          <input type="submit" class="button" value="Guardar texto">
+        </form>
+        <form method="post" style="display:inline-flex;gap:0.35rem;margin-left:0.35rem;">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="probar_interno">
+          <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+          <input type="text" name="telefono" inputmode="numeric" placeholder="573…" style="width:10rem;">
+          <input type="submit" class="button" value="Probar en número interno">
+        </form>
         <form method="post" style="display:inline-flex;gap:0.25rem;margin-left:0.35rem;">
           {% csrf_token %}
           <input type="hidden" name="accion" value="mover_mensaje">
@@ -170,14 +220,23 @@
     </form>
     {% for msg in bloque.mensajes %}
     {% if msg.tipo == 'contenido' %}
+    <form method="post" enctype="multipart/form-data" style="margin-top:0.5rem;">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="subir_archivo">
+      <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
+      <label>Archivo (pasa el tope y el video de Meta)
+        <input type="file" name="archivo" required>
+      </label>
+      <input type="submit" class="button" value="Subir archivo">
+    </form>
     <form method="post" style="margin-top:0.5rem;">
       {% csrf_token %}
       <input type="hidden" name="accion" value="adjuntar_media">
       <input type="hidden" name="mensaje_id" value="{{ msg.id }}">
-      <label>Media https para #{{ msg.orden }}
+      <label>O URL https para #{{ msg.orden }}
         <input type="url" name="media_url" placeholder="https://…" style="width:min(100%,28rem);">
       </label>
-      <input type="submit" class="button" value="Adjuntar media">
+      <input type="submit" class="button" value="Adjuntar URL">
     </form>
     {% endif %}
     {% endfor %}

@@ -370,3 +370,122 @@ def mover_modulo(modulo, direction: str) -> bool:
         Modulo.objects.filter(pk=otro.pk).update(numero=a)
         Modulo.objects.filter(pk=locked.pk).update(numero=b)
     return True
+
+
+def editar_mensaje(paso, *, contenido: str, titulo: str = '', activo: bool = False):
+    """Edita el texto de un mensaje ya creado. No publica. Flag off → None."""
+    if not constructor_activo():
+        return None
+    from core.models import PasoModulo
+
+    if paso.tipo == PasoModulo.TIPO_CONTENIDO:
+        return actualizar_mensaje_texto(
+            paso, contenido=contenido, titulo=titulo, activo=activo,
+        )
+    if paso.tipo != PasoModulo.TIPO_EVAL_OPC:
+        raise ValueError('ese tipo de mensaje no se edita en el constructor')
+    texto = (contenido or '').strip()
+    if not texto:
+        raise ValueError('contenido no puede quedar vacío')
+    paso.contenido = texto
+    paso.titulo = (titulo or '').strip()[:200]
+    paso.activo = bool(activo)
+    paso.save(update_fields=['contenido', 'titulo', 'activo'])
+    return paso
+
+
+def subir_archivo_mensaje(paso, uploaded_file):
+    """Sube el archivo por el mismo pipeline del admin (tope y video Meta). Flag off → None."""
+    if not constructor_activo():
+        return None
+    from django.core.exceptions import ValidationError
+
+    from core.admin._common import guardar_upload_admin_media_resultado
+    from core.models import PasoModulo
+
+    if paso.tipo != PasoModulo.TIPO_CONTENIDO:
+        raise ValueError('solo un mensaje de contenido admite archivo')
+    if uploaded_file is None:
+        raise ValueError('falta el archivo')
+    try:
+        resultado = guardar_upload_admin_media_resultado(
+            uploaded_file,
+            carpeta='modulos/pasos',
+            prefix=f'modulo_{paso.modulo_id}',
+        )
+    except ValidationError as exc:
+        msgs = getattr(exc, 'messages', None) or [str(exc)]
+        raise ValueError(msgs[0] if msgs else 'el archivo no pasó la validación Meta') from exc
+    url = (resultado.get('url') or '').strip()
+    if not url:
+        raise ValueError('el archivo se procesó pero no dejó URL')
+    paso.media_url = url[:1000]
+    campos = ['media_url']
+    if resultado.get('media_wa_apto') is not None:
+        paso.media_wa_apto = bool(resultado['media_wa_apto'])
+        campos.append('media_wa_apto')
+    paso.save(update_fields=campos)
+    return paso
+
+
+def actualizar_drip(curso, dias: int):
+    """Días de espera entre módulos del curso. 0 = libre. Flag off → None."""
+    if not constructor_activo():
+        return None
+    try:
+        n = int(dias)
+    except (TypeError, ValueError) as exc:
+        raise ValueError('días de espera inválidos') from exc
+    if n < 0 or n > 365:
+        raise ValueError('días de espera entre 0 y 365')
+    curso.dias_espera_entre_modulos = n
+    curso.save(update_fields=['dias_espera_entre_modulos'])
+    return curso
+
+
+def actualizar_calendario_modulo(modulo, *, habilitado_desde, duracion_dias: int):
+    """Calendario global del módulo y días estimados. Flag off → None."""
+    if not constructor_activo():
+        return None
+    try:
+        dias = int(duracion_dias)
+    except (TypeError, ValueError) as exc:
+        raise ValueError('duración inválida') from exc
+    if dias < 1 or dias > 365:
+        raise ValueError('duración entre 1 y 365 días')
+    modulo.habilitado_desde = habilitado_desde
+    modulo.duracion_dias = dias
+    modulo.save(update_fields=['habilitado_desde', 'duracion_dias'])
+    return modulo
+
+
+def resumen_certificado(curso) -> dict:
+    """Si el curso ya tiene plantilla de certificado. Solo lectura."""
+    n = curso.plantillas_certificados.count()
+    return {'plantillas': n, 'listo': n > 0}
+
+
+def numeros_prueba_interna() -> set[str]:
+    crudos = getattr(settings, 'EKI_CAMPANA_META_PRUEBA_NUMEROS', []) or []
+    return {''.join(ch for ch in str(p) if ch.isdigit()) for p in crudos}
+
+
+def probar_mensaje_interno(paso, telefono: str) -> dict:
+    """Envía el texto del mensaje solo a un número de la lista interna. No inscribe."""
+    if not constructor_activo():
+        return {'success': False, 'error': 'constructor apagado'}
+    tel = ''.join(ch for ch in (telefono or '') if ch.isdigit())
+    if tel not in numeros_prueba_interna():
+        raise ValueError('ese número no está autorizado para la prueba interna')
+    cuerpo = (paso.contenido or '').strip()
+    if not cuerpo:
+        raise ValueError('el mensaje no tiene texto')
+    phone_id = (getattr(settings, 'WHATSAPP_PHONE_ID', '') or '').strip()
+    if not phone_id:
+        raise ValueError('WHATSAPP_PHONE_ID vacío: no hay línea Meta para la prueba')
+    from core.lineas.sender import sender_de_linea
+
+    media = (paso.media_url or '').strip() or None
+    return sender_de_linea(phone_id).texto(
+        tel, cuerpo[:1024], media_url=media, agente='constructor_prueba',
+    )

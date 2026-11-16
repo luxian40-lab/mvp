@@ -270,6 +270,61 @@ class ConstructorMediaEvalTests(TestCase):
                 correcta='C',
             )
 
+    @override_settings(EKI_CONSTRUCTOR_CURSOS=True, EKI_CAMPANA_META_PRUEBA_NUMEROS=['573026480629'], WHATSAPP_PHONE_ID='phone-1')
+    def test_editar_subir_drip_calendario_y_prueba_interna(self):
+        from datetime import datetime
+        from unittest.mock import patch
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.utils import timezone
+
+        from core.cursos.constructor.servicio import (
+            actualizar_calendario_modulo,
+            actualizar_drip,
+            editar_mensaje,
+            probar_mensaje_interno,
+            resumen_certificado,
+            subir_archivo_mensaje,
+        )
+        from core.models import Curso
+
+        curso = Curso.objects.create(nombre='Ctor prod', descripcion='d')
+        mod = crear_modulo(curso, titulo='M1')
+        msg = crear_mensaje_texto(mod.secciones.get(), contenido='original', activo=False)
+        editar_mensaje(msg, contenido='editado', titulo='T', activo=True)
+        msg.refresh_from_db()
+        self.assertEqual(msg.contenido, 'editado')
+        self.assertTrue(msg.activo)
+
+        archivo = SimpleUploadedFile('nota.txt', b'hola', content_type='text/plain')
+        with patch(
+            'core.admin._common.guardar_upload_admin_media_resultado',
+            return_value={'url': 'https://eki.example/nota.txt', 'media_wa_apto': True},
+        ):
+            subir_archivo_mensaje(msg, archivo)
+        msg.refresh_from_db()
+        self.assertEqual(msg.media_url, 'https://eki.example/nota.txt')
+        self.assertTrue(msg.media_wa_apto)
+
+        actualizar_drip(curso, 3)
+        curso.refresh_from_db()
+        self.assertEqual(curso.dias_espera_entre_modulos, 3)
+        cuando = timezone.make_aware(datetime(2026, 12, 1, 8, 0))
+        actualizar_calendario_modulo(mod, habilitado_desde=cuando, duracion_dias=10)
+        mod.refresh_from_db()
+        self.assertEqual(mod.duracion_dias, 10)
+        self.assertIsNotNone(mod.habilitado_desde)
+        self.assertFalse(resumen_certificado(curso)['listo'])
+
+        with self.assertRaises(ValueError):
+            probar_mensaje_interno(msg, '573009990000')
+        with patch('core.lineas.sender.sender_de_linea') as fabrica:
+            fabrica.return_value.texto.return_value = {'success': True}
+            ok = probar_mensaje_interno(msg, '573026480629')
+        self.assertTrue(ok.get('success', True))
+        fabrica.return_value.texto.assert_called_once()
+        self.assertEqual(fabrica.return_value.texto.call_args.args[0], '573026480629')
+
     def test_media_eval_flag_off(self):
         from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 

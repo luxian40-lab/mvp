@@ -8,10 +8,27 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 
+def _fecha_o_nada(raw: str | None):
+    from django.utils import timezone
+    from django.utils.dateparse import parse_datetime
+
+    texto = (raw or '').strip()
+    if not texto:
+        return None
+    cuando = parse_datetime(texto)
+    if cuando is None:
+        raise ValueError('fecha inválida')
+    if timezone.is_naive(cuando):
+        return timezone.make_aware(cuando, timezone.get_current_timezone())
+    return cuando
+
+
 def constructor_curso_view(model_admin, request, curso_id):
     """Superficie bloque 5. Flag off → aviso y vuelta al curso."""
     from core.cursos.autoria.servicio import versiones_activas
     from core.cursos.constructor.servicio import (
+        actualizar_calendario_modulo,
+        actualizar_drip,
         adjuntar_media_mensaje,
         constructor_activo,
         crear_bloque,
@@ -22,8 +39,13 @@ def constructor_curso_view(model_admin, request, curso_id):
         mover_bloque,
         mover_mensaje,
         mover_modulo,
+        numeros_prueba_interna,
         preview_ensamblado,
+        probar_mensaje_interno,
         publicar_desde_constructor,
+        resumen_certificado,
+        subir_archivo_mensaje,
+        editar_mensaje,
     )
     from core.models import Curso, Modulo, PasoModulo, ProgresoEstudiante, SeccionModulo
 
@@ -140,6 +162,58 @@ def constructor_curso_view(model_admin, request, curso_id):
                     activo=request.POST.get('activo') == '1',
                 )
                 mensaje = 'Evaluación A–D añadida (no publica).'
+            elif accion == 'editar_mensaje':
+                paso = PasoModulo.objects.filter(
+                    pk=request.POST.get('mensaje_id'),
+                    modulo__curso=curso,
+                ).first()
+                if not paso:
+                    raise ValueError('mensaje no encontrado en este curso')
+                editar_mensaje(
+                    paso,
+                    contenido=request.POST.get('contenido') or '',
+                    titulo=request.POST.get('titulo') or '',
+                    activo=request.POST.get('activo') == '1',
+                )
+                mensaje = 'Mensaje actualizado (no publica).'
+            elif accion == 'subir_archivo':
+                paso = PasoModulo.objects.filter(
+                    pk=request.POST.get('mensaje_id'),
+                    modulo__curso=curso,
+                ).first()
+                if not paso:
+                    raise ValueError('mensaje no encontrado en este curso')
+                subir_archivo_mensaje(paso, request.FILES.get('archivo'))
+                mensaje = 'Archivo subido. La aptitud Meta queda en el paso.'
+            elif accion == 'drip':
+                actualizar_drip(curso, request.POST.get('dias_espera') or 0)
+                mensaje = 'Espera entre módulos actualizada.'
+            elif accion == 'calendario':
+                mod = Modulo.objects.filter(
+                    pk=request.POST.get('modulo_id'), curso=curso,
+                ).first()
+                if not mod:
+                    raise ValueError('módulo no encontrado en este curso')
+                actualizar_calendario_modulo(
+                    mod,
+                    habilitado_desde=_fecha_o_nada(request.POST.get('habilitado_desde')),
+                    duracion_dias=request.POST.get('duracion_dias') or 7,
+                )
+                mensaje = 'Calendario del módulo actualizado.'
+            elif accion == 'probar_interno':
+                paso = PasoModulo.objects.filter(
+                    pk=request.POST.get('mensaje_id'),
+                    modulo__curso=curso,
+                ).first()
+                if not paso:
+                    raise ValueError('mensaje no encontrado en este curso')
+                resultado = probar_mensaje_interno(
+                    paso, request.POST.get('telefono') or '',
+                )
+                if resultado.get('success') is False:
+                    error = resultado.get('error') or 'la prueba no salió'
+                else:
+                    mensaje = 'Prueba enviada al número interno. No inscribe a nadie.'
             elif accion == 'publicar_version':
                 if not versiones_activas():
                     error = 'EKI_CURSO_VERSIONES está apagado. No se publicó ninguna versión.'
@@ -192,6 +266,8 @@ def constructor_curso_view(model_admin, request, curso_id):
             'preview_json': json.dumps(snap, ensure_ascii=False, indent=2),
             'version_publicada': getattr(curso, 'version_publicada', None),
             'puede_publicar': versiones_activas(),
+            'certificado': resumen_certificado(curso),
+            'numeros_prueba': ', '.join(sorted(numeros_prueba_interna())),
             'mensaje': mensaje,
             'error': error,
             'volver_url': reverse('admin:core_curso_change', args=[curso.pk]),
