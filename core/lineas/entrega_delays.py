@@ -26,6 +26,27 @@ def dormir(segundos: float) -> None:
         time.sleep(float(segundos))
 
 
+def encolar_tarea(tarea: str, countdown: float) -> None:
+    from celery import current_app
+
+    segundos = max(0, int(math.ceil(float(countdown or 0))))
+    current_app.send_task(tarea, countdown=segundos)
+
+
+def pausar_lote(segundos: float, *, tarea: str) -> bool:
+    """Ritmo entre avisos. Flag off: duerme. Flag on: encola y el caller corta.
+
+    True = salir del bucle. El hueco de 0.5 s entre burbujas no pasa por aquí.
+    """
+    if not segundos or segundos <= 0:
+        return False
+    if delays_por_celery():
+        encolar_tarea(tarea, segundos)
+        return True
+    dormir(segundos)
+    return False
+
+
 def encolar_continuacion(
     *,
     canal: str,

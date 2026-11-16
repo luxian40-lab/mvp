@@ -155,6 +155,19 @@ class AvisoModuloTests(TestCase):
         resultado, sender, _ = self._ejecutar()
         self.assertEqual(resultado['enviados'], 0)
 
+    @override_settings(EKI_AVISO_MODULO_PAUSA_SEG=0.35, EKI_ENTREGA_DELAYS_CELERY=True)
+    def test_con_flag_tras_el_primero_encola_y_no_manda_el_segundo(self):
+        self._estudiante('573001110018')
+        self._estudiante('573001110019')
+        with patch('core.lineas.entrega_delays.encolar_tarea') as encolar:
+            resultado, sender, _ = self._ejecutar()
+        self.assertEqual(resultado['enviados'], 1)
+        self.assertEqual(sender.plantilla.call_count, 1)
+        encolar.assert_called_once_with(
+            'core.avisos.tareas.aviso_modulo_disponible',
+            0.35,
+        )
+
     def test_con_grupo_solo_avisa_al_grupo(self):
         dentro = self._estudiante('573001110009')
         self._estudiante('573001110010')

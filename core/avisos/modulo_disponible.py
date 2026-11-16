@@ -6,7 +6,6 @@ No envía si el flag está apagado.
 from __future__ import annotations
 
 import logging
-import time
 from datetime import datetime, timedelta
 
 from django.conf import settings
@@ -214,7 +213,11 @@ def ejecutar(ahora: datetime | None = None) -> dict:
                 elif estado == 'fallido':
                     resumen['fallidos'] += 1
                 if pausa:
-                    time.sleep(pausa)
+                    from core.lineas.entrega_delays import pausar_lote
+
+                    if pausar_lote(pausa, tarea='core.avisos.tareas.aviso_modulo_disponible'):
+                        logger.info('aviso_modulo resumen=%s diferido', resumen)
+                        return resumen
     logger.info('aviso_modulo resumen=%s', resumen)
     return resumen
 

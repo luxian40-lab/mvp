@@ -2,7 +2,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.conversacion.marcas import TEXTO, partes
 from core.lineas.entrega_delays import recorrer_partes
@@ -94,6 +94,43 @@ class RecorrerPartesTests(TestCase):
         from django.conf import settings
 
         self.assertFalse(settings.EKI_ENTREGA_DELAYS_CELERY)
+
+
+class PausaLoteAvisosTests(SimpleTestCase):
+    def test_flag_apagado_duerme_y_no_encola(self):
+        from core.lineas.entrega_delays import pausar_lote
+
+        with patch('core.lineas.entrega_delays.time.sleep') as dormir, \
+                patch('core.lineas.entrega_delays.encolar_tarea') as encolar:
+            self.assertFalse(
+                pausar_lote(0.35, tarea='core.avisos.tareas.aviso_modulo_disponible'),
+            )
+        dormir.assert_called_once_with(0.35)
+        encolar.assert_not_called()
+
+    @override_settings(EKI_ENTREGA_DELAYS_CELERY=True)
+    def test_flag_prendido_encola_y_pide_cortar(self):
+        from core.lineas.entrega_delays import pausar_lote
+
+        with patch('core.lineas.entrega_delays.time.sleep') as dormir, \
+                patch('core.lineas.entrega_delays.encolar_tarea') as encolar:
+            self.assertTrue(
+                pausar_lote(0.35, tarea='core.avisos.tareas.aviso_modulo_disponible'),
+            )
+        encolar.assert_called_once_with(
+            'core.avisos.tareas.aviso_modulo_disponible',
+            0.35,
+        )
+        self.assertFalse(any(c.args and c.args[0] == 0.35 for c in dormir.call_args_list))
+
+    def test_sin_pausa_no_duerme_ni_encola(self):
+        from core.lineas.entrega_delays import pausar_lote
+
+        with patch('core.lineas.entrega_delays.time.sleep') as dormir, \
+                patch('core.lineas.entrega_delays.encolar_tarea') as encolar:
+            self.assertFalse(pausar_lote(0, tarea='core.avisos.tareas.recordatorio_curso'))
+        dormir.assert_not_called()
+        encolar.assert_not_called()
 
 
 @override_settings(
