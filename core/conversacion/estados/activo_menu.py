@@ -6,7 +6,6 @@ from django.conf import settings
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.conversacion.multimsg import partir_sep
 from core.models import WhatsappLog
 from core.response_templates import parte_mensaje_con_media
 from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
@@ -195,43 +194,9 @@ def _enviar_reenvio_menu(msg_from, telefono_limpio, texto_respuesta):
     twilio_from = str(twilio_number).strip()
 
     if texto_respuesta.startswith('[MULTI_MSG]'):
-        import re as re_menu_m
-        partes_mm = partir_sep(texto_respuesta.replace('[MULTI_MSG]', '', 1))
-        for parte_mm in partes_mm:
-            if not parte_mm.strip():
-                continue
-            parte_txt = parte_mm.strip()
-            delay_mm = re_menu_m.match(r'^\[DELAY:(\d+)\]$', parte_txt)
-            if delay_mm:
-                import time
-                time.sleep(int(delay_mm.group(1)))
-                continue
-            media_mm = re_menu_m.search(r'\[MEDIA:(.*?)\]', parte_txt)
-            parte_media_mm = None
-            if media_mm:
-                parte_media_mm = media_mm.group(1).strip()
-                parte_txt = parte_txt.replace(media_mm.group(0), '').strip()
-            cuerpo_mm = parte_txt.strip() if parte_txt else ''
-            enviados_mm = _enviar_mensaje_twilio_segmentado(
-                client=client_tw,
-                from_number=twilio_from,
-                to_number=str(destino).strip(),
-                body=cuerpo_mm if cuerpo_mm else ' ',
-                media_url=parte_media_mm,
-            )
-            import time
-            time.sleep(0.5)
-            from core.twilio_media import mensaje_log_con_media
-            for seg_i, (msg_mm, texto_env) in enumerate(enviados_mm, start=1):
-                WhatsappLog.objects.create(
-                    telefono=telefono_limpio,
-                    mensaje=mensaje_log_con_media(
-                        texto_env or cuerpo_mm or parte_txt,
-                        parte_media_mm if seg_i == 1 else None,
-                    )[:1500],
-                    mensaje_id=getattr(msg_mm, 'sid', None),
-                    tipo='SENT',
-                )
+        from core.lineas.entrega import enviar_marcado
+
+        enviar_marcado(msg_from, telefono_limpio, texto_respuesta, registro='segmentos')
     else:
         media_url_menu = None
         import re as re_menu

@@ -1,5 +1,6 @@
 """G3: [DELAY:N] con flag off duerme; con flag on encola countdown."""
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
@@ -93,3 +94,50 @@ class RecorrerPartesTests(TestCase):
         from django.conf import settings
 
         self.assertFalse(settings.EKI_ENTREGA_DELAYS_CELERY)
+
+
+@override_settings(
+    TWILIO_ACCOUNT_SID='ACdelay',
+    TWILIO_AUTH_TOKEN='tok',
+    TWILIO_PHONE_NUMBER='whatsapp:+573202948806',
+    EKI_ENTREGA_DELAYS_CELERY=True,
+)
+class DelayMenuPuertaFlagOnTests(TestCase):
+    def setUp(self):
+        self.enviados = []
+        cliente = MagicMock()
+
+        def create(**kw):
+            self.enviados.append(kw)
+            return SimpleNamespace(sid=f'SM{len(self.enviados)}')
+
+        cliente.messages.create.side_effect = create
+        patch('twilio.rest.Client', return_value=cliente).start()
+        self.sleep = patch('core.lineas.entrega_delays.time.sleep').start()
+        self.encolar = patch('core.lineas.entrega_delays.encolar_continuacion').start()
+        self.addCleanup(patch.stopall)
+
+    def test_envio_comun_encola_y_no_manda_la_segunda(self):
+        from core.conversacion.estados.envio_comun import _enviar_partes_multimsg
+
+        _enviar_partes_multimsg(
+            MagicMock(),
+            'whatsapp:+573202948806',
+            f'whatsapp:+{TEL}',
+            f'+{TEL}',
+            TEL,
+            '[MULTI_MSG]Uno[SEP][DELAY:3][SEP]Dos',
+        )
+        self.assertEqual([e.get('body') for e in self.enviados], ['Uno'])
+        self.encolar.assert_called_once()
+        self.assertEqual(self.encolar.call_args.kwargs['canal'], 'twilio_marcado')
+        self.assertFalse(any(c.args and c.args[0] == 3.0 for c in self.sleep.call_args_list))
+
+    def test_reenvio_menu_encola_y_no_manda_la_segunda(self):
+        from core.conversacion.estados.activo_menu import _enviar_reenvio_menu
+
+        _enviar_reenvio_menu(f'+{TEL}', TEL, '[MULTI_MSG]Uno[SEP][DELAY:3][SEP]Dos')
+        self.assertEqual([e.get('body') for e in self.enviados], ['Uno'])
+        self.encolar.assert_called_once()
+        self.assertEqual(self.encolar.call_args.kwargs['canal'], 'twilio_marcado')
+        self.assertFalse(any(c.args and c.args[0] == 3.0 for c in self.sleep.call_args_list))
