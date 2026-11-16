@@ -214,3 +214,66 @@ class VersionesServicioTests(TestCase):
         self.assertEqual(n2, 1)
         prog_a.refresh_from_db()
         self.assertEqual(prog_a.curso_version_id, v2.id)
+
+
+class PublicarVersionAdminTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username='qa_versiones',
+            email='qa_versiones@example.com',
+            password='test-pass-versiones',
+        )
+        self.client.force_login(self.user)
+
+    def _post_action(self, curso_id, *, post_yes=False, nota=''):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+        from django.urls import reverse
+
+        data = {
+            'action': 'publicar_version_accion',
+            ACTION_CHECKBOX_NAME: str(curso_id),
+        }
+        if post_yes:
+            data['post'] = 'yes'
+            data['nota'] = nota
+        return self.client.post(reverse('admin:core_curso_changelist'), data)
+
+    def test_admin_publicar_flag_off_no_escribe(self):
+        from core.models import Curso, CursoVersion
+
+        curso = Curso.objects.create(nombre='Admin off', descripcion='d')
+        with override_settings(EKI_CURSO_VERSIONES=False):
+            resp = self._post_action(curso.id, post_yes=True, nota='x')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(CursoVersion.objects.filter(curso=curso).count(), 0)
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_admin_publicar_confirm_luego_congela_sin_mover(self):
+        from core.models import Curso, CursoVersion, Estudiante, Modulo, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Admin on', descripcion='d')
+        Modulo.objects.create(
+            curso=curso, numero=1, titulo='M1', descripcion='', contenido='hola',
+        )
+        est = Estudiante.objects.create(
+            nombre='Admin cohorte', telefono='573009990111', cedula='CC990111', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
+
+        confirm = self._post_action(curso.id)
+        self.assertEqual(confirm.status_code, 200)
+        self.assertContains(confirm, 'Publicar versión')
+        self.assertEqual(CursoVersion.objects.filter(curso=curso).count(), 0)
+
+        done = self._post_action(curso.id, post_yes=True, nota='desde admin')
+        self.assertEqual(done.status_code, 302)
+        v = CursoVersion.objects.get(curso=curso)
+        self.assertEqual(v.numero, 1)
+        self.assertEqual(v.nota, 'desde admin')
+        curso.refresh_from_db()
+        self.assertEqual(curso.version_publicada_id, v.id)
+        prog.refresh_from_db()
+        self.assertIsNone(prog.curso_version_id)

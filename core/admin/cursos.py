@@ -363,6 +363,7 @@ class CursoAdmin(admin.ModelAdmin):
         'indexar_documentos_rag', 'indexar_contenido_modulos',
         'activar_cursos', 'desactivar_cursos', 'copiar_a_otro_cliente', 'copiar_a_analytics_pruebas',
         'publicar_modulos_seleccionados',
+        'publicar_version_accion',
         'migrar_cohorte_accion',
     ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
@@ -390,10 +391,12 @@ class CursoAdmin(admin.ModelAdmin):
         ('Versión en curso', {
             'fields': ('version_en_curso_resumen',),
             'description': mark_safe(
+                '<p>Congelar el ensamblado actual: acción '
+                '<em>Publicar versión del curso</em> (pide confirmación; no mueve cohorte).</p>'
                 '<p>La cohorte viva queda fijada a la versión de su inscripción. '
-                'Publicar no la mueve. Para anclar a la publicada use la acción '
-                '<em>Migrar cohorte a la versión publicada</em> (pide confirmación).</p>'
-                '<p>Con <code>EKI_CURSO_VERSIONES</code> apagado no cambia la entrega.</p>'
+                'Para anclar a la publicada use '
+                '<em>Migrar cohorte a la versión publicada</em>.</p>'
+                '<p>Con <code>EKI_CURSO_VERSIONES</code> apagado no escribe ni cambia la entrega.</p>'
             ),
         }),
         ('Ritmo drip y acceso', {
@@ -830,6 +833,64 @@ class CursoAdmin(admin.ModelAdmin):
             partes.append(f'{etiqueta}: {fila["n"]}')
         detalle = '; '.join(partes) if partes else 'nadie activo'
         return f'Publicada v{vp.numero}. Activos → {detalle}. Flag {flag}.'
+
+    @admin.action(description='Publicar versión del curso')
+    def publicar_version_accion(self, request, queryset):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+        from django.template.response import TemplateResponse
+
+        from core.cursos.autoria.servicio import publicar, versiones_activas
+        from core.models import ProgresoEstudiante
+
+        if not versiones_activas():
+            self.message_user(
+                request,
+                'EKI_CURSO_VERSIONES está apagado. No se publicó ninguna versión.',
+                level=messages.WARNING,
+            )
+            return None
+        if queryset.count() != 1:
+            self.message_user(request, 'Elija un solo curso.', level=messages.ERROR)
+            return None
+        curso = queryset.select_related('version_publicada').get()
+        n_activos = ProgresoEstudiante.objects.filter(
+            curso=curso, completado=False,
+        ).count()
+        nota = (request.POST.get('nota') or '').strip()[:200]
+        if request.POST.get('post') != 'yes':
+            return TemplateResponse(
+                request,
+                'admin/core/curso/publicar_version_confirm.html',
+                {
+                    **self.admin_site.each_context(request),
+                    'title': 'Publicar versión',
+                    'curso': curso,
+                    'version_actual': curso.version_publicada,
+                    'n_activos': n_activos,
+                    'queryset': queryset,
+                    'action_checkbox_name': ACTION_CHECKBOX_NAME,
+                    'cancel_url': reverse('admin:core_curso_changelist'),
+                    'opts': self.model._meta,
+                },
+            )
+        version = publicar(curso, nota=nota)
+        if version is None:
+            self.message_user(
+                request,
+                'No se pudo publicar (flag apagado o curso inválido).',
+                level=messages.ERROR,
+            )
+            return None
+        self.message_user(
+            request,
+            (
+                f'Publicada v{version.numero}. '
+                f'La cohorte activa ({n_activos}) no se movió; '
+                f'sigue en su versión de inscripción.'
+            ),
+            level=messages.SUCCESS,
+        )
+        return None
 
     @admin.action(description='Migrar cohorte a la versión publicada')
     def migrar_cohorte_accion(self, request, queryset):
