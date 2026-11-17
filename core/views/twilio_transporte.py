@@ -214,12 +214,29 @@ def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
 
     return url_no_es_media_directo(url)
 
-def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
-    """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
+def turno_sale_por_meta() -> bool:
+    """True si este turno es de la línea Meta. El aula Twilio no lo es."""
     try:
-        from core.sandbox_canal import _MetaSid, enviar_meta, sandbox_meta_activo
+        from core.sandbox_canal import sandbox_meta_activo
 
         if sandbox_meta_activo():
+            return True
+        from core.wa_canal import CANAL_META, canal_actual
+
+        return canal_actual() == CANAL_META
+    except Exception:
+        logger.exception('turno_sale_por_meta')
+        return False
+
+
+def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
+    """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
+    meta = False
+    try:
+        from core.sandbox_canal import _MetaSid, enviar_meta
+
+        meta = turno_sale_por_meta()
+        if meta:
             # Diploma del chat (reto/MULTI_MSG): misma salida que admin (plantilla o sesión).
             from core.views.diploma_meta import entregar_si_es_diploma
 
@@ -235,6 +252,9 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
             return [(sid, body or '')] if result.get('success') else []
     except Exception:
         logger.exception('sandbox_meta_intercept_segmentado')
+        # Un fallo de Graph no puede caer al número de Twilio: el alumno no está ahí.
+        if meta:
+            return []
 
     from ..twilio_media import (
         cuerpo_con_enlace_archivo,

@@ -5,10 +5,14 @@ Eso no se unifica: los tests de cada camino dependen de esa diferencia.
 """
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 
 from core.conversacion.marcas import PLANTILLA, es_marcado, separar_media
 from core.lineas.entrega_delays import recorrer_partes
+
+logger = logging.getLogger(__name__)
 
 
 def enviar_marcado(
@@ -25,15 +29,19 @@ def enviar_marcado(
     registro='cierre' — un log al final; el texto sin marcas también se segmenta.
     """
     from core.models import WhatsappLog
-    from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
+    from core.views.twilio_transporte import (
+        _enviar_mensaje_twilio_segmentado,
+        turno_sale_por_meta,
+    )
 
     from twilio.rest import Client as TwilioClient
 
     original = texto or ''
+    sale_meta = turno_sale_por_meta()
     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
     auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
     twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-    client_tw = TwilioClient(account_sid, auth_token)
+    client_tw = None if sale_meta else TwilioClient(account_sid, auth_token)
     destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
     origen = str(twilio_number).strip()
     destino = str(destino).strip()
@@ -41,6 +49,9 @@ def enviar_marcado(
     if es_marcado(original):
         def _una(parte) -> bool:
             if parte.tipo == PLANTILLA:
+                if sale_meta:
+                    logger.warning('entrega_meta_omite_plantilla_twilio')
+                    return True
                 if parte.sid:
                     from core.whatsapp_service import enviar_template_twilio
 
@@ -70,6 +81,11 @@ def enviar_marcado(
                     )
             return True
 
+        phone_id = ''
+        if sale_meta:
+            from core.sandbox_canal import phone_id_de_salida
+
+            phone_id = phone_id_de_salida()
         resultado = recorrer_partes(
             original,
             desde_idx=desde_idx,
@@ -79,6 +95,8 @@ def enviar_marcado(
                 'msg_from': msg_from,
                 'telefono_limpio': telefono_limpio,
                 'registro': registro,
+                'meta': sale_meta,
+                'phone_id': phone_id,
             },
         )
         if registro == 'cierre' and resultado == 'done':
@@ -102,6 +120,22 @@ def enviar_marcado(
         WhatsappLog.objects.create(
             telefono=telefono_limpio, mensaje=original[:500], tipo='SENT',
         )
+        return
+
+    if sale_meta:
+        enviados = _enviar_mensaje_twilio_segmentado(
+            client=client_tw,
+            from_number=origen,
+            to_number=destino,
+            body=original,
+        )
+        for msg_sent, texto_env in enviados:
+            WhatsappLog.objects.create(
+                telefono=telefono_limpio,
+                mensaje=(texto_env or original)[:1500],
+                mensaje_id=getattr(msg_sent, 'sid', None),
+                tipo='SENT',
+            )
         return
 
     client_tw.messages.create(body=original, from_=origen, to=destino)

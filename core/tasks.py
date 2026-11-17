@@ -498,13 +498,21 @@ def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx
             if canal == 'twilio_marcado':
                 from core.lineas.entrega import enviar_marcado
 
-                return enviar_marcado(
-                    kwargs.get('msg_from') or telefono,
-                    kwargs.get('telefono_limpio') or telefono,
-                    texto,
-                    registro=kwargs.get('registro') or 'segmentos',
-                    desde_idx=int(desde_idx or 0),
-                )
+                def _seguir():
+                    return enviar_marcado(
+                        kwargs.get('msg_from') or telefono,
+                        kwargs.get('telefono_limpio') or telefono,
+                        texto,
+                        registro=kwargs.get('registro') or 'segmentos',
+                        desde_idx=int(desde_idx or 0),
+                    )
+
+                if kwargs.get('meta'):
+                    from core.sandbox_canal import canal_sandbox_meta, salida_por_phone_id
+
+                    with salida_por_phone_id(kwargs.get('phone_id') or ''), canal_sandbox_meta():
+                        return _seguir()
+                return _seguir()
             if canal == 'paso':
                 from core.lineas.envio import enviar_respuesta_linea
                 from core.lineas.paso import _entregar_paso

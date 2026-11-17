@@ -119,6 +119,97 @@ class EntregaMarcadaTests(TestCase):
         medias = [call.kwargs['media_url'] for call in enviado.call_args_list]
         self.assertIn('https://cdn.example.com/a.jpg', medias)
 
+    def test_turno_meta_el_video_sale_por_graph(self):
+        from core.lineas.entrega import enviar_marcado
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        cliente = MagicMock()
+        with canal_webhook(CANAL_META), \
+                patch('twilio.rest.Client', return_value=cliente), \
+                patch(
+                    'core.sandbox_canal.enviar_meta',
+                    return_value={'success': True, 'mensaje_id': 'wamid.video'},
+                ) as meta:
+            enviar_marcado(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MULTI_MSG]Mira[SEP][MEDIA:https://cdn.example.com/modulo.mp4]',
+                registro='segmentos',
+            )
+        cliente.messages.create.assert_not_called()
+        urls = [call.kwargs.get('media_url') for call in meta.call_args_list]
+        self.assertIn('https://cdn.example.com/modulo.mp4', urls)
+
+    def test_fallo_de_graph_no_cae_a_twilio(self):
+        from core.lineas.entrega import enviar_marcado
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        cliente = MagicMock()
+        with canal_webhook(CANAL_META), \
+                patch('twilio.rest.Client', return_value=cliente), \
+                patch('core.sandbox_canal.enviar_meta', side_effect=RuntimeError('graph')):
+            enviar_marcado(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MEDIA:https://cdn.example.com/modulo.mp4]',
+                registro='segmentos',
+            )
+        cliente.messages.create.assert_not_called()
+
+    @override_settings(EKI_ENTREGA_DELAYS_CELERY=True)
+    def test_pausa_en_meta_reencola_en_la_misma_linea(self):
+        from core.lineas.entrega import enviar_marcado
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        with canal_webhook(CANAL_META), \
+                patch(
+                    'core.sandbox_canal.enviar_meta',
+                    return_value={'success': True, 'mensaje_id': 'wamid.1'},
+                ), \
+                patch('celery.current_app.send_task') as tarea:
+            enviar_marcado(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MULTI_MSG]Hola[SEP][DELAY:5][SEP][MEDIA:https://cdn.example.com/a.mp4]',
+                registro='segmentos',
+            )
+        self.assertTrue(tarea.called)
+        kwargs = tarea.call_args.kwargs['kwargs']
+        self.assertTrue(kwargs.get('meta'))
+        self.assertIn('phone_id', kwargs)
+        self.assertEqual(kwargs.get('canal'), 'twilio_marcado')
+
+    def test_turno_meta_no_dispara_plantilla_twilio(self):
+        from core.lineas.entrega import enviar_marcado
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        with canal_webhook(CANAL_META), \
+                patch(
+                    'core.sandbox_canal.enviar_meta',
+                    return_value={'success': True, 'mensaje_id': 'wamid.1'},
+                ), \
+                patch('core.whatsapp_service.enviar_template_twilio') as plantilla:
+            enviar_marcado(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MULTI_MSG][SEND_TEMPLATE:HXabc123][SEP]Sigue el módulo',
+                registro='segmentos',
+            )
+        plantilla.assert_not_called()
+
+    def test_sin_canal_meta_la_plantilla_sigue_por_twilio(self):
+        from core.lineas.entrega import enviar_marcado
+
+        with patch('twilio.rest.Client', return_value=MagicMock()), \
+                patch('core.whatsapp_service.enviar_template_twilio') as plantilla:
+            enviar_marcado(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MULTI_MSG][SEND_TEMPLATE:HXabc123]',
+                registro='segmentos',
+            )
+        plantilla.assert_called_once()
+
 
 LINEAS = 'PN_UNO|+573000000001|Principal;PN_DOS|+573000000002|Segunda|cursos'
 
