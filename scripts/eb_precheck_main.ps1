@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PythonPath = ".\.venv\Scripts\python.exe"
 )
 
@@ -66,6 +66,9 @@ if (-not (Test-Path $PythonPath)) {
 
     & $PythonPath -m pytest core/tests_smoke_nat_celery.py core/tests_twilio_webhook_security.py core/tests_smoke_claudia_calificacion.py -q --tb=line
     if ($LASTEXITCODE -eq 0) { Ok "Nat/Celery pytest passed" } else { Fail "Nat/Celery pytest failed" }
+
+    & $PythonPath manage.py test core.tests_lineas_cortes.EntregaMarcadaTests core.tests_lineas_cortes.CortesLineaTests --verbosity=0
+    if ($LASTEXITCODE -eq 0) { Ok "Lección Meta: video y puerta no salen por Twilio" } else { Fail "Lección Meta channel tests failed" }
 
     & $PythonPath scripts/smoke_nat_celery.py
     if ($LASTEXITCODE -eq 0) { Ok "smoke_nat_celery.py local passed" } else { Fail "smoke_nat_celery.py local failed" }
