@@ -66,7 +66,7 @@ def espera_continuar_post_reto(estudiante) -> bool:
     )
 
 
-def texto_cuando_no_es_listo(estudiante) -> str:
+def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
     """Copy de la puerta ACTIVO si el mensaje no es Continuar/listo."""
     from core.lineas.agricapital_experiencia import (
         estudiante_es_agricapital,
@@ -77,6 +77,13 @@ def texto_cuando_no_es_listo(estudiante) -> str:
         if estudiante_es_agricapital(estudiante):
             return TEXTO_POST_RETO_CONTINUAR_TU
         return TEXTO_POST_RETO_CONTINUAR
+    from core.conversacion.turno_leccion import (
+        texto_tip_turno_leccion,
+        turno_leccion_tip_habilitado,
+    )
+
+    if turno_leccion_tip_habilitado():
+        return texto_tip_turno_leccion(estudiante, mensaje or '')
     if estudiante_es_agricapital(estudiante):
         return texto_no_entendi_agricapital()
     return TEXTO_NO_ENTENDI

@@ -15,6 +15,21 @@ class CortesLineaTests(SimpleTestCase):
         self.assertEqual(meta.call_args.args[1], 'Su módulo sigue.')
         self.assertEqual(meta.call_args.kwargs['agente_evento'], 'curso')
 
+    def test_puerta_en_meta_no_abre_cliente_twilio(self):
+        from core.lineas.salida_turno import enviar_respuesta_turno
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        with canal_webhook(CANAL_META), \
+                patch('twilio.rest.Client') as cliente, \
+                patch(
+                    'core.sandbox_canal.enviar_meta',
+                    return_value={'success': True, 'mensaje_id': 'wamid.tip'},
+                ) as meta:
+            enviar_respuesta_turno('573001110001', 'Pulse Continuar.', agente='puerta_leccion')
+        cliente.assert_not_called()
+        meta.assert_called_once()
+        self.assertEqual(meta.call_args.kwargs['agente_evento'], 'puerta_leccion')
+
     def test_enviar_meta_vive_en_lineas(self):
         from core.lineas import enviar_meta as en_paquete
         from core.lineas.envio import enviar_meta as en_envio

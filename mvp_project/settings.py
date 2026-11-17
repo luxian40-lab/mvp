@@ -544,6 +544,11 @@ EKI_RETO_SI_CERT_EMITIDO = os.environ.get('EKI_RETO_SI_CERT_EMITIDO', 'false').s
 EKI_RECONCILIA_CERT_WA_APLICAR = os.environ.get(
     'EKI_RECONCILIA_CERT_WA_APLICAR', 'false'
 ).strip().lower() in ('1', 'true', 'yes', 'on')
+# Puerta ACTIVO en lección: tip (media/lección) en vez de «No entendí».
+# Default false = copy actual. Sin LLM. Verificado plan fricción 2026-11-17.
+EKI_TURNO_LECCION_TIP = os.environ.get('EKI_TURNO_LECCION_TIP', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
 # Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:

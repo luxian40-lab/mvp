@@ -2,8 +2,6 @@
 
 import logging
 
-from django.conf import settings
-
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
 from core.conversacion.multimsg import partir_sep
@@ -50,7 +48,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         if estado_chat == 'ACTIVO':
             try:
                 from core.media_recuperacion import intentar_reenvio_media_curso
-                from core.utils import enviar_whatsapp_twilio as _enviar_reenvio
+                from core.lineas.salida_turno import enviar_respuesta_turno
                 from core.twilio_media import mensaje_log_con_media
                 import re as _re_rx
 
@@ -77,15 +75,15 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                             parte_media = (mm.group(1) or '').strip()
                             parte_texto = parte_texto.replace(mm.group(0), '').strip()
                         cuerpo = parte_texto or (' ' if parte_media else '')
-                        _enviar_reenvio(
+                        enviar_respuesta_turno(
                             msg_from,
                             cuerpo,
                             media_url=parte_media,
-                            texto_log=mensaje_log_con_media(cuerpo, parte_media),
+                            agente='REENVIAR_MEDIA',
                         )
                     WhatsappLog.objects.create(
                         telefono=telefono_limpio,
-                        mensaje=(_resp_reenvio or '')[:500],
+                        mensaje=mensaje_log_con_media((_resp_reenvio or '')[:500], None),
                         tipo='SENT',
                         agente_usado='REENVIAR_MEDIA',
                     )
@@ -112,16 +110,15 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             else:
                 from core.avance_whatsapp import texto_cuando_no_es_listo
 
-                texto_respuesta = texto_cuando_no_es_listo(estudiante)
+                texto_respuesta = texto_cuando_no_es_listo(estudiante, msg_body)
             try:
-                from twilio.rest import Client as TwilioClient
-                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                client_tw = TwilioClient(account_sid, auth_token)
-                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                from core.lineas.salida_turno import enviar_respuesta_turno
+
+                enviar_respuesta_turno(
+                    msg_from,
+                    texto_respuesta,
+                    agente='puerta_leccion',
+                )
             except Exception as e:
                 logger.error(f"❌ Error enviando respuesta no entendida: {e}")
             return CORTAR
