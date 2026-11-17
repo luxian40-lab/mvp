@@ -81,6 +81,25 @@ class SandboxMenuTests(TestCase):
         self.assertEqual(ses.modo, MODO_NAT)
         self.assertIsNone(ses.memoria_corte_en)
 
+    def test_continuar_con_curso_no_reabre_agentes(self):
+        from types import SimpleNamespace
+
+        base = {
+            'From': 'whatsapp:+573001110099',
+            'To': 'whatsapp:+14155238886',
+        }
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
+        with patch(
+            'core.conversacion.sandbox_menu._abiertos_del_mes',
+            return_value=[SimpleNamespace(curso_id=53)],
+        ):
+            duda = resolver_ruta_sandbox({**base, 'Body': 'no veo el video'})
+            seguir = resolver_ruta_sandbox({**base, 'Body': 'continuemos'})
+        self.assertEqual(duda.action, 'cursos')
+        self.assertEqual(seguir.action, 'cursos')
+        agente = resolver_ruta_sandbox({**base, 'Body': 'agentes'})
+        self.assertEqual(agente.action, 'show_agentes')
+
     def test_reiniciar_corta_memoria_en_agente(self):
         base = {
             'From': 'whatsapp:+573001234580',

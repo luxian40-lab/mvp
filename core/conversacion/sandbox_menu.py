@@ -590,6 +590,17 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
             decision.action = 'show_menu'
             return decision
 
+    # Lección abierta: Continuar y el texto de la clase no vuelven a la lista de agentes.
+    if t_low in ('continuemos', 'continuar', 'listo'):
+        from core.utils_telefono import estudiante_por_telefono
+
+        persona = estudiante_por_telefono(from_tel)
+        estado = getattr(persona, 'estado_chat', '') if persona is not None else ''
+        if estado in ('ESPERANDO_CEDULA', 'CONFIRMANDO_DATOS') or _abiertos_del_mes(from_tel):
+            _set_modo(sesion, MODO_CURSOS)
+            decision.action = 'cursos'
+            return decision
+
     # Dentro del submenú agentes: priorizar 1/2/3 de agentes
     if sesion.modo == MODO_AGENTES:
         eleccion_ag = _normalizar_eleccion_agentes(body)
@@ -628,7 +639,10 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
             decision.action = 'cafe'
             decision.saludo_entrada = True
             return decision
-        # Texto libre en submenú → re-mostrar opciones
+        if _abiertos_del_mes(from_tel):
+            _set_modo(sesion, MODO_CURSOS)
+            decision.action = 'cursos'
+            return decision
         decision.action = 'show_agentes'
         return decision
 
