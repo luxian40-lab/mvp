@@ -1,13 +1,19 @@
-"""Contrato de turno en lección (slice 1): tip sin LLM, no «No entendí».
+"""Contrato de turno en lección: tip y, opcional, una duda al Compañero.
 
-Con EKI_TURNO_LECCION_TIP apagado no se usa. No abre Compañero ni avanza el curso.
+Slice 1 (EKI_TURNO_LECCION_TIP): tip sin LLM, no «No entendí».
+Slice 2 (EKI_TURNO_LECCION_COMPANERO): una respuesta del Compañero a una
+pregunta clara. No abre el estado de checkpoint ni el reto del Formador.
+No avanza el curso. Flags apagados = copy actual.
 """
 from __future__ import annotations
+
+import logging
 
 from django.conf import settings
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
 
+logger = logging.getLogger(__name__)
 
 TEXTO_TIP_LECCION_USTED = (
     'En esta parte del curso el avance es con *Continuar*.\n\n'
@@ -32,17 +38,34 @@ TEXTO_TIP_MEDIA_USTED = (
     + MARCADOR_BOTON_CONTINUEMOS
 )
 
+CIERRE_COMPANERO_USTED = (
+    '\n\nCuando quiera seguir con la lección, pulse *Continuar*.\n\n'
+    + MARCADOR_BOTON_CONTINUEMOS
+)
+CIERRE_COMPANERO_TU = (
+    '\n\nCuando quieras seguir con la lección, toca *Continuar*.\n\n'
+    + MARCADOR_BOTON_CONTINUEMOS
+)
+
 
 def turno_leccion_tip_habilitado() -> bool:
     return bool(getattr(settings, 'EKI_TURNO_LECCION_TIP', False))
 
 
+def turno_leccion_companero_habilitado() -> bool:
+    return bool(getattr(settings, 'EKI_TURNO_LECCION_COMPANERO', False))
+
+
 def clasificar_mensaje_leccion(mensaje: str) -> str:
-    """Devuelve ``media`` o ``leccion`` (nunca avanza ni abre agente)."""
+    """Devuelve ``media``, ``pregunta`` o ``leccion``. Nunca avanza el curso."""
+    from core.intent_detector import mensaje_parece_pregunta_companero
     from core.lineas.agricapital_experiencia import es_duda_media_agricapital
 
-    if es_duda_media_agricapital(mensaje or ''):
+    texto = mensaje or ''
+    if es_duda_media_agricapital(texto):
         return 'media'
+    if mensaje_parece_pregunta_companero(texto):
+        return 'pregunta'
     return 'leccion'
 
 
@@ -65,3 +88,45 @@ def texto_tip_turno_leccion(estudiante, mensaje: str = '') -> str:
     if agri:
         return TEXTO_TIP_LECCION_TU
     return TEXTO_TIP_LECCION_USTED
+
+
+def _modulos_para_duda(estudiante) -> list:
+    """Módulo actual del curso activo; si no hay, nada (el Compañero usa fallback)."""
+    from core.models import ProgresoEstudiante
+
+    ctx = getattr(estudiante, 'contexto_temporal', None) or {}
+    curso_id = ctx.get('curso_activo_id')
+    qs = ProgresoEstudiante.objects.filter(estudiante_id=estudiante.pk, completado=False)
+    if curso_id:
+        qs = qs.filter(curso_id=curso_id)
+    progreso = qs.select_related('modulo_actual', 'curso').order_by('-id').first()
+    if progreso is None:
+        return []
+    modulo = getattr(progreso, 'modulo_actual', None)
+    return [modulo] if modulo is not None else []
+
+
+def responder_duda_en_leccion(estudiante, mensaje: str) -> str | None:
+    """Una respuesta del Compañero. None si no aplica. No cambia estado ni avance."""
+    if not turno_leccion_companero_habilitado():
+        return None
+    if clasificar_mensaje_leccion(mensaje) != 'pregunta':
+        return None
+    try:
+        from core.agentes_whatsapp import mensaje_con_titular_agente
+        from core.lineas.agricapital_experiencia import estudiante_es_agricapital
+        from core.tutor_ia_modulo import generar_respuesta_asistente
+
+        modulos = _modulos_para_duda(estudiante)
+        cuerpo = generar_respuesta_asistente(
+            modulos,
+            mensaje or '',
+            estudiante_nombre=getattr(estudiante, 'nombre', None) or 'Estudiante',
+            nombre_asistente='Compañero',
+        )
+        agri = estudiante_es_agricapital(estudiante)
+        cierre = CIERRE_COMPANERO_TU if agri else CIERRE_COMPANERO_USTED
+        return mensaje_con_titular_agente('Compañero', (cuerpo or '').strip()) + cierre
+    except Exception:
+        logger.exception('turno_leccion_companero_fail')
+        return None

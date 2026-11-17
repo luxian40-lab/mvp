@@ -1,5 +1,6 @@
-"""Slice 1: tip en lección detrás de EKI_TURNO_LECCION_TIP (sin LLM)."""
+"""Turno en lección: tip (slice 1) y Compañero una vez (slice 2), sin LLM de más."""
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
@@ -31,11 +32,17 @@ class ClasificarLeccionTests(SimpleTestCase):
             'media',
         )
 
+    def test_pregunta_clara_es_pregunta(self):
+        self.assertEqual(
+            clasificar_mensaje_leccion('¿qué es el interés compuesto?'),
+            'pregunta',
+        )
 
-@override_settings(EKI_TURNO_LECCION_TIP=False)
+
+@override_settings(EKI_TURNO_LECCION_TIP=False, EKI_TURNO_LECCION_COMPANERO=False)
 class FlagApagadoConservaNoEntendiTests(SimpleTestCase):
     def test_sin_flag_sigue_no_entendi(self):
-        est = SimpleNamespace(cliente_id=27, contexto_temporal={})
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
         out = texto_cuando_no_es_listo(
             est, 'un gasto hormiga puede ser gasto diario'
         )
@@ -43,10 +50,10 @@ class FlagApagadoConservaNoEntendiTests(SimpleTestCase):
         self.assertIn('No entendí', out)
 
 
-@override_settings(EKI_TURNO_LECCION_TIP=True)
+@override_settings(EKI_TURNO_LECCION_TIP=True, EKI_TURNO_LECCION_COMPANERO=False)
 class FlagPrendidoTipTests(SimpleTestCase):
     def test_reflexion_pide_continuar_sin_no_entendi(self):
-        est = SimpleNamespace(cliente_id=27, contexto_temporal={})
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
         out = texto_cuando_no_es_listo(
             est, 'un gasto hormiga puede ser gasto diario de comprar dulces'
         )
@@ -56,15 +63,51 @@ class FlagPrendidoTipTests(SimpleTestCase):
         self.assertEqual(out, TEXTO_TIP_LECCION_USTED)
 
     def test_media_tip_sin_no_entendi(self):
-        est = SimpleNamespace(cliente_id=27, contexto_temporal={})
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
         out = texto_cuando_no_es_listo(est, 'no veo el video')
         self.assertNotIn('No entendí', out)
         self.assertEqual(out, TEXTO_TIP_MEDIA_USTED)
 
     def test_agri_tip_en_tu(self):
         with override_settings(EKI_AGRICAPITAL_CLIENTE_ID='26'):
-            est = SimpleNamespace(cliente_id=26, contexto_temporal={})
+            est = SimpleNamespace(cliente_id=26, contexto_temporal={}, pk=1, nombre='Ana')
             out = texto_tip_turno_leccion(est, 'quiero anotar una idea')
             self.assertNotIn('No entendí', out)
             self.assertIn('toca Continuar', out)
             self.assertIn('te ayudamos', out)
+
+
+@override_settings(EKI_TURNO_LECCION_TIP=True, EKI_TURNO_LECCION_COMPANERO=True)
+class CompaneroEnLeccionTests(SimpleTestCase):
+    def test_pregunta_recibe_companero_sin_abrir_reto(self):
+        est = SimpleNamespace(
+            cliente_id=27, contexto_temporal={'curso_activo_id': 53}, pk=9, nombre='Ana',
+        )
+        with patch(
+            'core.conversacion.turno_leccion._modulos_para_duda', return_value=[],
+        ), patch(
+            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            return_value='El interés compuesto suma rendimiento sobre rendimiento.',
+        ) as gen:
+            out = texto_cuando_no_es_listo(est, '¿qué es el interés compuesto?')
+        gen.assert_called_once()
+        self.assertNotIn('No entendí', out)
+        self.assertIn('interés compuesto', out.lower())
+        self.assertIn('Continuar', out)
+        self.assertIn(MARCADOR_BOTON_CONTINUEMOS, out)
+
+    def test_reflexion_no_llama_companero(self):
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=9, nombre='Ana')
+        with patch('core.tutor_ia_modulo.generar_respuesta_asistente') as gen:
+            out = texto_cuando_no_es_listo(
+                est, 'un gasto hormiga puede ser gasto diario de comprar dulces'
+            )
+        gen.assert_not_called()
+        self.assertEqual(out, TEXTO_TIP_LECCION_USTED)
+
+    def test_media_sigue_siendo_tip_no_companero(self):
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=9, nombre='Ana')
+        with patch('core.tutor_ia_modulo.generar_respuesta_asistente') as gen:
+            out = texto_cuando_no_es_listo(est, 'no veo el video')
+        gen.assert_not_called()
+        self.assertEqual(out, TEXTO_TIP_MEDIA_USTED)

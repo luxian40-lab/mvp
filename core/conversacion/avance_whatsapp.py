@@ -78,12 +78,25 @@ def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
             return TEXTO_POST_RETO_CONTINUAR_TU
         return TEXTO_POST_RETO_CONTINUAR
     from core.conversacion.turno_leccion import (
+        clasificar_mensaje_leccion,
+        responder_duda_en_leccion,
         texto_tip_turno_leccion,
+        turno_leccion_companero_habilitado,
         turno_leccion_tip_habilitado,
     )
 
-    if turno_leccion_tip_habilitado():
-        return texto_tip_turno_leccion(estudiante, mensaje or '')
+    tip_on = turno_leccion_tip_habilitado()
+    companero_on = turno_leccion_companero_habilitado()
+    if tip_on or companero_on:
+        clase = clasificar_mensaje_leccion(mensaje or '')
+        if clase == 'media' and tip_on:
+            return texto_tip_turno_leccion(estudiante, mensaje or '')
+        if clase == 'pregunta' and companero_on:
+            duda = responder_duda_en_leccion(estudiante, mensaje or '')
+            if duda:
+                return duda
+        if tip_on:
+            return texto_tip_turno_leccion(estudiante, mensaje or '')
     if estudiante_es_agricapital(estudiante):
         return texto_no_entendi_agricapital()
     return TEXTO_NO_ENTENDI

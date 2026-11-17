@@ -549,6 +549,11 @@ EKI_RECONCILIA_CERT_WA_APLICAR = os.environ.get(
 EKI_TURNO_LECCION_TIP = os.environ.get('EKI_TURNO_LECCION_TIP', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Puerta ACTIVO: una respuesta del Compañero a una pregunta clara, sin abrir reto.
+# Default false. No cambia estado ni avanza el curso. Verificado plan fricción 2026-11-17.
+EKI_TURNO_LECCION_COMPANERO = os.environ.get('EKI_TURNO_LECCION_COMPANERO', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Margen bajo las 24 h de Meta (131047). 23 h evita un texto libre rechazado por desfase de reloj.
 # Verificado 2026-10-03: la tabla oficial dice más de 24 h desde la última respuesta del usuario.
 try:
