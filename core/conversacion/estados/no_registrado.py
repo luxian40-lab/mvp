@@ -125,13 +125,9 @@ def manejar(contexto: Contexto) -> Respuesta:
         
         # Enviar respuesta al prospecto
         try:
-            from twilio.rest import Client as TwilioClient
-            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-            client_tw = TwilioClient(account_sid, auth_token)
-            destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-            client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+            from core.lineas.salida_turno import enviar_respuesta_turno
+
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='prospecto')
         except Exception as e:
             print(f"❌ Error enviando a prospecto: {e}")
         return CORTAR

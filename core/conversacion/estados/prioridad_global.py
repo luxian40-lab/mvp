@@ -3,7 +3,6 @@
 import logging
 
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.models import WhatsappLog
 
 logger = logging.getLogger('core.views.webhook_twilio')
 
@@ -64,15 +63,15 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                 estudiante.save(update_fields=cambios)
 
     if estudiante.acepto_terminos:
-        from core.utils import enviar_whatsapp_twilio
+        from core.lineas.salida_turno import enviar_respuesta_turno
         if estudiante_en_flujo_correccion(estudiante):
             texto_respuesta = procesar_flujo_correccion(estudiante, msg_body)
-            enviar_whatsapp_twilio(msg_from, texto_respuesta)
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='correccion')
             return CORTAR
 
         if es_keyword_correccion(texto_norm):
             texto_respuesta = iniciar_flujo_correccion(estudiante)
-            enviar_whatsapp_twilio(msg_from, texto_respuesta)
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='correccion')
             return CORTAR
 
         # GEI / formulario activo: tiene prioridad sobre *hola*/*menú*/retomar B2B.
@@ -82,12 +81,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             if estado_chat == 'ACTIVO' and debe_usar_agente_formulario(estudiante):
                 from core.puentes import manejar_mensaje_formulario
                 texto_respuesta = manejar_mensaje_formulario(estudiante, msg_body)
-                enviar_whatsapp_twilio(msg_from, texto_respuesta)
-                WhatsappLog.objects.create(
-                    telefono=telefono_limpio,
-                    mensaje=(texto_respuesta or '')[:500],
-                    tipo='SENT',
-                )
+                enviar_respuesta_turno(msg_from, texto_respuesta, agente='formulario_gei')
                 return CORTAR
         except Exception:
             logger.exception('Agente formulario GEI (prioridad temprana) omitido')
@@ -104,11 +98,11 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             texto_respuesta = respuesta_tras_keyword_menu(
                 estudiante, estudiante.nombre, msg_body,
             )
-            enviar_whatsapp_twilio(msg_from, texto_respuesta)
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='menu_b2b')
             return CORTAR
 
         if es_keyword_menu(texto_norm):
             texto_respuesta = construir_menu_principal_texto(estudiante)
-            enviar_whatsapp_twilio(msg_from, texto_respuesta)
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='menu')
             return CORTAR
     return None

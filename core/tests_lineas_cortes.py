@@ -30,6 +30,20 @@ class CortesLineaTests(SimpleTestCase):
         meta.assert_called_once()
         self.assertEqual(meta.call_args.kwargs['agente_evento'], 'puerta_leccion')
 
+    def test_menu_multimsg_en_meta_usa_entrega_marcada(self):
+        from core.lineas.salida_turno import entregar_en_turno
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        with canal_webhook(CANAL_META), \
+                patch('core.lineas.entrega.enviar_marcado') as marcado:
+            entregar_en_turno(
+                'whatsapp:+573001110001',
+                '573001110001',
+                '[MULTI_MSG]Hola[SEP]Sigue',
+                agente='menu_curso',
+            )
+        marcado.assert_called_once()
+
     def test_enviar_meta_vive_en_lineas(self):
         from core.lineas import enviar_meta as en_paquete
         from core.lineas.envio import enviar_meta as en_envio

@@ -2,10 +2,7 @@
 
 import logging
 
-from django.conf import settings
-
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.models import WhatsappLog
 from core.views.empleabilidad import _procesar_ubicacion_empleabilidad
 
 logger = logging.getLogger('core.views.webhook_twilio')
@@ -60,27 +57,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             mensaje_sid=msg_sid,
         )
         if _ack_campana:
-            from twilio.rest import Client as TwilioClient
+            from core.lineas.salida_turno import enviar_respuesta_turno
 
-            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-            client_tw = TwilioClient(account_sid, auth_token)
-            destino = (
-                f'whatsapp:{msg_from}'
-                if not str(msg_from).startswith('whatsapp:')
-                else msg_from
-            )
-            client_tw.messages.create(
-                body=_ack_campana,
-                from_=str(twilio_number).strip(),
-                to=str(destino).strip(),
-            )
-            WhatsappLog.objects.create(
-                telefono=telefono_limpio,
-                mensaje=_ack_campana,
-                tipo='SENT',
-            )
+            enviar_respuesta_turno(msg_from, _ack_campana, agente='campana_ack')
             logger.info(
                 '📣 [campana] ack enviado | est=%s tel=%s',
                 estudiante.id,
@@ -108,14 +87,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                 longitud = float(longitud_raw)
                 texto_geo = _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud)
                 try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
-                    client_tw.messages.create(body=texto_geo, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_geo, tipo='SENT')
+                    from core.lineas.salida_turno import enviar_respuesta_turno
+
+                    enviar_respuesta_turno(msg_from, texto_geo, agente='ubicacion')
                 except Exception as e:
                     logger.error(f"❌ Error enviando respuesta de ubicación: {e}")
                 return CORTAR

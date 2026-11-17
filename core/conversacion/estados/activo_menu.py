@@ -2,13 +2,9 @@
 
 import logging
 
-from django.conf import settings
-
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.models import WhatsappLog
 from core.response_templates import parte_mensaje_con_media
-from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
 
 logger = logging.getLogger('core.views.webhook_twilio')
 
@@ -31,14 +27,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         from core.security_handler import procesar_solicitud_soporte
         respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'menu_ayuda')
         try:
-            from twilio.rest import Client as TwilioClient
-            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-            client_tw = TwilioClient(account_sid, auth_token)
-            destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-            client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
+            from core.lineas.salida_turno import enviar_respuesta_turno
+
+            enviar_respuesta_turno(msg_from, respuesta, agente='menu_ayuda')
         except Exception:
             pass
         return CORTAR
@@ -50,14 +41,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         from core.correccion_datos import iniciar_flujo_correccion
         texto_respuesta = iniciar_flujo_correccion(estudiante)
         try:
-            from twilio.rest import Client as TwilioClient
-            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-            client_tw = TwilioClient(account_sid, auth_token)
-            destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-            client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            from core.lineas.salida_turno import enviar_respuesta_turno
+
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='correccion_datos')
         except Exception as e:
             logger.error(f"❌ Error enviando corrección datos: {e}")
         return CORTAR
@@ -185,40 +171,8 @@ def _texto_reenvio_menu(estudiante):
 
 
 def _enviar_reenvio_menu(msg_from, telefono_limpio, texto_respuesta):
-    from twilio.rest import Client as TwilioClient
-    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-    client_tw = TwilioClient(account_sid, auth_token)
-    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-    twilio_from = str(twilio_number).strip()
+    from core.lineas.salida_turno import entregar_en_turno
 
-    if texto_respuesta.startswith('[MULTI_MSG]'):
-        from core.lineas.entrega import enviar_marcado
-
-        enviar_marcado(msg_from, telefono_limpio, texto_respuesta, registro='segmentos')
-    else:
-        media_url_menu = None
-        import re as re_menu
-        media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
-        if media_m:
-            media_url_menu = media_m.group(1).strip()
-            texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-        enviados_menu = _enviar_mensaje_twilio_segmentado(
-            client=client_tw,
-            from_number=twilio_from,
-            to_number=str(destino).strip(),
-            body=texto_respuesta,
-            media_url=media_url_menu,
-        )
-        from core.twilio_media import mensaje_log_con_media
-        for seg_i, (msg_menu, texto_env) in enumerate(enviados_menu, start=1):
-            WhatsappLog.objects.create(
-                telefono=telefono_limpio,
-                mensaje=mensaje_log_con_media(
-                    texto_env or texto_respuesta,
-                    media_url_menu if seg_i == 1 else None,
-                )[:1500],
-                mensaje_id=getattr(msg_menu, 'sid', None),
-                tipo='SENT',
-            )
+    entregar_en_turno(
+        msg_from, telefono_limpio, texto_respuesta, agente='menu_curso',
+    )

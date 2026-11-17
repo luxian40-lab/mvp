@@ -40,6 +40,26 @@ def enviar(contexto: Contexto) -> None:
             print(f"🖼️ Media URL detectada: {media_url_to_send}")
     
     try:
+        from core.views.twilio_transporte import turno_sale_por_meta
+
+        if turno_sale_por_meta():
+            from core.lineas.salida_turno import entregar_en_turno
+
+            if texto_respuesta.startswith('[MULTI_MSG]'):
+                entregar_en_turno(
+                    msg_from, telefono_limpio, texto_respuesta, agente='curso',
+                )
+            else:
+                from core.lineas.salida_turno import enviar_respuesta_turno
+
+                enviar_respuesta_turno(
+                    msg_from,
+                    texto_respuesta,
+                    media_url=media_url_to_send,
+                    agente='curso',
+                )
+            return
+
         from twilio.rest import Client
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')

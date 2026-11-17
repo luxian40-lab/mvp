@@ -4,10 +4,7 @@ Con un certificado pendiente no responde (None) y el cuerpo sigue de largo, como
 """
 import logging
 
-from django.conf import settings
-
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.models import WhatsappLog
 
 logger = logging.getLogger('core.views.webhook_twilio')
 
@@ -45,14 +42,9 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
         # Enviar y cortar
         try:
-            from twilio.rest import Client as TwilioClient
-            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-            client_tw = TwilioClient(account_sid, auth_token)
-            destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-            client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            from core.lineas.salida_turno import enviar_respuesta_turno
+
+            enviar_respuesta_turno(msg_from, texto_respuesta, agente='habeas')
         except Exception as e:
             logger.error(f"❌ Error enviando habeas data: {e}")
             import traceback; traceback.print_exc()
