@@ -4,7 +4,7 @@ import re
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 from core.module_builder import (
@@ -1430,7 +1430,7 @@ class ModuleBuilderSeccionTituloTests(TestCase):
         self.assertContains(r, 'eki-mb-delete-media')
 
 
-class ModuleBuilderJsHealthTests(TestCase):
+class ModuleBuilderJsHealthTests(SimpleTestCase):
     """Fase 4 gobernanza: gate JS parse antes de deploy (complementa eb_precheck)."""
 
     def test_module_builder_js_syntax_valid(self):
@@ -1466,3 +1466,16 @@ class ModuleBuilderJsHealthTests(TestCase):
         self.assertIn('encode_status', text)
         self.assertIn('Orden guardado', text)
         self.assertNotIn('tEl.textContent', text)
+
+    def test_js_no_da_por_listo_un_encode_pendiente(self):
+        from pathlib import Path
+
+        js_path = Path(__file__).resolve().parents[1] / 'static' / 'admin' / 'js' / 'module_builder.js'
+        text = js_path.read_text(encoding='utf-8')
+        self.assertIn("fila.status === 'pending'", text)
+        self.assertIn('pendiente: true', text)
+        self.assertIn('setTimeout', text)
+        self.assertNotIn(
+            'Se está preparando. No hay porcentaje disponible.',
+            text,
+        )

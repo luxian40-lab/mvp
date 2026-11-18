@@ -549,12 +549,12 @@
     var polls = 0;
     var timer = window.setInterval(function () {
       polls += 1;
-      if (polls > 12 || !shell.querySelector('.eki-mb__badge--warn')) {
+      if (polls > 24 || !shell.querySelector('.eki-mb__badge--warn')) {
         window.clearInterval(timer);
         return;
       }
       fetchEncodeStatus(shell).catch(function () {});
-    }, 20000);
+    }, 10000);
   }
 
   function updateWaPreview(editEl) {
@@ -992,26 +992,49 @@
       },
       campos: function (trabajo) { return trabajo.campos || {}; },
       despues: function (trabajo) {
-        var body = new URLSearchParams();
-        body.set('action', 'encode_status');
-        body.set('ajax', '1');
-        body.set('csrfmiddlewaretoken', csrfToken());
-        return fetch(window.location.pathname + window.location.search, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-          credentials: 'same-origin',
-          body: body.toString(),
-        }).then(function (r) { return r.json(); }).then(function (data) {
-          var pasoId = trabajo.campos && trabajo.campos.paso_id;
-          var fila = ((data && data.pasos) || []).filter(function (p) { return String(p.id) === String(pasoId); })[0];
-          if (!fila) return { apto: null, motivo: '' };
-          if (fila.status === 'pending' || fila.status === 'running') {
-            return { apto: null, motivo: 'Se está preparando. No hay porcentaje disponible.' };
-          }
-          if (fila.media_wa_apto === false) return { apto: false, motivo: fila.error || 'No es apto para WhatsApp.' };
-          if (fila.media_wa_apto === true) return { apto: true, motivo: 'Apto para WhatsApp.' };
-          return { apto: null, motivo: fila.error || '' };
-        });
+        var pasoId = trabajo.campos && trabajo.campos.paso_id;
+        var intentos = 0;
+        var maxIntentos = 24;
+        var esperaMs = 10000;
+        function consultar() {
+          var body = new URLSearchParams();
+          body.set('action', 'encode_status');
+          body.set('ajax', '1');
+          body.set('csrfmiddlewaretoken', csrfToken());
+          return fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+            credentials: 'same-origin',
+            body: body.toString(),
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            applyEncodeRows(shell, data && data.pasos);
+            var fila = ((data && data.pasos) || []).filter(function (p) {
+              return String(p.id) === String(pasoId);
+            })[0];
+            if (!fila) return { apto: null, motivo: '' };
+            if (fila.status === 'pending' || fila.status === 'running') {
+              intentos += 1;
+              if (intentos >= maxIntentos) {
+                return {
+                  pendiente: true,
+                  espera: 'Suele tardar 1 a 3 minutos.',
+                  motivo: 'Sigue comprimiendo para WhatsApp. Todavía no está listo. Puede cerrar; use Refrescar estado.',
+                };
+              }
+              return new Promise(function (resolve) {
+                window.setTimeout(function () { resolve(consultar()); }, esperaMs);
+              });
+            }
+            if (fila.media_wa_apto === false) {
+              return { apto: false, motivo: fila.error || 'No es apto para WhatsApp.' };
+            }
+            if (fila.media_wa_apto === true) {
+              return { apto: true, motivo: 'Apto para WhatsApp.' };
+            }
+            return { apto: null, motivo: fila.error || '' };
+          });
+        }
+        return consultar();
       },
     });
     shell.querySelectorAll('.eki-mb__upload-replace').forEach(function (form) {
@@ -1040,6 +1063,7 @@
         lista.addEventListener('upload:done', soltar);
         lista.addEventListener('upload:error', soltar);
         lista.addEventListener('upload:cancel', soltar);
+        lista.addEventListener('upload:preparando', soltar);
       });
     });
   }

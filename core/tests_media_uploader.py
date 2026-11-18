@@ -35,3 +35,15 @@ class MediaUploadServicioTests(SimpleTestCase):
         self.assertIn('role="progressbar"', js)
         self.assertIn('Cancelar', js)
         self.assertIn('Reintentar', js)
+
+    def test_pendiente_no_pinta_cien_por_ciento(self):
+        js = Path('static/js/media-uploader/uploader.js').read_text(encoding='utf-8')
+        idx = js.find('var hecho = function (info)')
+        self.assertGreater(idx, 0)
+        hecho = js[idx : idx + 900]
+        self.assertIn('info.pendiente', hecho)
+        self.assertLess(
+            hecho.find('info.pendiente'),
+            hecho.find("terminar(trabajo, 'upload:done'"),
+        )
+        self.assertIn("etapa: 'preparando'", hecho)

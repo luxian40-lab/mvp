@@ -33,7 +33,7 @@
     cola: 'Espera su turno. Puede seguir editando otros mensajes.',
     subiendo: 'Puede seguir editando otros mensajes. No cierre esta página hasta que termine la subida.',
     guardando: 'El archivo ya llegó completo. Se está guardando.',
-    preparando: 'Puede cerrar esta página. El archivo se sigue preparando y verá el estado en el mensaje.',
+    preparando: 'Puede cerrar esta página. El archivo se sigue comprimiendo para WhatsApp (suele tardar 1 a 3 minutos).',
     listo: 'El archivo está listo.',
     error: 'No se pudo subir.',
     cancelado: 'Subida cancelada. No se guardó nada.',
@@ -299,7 +299,24 @@
           });
           var despues = opciones.despues;
           var hecho = function (info) {
-            terminar(trabajo, 'upload:done', info || { apto: null, motivo: '' });
+            info = info || { apto: null, motivo: '' };
+            if (info.pendiente) {
+              pintar(trabajo, {
+                etapa: 'preparando',
+                porcentaje: null,
+                espera: info.espera || 'Suele tardar 1 a 3 minutos.',
+                texto: info.motivo || AVISO.preparando,
+              });
+              corriendo = Math.max(0, corriendo - 1);
+              activos = Math.max(0, activos - 1);
+              emitir(objetivo, 'upload:preparando', Object.assign({
+                id: trabajo.id,
+                archivo: trabajo.archivo.name,
+              }, info));
+              bombear();
+              return;
+            }
+            terminar(trabajo, 'upload:done', info);
           };
           if (typeof despues === 'function') {
             Promise.resolve(despues(trabajo, xhr)).then(hecho).catch(function () {
