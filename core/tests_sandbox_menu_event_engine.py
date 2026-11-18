@@ -100,6 +100,29 @@ class SandboxMenuTests(TestCase):
         agente = resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         self.assertEqual(agente.action, 'show_agentes')
 
+    def test_continuar_con_curso_abierto_en_varios_cursos(self):
+        """Riendas, Agri y Crea y Vende: Continuar no abre agentes."""
+        from types import SimpleNamespace
+
+        for i, curso_id in enumerate((53, 7, 55)):
+            tel = f'57300112000{i}'
+            base = {
+                'From': f'whatsapp:+{tel}',
+                'To': 'whatsapp:+14155238886',
+            }
+            with self.subTest(curso_id=curso_id):
+                resolver_ruta_sandbox({**base, 'Body': 'agentes'})
+                with patch(
+                    'core.conversacion.sandbox_menu._abiertos_del_mes',
+                    return_value=[SimpleNamespace(curso_id=curso_id)],
+                ):
+                    d = resolver_ruta_sandbox({**base, 'Body': 'continuemos'})
+                self.assertEqual(d.action, 'cursos')
+                self.assertEqual(
+                    SandboxCanalSesion.objects.get(telefono=tel).modo,
+                    MODO_CURSOS,
+                )
+
     def test_reiniciar_corta_memoria_en_agente(self):
         base = {
             'From': 'whatsapp:+573001234580',

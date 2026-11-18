@@ -111,3 +111,50 @@ class CompaneroEnLeccionTests(SimpleTestCase):
             out = texto_cuando_no_es_listo(est, 'no veo el video')
         gen.assert_not_called()
         self.assertEqual(out, TEXTO_TIP_MEDIA_USTED)
+
+
+# Clientes en producción (Alitic, Agrosavia, Agri, Lhaura, Ganaderos).
+_CLIENTES_PRODUCCION = (7, 22, 26, 27, 28)
+
+
+@override_settings(EKI_TURNO_LECCION_TIP=True, EKI_TURNO_LECCION_COMPANERO=True)
+class NingunCursoDevuelveNoEntendiTests(SimpleTestCase):
+    """Con los flags de producción, texto libre en lección no puede decir «No entendí»."""
+
+    def test_reflexion_y_media_en_todos_los_clientes(self):
+        for cliente_id in _CLIENTES_PRODUCCION:
+            est = SimpleNamespace(
+                cliente_id=cliente_id,
+                contexto_temporal={'curso_activo_id': 53},
+                pk=1000 + cliente_id,
+                nombre='QA',
+            )
+            with self.subTest(cliente_id=cliente_id, caso='reflexion'):
+                out = texto_cuando_no_es_listo(
+                    est, 'un gasto hormiga puede ser gasto diario de comprar dulces',
+                )
+                self.assertNotIn('No entendí', out)
+                self.assertIn(MARCADOR_BOTON_CONTINUEMOS, out)
+            with self.subTest(cliente_id=cliente_id, caso='media'):
+                out = texto_cuando_no_es_listo(est, 'no veo el video')
+                self.assertNotIn('No entendí', out)
+                self.assertIn(MARCADOR_BOTON_CONTINUEMOS, out)
+
+    def test_pregunta_en_todos_los_clientes_sin_no_entendi(self):
+        for cliente_id in _CLIENTES_PRODUCCION:
+            est = SimpleNamespace(
+                cliente_id=cliente_id,
+                contexto_temporal={'curso_activo_id': 53},
+                pk=2000 + cliente_id,
+                nombre='QA',
+            )
+            with self.subTest(cliente_id=cliente_id), patch(
+                'core.conversacion.turno_leccion._modulos_para_duda', return_value=[],
+            ), patch(
+                'core.tutor_ia_modulo.generar_respuesta_asistente',
+                return_value='Respuesta de prueba del Compañero.',
+            ):
+                out = texto_cuando_no_es_listo(est, '¿qué es el interés compuesto?')
+                self.assertNotIn('No entendí', out)
+                self.assertIn('Continuar', out)
+                self.assertIn(MARCADOR_BOTON_CONTINUEMOS, out)
