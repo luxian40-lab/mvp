@@ -40,7 +40,9 @@ class Certificado(models.Model):
     calificacion_final = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        help_text="Calificación final (0-100)"
+        null=True,
+        blank=True,
+        help_text="Calificación final (0-100). Vacía si el curso no tuvo preguntas (flag corte 5).",
     )
     fecha_inicio = models.DateField(
         help_text="Fecha de inicio del curso"

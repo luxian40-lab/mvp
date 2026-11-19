@@ -931,13 +931,15 @@ def calcular_calificacion_curso(estudiante, curso):
     )
     
     if not modulos_completados.exists():
-        # Si no hay preguntas, dar calificación por defecto de 100
+        # Corte 5: con flag, sin preguntas → nota vacía en emisiones nuevas.
+        if getattr(settings, 'EKI_DIPLOMA_NOTA_VACIA_SIN_PREGUNTAS', False):
+            return None
         return 100.0
-    
+
     # Calcular porcentaje de respuestas correctas
     total_preguntas = modulos_completados.count()
     respuestas_correctas = modulos_completados.filter(respuesta_correcta=True).count()
-    
+
     calificacion = (respuestas_correctas / total_preguntas) * 100
     return round(calificacion, 2)
 
