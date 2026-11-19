@@ -19,18 +19,20 @@ def enviar_respuesta_turno(
     media_url: str | None = None,
     agente: str = 'curso',
 ) -> dict:
-    """Una respuesta del motor. En Meta no abre el Client de Twilio."""
+    """Una respuesta del motor. En Meta no abre el Client de Twilio.
+
+    Sale por el Sender de la línea (claim/outbox cuando el flag está on).
+    """
     from core.views.twilio_transporte import turno_sale_por_meta
 
     if turno_sale_por_meta():
-        from core.sandbox_canal import enviar_meta
+        from core.lineas.envio import enviar_respuesta_linea
 
-        return enviar_meta(
+        return enviar_respuesta_linea(
             telefono,
             texto or '',
             media_url=media_url,
-            canal_evento='whatsapp_sandbox',
-            agente_evento=agente or 'curso',
+            agente=agente or 'curso',
         )
     from core.utils import enviar_whatsapp_twilio
 

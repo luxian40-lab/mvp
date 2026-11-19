@@ -22,13 +22,13 @@ class CortesLineaTests(SimpleTestCase):
         with canal_webhook(CANAL_META), \
                 patch('twilio.rest.Client') as cliente, \
                 patch(
-                    'core.sandbox_canal.enviar_meta',
+                    'core.lineas.envio.enviar_respuesta_linea',
                     return_value={'success': True, 'mensaje_id': 'wamid.tip'},
-                ) as meta:
+                ) as linea:
             enviar_respuesta_turno('573001110001', 'Pulse Continuar.', agente='puerta_leccion')
         cliente.assert_not_called()
-        meta.assert_called_once()
-        self.assertEqual(meta.call_args.kwargs['agente_evento'], 'puerta_leccion')
+        linea.assert_called_once()
+        self.assertEqual(linea.call_args.kwargs['agente'], 'puerta_leccion')
 
     def test_menu_multimsg_en_meta_usa_entrega_marcada(self):
         from core.lineas.salida_turno import entregar_en_turno
@@ -267,3 +267,20 @@ class CursoPorSenderTests(TestCase):
 
         enviar_respuesta_linea('573001110001', 'Su módulo sigue.', correlacion='leccion:1')
         self.assertEqual(OutboxEnvio.objects.count(), 0)
+
+    @override_settings(EKI_OUTBOX_ENVIO=True)
+    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
+    def test_turno_meta_pasa_por_sender_y_outbox(self, _meta, _pn):
+        from core.lineas.salida_turno import enviar_respuesta_turno
+        from core.models.outbox_envio import OutboxEnvio
+        from core.wa_canal import CANAL_META, canal_webhook
+
+        with canal_webhook(CANAL_META):
+            enviar_respuesta_turno(
+                '573001110001',
+                'Su módulo sigue.',
+                agente='curso',
+            )
+        self.assertEqual(OutboxEnvio.objects.count(), 1)
+        self.assertEqual(OutboxEnvio.objects.get().estado, 'ENVIADO')
