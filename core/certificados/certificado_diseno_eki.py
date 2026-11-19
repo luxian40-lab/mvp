@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from io import BytesIO
 
@@ -14,14 +15,19 @@ ANCHO = 1200
 ALTO = 848
 A4_ANCHO_DEFAULT = 3508
 A4_ALTO_DEFAULT = 2480
-PAPEL_EKI = (247, 244, 250)
+# Papel claro; acentos de marca eki
+PAPEL_EKI = (252, 250, 255)
+MORADO = (154, 108, 172)       # #9A6CAC
+MORADO_PROFUNDO = (122, 78, 142)  # #7A4E8E
+MORADO_TINTA = (95, 58, 110)   # #5F3A6E
+MORADO_CLARO = (236, 226, 242)
 TEXTO_MARCA_DEFAULT = 'eki'
 TEXTO_MARCA_LEGADO = 'eki - Soluciones Educativas'
 NOMBRE_DEMO = 'MARÍA GONZÁLEZ PÉREZ'
 CURSO_DEMO = '[Nombre del curso]'
 
 
-def _hex_a_rgb(hex_color: str, default=(44, 62, 80)) -> tuple[int, int, int]:
+def _hex_a_rgb(hex_color: str, default=(95, 58, 110)) -> tuple[int, int, int]:
     raw = (hex_color or '').strip().lstrip('#')
     if len(raw) != 6:
         return default
@@ -136,12 +142,13 @@ def _cargar_fuentes(escala=1.0):
     ui = ('ExpletusSans-Variable.ttf',)
     marca = ('CoveredByYourGrace.ttf',)
     fallback = ('GreatVibes-Regular.ttf',)
-    titulo = _peso_variable(_truetype(ui + fallback, _px(40, escala)), 'SemiBold')
-    nombre = _peso_variable(_truetype(ui + fallback, _px(36, escala)), 'SemiBold')
-    medio = _truetype(ui + fallback, _px(22, escala))
+    titulo = _peso_variable(_truetype(ui + fallback, _px(34, escala)), 'SemiBold')
+    nombre = _peso_variable(_truetype(ui + fallback, _px(42, escala)), 'SemiBold')
+    medio = _truetype(ui + fallback, _px(24, escala))
     peq = _truetype(ui + fallback, _px(18, escala))
-    eki = _truetype(marca + fallback, _px(44, escala))
-    return titulo, nombre, medio, peq, eki
+    eki = _truetype(marca + fallback, _px(52, escala))
+    pill = _peso_variable(_truetype(ui + fallback, _px(36, escala)), 'Bold')
+    return titulo, nombre, medio, peq, eki, pill
 
 
 def _texto_centrado(draw, y, texto, font, fill, ancho=ANCHO):
@@ -159,33 +166,6 @@ def _ancho_texto(draw, texto, font):
     return bbox[2] - bbox[0]
 
 
-def _texto_superior_con_eki(draw, y, texto, font_eki, font_ui, fill, ancho=ANCHO):
-    """Covered By Your Grace solo en la palabra eki; el resto en Expletus."""
-    import re
-
-    texto = (texto or '').strip()
-    if not texto:
-        return
-    m = re.search(r'(?i)\beki\b', texto)
-    if not m:
-        _texto_centrado(draw, y, texto, font_ui, fill, ancho=ancho)
-        return
-    before, word, after = texto[:m.start()], texto[m.start():m.end()], texto[m.end():]
-    total = (
-        _ancho_texto(draw, before, font_ui)
-        + _ancho_texto(draw, word, font_eki)
-        + _ancho_texto(draw, after, font_ui)
-    )
-    x = (ancho - total) // 2
-    if before:
-        draw.text((x, y), before, font=font_ui, fill=fill)
-        x += _ancho_texto(draw, before, font_ui)
-    draw.text((x, y), word, font=font_eki, fill=fill)
-    x += _ancho_texto(draw, word, font_eki)
-    if after:
-        draw.text((x, y), after, font=font_ui, fill=fill)
-
-
 def _texto_marca(texto) -> str:
     """La marca es solo eki. El legado 'Soluciones Educativas' no se pinta."""
     raw = (texto or '').strip()
@@ -195,35 +175,136 @@ def _texto_marca(texto) -> str:
 
 
 def _margen_interno(escala):
-    """Hueco dentro del doble marco para QR y código."""
-    return _px(48, escala) + _px(14, escala) + _px(18, escala)
+    return _px(56, escala)
 
 
 def _caja_qr(ancho, alto, escala, lado=None):
-    lado = lado if lado is not None else _px(110, escala)
-    hueco = _margen_interno(escala)
+    lado = lado if lado is not None else _px(118, escala)
+    hueco = _margen_interno(escala) + _px(12, escala)
     return ancho - hueco - lado, alto - hueco - lado, lado
 
 
+def _repo_static(*parts):
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    return os.path.normpath(os.path.join(aqui, '..', '..', 'static', *parts))
+
+
+def _cargar_logo_eki(escala):
+    """Logo marca eki (PNG del repo). Fallback: None."""
+    candidatos = (
+        _repo_static('calculadora_margen', 'eki-logo.png'),
+        _repo_static('aprende', 'img', 'eki-logo.png'),
+    )
+    for path in candidatos:
+        try:
+            if not os.path.isfile(path):
+                continue
+            logo = Image.open(path).convert('RGBA')
+            alto_logo = _px(78, escala)
+            ratio = alto_logo / float(logo.height)
+            logo = logo.resize(
+                (max(1, int(logo.width * ratio)), alto_logo),
+                Image.Resampling.LANCZOS,
+            )
+            return logo
+        except Exception as exc:
+            logger.warning('Logo eki no cargó (%s): %s', path, exc)
+    return None
+
+
+def _cuarto(capa, cx, cy, radio, inicio, fin, color):
+    """Cuarto de círculo completo. Los radios rectos coinciden con el borde."""
+    overlay = Image.new('RGBA', capa.size, (0, 0, 0, 0))
+    ImageDraw.Draw(overlay).pieslice(
+        (cx - radio, cy - radio, cx + radio, cy + radio),
+        inicio, fin, fill=(*color, 255),
+    )
+    return Image.alpha_composite(capa, overlay)
+
+
+def _cintas_esquinas(capa, primario, secundario, escala):
+    """Dos cuartos sólidos de marca. No imitan el 3D del mock."""
+    del escala
+    w, h = capa.size
+    radio = int(h * 0.16)
+    interno = int(radio * 0.62)
+    capa = _cuarto(capa, 0, 0, radio, 0, 90, primario)
+    capa = _cuarto(capa, 0, 0, interno, 0, 90, secundario)
+    capa = _cuarto(capa, w, h, radio, 180, 270, primario)
+    capa = _cuarto(capa, w, h, interno, 180, 270, secundario)
+    return capa
+
+
+def _ondas_sutiles(capa, color, escala):
+    """Líneas onduladas tipo guilloché muy suaves."""
+    overlay = Image.new('RGBA', capa.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(overlay)
+    w, h = capa.size
+    paso = _px(28, escala)
+    amp = _px(10, escala)
+    for i, y0 in enumerate(range(_px(120, escala), h - _px(120, escala), paso)):
+        pts = []
+        for x in range(0, w, _px(8, escala)):
+            y = y0 + int(amp * math.sin((x / float(w)) * math.pi * 4 + i * 0.4))
+            pts.append((x, y))
+        if len(pts) > 1:
+            d.line(pts, fill=(*color, 28), width=max(1, _px(1, escala)))
+    return Image.alpha_composite(capa, overlay)
+
+
+def _rounded_rect(draw, xy, radius, fill=None, outline=None, width=1):
+    draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+
+
+def _fecha_con_calendario(draw, ancho, y, fecha_txt, font, fill, color, escala):
+    """Icono de calendario junto a la fecha. El grupo queda centrado."""
+    texto = f'Fecha de emisión: {fecha_txt}'
+    lado = _px(22, escala)
+    gap = _px(10, escala)
+    tw = _ancho_texto(draw, texto, font)
+    x = (ancho - (lado + gap + tw)) // 2
+    trazo = max(2, _px(2, escala))
+    _rounded_rect(draw, (x, y, x + lado, y + lado), radius=_px(4, escala), outline=color, width=trazo)
+    draw.rectangle((x, y, x + lado, y + _px(7, escala)), fill=color)
+    draw.line((x + _px(6, escala), y - _px(3, escala), x + _px(6, escala), y + _px(4, escala)), fill=color, width=trazo)
+    draw.line((x + lado - _px(6, escala), y - _px(3, escala), x + lado - _px(6, escala), y + _px(4, escala)), fill=color, width=trazo)
+    draw.text((x + lado + gap, y), texto, font=font, fill=fill)
+
+
 def _pintar_preset_eki(img, color_primario, color_secundario, escala):
-    """Marco eki cuando no hay Canva: papel, bandas y doble recuadro."""
-    draw = ImageDraw.Draw(img)
+    """Look cercano al mock de marca: papel, blobs, marco redondeado, ondas."""
     ancho, alto = img.size
-    banda = _px(22, escala)
-    draw.rectangle((0, 0, ancho, banda), fill=color_primario)
-    draw.rectangle((0, alto - banda, ancho, alto), fill=color_primario)
-    margin = _px(48, escala)
-    draw.rectangle(
-        (margin, margin, ancho - margin, alto - margin),
-        outline=color_primario,
-        width=_px(4, escala),
+    base = Image.new('RGBA', (ancho, alto), (*PAPEL_EKI, 255))
+    primario = color_primario or MORADO_TINTA
+    secundario = color_secundario or MORADO
+
+    base = _cintas_esquinas(base, primario, secundario, escala)
+    base = _ondas_sutiles(base, primario, escala)
+
+    draw = ImageDraw.Draw(base)
+    m = _px(36, escala)
+    _rounded_rect(
+        draw,
+        (m, m, ancho - m, alto - m),
+        radius=_px(28, escala),
+        outline=(*primario, 220),
+        width=_px(3, escala),
     )
-    inner = margin + _px(14, escala)
-    draw.rectangle(
-        (inner, inner, ancho - inner, alto - inner),
-        outline=color_secundario,
-        width=_px(2, escala),
-    )
+    rgb = Image.new('RGB', (ancho, alto), PAPEL_EKI)
+    rgb.paste(base, mask=base.split()[3] if base.mode == 'RGBA' else None)
+    # Copiar sobre img in-place
+    img.paste(rgb)
+
+
+def _partir_titulo(texto: str) -> tuple[str, str]:
+    raw = (texto or 'CERTIFICADO DE FINALIZACIÓN').strip()
+    up = raw.upper()
+    if 'FINALIZACIÓN' in up or 'FINALIZACION' in up:
+        return 'CERTIFICADO DE', 'FINALIZACIÓN'
+    partes = raw.split()
+    if len(partes) >= 2:
+        return ' '.join(partes[:-1]).upper(), partes[-1].upper()
+    return raw.upper(), ''
 
 
 def render_certificado_diseno_eki(
@@ -231,48 +312,141 @@ def render_certificado_diseno_eki(
     plantilla=None,
     nombre_estudiante=NOMBRE_DEMO,
     curso_nombre=CURSO_DEMO,
-    calificacion_final=95,
+    calificacion_final=95,  # se conserva en firma; ya no se pinta
     codigo_verificacion='DEMO-0001',
     url_verificacion='https://certificados.eki.technology/verificar-certificado/DEMO/',
     fecha_emision=None,
 ) -> BytesIO:
-    """Renderiza certificado PNG con colores/textos/fondo del diseño eki."""
+    """Renderiza certificado PNG con look de marca eki (sin calificación)."""
     from django.utils import timezone
 
-    color_primario = _hex_a_rgb(getattr(plantilla, 'color_primario', None), (44, 62, 80))
-    color_secundario = _hex_a_rgb(getattr(plantilla, 'color_secundario', None), (52, 152, 219))
-    texto_superior = _texto_marca(getattr(plantilla, 'texto_superior', None))
-    texto_certificado = (getattr(plantilla, 'texto_certificado', None) or 'CERTIFICADO DE FINALIZACIÓN').strip()
+    del calificacion_final  # no se muestra en el diploma
+
+    color_primario = _hex_a_rgb(getattr(plantilla, 'color_primario', None), MORADO_TINTA)
+    color_secundario = _hex_a_rgb(getattr(plantilla, 'color_secundario', None), MORADO)
+    texto_certificado = (
+        getattr(plantilla, 'texto_certificado', None) or 'CERTIFICADO DE FINALIZACIÓN'
+    ).strip()
 
     fondo = _abrir_imagen_campo(getattr(plantilla, 'imagen_fondo', None) if plantilla else None)
     img, ancho, alto, escala = _preparar_lienzo(fondo)
     if img is None:
         img = Image.new('RGB', (ancho, alto), PAPEL_EKI)
         _pintar_preset_eki(img, color_primario, color_secundario, escala)
+    else:
+        # Con fondo Canva, no forzamos el preset; solo tipografía eki
+        pass
 
     draw = ImageDraw.Draw(img)
-    font_titulo, font_nombre, font_medio, font_peq, font_eki = _cargar_fuentes(escala)
+    font_titulo, font_nombre, font_medio, font_peq, font_eki, font_pill = _cargar_fuentes(escala)
 
+    # Logo marca (plantilla o asset eki)
     logo = _abrir_imagen_campo(getattr(plantilla, 'logo_institucion', None) if plantilla else None)
-    if logo:
-        logo.thumbnail((_px(140, escala), _px(140, escala)), Image.Resampling.LANCZOS)
-        img.paste(logo, ((ancho - logo.width) // 2, _px(42, escala)))
+    if logo is None:
+        logo_rgba = _cargar_logo_eki(escala)
+        if logo_rgba is not None:
+            x_logo = (ancho - logo_rgba.width) // 2
+            img.paste(logo_rgba, (x_logo, _px(58, escala)), logo_rgba)
+        else:
+            _texto_centrado(draw, _px(70, escala), 'eki', font_eki, color_primario, ancho=ancho)
+    else:
+        if logo.mode != 'RGBA':
+            logo = logo.convert('RGBA')
+        logo.thumbnail((_px(200, escala), _px(90, escala)), Image.Resampling.LANCZOS)
+        img.paste(logo, ((ancho - logo.width) // 2, _px(58, escala)), logo)
 
-    _texto_superior_con_eki(
-        draw, _px(170, escala), texto_superior, font_eki, font_medio, color_primario, ancho=ancho,
-    )
-    _texto_centrado(draw, _px(230, escala), texto_certificado, font_titulo, color_secundario, ancho=ancho)
+    linea1, linea2 = _partir_titulo(texto_certificado)
+    _texto_centrado(draw, _px(170, escala), linea1, font_titulo, color_primario, ancho=ancho)
+
+    if linea2:
+        pill_txt = linea2
+        tw = _ancho_texto(draw, pill_txt, font_pill)
+        pad_x, pad_y = _px(36, escala), _px(14, escala)
+        pill_w = tw + pad_x * 2
+        pill_h = _px(56, escala)
+        px0 = (ancho - pill_w) // 2
+        py0 = _px(220, escala)
+        _rounded_rect(
+            draw,
+            (px0, py0, px0 + pill_w, py0 + pill_h),
+            radius=_px(28, escala),
+            fill=color_secundario,
+        )
+        # brillos laterales
+        draw.line(
+            (px0 - _px(40, escala), py0 + pill_h // 2, px0 - _px(8, escala), py0 + pill_h // 2),
+            fill=color_secundario,
+            width=_px(2, escala),
+        )
+        draw.line(
+            (px0 + pill_w + _px(8, escala), py0 + pill_h // 2, px0 + pill_w + _px(40, escala), py0 + pill_h // 2),
+            fill=color_secundario,
+            width=_px(2, escala),
+        )
+        bbox = draw.textbbox((0, 0), pill_txt, font=font_pill)
+        th = bbox[3] - bbox[1]
+        draw.text(
+            (px0 + pad_x, py0 + (pill_h - th) // 2 - _px(2, escala)),
+            pill_txt,
+            font=font_pill,
+            fill=(255, 255, 255),
+        )
+
+    # Sello check
+    sello_r = _px(28, escala)
+    sx, sy = ancho // 2, _px(320, escala)
+    draw.ellipse((sx - sello_r, sy - sello_r, sx + sello_r, sy + sello_r), fill=color_secundario)
+    # check simple
     draw.line(
-        (_px(220, escala), _px(290, escala), ancho - _px(220, escala), _px(290, escala)),
-        fill=color_secundario,
-        width=_px(3, escala),
+        (sx - _px(10, escala), sy, sx - _px(2, escala), sy + _px(10, escala)),
+        fill=(255, 255, 255),
+        width=_px(4, escala),
+    )
+    draw.line(
+        (sx - _px(2, escala), sy + _px(10, escala), sx + _px(14, escala), sy - _px(10, escala)),
+        fill=(255, 255, 255),
+        width=_px(4, escala),
+    )
+    draw.line(( _px(220, escala), sy, sx - sello_r - _px(8, escala), sy), fill=MORADO_CLARO, width=_px(2, escala))
+    draw.line((sx + sello_r + _px(8, escala), sy, ancho - _px(220, escala), sy), fill=MORADO_CLARO, width=_px(2, escala))
+
+    _texto_centrado(
+        draw, _px(370, escala), 'Se otorga el presente certificado a', font_peq, (90, 80, 100), ancho=ancho,
     )
 
-    _texto_centrado(draw, _px(330, escala), 'Se otorga el presente certificado a', font_peq, (30, 30, 30), ancho=ancho)
-    _texto_centrado(draw, _px(380, escala), (nombre_estudiante or NOMBRE_DEMO).upper(), font_nombre, color_primario, ancho=ancho)
-    _texto_centrado(draw, _px(470, escala), 'Por haber completado satisfactoriamente el curso', font_peq, (30, 30, 30), ancho=ancho)
-    _texto_centrado(draw, _px(520, escala), curso_nombre or CURSO_DEMO, font_medio, color_secundario, ancho=ancho)
-    _texto_centrado(draw, _px(590, escala), f'Calificación final: {calificacion_final}%', font_peq, (30, 30, 30), ancho=ancho)
+    nombre = (nombre_estudiante or NOMBRE_DEMO).upper()
+    nw = _ancho_texto(draw, nombre, font_nombre)
+    box_pad_x, box_pad_y = _px(40, escala), _px(16, escala)
+    box_w = nw + box_pad_x * 2
+    box_h = _px(70, escala)
+    bx0 = (ancho - box_w) // 2
+    by0 = _px(410, escala)
+    _rounded_rect(
+        draw,
+        (bx0, by0, bx0 + box_w, by0 + box_h),
+        radius=_px(18, escala),
+        fill=MORADO_CLARO,
+    )
+    bbox = draw.textbbox((0, 0), nombre, font=font_nombre)
+    nh = bbox[3] - bbox[1]
+    draw.text(
+        (bx0 + box_pad_x, by0 + (box_h - nh) // 2 - _px(2, escala)),
+        nombre,
+        font=font_nombre,
+        fill=color_primario,
+    )
+
+    _texto_centrado(
+        draw,
+        _px(510, escala),
+        'Por haber completado satisfactoriamente el curso',
+        font_peq,
+        (90, 80, 100),
+        ancho=ancho,
+    )
+    _texto_centrado(
+        draw, _px(555, escala), curso_nombre or CURSO_DEMO, font_medio, color_secundario, ancho=ancho,
+    )
 
     if not fecha_emision:
         fecha_emision = timezone.localdate()
@@ -280,16 +454,38 @@ def render_certificado_diseno_eki(
         fecha_txt = fecha_emision.strftime('%d/%m/%Y')
     else:
         fecha_txt = str(fecha_emision)
-    _texto_centrado(draw, _px(640, escala), f'Fecha de emisión: {fecha_txt}', font_peq, (80, 80, 80), ancho=ancho)
+    _fecha_con_calendario(
+        draw, ancho, _px(640, escala), fecha_txt, font_peq, (120, 110, 130), color_secundario, escala,
+    )
 
-    hueco = _margen_interno(escala)
+    # Código en pastilla (izq)
     codigo = f'Código: {codigo_verificacion}'
-    draw.text((hueco, alto - hueco - _px(22, escala)), codigo, font=font_peq, fill=(120, 120, 120))
+    cw = _ancho_texto(draw, codigo, font_peq)
+    ch = _px(36, escala)
+    cx0 = _margen_interno(escala)
+    cy0 = alto - _margen_interno(escala) - ch
+    _rounded_rect(
+        draw,
+        (cx0, cy0, cx0 + cw + _px(28, escala), cy0 + ch),
+        radius=_px(18, escala),
+        fill=MORADO_CLARO,
+    )
+    draw.text((cx0 + _px(14, escala), cy0 + _px(8, escala)), codigo, font=font_peq, fill=color_primario)
 
+    # QR en tarjeta blanca (der), sin tapar margen
     try:
         from core.certificados.certificado_qr import png_qr_nitido
 
         x_qr, y_qr, qr_lado = _caja_qr(ancho, alto, escala)
+        pad = _px(10, escala)
+        _rounded_rect(
+            draw,
+            (int(x_qr) - pad, int(y_qr) - pad, int(x_qr) + qr_lado + pad, int(y_qr) + qr_lado + pad),
+            radius=_px(14, escala),
+            fill=(255, 255, 255),
+            outline=MORADO_CLARO,
+            width=_px(2, escala),
+        )
         qr_img = png_qr_nitido(
             url_verificacion or 'https://certificados.eki.technology/verificar/',
             qr_lado,

@@ -100,7 +100,9 @@ def test_render_diseno_eki_genera_png():
     from core.certificado_diseno_eki import A4_ALTO_DEFAULT, A4_ANCHO_DEFAULT, PAPEL_EKI
     assert img.size == (A4_ANCHO_DEFAULT, A4_ALTO_DEFAULT)
     assert img.getpixel((20, 20)) != (255, 255, 255)
-    assert img.getpixel((img.size[0] // 2, img.size[1] // 2)) == PAPEL_EKI
+    # Papel a un lado del bloque central (nombre/pill); no el centro.
+    px = img.getpixel((img.size[0] // 4, img.size[1] // 2))
+    assert all(abs(px[i] - PAPEL_EKI[i]) <= 12 for i in range(3))
 
 
 @pytest.mark.django_db
@@ -417,7 +419,7 @@ def test_reemplazo_archivo_actualiza_url_segunda_vez():
 
 
 def test_fuentes_diseno_eki_son_de_marca():
-    titulo, nombre, _medio, _peq, eki = _cargar_fuentes(1.0)
+    titulo, nombre, _medio, _peq, eki, _pill = _cargar_fuentes(1.0)
     assert 'Expletus' in titulo.getname()[0]
     assert 'Expletus' in nombre.getname()[0]
     assert eki.getname()[0] == 'Covered By Your Grace'

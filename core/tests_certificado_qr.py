@@ -49,7 +49,9 @@ def test_qr_diseno_eki_dentro_del_marco():
     w, h = img.size
     escala = h / float(ALTO)
     x, y, lado = _caja_qr(w, h, escala)
-    inner = _px(48, escala) + _px(14, escala)
+    from core.certificado_diseno_eki import _margen_interno
+
+    inner = _margen_interno(escala)
     assert x >= inner
     assert y >= inner
     assert x + lado <= w - inner
