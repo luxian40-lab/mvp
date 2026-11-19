@@ -160,9 +160,16 @@ def cerrar_curso_si_tramo_final(estudiante: Estudiante, curso: Curso) -> str:
         ModuloCompletado.objects.get_or_create(progreso=progreso, modulo=modulo)
 
     progreso.modulo_actual = ultimo
-    progreso.completado = True
-    progreso.fecha_completado = timezone.now()
-    progreso.save(update_fields=['modulo_actual', 'completado', 'fecha_completado'])
+    from core.conversacion.progreso_completado import (
+        ORIGEN_PRESENCIAL,
+        marcar_progreso_curso_completado,
+    )
+
+    marcar_progreso_curso_completado(
+        progreso,
+        origen=ORIGEN_PRESENCIAL,
+        extra_update_fields=['modulo_actual'],
+    )
     return 'cerrado'
 
 

@@ -481,8 +481,10 @@ Cuando termines, escribe: *"listo"*"""
             _persist_curso_foco()
             return respuesta
         else:
-            progreso.completado = True
-            progreso.save()
+            from core.conversacion.progreso_completado import marcar_progreso_curso_completado
+
+            # Sin fecha: mismo signal que hoy (diploma no nace solo por este camino).
+            marcar_progreso_curso_completado(progreso, con_fecha=False)
 
             ctx = dict(estudiante.contexto_temporal or {})
             ctx.pop('curso_activo_id', None)

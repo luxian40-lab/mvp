@@ -6,7 +6,7 @@ from django.contrib import messages
 from .enviar_plantillas import enviar_campana_con_plantilla
 
 
-@admin.action(description='� Ejecutar campaña (envío directo)')
+@admin.action(description='Ejecutar campaña (envío directo)')
 def enviar_campana_action(modeladmin, request, queryset):
     """
     Acción del admin para enviar campañas seleccionadas usando envío directo.
@@ -63,13 +63,5 @@ def enviar_campana_action(modeladmin, request, queryset):
         modeladmin.message_user(
             request,
             f"❌ Error inesperado: {str(e)}",
-            level=messages.ERROR
-        )
-            level=messages.SUCCESS
-        )
-    else:
-        modeladmin.message_user(
-            request,
-            f"❌ Error al enviar campaña: {resultado.get('error', 'Error desconocido')}",
             level=messages.ERROR
         )
