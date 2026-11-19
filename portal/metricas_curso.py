@@ -1,7 +1,9 @@
 """Métricas por curso del portal: inicio, culminación y avance.
 
 Inscrito = fila de ProgresoEstudiante (aceptó el curso).
-Inició = recibió al menos un paso, cerró un módulo o terminó el curso.
+Inició = tiene fecha_ultimo_avance, cerró un módulo o terminó el curso.
+No basta con paso_actual_modulo > 1: el primer envío mueve el puntero
+sin que la persona haya avanzado.
 Terminó = progreso completado.
 Avance = módulos cerrados / módulos publicados; un curso terminado cuenta 100.
 Los totales se cuentan por inscripción (persona y curso), así suman lo mismo que la tabla.
@@ -12,7 +14,7 @@ from django.db.models import Count, Q
 
 from core.lineas.modelo import LineaWhatsapp
 from core.modulo_publicacion import modulos_publicados_wa_qs
-from core.models import Curso, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
+from core.models import Curso, Estudiante, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
 
 
 def _pct(num: int, den: int):
@@ -85,7 +87,13 @@ def metricas_cursos(org) -> dict:
         ProgresoEstudiante.objects.filter(
             estudiante__cliente=org,
             estudiante__activo=True,
-        ).values_list('id', 'estudiante_id', 'curso_id', 'completado', 'paso_actual_modulo')
+        ).values_list(
+            'id',
+            'estudiante_id',
+            'curso_id',
+            'completado',
+            'fecha_ultimo_avance',
+        )
     )
     ids_curso = {curso_id for _, _, curso_id, _, _ in progresos}
     cursos = list(
@@ -106,11 +114,14 @@ def metricas_cursos(org) -> dict:
 
     acumulado: dict[int, list[int]] = {curso.id: [0, 0, 0, 0] for curso in cursos}
     cursos_iniciados: dict[int, set[int]] = {}
-    for progreso_id, estudiante_id, curso_id, completado, paso in progresos:
+    terminaron_persona: set[int] = set()
+    for progreso_id, estudiante_id, curso_id, completado, fecha_avance in progresos:
         modulos = cerrados.get(progreso_id, set())
-        inicio = completado or (paso or 1) > 1 or bool(modulos)
+        inicio = completado or bool(modulos) or fecha_avance is not None
         if inicio:
             cursos_iniciados.setdefault(estudiante_id, set()).add(curso_id)
+        if completado:
+            terminaron_persona.add(estudiante_id)
         total_modulos = len(publicados[curso_id])
         if completado:
             avance = 100
@@ -132,7 +143,17 @@ def metricas_cursos(org) -> dict:
         datos['general'] = curso.cliente_id is None
         por_curso.append(datos)
 
+    # Totales por inscripción (tabla / culminación sobre iniciadores).
     total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(4)))
+    # Cajas de Uso: inicio y «culminación sobre aceptantes» van sobre registrados (personas).
+    registrados = Estudiante.objects.filter(cliente=org, activo=True).count()
+    personas_iniciaron = len(cursos_iniciados)
+    personas_terminaron = len(terminaron_persona)
+    total['registrados'] = registrados
+    total['iniciaron_reg'] = personas_iniciaron
+    total['terminaron_reg'] = personas_terminaron
+    total['inicio_pct'] = _pct(personas_iniciaron, registrados)
+    total['culminacion_inscritos_pct'] = _pct(personas_terminaron, registrados)
     base_segundo = len(cursos_iniciados)
     con_segundo = sum(1 for cursos_de_persona in cursos_iniciados.values() if len(cursos_de_persona) >= 2)
 

@@ -356,6 +356,109 @@ def _texto_certificado_reto(estudiante, progreso, msg_eval) -> str:
             if cert_url:
                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
             else:
+                logger.info(
+                    "⚠️ Post-reto final sin pregunta abierta final | estudiante_id=%s | curso_id=%s | ctx_pregunta_id=%s",
+                    estudiante.id,
+                    progreso.curso.id,
+                    pregunta_abierta_ctx_id,
+                )
+                pregunta_nota = pregunta_si_falta(estudiante, progreso.curso, progreso)
+                texto_respuesta = (
+                    f'{msg_eval}\n\n{pregunta_nota}'
+                    if pregunta_nota
+                    else _texto_certificado_reto(estudiante, progreso, msg_eval)
+                )
+        else:
+            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+    except Exception as e:
+        logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
+        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+    radar_msg = _radar_msg_si_aplica(estudiante)
+    msg_final = (
+        f"{msg_eval}\n\n"
+        f"🎓 *¡FELICITACIONES!*\n\n"
+        f"Ha completado el curso: *{progreso.curso.nombre}*"
+    )
+    partes_finales = [msg_final]
+    if radar_msg:
+        partes_finales.append(radar_msg)
+    partes_finales.append(msg_cert_img)
+    return "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+
+                _blk_pub_reto = mensaje_bloqueo_sin_siguiente_publicado(
+                    estudiante, progreso, modulo_cerrado
+                )
+                _blk_tras_reto = mensaje_bloqueo_avance_siguiente_modulo(
+                    estudiante, progreso, modulo_cerrado
+                )
+                if _blk_pub_reto:
+                    estudiante.contexto_temporal = _base_ctx
+                    estudiante.save(
+                        update_fields=['contexto_temporal', 'estado_onboarding']
+                    )
+                    texto_respuesta = f"{msg_eval}\n\n{_blk_pub_reto}"
+                elif _blk_tras_reto:
+                    estudiante.contexto_temporal = _base_ctx
+                    estudiante.save(
+                        update_fields=['contexto_temporal', 'estado_onboarding']
+                    )
+                    texto_respuesta = f"{msg_eval}\n\n{_blk_tras_reto}"
+                else:
+                    siguiente = siguiente_modulo_publicado_wa(
+                        progreso.curso, progreso.modulo_actual
+                    )
+                    if siguiente:
+                        progreso.modulo_actual = siguiente
+                        from core.module_steps import reset_progreso_pasos_modulo
+                        reset_progreso_pasos_modulo(progreso, save=False)
+                        progreso.save(
+                            update_fields=[
+                                'modulo_actual',
+                                'paso_actual_modulo',
+                                'esperando_respuesta_evaluacion_paso',
+                                'paso_evaluacion_paso_id',
+                            ]
+                        )
+                        _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
+                    estudiante.contexto_temporal = _base_ctx
+                    estudiante.save(
+                        update_fields=['contexto_temporal', 'estado_onboarding']
+                    )
+                    texto_respuesta = (
+                        f"{msg_eval}\n\n"
+                        "Pulse continuar, para seguir aprendiendo.\n\n"
+                        + _MARCADOR_CONTINUEMOS
+                    )
+            else:
+                estudiante.contexto_temporal = _base_ctx
+                estudiante.save(
+                    update_fields=['contexto_temporal', 'estado_onboarding']
+                )
+                texto_respuesta = (
+                    f"{msg_eval}\n\n"
+                    "Pulse continuar, para seguir aprendiendo.\n\n"
+                    + _MARCADOR_CONTINUEMOS
+                )
+        print(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}", flush=True)
+    return Respuesta(texto=texto_respuesta)
+
+
+def _texto_certificado_reto(estudiante, progreso, msg_eval) -> str:
+    """Cierre de la línea sin nota: el mismo texto de antes del certificado."""
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
+    estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+    msg_cert_img = ""
+    try:
+        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        cert = crear_certificado_automatico(estudiante, progreso.curso)
+        if cert and cert.archivo_imagen:
+            cert_url = obtener_url_certificado_twilio(cert)
+            if cert_url:
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+            else:
                 s3_key = str(cert.archivo_imagen.name)
                 cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
@@ -463,9 +566,3 @@ def _progreso_de(curso, estudiante, ctx):
             curso = curso
         progreso = _Vacio()
     return progreso
-
-
-def _reto_respuesta_no_califica(msg_body: str) -> bool:
-    from core.lineas.agricapital_experiencia import es_mensaje_no_calificable_reto
-
-    return es_mensaje_no_calificable_reto(msg_body)

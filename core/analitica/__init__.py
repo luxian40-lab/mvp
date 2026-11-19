@@ -1,1 +1,1 @@
-"""Dominio analitica. Fase H2: solo movimiento."""
+"""Métricas de analítica admin (sin UI de portal)."""

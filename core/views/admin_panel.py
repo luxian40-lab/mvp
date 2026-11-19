@@ -20,27 +20,7 @@ _NPS_VACIO = {
     'nps_promotores': 0,
     'nps_pasivos': 0,
     'nps_detractores': 0,
-    'nps_pct_promotores': 0,
-    'nps_pct_pasivos': 0,
-    'nps_pct_detractores': 0,
-    'nps_por_nota': [{'nota': i, 'n': 0} for i in range(1, 11)],
-    'nps_por_curso': [],
 }
-
-
-def _cursos_selector_analitica(*, cliente_id=None, para_embudo=False):
-    """Lista de cursos del filtro. Embudo excluye vitrina/carrusel general."""
-    from django.db.models import Q
-
-    qs = Curso.objects.filter(activo=True).select_related('cliente')
-    if cliente_id:
-        qs = qs.filter(cliente_id=cliente_id)
-    elif para_embudo:
-        # Sin org: no inundar con catálogo Formación (carrusel).
-        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
-    if para_embudo:
-        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
-    return qs.order_by('cliente__nombre', 'orden', 'nombre', 'id')
 
 
 def _charts_y_nps_pulso(
@@ -50,7 +30,6 @@ def _charts_y_nps_pulso(
     fecha_fin_dt,
     cliente_id,
     curso_id,
-    grupo_id,
     fecha_inicio_dt,
 ):
     """Series del Pulso + NPS (fuera del cuerpo para no engordar el contexto)."""
@@ -90,17 +69,12 @@ def _charts_y_nps_pulso(
     tipos_msg = whatsapp_q.values('tipo').annotate(total=Count('id')).order_by('-total')
     chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
     chart_tipos_values = [int(t['total']) for t in tipos_msg]
-    try:
-        nps_ctx = nps_campos_contexto(
-            cliente_id=cliente_id,
-            curso_id=curso_id,
-            grupo_id=grupo_id,
-            fecha_inicio=fecha_inicio_dt,
-            fecha_fin=fecha_fin_dt,
-        )
-    except Exception:
-        logger.exception('dashboard_nps_pulso')
-        nps_ctx = dict(_NPS_VACIO)
+    nps_ctx = nps_campos_contexto(
+        cliente_id=cliente_id,
+        curso_id=curso_id,
+        fecha_inicio=fecha_inicio_dt,
+        fecha_fin=fecha_fin_dt,
+    )
     return {
         'ubicaciones_municipio': ubicaciones_municipio,
         'chart_ubicaciones_labels': chart_ubicaciones_labels,
@@ -408,7 +382,6 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         fecha_fin_dt=fecha_fin_dt,
         cliente_id=cliente_id,
         curso_id=curso_id,
-        grupo_id=grupo_id,
         fecha_inicio_dt=fecha_inicio_dt,
     )
     ubicaciones_municipio = pulso_extra['ubicaciones_municipio']
@@ -641,6 +614,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'ranking_gamificacion_completo': ranking_gamificacion_completo,
         'total_prospectos': total_prospectos,
         'tasa_completacion': tasa_completacion,
+        **nps_ctx,
         'ubicaciones_municipio': ubicaciones_municipio,
         'progreso_por_curso': progreso_por_curso,
         **nps_ctx,
@@ -673,6 +647,31 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'embudo_learning': None,
     }
 
+    _adjuntar_learning_extra(
+        context,
+        learning_section=learning_section,
+        cliente_id=cliente_id,
+        curso_id=curso_id,
+        grupo_id=grupo_id,
+        fecha_inicio_dt=fecha_inicio_dt,
+        fecha_fin_dt=fecha_fin_dt,
+    )
+
+    return context, resumen_payload
+
+
+def _adjuntar_learning_extra(
+    context,
+    *,
+    learning_section,
+    cliente_id,
+    curso_id,
+    grupo_id,
+    fecha_inicio_dt,
+    fecha_fin_dt,
+):
+    """Embudo, videos y franja Programa (portal) sin engordar el constructor."""
+    context['embudo_learning'] = None
     if learning_section == 'embudo' and curso_id:
         from core.puentes import embudo_posicion_hoy_por_curso
 
@@ -693,7 +692,16 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             fecha_fin=fecha_fin_dt,
         )
 
-    return context, resumen_payload
+    context['programa_uso'] = None
+    context['programa_cursos'] = None
+    if learning_section == 'reportes' and cliente_id:
+        org = Cliente.objects.filter(pk=cliente_id).first()
+        if org:
+            from portal.curso_flujo_service import programa_reportes_admin
+
+            uso, cursos = programa_reportes_admin(org)
+            context['programa_uso'] = uso
+            context['programa_cursos'] = cursos
 
 
 # Vista unificada del dashboard admin

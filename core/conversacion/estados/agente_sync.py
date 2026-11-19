@@ -29,33 +29,6 @@ def resincronizar(contexto: Contexto) -> None:
                 certificado_emitido_para_curso,
                 reto_si_cert_emitido_activo,
             )
-            from core.conversacion.claves_contexto import contexto_limpio
-            from core.models import ProgresoEstudiante
-
-            _prog_id = _ctx_agente_sync.get('progreso_id')
-            _prog = ProgresoEstudiante.objects.filter(id=_prog_id).first() if _prog_id else None
-            if (
-                reto_si_cert_emitido_activo()
-                and _prog is not None
-                and certificado_emitido_para_curso(estudiante, _prog.curso) is not None
-            ):
-                estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-                estudiante.estado_onboarding = 'curso_finalizado'
-                estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-                logger.info(
-                    'Facilitadora: limbo reto+cert cerrado en sync estudiante_id=%s',
-                    estudiante.id,
-                )
-            else:
-                _ob_prev = estudiante.estado_onboarding
-                estudiante.estado_onboarding = 'esperando_respuesta_reto'
-                estudiante.save(update_fields=['estado_onboarding'])
-                logger.warning(
-                    "🔄 Facilitadora: estado resincronizado %s → esperando_respuesta_reto "
-                    "(ctx=reto_facilitador) estudiante_id=%s",
-                    _ob_prev,
-                    estudiante.id,
-                )
         elif _tipo_ctx == 'nota_cierre' and estudiante.estado_onboarding != 'esperando_nota_cierre':
             estudiante.estado_onboarding = 'esperando_nota_cierre'
             estudiante.save(update_fields=['estado_onboarding'])

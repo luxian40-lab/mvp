@@ -213,77 +213,77 @@
     <section id="ana-uso" aria-labelledby="ana-uso-title" {% if seccion != 'uso' %}hidden{% endif %}>
         <h2 id="ana-uso-title" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Uso de plataforma</h2>
         <div class="ana-grid">
-            <article class="ana-box">
+            <article class="ana-box" title="Personas con ficha activa en la organización.">
                 <h3>Registrados</h3>
                 <p class="metric-number">{{ uso.registrados }}</p>
                 <p>Personas activas de la organización.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Personas con al menos un curso sin terminar (propio o general de eki).">
                 <h3>En curso</h3>
                 <p class="metric-number">{{ uso.en_curso }}</p>
                 <p>Con un curso sin terminar: de la organización o general de eki.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Diplomas emitidos que no están anulados.">
                 <h3>Certificados</h3>
                 <p class="metric-number">{{ uso.certificados }}</p>
                 <p>Diplomas emitidos que no están anulados.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Registrados sin fecha de avance en ningún curso, sobre el total de registrados.">
                 <h3>Tasa de abandono</h3>
                 <p class="metric-number">{% if uso.abandono_pct is None %}Sin dato{% else %}{{ uso.abandono_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que no avanzaron ningún curso{% if uso.abandono_pct is not None %}: {{ uso.abandono_n }} de {{ uso.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Registrados que completaron al menos un curso, sobre el total de registrados.">
                 <h3>Tasa de finalización</h3>
                 <p class="metric-number">{% if uso.finalizacion_pct is None %}Sin dato{% else %}{{ uso.finalizacion_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que completaron al menos un curso{% if uso.finalizacion_pct is not None %}: {{ uso.finalizacion_n }} de {{ uso.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Personas que este mes calendario avanzaron un curso o escribieron por WhatsApp.">
                 <h3>Activos este mes</h3>
                 <p class="metric-number">{{ uso.activos_mes }}</p>
                 <p>Avanzaron un curso o escribieron en {{ uso.mes_label }}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Promedio de segundos entre un mensaje entrante y la respuesta enviada, últimos 30 días (pares de hasta 24 h).">
                 <h3>Tiempo de respuesta</h3>
                 <p class="metric-number">{% if uso.respuesta %}{{ uso.respuesta }}{% else %}Sin dato{% endif %}</p>
                 <p>Promedio entre un mensaje de la persona y la respuesta, últimos 30 días.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="De quienes ya tenían actividad hace más de 30 días, cuántos volvieron a avanzar o escribir en los últimos 30 días.">
                 <h3>Tasa de retorno</h3>
                 <p class="metric-number">{% if uso.retorno_pct is None %}Sin dato{% else %}{{ uso.retorno_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>De quienes ya tenían actividad hace más de un mes, cuántos siguieron en los últimos 30 días{% if uso.retorno_pct is not None %}: {{ uso.retorno_n }} de {{ uso.retorno_base }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Registrados que este mes avanzaron o escribieron, sobre el total de registrados.">
                 <h3>Uso del producto</h3>
                 <p class="metric-number">{% if uso.uso_pct is None %}Sin dato{% else %}{{ uso.uso_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que este mes avanzaron o escribieron{% if uso.uso_pct is not None %}: {{ uso.uso_n }} de {{ uso.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Personas registradas que iniciaron al menos un curso (fecha de avance, módulo cerrado o terminado). Recibir el primer mensaje no cuenta. Denominador: registrados.">
                 <h3>Tasa de inicio</h3>
                 <p class="metric-number">{% if cursos_total.inicio_pct is None %}Sin dato{% else %}{{ cursos_total.inicio_pct|stringformat:".1f" }}%{% endif %}</p>
-                <p>Inscripciones que comenzaron un módulo{% if cursos_total.inicio_pct is not None %}: {{ cursos_total.iniciaron }} de {{ cursos_total.inscritos }}{% endif %}.</p>
+                <p>Registrados que iniciaron al menos un curso{% if cursos_total.inicio_pct is not None %}: {{ cursos_total.iniciaron_reg }} de {{ cursos_total.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Terminaron el curso sobre quienes sí iniciaron (avance real, no solo el primer envío).">
                 <h3>Culminación sobre iniciadores</h3>
                 <p class="metric-number">{% if cursos_total.culminacion_iniciados_pct is None %}Sin dato{% else %}{{ cursos_total.culminacion_iniciados_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Terminaron el curso sobre los que lo iniciaron{% if cursos_total.culminacion_iniciados_pct is not None %}: {{ cursos_total.terminaron }} de {{ cursos_total.iniciaron }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Personas registradas que completaron al menos un curso, sobre el total de registrados. El nombre de la caja se mantiene.">
                 <h3>Culminación sobre aceptantes</h3>
                 <p class="metric-number">{% if cursos_total.culminacion_inscritos_pct is None %}Sin dato{% else %}{{ cursos_total.culminacion_inscritos_pct|stringformat:".1f" }}%{% endif %}</p>
-                <p>Terminaron el curso sobre los que lo aceptaron{% if cursos_total.culminacion_inscritos_pct is not None %}: {{ cursos_total.terminaron }} de {{ cursos_total.inscritos }}{% endif %}.</p>
+                <p>Registrados que completaron al menos un curso{% if cursos_total.culminacion_inscritos_pct is not None %}: {{ cursos_total.terminaron_reg }} de {{ cursos_total.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Promedio de módulos cerrados sobre módulos del curso; un curso terminado cuenta 100 %.">
                 <h3>Avance promedio</h3>
                 <p class="metric-number">{% if cursos_total.avance_pct is None %}Sin dato{% else %}{{ cursos_total.avance_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Módulos cerrados sobre módulos del curso, promedio de las {{ cursos_total.inscritos }} inscripciones.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Personas que iniciaron al menos dos cursos, sobre quienes iniciaron al menos uno.">
                 <h3>Inicio de segundo curso</h3>
                 <p class="metric-number">{% if cursos_segundo.pct is None %}Sin dato{% else %}{{ cursos_segundo.pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Personas que iniciaron al menos dos cursos, sobre quienes iniciaron al menos uno{% if cursos_segundo.pct is not None %}: {{ cursos_segundo.n }} de {{ cursos_segundo.base }}{% endif %}.</p>
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Curso con más personas que iniciaron de verdad (fecha de avance, módulo cerrado o terminado).">
                 <h3>Curso con más inicios</h3>
                 {% if cursos_destacados.mas_inicios %}
                 <p class="ana-box__dato">{{ cursos_destacados.mas_inicios.nombre }}</p>
@@ -293,7 +293,7 @@
                 <p>Nadie ha iniciado un curso.</p>
                 {% endif %}
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Porcentaje de promotores (nota 9–10) menos detractores (1–6) al cerrar el curso. El 7 y el 8 cuentan en la base.">
                 <h3>NPS</h3>
                 {% if cursos_nota.nps is None %}
                 <p class="metric-number">Sin dato</p>
@@ -303,7 +303,7 @@
                 <p>NPS de {{ cursos_nota.n }} nota{{ cursos_nota.n|pluralize }}: promotores (9–10) menos detractores (1–6). El 7 y el 8 cuentan en la base y no suman ni restan.</p>
                 {% endif %}
             </article>
-            <article class="ana-box">
+            <article class="ana-box" title="Curso con mayor % de culminación entre iniciadores. Solo entran cursos con al menos el mínimo de iniciadores.">
                 <h3>Curso con mayor culminación</h3>
                 {% if cursos_destacados.mayor_culminacion %}
                 <p class="ana-box__dato">{{ cursos_destacados.mayor_culminacion.nombre }}</p>

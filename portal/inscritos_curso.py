@@ -32,7 +32,8 @@ def curso_de_la_org(org, curso_id):
 def _estado(progreso, cerro_modulo: bool) -> str:
     if progreso.completado:
         return 'Terminó'
-    empezo = (progreso.paso_actual_modulo or 1) > 1 or cerro_modulo or bool(progreso.modulo_actual_id)
+    # Misma regla que metricas_curso: no usar solo paso > 1 (primer envío).
+    empezo = cerro_modulo or progreso.fecha_ultimo_avance is not None
     return 'Empezó' if empezo else 'Sin empezar'
 
 
