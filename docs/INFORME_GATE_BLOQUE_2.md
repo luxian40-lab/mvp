@@ -1,39 +1,30 @@
-# Gate bloque 2 — 2026-11-19
+# Gate bloque 2 — 2026-11-19 (actualizado)
 
 Rama: `slice/bloque-2-gate` (desde `origin/main` @ `18858ca1`).  
-Expediente + B4 quedó en rama aparte `feat/expediente-b4-residual` (no mezclado).
+Expediente: `feat/expediente-b4-residual` (aparte; ver `docs/INFORME_EXPEDIENTE_MERGE.md`).
 
 ## Criterios
 
 | Criterio | Resultado |
 | --- | --- |
-| W0 inventario colas | OK — `docs/INFORME_W0_COLAS.md`. `media_encode` aún puede tener dos consumidores con flag apagado (W1 dueño queda anotado, no se prende flag aquí). |
-| Cero `time.sleep` en `conversacion/` / `lineas/` / `avisos/` | OK — `entrega_delays` + `activo_puerta` (reenvío) sin sleep; DELAY/avisos encolan Celery. |
-| Redis sin caer a `127.0.0.1` en prod | OK en código — `EKI_REDIS_FAIL_CLOSED` default **true** en `settings_production`. **Antes de desplegar:** `REDIS_URL` externo obligatorio o el proceso no arranca. |
-| Claim/outbox en camino real | OK — `enviar_respuesta_turno` → `enviar_respuesta_linea` → Sender → `OutboxEnvio.ejecutar`. Flag `EKI_OUTBOX_ENVIO` sigue apagado por defecto (filas solo con flag on). |
-| Mitigación 5 (LLM si Redis cae) | OK — Nat/asesoría + tutor aula (`_get_client`), `pregunta_handler`, `completar_chat`; sin URL de broker no hay llamada de pago. |
+| W0 inventario colas | OK — `docs/INFORME_W0_COLAS.md` |
+| W1 dueños encode/RAG | OK decisión — `docs/INFORME_W1_DUENOS.md`; flags **off** hasta setenv |
+| Cero `time.sleep` en conversación/líneas/avisos | OK |
+| Redis sin `127.0.0.1` en prod | Código OK (fail-closed default on); **ops:** `docs/OPS_REDIS_URL_EB.md` |
+| Claim/outbox camino real | OK; `EKI_OUTBOX_ENVIO` off |
+| Mitigación 5 LLM | OK (Nat, aula, `completar_chat`) |
+| W2 medir colas | Código OK — `docs/INFORME_W2_COLAS.md`; falta tabla live de un día laborable |
 
-## Commits en esta rama
+## No hecho (ops / pedido explícito)
 
-1. `1da2407d` W0 inventario  
-2. `b508626f` W0 nota fail-closed  
-3. `5a7832e0` cero sleep / DELAY Celery  
-4. `16e24b84` turno Meta por Sender  
-5. `99e05156` Redis fail-closed + LLM sin URL local  
+- `REDIS_URL` + setenv W1 (`EKI_MEDIA_ENCODE_SOLO_AI`, `EKI_RAG_INDEX_SOLO_AI`)
+- Prender `EKI_OUTBOX_ENVIO` / campañas v2
+- Push / deploy
+- Merge expediente a `origin/main` (ff-only local cuando se pida publicar)
 
-## Verificación
+## Siguiente
 
-- `manage.py check` (settings_test): sin problemas  
-- Tests área (Postgres 5433): 93 OK (`entrega_delays`, `envio_meta_marcas`, `lineas_cortes` Sender, `presupuesto_llm`, `infra_redis`, `outbox_envio`, `aviso_modulo`)  
-- `makemigrations --check --dry-run`: deriva un `AlterField meta_plantilla_diploma` **preexistente** en main (no tocado por este bloque)
-
-## No hecho / no mezclado
-
-- Prender `EKI_OUTBOX_ENVIO` o `EKI_MEDIA_ENCODE_SOLO_AI` en producción  
-- ElastiCache / setear `REDIS_URL` en EB (manual)  
-- Expediente cortes 1–5 + B4 (`feat/expediente-b4-residual`)  
-- Deploy / push  
-
-## Esperar
-
-«continúa» para el siguiente corte (W1 dueño de `media_encode`, o merge/push de estas ramas).
+1. Ops: Redis externo + (opcional) setenv W1.  
+2. Rellenar tabla W2 en un día laborable.  
+3. Merge/push expediente y/o bloque 2 con pedido explícito.  
+4. W3 solo con W1+W2 verdes.
