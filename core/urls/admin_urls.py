@@ -61,8 +61,10 @@ from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
 from core.views_module_builder import module_builder_probar_persona, module_builder_view
 from core.views_curso_nuevo import curso_nuevo_wizard
 from core.views_course_engine_studio import course_engine_studio_view
+from core.views_novedades_eki import novedades_eki_view
 
 urlpatterns = [
+    path('admin/novedades-eki/', novedades_eki_view, name='novedades_eki'),
     path('admin/copiloto/', copiloto_ops_view, name='copiloto_ops'),
     path('admin/copiloto/ask/', copiloto_ask_view, name='copiloto_ask'),
     path('admin/panel/', admin_panel_view, name='admin_panel'),

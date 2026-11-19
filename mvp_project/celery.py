@@ -87,6 +87,12 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.vencer_outbox_enviando',
         'schedule': 60.0,
     },
+    # Pulso de clientes a correo. Vacío EKI_REPORTE_CLIENTES_EMAIL = no envía.
+    'reporte-clientes-semanal': {
+        'task': 'core.tasks.enviar_reporte_clientes_semanal',
+        'schedule': crontab(hour=8, minute=0, day_of_week='monday'),
+        'options': {'expires': 6 * 3600},
+    },
 }
 
 

@@ -591,6 +591,14 @@ def ejecutar_campana_async(self, campana_id):
 
 
 @shared_task
+def enviar_reporte_clientes_semanal():
+    """Lunes 08:00 America/Bogota. No envía si EKI_REPORTE_CLIENTES_EMAIL está vacío."""
+    from core.reporte_clientes import enviar_reporte_clientes
+
+    return enviar_reporte_clientes()
+
+
+@shared_task
 def generar_reporte_actividad():
     """
     Genera un reporte de actividad periódico.

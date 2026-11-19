@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Novedades eki{% endblock %}
+
+{% block content %}
+<style>
+  .eki-nov { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  .eki-nov h1 { font-size: 1.5rem; margin: 0 0 0.5rem; color: #5F3A6E; }
+  .eki-nov .meta { color: #6b5a74; font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .eki-nov .cuerpo { line-height: 1.55; font-size: 1rem; }
+  .eki-nov .cuerpo ul { padding-left: 1.25rem; }
+  .eki-nov .vacio { padding: 1.5rem; background: #f7f4f9; border: 1px solid #e6dcec; }
+  .eki-nov .editar { margin-top: 2rem; font-size: 0.9rem; }
+</style>
+<div class="eki-nov">
+  {% if boletin %}
+    <h1>{{ boletin.titulo }}</h1>
+    <p class="meta">
+      {% if boletin.periodo_inicio or boletin.periodo_fin %}
+        Periodo:
+        {% if boletin.periodo_inicio %}{{ boletin.periodo_inicio|date:"d/m/Y" }}{% else %}…{% endif %}
+        –
+        {% if boletin.periodo_fin %}{{ boletin.periodo_fin|date:"d/m/Y" }}{% else %}hoy{% endif %}
+        ·
+      {% endif %}
+      Actualizado {{ boletin.actualizado|date:"d/m/Y H:i" }}
+    </p>
+    <div class="cuerpo">{{ cuerpo }}</div>
+  {% else %}
+    <h1>Novedades eki</h1>
+    <div class="vacio">
+      Todavía no hay un boletín publicado. En el admin, crea un
+      <strong>Boletín eki</strong> y márcalo como publicado. Esta URL no cambia.
+    </div>
+  {% endif %}
+  <p class="editar">
+    <a href="/admin/core/boletin_eki/">Editar boletines</a>
+    · URL fija: <code>/admin/novedades-eki/</code>
+  </p>
+</div>
+{% endblock %}

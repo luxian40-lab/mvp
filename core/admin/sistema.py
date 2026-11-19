@@ -6,8 +6,33 @@ from unfold.decorators import action
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.agentes_v2_flag import admin_agentes_v2_activo
 from core.admin import agentes_v2_textos as textos
+from core.models import BoletinEki as _BoletinEki
 from core.models import ConfiguracionGlobal as _ConfiguracionGlobal
 from core.webhook_evento import WebhookFallido
+
+@admin.register(_BoletinEki)
+class BoletinEkiAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'publicado', 'periodo_inicio', 'periodo_fin', 'actualizado')
+    list_filter = ('publicado',)
+    search_fields = ('titulo', 'cuerpo')
+    readonly_fields = ('actualizado', 'creado')
+    fieldsets = (
+        (None, {
+            'fields': ('titulo', 'cuerpo', 'publicado'),
+            'description': (
+                'Solo un boletín publicado a la vez. La URL fija '
+                '<a href="/admin/novedades-eki/">/admin/novedades-eki/</a> '
+                'siempre muestra el publicado. Cada ~3 semanas edita o publica otro.'
+            ),
+        }),
+        ('Periodo', {
+            'fields': ('periodo_inicio', 'periodo_fin'),
+        }),
+        ('Auditoría', {
+            'fields': ('creado', 'actualizado'),
+        }),
+    )
+
 
 @admin.register(_ConfiguracionGlobal)
 class ConfiguracionGlobalAdmin(admin.ModelAdmin):

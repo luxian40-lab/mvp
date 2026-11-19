@@ -139,6 +139,7 @@ from core.models.pregunta_final import (  # noqa: F401
 
 from core.models.configuracion import (  # noqa: F401
     ConfiguracionGlobal,
+    BoletinEki,
 )
 
 
@@ -191,6 +192,7 @@ __all__ = [
     'ProspectoB2B', 'CampanaB2B',
     'AliadoEmpleabilidad', 'MisionEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
     'ConfiguracionGlobal',
+    'BoletinEki',
     'EventoIA',
     'ContextoAgroSession',
     'ConversacionRAGCandidata',

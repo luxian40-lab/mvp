@@ -508,6 +508,16 @@ EKI_SLACK_OPS_WEBHOOK = os.environ.get('EKI_SLACK_OPS_WEBHOOK', '').strip()
 EKI_MEDIA_FAIL_EMAIL = os.environ.get('EKI_MEDIA_FAIL_EMAIL', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Correos del pulso semanal de clientes (lunes 08:00 America/Bogota). Vacío = no envía.
+EKI_REPORTE_CLIENTES_EMAIL = [
+    parte.strip()
+    for parte in os.environ.get('EKI_REPORTE_CLIENTES_EMAIL', '').split(',')
+    if parte.strip() and parte.strip().count('@') == 1 and ' ' not in parte.strip()
+]
+# Base pública del admin (link del correo a /admin/novedades-eki/).
+EKI_PUBLIC_BASE_URL = os.environ.get(
+    'EKI_PUBLIC_BASE_URL', 'https://admin.eki.technology'
+).rstrip('/')
 
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
@@ -1289,6 +1299,7 @@ CELERY_TASK_ROUTES = {
     'core.avisos.tareas.aviso_modulo_disponible': {'queue': 'masivo'},
     'core.avisos.tareas.recordatorio_curso': {'queue': 'masivo'},
     'core.tasks.generar_reporte_actividad': {'queue': 'masivo'},
+    'core.tasks.enviar_reporte_clientes_semanal': {'queue': 'masivo'},
     'core.tasks.indexar_biblioteca_nat_por_id': {'queue': 'rag_index'},
     'core.tasks.indexar_documento_rag_por_id': {'queue': 'rag_index'},
     'core.tasks.procesar_zip_rag_comercial': {'queue': 'rag_index'},

@@ -3,7 +3,7 @@
 Movidos tal cual desde core/models/__init__.py, que los reexporta:
 importar desde core.models sigue igual.
 """
-from django.db import models
+from django.db import models, transaction
 
 
 class ConfiguracionGlobal(models.Model):
@@ -62,3 +62,40 @@ class ConfiguracionGlobal(models.Model):
     def get_solo(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class BoletinEki(models.Model):
+    """Novedades de producto para Andrés. Una sola URL pública staff.
+
+    Como máximo un ``publicado=True``. Al publicar, el anterior queda archivo.
+    URL fija: ``/admin/novedades-eki/``.
+    """
+    titulo = models.CharField(max_length=200)
+    cuerpo = models.TextField(
+        help_text='HTML simple (párrafos, listas). Se muestra en /admin/novedades-eki/.',
+    )
+    periodo_inicio = models.DateField(null=True, blank=True)
+    periodo_fin = models.DateField(null=True, blank=True)
+    publicado = models.BooleanField(
+        default=False,
+        help_text='Solo uno puede estar publicado. Al marcar este, se despublican los demás.',
+    )
+    actualizado = models.DateTimeField(auto_now=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Boletín eki'
+        verbose_name_plural = 'Boletines eki'
+        ordering = ['-actualizado']
+
+    def __str__(self):
+        marca = 'publicado' if self.publicado else 'archivo'
+        return f'{self.titulo} ({marca})'
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if self.publicado:
+                type(self).objects.filter(publicado=True).exclude(pk=self.pk).update(
+                    publicado=False,
+                )
