@@ -1,6 +1,7 @@
 """Métricas por curso: inicio, culminación y avance, agrupadas por línea."""
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
 from core.lineas.modelo import LineaWhatsapp
 from core.models import (
@@ -33,7 +34,7 @@ class MetricasCursoTests(TestCase):
         self.m2 = Modulo.objects.create(curso=self.finca, numero=2, titulo='M2', descripcion='d')
         Modulo.objects.create(curso=self.general, numero=1, titulo='G1', descripcion='d')
 
-        # Finca: 4 inscritos. Uno sin empezar, uno en el primer paso, uno con un módulo, uno terminó.
+        # Finca: 4 inscritos. Sin empezar; solo puntero (no cuenta); módulo cerrado; terminó.
         self._prog('573001300001', self.finca)
         self._prog('573001300002', self.finca, paso_actual_modulo=3)
         con_modulo = self._prog('573001300003', self.finca)
@@ -64,10 +65,11 @@ class MetricasCursoTests(TestCase):
         filas = {f['nombre']: f for f in metricas_cursos(self.org)['por_curso']}
         finca = filas['Curso finca']
         self.assertEqual(finca['inscritos'], 4)
-        self.assertEqual(finca['iniciaron'], 3)
+        # Solo módulo cerrado + terminó: el de paso 3 sin avance no cuenta.
+        self.assertEqual(finca['iniciaron'], 2)
         self.assertEqual(finca['terminaron'], 1)
-        self.assertEqual(finca['inicio_pct'], 75.0)
-        self.assertEqual(finca['culminacion_iniciados_pct'], round(100 / 3, 1))
+        self.assertEqual(finca['inicio_pct'], 50.0)
+        self.assertEqual(finca['culminacion_iniciados_pct'], 50.0)
         self.assertEqual(finca['culminacion_inscritos_pct'], 25.0)
         # Avance: 0, 0, 50 y 100 → 37.5
         self.assertEqual(finca['avance_pct'], 37.5)
@@ -78,18 +80,57 @@ class MetricasCursoTests(TestCase):
         self.assertIsNone(filas['Sin gente']['inicio_pct'])
         self.assertIsNone(filas['Sin gente']['avance_pct'])
 
+    def test_paso_sin_avance_no_cuenta_como_inicio(self):
+        """Recibir el primer bloque (paso > 1) no es haber iniciado."""
+        solo_puntero = ProgresoEstudiante.objects.get(
+            estudiante__telefono='573001300002', curso=self.finca,
+        )
+        self.assertGreater(solo_puntero.paso_actual_modulo, 1)
+        self.assertIsNone(solo_puntero.fecha_ultimo_avance)
+        finca = {f['nombre']: f for f in metricas_cursos(self.org)['por_curso']}['Curso finca']
+        self.assertEqual(finca['iniciaron'], 2)
+
+        ProgresoEstudiante.objects.filter(pk=solo_puntero.pk).update(
+            fecha_ultimo_avance=timezone.now(),
+        )
+        finca2 = {f['nombre']: f for f in metricas_cursos(self.org)['por_curso']}['Curso finca']
+        self.assertEqual(finca2['iniciaron'], 3)
+        self.assertEqual(finca2['inicio_pct'], 75.0)
+
     def test_total_suma_inscripciones(self):
         total = metricas_cursos(self.org)['total']
         self.assertEqual(total['inscritos'], 5)
-        self.assertEqual(total['iniciaron'], 3)
+        self.assertEqual(total['iniciaron'], 2)
         self.assertEqual(total['terminaron'], 1)
-        self.assertEqual(total['inicio_pct'], 60.0)
+        self.assertEqual(total['registrados'], 5)
+        self.assertEqual(total['iniciaron_reg'], 2)
+        self.assertEqual(total['terminaron_reg'], 1)
+        self.assertEqual(total['inicio_pct'], 40.0)
         self.assertEqual(total['culminacion_inscritos_pct'], 20.0)
         self.assertEqual(total['avance_pct'], 30.0)
 
+    def test_inicio_y_culminacion_aceptantes_sobre_registrados(self):
+        """Las cajas de Uso dividen sobre personas registradas, no sobre inscripciones."""
+        Estudiante.objects.create(
+            nombre='SinCurso', cedula='300088', telefono='573001300088',
+            cliente=self.org, activo=True,
+        )
+        total = metricas_cursos(self.org)['total']
+        self.assertEqual(total['registrados'], 6)
+        self.assertEqual(total['inscritos'], 5)
+        self.assertEqual(total['iniciaron_reg'], 2)
+        self.assertEqual(total['terminaron_reg'], 1)
+        self.assertEqual(total['inicio_pct'], round(200 / 6, 1))
+        self.assertEqual(total['culminacion_inscritos_pct'], round(100 / 6, 1))
+        # Culminación sobre iniciadores sigue siendo por inscripción.
+        self.assertEqual(total['culminacion_iniciados_pct'], 50.0)
+
     def test_segundo_curso_y_cursos_destacados(self):
-        quien = Estudiante.objects.get(telefono='573001300002', cliente=self.org)
-        ProgresoEstudiante.objects.create(estudiante=quien, curso=self.general, paso_actual_modulo=2)
+        quien = Estudiante.objects.get(telefono='573001300003', cliente=self.org)
+        ahora = timezone.now()
+        ProgresoEstudiante.objects.create(
+            estudiante=quien, curso=self.general, fecha_ultimo_avance=ahora,
+        )
 
         amplio = Curso.objects.create(nombre='Amplio', cliente=self.org, activo=True)
         for i in range(5):
@@ -97,7 +138,9 @@ class MetricasCursoTests(TestCase):
                 nombre=f'Am{i}', cedula=f'81{i:04d}', telefono=f'5730081000{i}',
                 cliente=self.org, activo=True,
             )
-            progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=amplio, paso_actual_modulo=2)
+            progreso = ProgresoEstudiante.objects.create(
+                estudiante=est, curso=amplio, fecha_ultimo_avance=ahora,
+            )
             if i < 2:
                 self._completar(progreso)
         largo = Curso.objects.create(nombre='Largo', cliente=self.org, activo=True)
@@ -106,7 +149,9 @@ class MetricasCursoTests(TestCase):
                 nombre=f'La{i}', cedula=f'82{i:04d}', telefono=f'5730082000{i}',
                 cliente=self.org, activo=True,
             )
-            ProgresoEstudiante.objects.create(estudiante=est, curso=largo, paso_actual_modulo=2)
+            ProgresoEstudiante.objects.create(
+                estudiante=est, curso=largo, fecha_ultimo_avance=ahora,
+            )
         chico = Curso.objects.create(nombre='Chico', cliente=self.org, activo=True)
         uno = Estudiante.objects.create(
             nombre='Uno', cedula='830001', telefono='573008300001', cliente=self.org, activo=True,
@@ -115,7 +160,8 @@ class MetricasCursoTests(TestCase):
 
         data = metricas_cursos(self.org)
         self.assertEqual(data['segundo_curso']['n'], 1)
-        self.assertEqual(data['segundo_curso']['base'], 3 + 5 + 6 + 1)
+        # Base: 300003 (2 cursos) + 300004 (terminó) + 5 Amplio + 6 Largo + 1 Chico.
+        self.assertEqual(data['segundo_curso']['base'], 2 + 5 + 6 + 1)
         self.assertEqual(data['destacados']['mas_inicios']['nombre'], 'Largo')
         self.assertEqual(data['destacados']['mas_inicios']['iniciaron'], 6)
         self.assertEqual(data['destacados']['mayor_culminacion']['nombre'], 'Amplio')
@@ -171,12 +217,14 @@ class MetricasCursoTests(TestCase):
         ):
             self.assertIn(etiqueta, uso)
         self.assertIn('Curso finca', uso)
-        self.assertIn('0 de 3', uso)
+        self.assertIn('0 de 2', uso)
         self.assertIn('Ningún curso llega a 5 iniciadores.', uso)
         self.assertIn('Promotores 9–10, detractores 1–6.', uso)
         self.assertNotIn('Culminación de quienes iniciaron', uso)
         self.assertNotIn('Culminación de inscritos', uso)
-        self.assertIn('3 de 5', uso)
+        self.assertIn('2 de 5', uso)
+        self.assertIn('Registrados que iniciaron al menos un curso', uso)
+        self.assertIn('Registrados que completaron al menos un curso', uso)
         self.assertNotIn('Ver métricas por curso', http.get('/portal/analitica/?s=impacto').content.decode())
         r = http.get('/portal/analitica/cursos/')
         self.assertEqual(r.status_code, 200)
@@ -184,7 +232,8 @@ class MetricasCursoTests(TestCase):
         self.assertIn('Curso finca', html)
         self.assertIn(f'href="/portal/analitica/cursos/{self.finca.id}/"', html)
         self.assertNotIn('>E01<', html)
-        self.assertIn('75.0%', html)
+        self.assertIn('50.0%', html)
         self.assertIn('Culminación sobre iniciadores', html)
         self.assertIn('Culminación sobre aceptantes', html)
         self.assertIn('Sin línea asignada', html)
+        self.assertIn('fecha de avance', html)
