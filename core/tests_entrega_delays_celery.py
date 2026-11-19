@@ -117,6 +117,20 @@ class PausaLoteAvisosTests(SimpleTestCase):
             ):
                 self.fail('time.sleep sigue en entrega_delays')
 
+    def test_activo_puerta_sin_time_sleep(self):
+        import ast
+        from pathlib import Path
+
+        import core.conversacion.estados.activo_puerta as mod
+
+        tree = ast.parse(Path(mod.__file__).read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if isinstance(func, ast.Attribute) and func.attr == 'sleep':
+                self.fail('sleep sigue en activo_puerta')
+
 
 @override_settings(
     TWILIO_ACCOUNT_SID='ACdelay',

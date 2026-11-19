@@ -233,11 +233,17 @@ class PuertaListoTests(_Base):
         self._est()
         reenvio = '[MULTI_MSG]Aquí va el video[SEP][MEDIA:https://cdn.example.com/v.mp4]'
         with patch('core.media_recuperacion.intentar_reenvio_media_curso', return_value=reenvio), \
-                patch('core.utils.enviar_whatsapp_twilio') as enviar:
-            self._post('reenviame el video', 'SM_tr_pl_reenvio')
+                patch(
+                    'core.twilio_media.preparar_url_media_whatsapp',
+                    side_effect=lambda url, **kw: url,
+                ):
+            cli = self._post('reenviame el video', 'SM_tr_pl_reenvio')
         self.assertEqual(
-            [(c.args[1], c.kwargs.get('media_url')) for c in enviar.call_args_list],
-            [('Aquí va el video', None), (' ', 'https://cdn.example.com/v.mp4')],
+            [
+                (c.kwargs.get('body'), c.kwargs.get('media_url'))
+                for c in cli.messages.create.call_args_list
+            ],
+            [('Aquí va el video', None), (None, ['https://cdn.example.com/v.mp4'])],
         )
         self.assertTrue(WhatsappLog.objects.filter(telefono=TEL, agente_usado='REENVIAR_MEDIA').exists())
 

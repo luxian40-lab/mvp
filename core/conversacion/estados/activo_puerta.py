@@ -4,7 +4,6 @@ import logging
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.conversacion.multimsg import partir_sep
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import WhatsappLog
 
@@ -48,39 +47,20 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         if estado_chat == 'ACTIVO':
             try:
                 from core.media_recuperacion import intentar_reenvio_media_curso
-                from core.lineas.salida_turno import enviar_respuesta_turno
+                from core.lineas.salida_turno import entregar_en_turno
                 from core.twilio_media import mensaje_log_con_media
-                import re as _re_rx
 
                 _resp_reenvio = intentar_reenvio_media_curso(estudiante, msg_body)
                 if _resp_reenvio:
                     logger.info('🎥 Reenvío media curso | est=%s', estudiante.id)
-                    raw = _resp_reenvio
-                    if raw.startswith('[MULTI_MSG]'):
-                        partes = partir_sep(raw.replace('[MULTI_MSG]', '', 1))
-                    else:
-                        partes = [raw]
-                    for parte in partes:
-                        parte_texto = (parte or '').strip()
-                        if not parte_texto:
-                            continue
-                        delay_m = _re_rx.match(r'^\[DELAY:(\d+)\]$', parte_texto)
-                        if delay_m:
-                            import time as _t_delay
-                            _t_delay.sleep(int(delay_m.group(1)))
-                            continue
-                        parte_media = None
-                        mm = _re_rx.search(r'\[MEDIA:(.*?)\]', parte_texto)
-                        if mm:
-                            parte_media = (mm.group(1) or '').strip()
-                            parte_texto = parte_texto.replace(mm.group(0), '').strip()
-                        cuerpo = parte_texto or (' ' if parte_media else '')
-                        enviar_respuesta_turno(
-                            msg_from,
-                            cuerpo,
-                            media_url=parte_media,
-                            agente='REENVIAR_MEDIA',
-                        )
+                    # Sin time.sleep: DELAY va a Celery vía entrega_delays.
+                    entregar_en_turno(
+                        msg_from,
+                        telefono_limpio,
+                        _resp_reenvio,
+                        agente='REENVIAR_MEDIA',
+                        registro='segmentos',
+                    )
                     WhatsappLog.objects.create(
                         telefono=telefono_limpio,
                         mensaje=mensaje_log_con_media((_resp_reenvio or '')[:500], None),
@@ -90,7 +70,6 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                     return CORTAR
             except Exception:
                 logger.exception('Reenvío media curso omitido')
-
         from core.lineas.paso import responder_evaluacion_paso
         if responder_evaluacion_paso(
             estudiante, msg_body, msg_from, telefono_limpio, estado_chat,
