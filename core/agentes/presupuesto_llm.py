@@ -34,7 +34,13 @@ def _clave(dia: str, cliente_id=None) -> str:
 def _cliente():
     from redis import Redis
 
-    url = getattr(settings, 'CELERY_BROKER_URL', None) or 'redis://localhost:6379/0'
+    url = (
+        getattr(settings, 'CELERY_BROKER_URL', None)
+        or getattr(settings, 'REDIS_URL', None)
+        or ''
+    ).strip()
+    if not url:
+        raise ConnectionError('redis_sin_url')
     return Redis.from_url(url, socket_connect_timeout=0.4, socket_timeout=0.4)
 
 

@@ -386,8 +386,9 @@ if 'SENDGRID_API_KEY' in os.environ:
 # PERFORMANCE - Producción
 # ============================================
 
-# True: sin Redis externo el proceso no arranca. False: cae a 127.0.0.1 como hoy.
-EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip().lower() in (
+# True: sin Redis externo el proceso no arranca. Bloque 2: default on en producción.
+# Override EKI_REDIS_FAIL_CLOSED=false solo para rollback de emergencia.
+EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
 from django.core.exceptions import ImproperlyConfigured
@@ -489,8 +490,8 @@ def _flag_async(nombre: str) -> bool:
 NAT_WEBHOOK_CELERY_ASYNC = _flag_async('NAT_WEBHOOK_CELERY_ASYNC')
 WEBHOOK_CELERY_ASYNC = _flag_async('WEBHOOK_CELERY_ASYNC')
 SANDBOX_CELERY_ASYNC = _flag_async('SANDBOX_CELERY_ASYNC')
-# G3: off en prod hasta validar workers; prender con EKI_ENTREGA_DELAYS_CELERY=true.
-EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false').strip().lower() in (
+# Bloque 2: el runtime ya no duerme; el setting queda por compat (default on).
+EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
 # Bloque 4: versiones de cohorte. Default apagado = entrega como hoy.

@@ -128,6 +128,18 @@ class InfraRedisResolveTests(SimpleTestCase):
         self.assertEqual(mode, 'external')
         self.assertEqual(broker, url)
 
+    def test_produccion_default_fail_closed_sin_env(self):
+        """Bloque 2: sin EKI_REDIS_FAIL_CLOSED en el env, producción no cae a local."""
+        from pathlib import Path
+
+        import mvp_project
+
+        src = (
+            Path(mvp_project.__file__).resolve().parent / 'settings_production.py'
+        ).read_text(encoding='utf-8')
+        self.assertIn("os.environ.get('EKI_REDIS_FAIL_CLOSED', 'true')", src)
+        self.assertNotIn("os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false')", src)
+
     def test_is_external_helpers(self):
         self.assertFalse(is_external_redis_url(''))
         self.assertFalse(is_external_redis_url('redis://127.0.0.1:6379/0'))

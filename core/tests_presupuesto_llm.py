@@ -74,3 +74,11 @@ class PresupuestoLlmTests(TestCase):
             openai.assert_not_called()
         self.assertTrue(texto)
         self.assertEqual(detect_intent('listo'), 'continuar_leccion')
+
+    @override_settings(CELERY_BROKER_URL='', REDIS_URL='', OPENAI_API_KEY='sk-test')
+    def test_sin_url_redis_no_invoca_al_proveedor(self):
+        with patch('openai.OpenAI') as openai:
+            texto = responder_agente_sandbox('coach', 'estoy estancado como lider')
+        openai.assert_not_called()
+        self.assertTrue(texto)
+        self.assertTrue(debe_degradar())
