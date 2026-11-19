@@ -18,7 +18,7 @@ class EnvioMetaMarcasTests(TestCase):
             return {'success': True, 'mensaje_id': f'wamid.{len(self.enviados)}', 'response': ''}
 
         self.graph = patch('core.lineas.envio._post_graph', side_effect=graph).start()
-        self.pausas = patch('core.lineas.entrega_delays.time.sleep').start()
+        self.encolar = patch('core.lineas.entrega_delays.encolar_continuacion').start()
         self.addCleanup(patch.stopall)
 
     def _textos(self):
@@ -29,10 +29,11 @@ class EnvioMetaMarcasTests(TestCase):
         self.assertEqual(self._textos(), ['Lineal1\n\nMódulo 1', 'Responda *listo*'])
         self.assertFalse([t for t in self._textos() if '[MULTI_MSG]' in t or '[SEP]' in t])
 
-    def test_delay_pausa_sin_mandar_mensaje(self):
+    def test_delay_encola_y_no_manda_la_segunda(self):
         enviar_meta(TEL, '[MULTI_MSG]Uno[SEP][DELAY:3][SEP]Dos')
-        self.assertEqual(self._textos(), ['Uno', 'Dos'])
-        self.pausas.assert_any_call(3)
+        self.assertEqual(self._textos(), ['Uno'])
+        self.encolar.assert_called_once()
+        self.assertEqual(self.encolar.call_args.kwargs['countdown'], 3)
 
     def test_media_de_una_parte_va_como_adjunto(self):
         enviar_meta(TEL, '[MULTI_MSG]Intro[SEP][MEDIA:https://cdn.example.com/a.jpg] Mire la foto')

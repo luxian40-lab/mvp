@@ -398,7 +398,7 @@ def _enviar_partes_marcadas(
     """Texto armado por el curso: un mensaje por parte, en orden.
 
     Las plantillas de Twilio no existen en Meta y se omiten.
-    Con EKI_ENTREGA_DELAYS_CELERY, una pausa DELAY encola la continuación.
+    Una pausa DELAY encola la continuación (bloque 2: sin time.sleep).
     """
     from core.lineas.entrega_delays import recorrer_partes
 

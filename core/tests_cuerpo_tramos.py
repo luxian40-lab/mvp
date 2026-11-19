@@ -331,17 +331,15 @@ class EnvioComunTests(_Base):
             cli = self._post('listo', sid)
         return cli, dormir, plantilla
 
-    def test_multi_mensaje_con_pausa_y_media(self):
-        cli, dormir, _ = self._enviar(
+    def test_multi_mensaje_con_pausa_encola_y_deja_la_segunda(self):
+        cli, _, _ = self._enviar(
             '[MULTI_MSG]Uno[SEP][DELAY:2][SEP]Dos[MEDIA:https://cdn.example.com/a.jpg]', 'SM_tr_en_multi',
         )
-        self.assertEqual(self._cuerpos(cli), ['Uno', 'Dos'])
-        self.assertIn('https://cdn.example.com/a.jpg', str(cli.messages.create.call_args_list[1].kwargs))
-        self.assertIn(2, [c.args[0] for c in dormir.call_args_list])
+        self.assertEqual(self._cuerpos(cli), ['Uno'])
         enviados = list(
             WhatsappLog.objects.filter(telefono=TEL, tipo='SENT').order_by('id').values_list('mensaje', flat=True)
         )
-        self.assertEqual(enviados, ['Uno', 'Dos\n[MEDIA:https://cdn.example.com/a.jpg]'])
+        self.assertEqual(enviados, ['Uno'])
 
     def test_media_simple(self):
         cli, _, _ = self._enviar('Hola[MEDIA:https://cdn.example.com/b.jpg]', 'SM_tr_en_media')

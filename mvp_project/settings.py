@@ -406,8 +406,9 @@ EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip()
 EKI_MEDIA_ENCODE_SOLO_AI = os.environ.get('EKI_MEDIA_ENCODE_SOLO_AI', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
-# True: las pausas DELAY entre burbujas van a Celery countdown. False: el worker sigue durmiendo.
-EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'false').strip().lower() in (
+# Compat: bloque 2 ya no duerme el worker; las pausas siempre van a Celery countdown.
+# El setting se lee en pocos tests viejos; el runtime ignora el valor.
+EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
 # True: publicar crea versión inmutable y la cohorte queda fijada a la de inscripción.

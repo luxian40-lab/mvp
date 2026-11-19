@@ -1,16 +1,13 @@
-"""Pausas entre burbujas: sleep hoy, Celery countdown con flag.
+"""Pausas entre burbujas: Celery countdown, sin time.sleep en el worker.
 
-Flag off: igual que siempre (time.sleep). Flag on: no duerme el worker
-en una pausa DELAY; encola la continuación con countdown. El hueco de
-0.5 s entre partes sigue en sleep (tope liviano de ritmo).
+Bloque 2 / W1: cero sleep en conversación, líneas y avisos. Las pausas
+DELAY y el ritmo de avisos encolan con countdown. El hueco corto entre
+partes ya no bloquea el worker (sigue el siguiente mensaje al tiro).
 """
 from __future__ import annotations
 
 import math
-import time
 from typing import Callable, Literal
-
-from django.conf import settings
 
 from core.conversacion.marcas import PAUSA, Parte, partes
 
@@ -18,12 +15,13 @@ ResultadoRecorrido = Literal['done', 'deferred', 'fail']
 
 
 def delays_por_celery() -> bool:
-    return bool(getattr(settings, 'EKI_ENTREGA_DELAYS_CELERY', False))
+    """Siempre True: el worker no duerme. El setting queda por compat."""
+    return True
 
 
 def dormir(segundos: float) -> None:
-    if segundos and segundos > 0:
-        time.sleep(float(segundos))
+    """No-op. Bloque 2 prohíbe time.sleep en este camino."""
+    return
 
 
 def encolar_tarea(tarea: str, countdown: float) -> None:
@@ -34,17 +32,11 @@ def encolar_tarea(tarea: str, countdown: float) -> None:
 
 
 def pausar_lote(segundos: float, *, tarea: str) -> bool:
-    """Ritmo entre avisos. Flag off: duerme. Flag on: encola y el caller corta.
-
-    True = salir del bucle. El hueco de 0.5 s entre burbujas no pasa por aquí.
-    """
+    """Ritmo entre avisos: encola y el caller corta. True = salir del bucle."""
     if not segundos or segundos <= 0:
         return False
-    if delays_por_celery():
-        encolar_tarea(tarea, segundos)
-        return True
-    dormir(segundos)
-    return False
+    encolar_tarea(tarea, segundos)
+    return True
 
 
 def encolar_continuacion(
@@ -78,20 +70,17 @@ def recorrer_partes(
     while i < len(lista):
         parte = lista[i]
         if parte.tipo == PAUSA:
-            if delays_por_celery():
-                encolar_continuacion(
-                    canal=canal,
-                    countdown=parte.segundos,
-                    payload={**payload_continuacion, 'desde_idx': i + 1, 'texto': texto},
-                )
-                return 'deferred'
-            dormir(parte.segundos)
-            i += 1
-            continue
+            encolar_continuacion(
+                canal=canal,
+                countdown=parte.segundos,
+                payload={**payload_continuacion, 'desde_idx': i + 1, 'texto': texto},
+            )
+            return 'deferred'
         if not on_parte(parte):
             return 'fail'
         i += 1
         if i >= len(lista):
             break
-        dormir(hueco_entre_partes)
+        # hueco_entre_partes: no se duerme; el worker sigue.
+        _ = hueco_entre_partes
     return 'done'
