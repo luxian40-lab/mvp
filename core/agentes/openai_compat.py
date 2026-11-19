@@ -119,7 +119,12 @@ def completar_chat(client, modelo: str, messages: list, max_out: int, temperatur
 
     gpt-5 puede gastar el cupo pensando y devolver content vacío. Un fallo de red
     en el primer intento no debe saltarse el segundo.
+    Mitigación 5: sin presupuesto/Redis no hay llamada de pago.
     """
+    from core.presupuesto_llm import debe_degradar
+
+    if debe_degradar():
+        return ''
     intentos = (
         chat_completion_token_kwargs(modelo, max_out, temperature),
         chat_completion_token_kwargs(

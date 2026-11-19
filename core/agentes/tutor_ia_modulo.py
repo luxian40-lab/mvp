@@ -233,8 +233,15 @@ def _quitar_encabezado_acciona(texto: str) -> str:
 
 
 def _get_client():
-    """Obtiene cliente OpenAI de forma segura."""
+    """Obtiene cliente OpenAI de forma segura.
+
+    Mitigación 5: si Redis cae o el tope se agotó, no hay llamada de pago.
+    """
     try:
+        from core.presupuesto_llm import debe_degradar
+
+        if debe_degradar():
+            return None
         from openai import OpenAI
         api_key = getattr(settings, 'OPENAI_API_KEY', None)
         if not api_key:

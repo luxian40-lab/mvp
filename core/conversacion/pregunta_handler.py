@@ -107,7 +107,12 @@ def generar_pregunta_rag(modulo, estudiante):
         
         if not contenido_total.strip():
             return None
-        
+
+        from core.presupuesto_llm import debe_degradar
+
+        if debe_degradar():
+            return None
+
         # 4. Generar pregunta con OpenAI
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(

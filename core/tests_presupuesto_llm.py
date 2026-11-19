@@ -82,3 +82,23 @@ class PresupuestoLlmTests(TestCase):
         openai.assert_not_called()
         self.assertTrue(texto)
         self.assertTrue(debe_degradar())
+
+    @override_settings(OPENAI_API_KEY='sk-test')
+    def test_tutor_aula_no_abre_cliente_si_redis_caido(self):
+        from core.tutor_ia_modulo import _get_client
+
+        with patch('core.presupuesto_llm.debe_degradar', return_value=True):
+            with patch('openai.OpenAI') as openai:
+                self.assertIsNone(_get_client())
+            openai.assert_not_called()
+
+    @override_settings(OPENAI_API_KEY='sk-test')
+    def test_completar_chat_vacio_si_redis_caido(self):
+        from unittest.mock import MagicMock
+
+        from core.agentes.openai_compat import completar_chat
+
+        client = MagicMock()
+        with patch('core.presupuesto_llm.debe_degradar', return_value=True):
+            self.assertEqual(completar_chat(client, 'gpt-5-mini', [], 10), '')
+        client.chat.completions.create.assert_not_called()
