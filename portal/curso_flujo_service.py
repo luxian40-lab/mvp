@@ -208,3 +208,11 @@ def embudo_curso_portal(org, curso_id: int) -> dict | None:
         curso_id=curso.id,
         cliente_id=org.id if org else None,
     )
+
+
+def programa_reportes_admin(org) -> tuple[dict, dict]:
+    """Misma base que portal/analitica?s=uso para el admin (sin UI de NPS aquí)."""
+    from portal.metricas_curso import metricas_cursos
+    from portal.uso_plataforma import uso_plataforma
+
+    return uso_plataforma(org), metricas_cursos(org)
