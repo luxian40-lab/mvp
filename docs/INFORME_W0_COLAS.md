@@ -31,13 +31,11 @@ Fuente: `docs/PLAN_WORKERS_EKI.md` corte W0. Gate: tabla caja / proceso / colas 
 
 ## Tres cifras del camino a 5.000 (anotación W0)
 
-Sin pantalla Entregas ni acceso live a Redis en este corte:
-
-| Cifra | Estado en este informe |
+| Cifra | Estado |
 | --- | --- |
-| Tasa de duplicados | No medida en vivo. Claim `OutboxEnvio` existe detrás de `EKI_OUTBOX_ENVIO` (apagado). |
-| Latencia / edad de cola `conversacion` | No medida en vivo. |
-| `INCIERTO` abiertos | Modelo y beat `vencer_outbox_enviando` existen; conteo live pendiente de Entregas. |
+| Tasa de duplicados | Outbox live: `EKI_OUTBOX_ENVIO=true`; ver W2/outbox counts. |
+| Latencia / edad de cola `conversacion` | Muestra 1 en `docs/INFORME_W2_COLAS.md` (LLEN 0). |
+| `INCIERTO` abiertos | Live 2026-11-19: **0** (`ENVIADO` 88). |
 
 ## Hallazgo bloqueante para W1
 

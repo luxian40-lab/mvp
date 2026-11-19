@@ -1,6 +1,6 @@
 # Informe W1 — dueño de cada cola
 
-Fecha: 2026-11-19. Decisión de producto/ops. **Flags apagados**; el `eb setenv` queda para pedido explícito.
+Fecha: 2026-11-19. Decisión de producto/ops + lectura live EB.
 
 Fuente: `docs/PLAN_WORKERS_EKI.md` corte W1. Antecedente: `docs/INFORME_W0_COLAS.md`.
 
@@ -17,32 +17,37 @@ Fuente: `docs/PLAN_WORKERS_EKI.md` corte W1. Antecedente: `docs/INFORME_W0_COLAS
 | `llm` / `certificados` | `eki-prod-final` (`fast@`) hasta I1 operativo | — |
 | `audio` | sin consumidor (deuda P3) | — |
 
-Meta sigue siendo el canal de producto. Twilio queda como **hook** (código de *aula* y restos históricos). No se abre segundo worker de conversación.
+Meta sigue siendo el canal de producto. Twilio queda como hook (código de *aula*). No se abre segundo worker de conversación.
 
-## Cómo se aplica (cuando digas setenv)
+## Estado live (2026-11-19)
 
-Sin tocar `CELERY_QUEUES` fijo en EB:
+| Flag / hecho | Estado |
+| --- | --- |
+| `EKI_MEDIA_ENCODE_SOLO_AI=true` en `eki-prod-final` | **Activo** |
+| `EKI_RAG_INDEX_SOLO_AI` | **unset**; el script en `origin/main` **aún no** respeta el flag (llega con `slice/bloque-2-gate`) |
+| Redis / broker ElastiCache | **Activo** (ver `docs/OPS_REDIS_URL_EB.md`) |
+| `EKI_OUTBOX_ENVIO=true` | **Activo** en prod (88 `ENVIADO`, 0 `INCIERTO` al muestrear) |
 
-1. `eb setenv EKI_MEDIA_ENCODE_SOLO_AI=true -e eki-prod-final`  
-   → `run_worker.sh` quita `media_encode` del `-Q` default.
+## Cómo cerrar RAG (pedido explícito)
+
+1. Desplegar `slice/bloque-2-gate` (trae `run_worker_rag.sh` + setting).
 2. `eb setenv EKI_RAG_INDEX_SOLO_AI=true -e eki-prod-final`  
-   → `run_worker_rag.sh` en prod hace `sleep infinity`; IA sigue con `Procfile.ai` `worker_rag`.
+   → prod duerme el `rag@`; IA sigue con `Procfile.ai` `worker_rag`.
 
-Apagar: `false` en ambos. No hace falta setenv en `eki-ai-workers` para estos dos.
+Apagar encode/RAG: `false` en prod-final. No hace falta setenv en `eki-ai-workers` para estos dos.
 
-**Hoy (flags off):** comportamiento actual; las dos cajas pueden seguir consumiendo encode y RAG. Esta decisión no cambia producción hasta el setenv.
-
-## Gate W1 (código vs ops)
+## Gate W1
 
 | Criterio | Estado |
 | --- | --- |
-| Cero `time.sleep` en conversación/líneas/avisos | Hecho en `slice/bloque-2-gate` |
-| Redis sin caer a `127.0.0.1` en prod | Código: fail-closed default on; **falta** `REDIS_URL` en EB (ver `docs/OPS_REDIS_URL_EB.md`) |
-| Dueño único encode + RAG | **Decidido** aquí; **activo** solo tras setenv |
+| Cero `time.sleep` en conversación/líneas/avisos | Código en `slice/bloque-2-gate` (falta deploy) |
+| Redis sin caer a `127.0.0.1` en prod | **Ops OK** (broker ElastiCache + fail-closed setenv) |
+| Dueño único encode | **Ops OK** (`EKI_MEDIA_ENCODE_SOLO_AI=true`) |
+| Dueño único RAG | **Pendiente** deploy bloque 2 + setenv |
 | Concurrencia conversación = 1 | Sin cambio |
 
 ## Fuera de este corte
 
-- Prender `EKI_OUTBOX_ENVIO` / campañas v2.
-- W2 (medir edad de colas).
-- Merge/deploy de expediente o bloque 2 (pedido aparte).
+- Campañas v2.
+- W3.
+- Push/deploy (pedido aparte).

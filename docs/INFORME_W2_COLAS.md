@@ -1,41 +1,46 @@
 # Informe W2 — medir antes de crecer
 
-Fecha: 2026-11-19. **Código listo**; cifras de un día laborable en prod = ops (sin setenv de flags de encode/outbox).
+Fecha: 2026-11-19. Código en `slice/bloque-2-gate`; primera muestra live por SSH a `eki-prod-final`.
 
 Fuente: `docs/PLAN_WORKERS_EKI.md` corte W2. Antecedentes: W0, W1.
 
 ## Cómo medir
 
-En una caja con el mismo `REDIS_URL` / broker que prod (o SSH a `eki-prod-final`):
+En una caja con el mismo broker que prod (o SSH a `eki-prod-final`):
 
 ```text
 python manage.py medir_colas_w2 --json --settings=mvp_project.settings_production
 ```
 
-También sale en `health_deep` → `colas.por_cola` / `colas.mas_viejo_seg` (staff o token infra).
+(Tras desplegar bloque 2.) Mientras tanto, LLEN vía Redis desde la caja web.
 
-Colas: `conversacion`, `masivo`, `media_encode`.
+También saldrá en `health_deep` → `colas.por_cola` / `colas.mas_viejo_seg` (staff o token infra).
 
-## Tabla (rellenar en un día laborable)
+Colas objetivo: `conversacion`, `masivo`, `media_encode`.
+
+## Tabla
 
 | Cola | Profundidad (LLEN) | Edad más viejo (s) | Fuente | Nota |
 | --- | --- | --- | --- | --- |
-| `conversacion` | _pendiente live_ | _pendiente live_ | | |
-| `masivo` | _pendiente live_ | _pendiente live_ | | |
-| `media_encode` | _pendiente live_ | _pendiente live_ | | |
+| `conversacion` | 0 | 0 | SSH Redis 2026-11-19 ~13:15 Bogotá | vacía |
+| `masivo` | 0 | 0 | idem | vacía |
+| `media_encode` | 0 | 0 | idem | vacía |
 
-Comparar con W0 (solo LLEN / «hay_pendientes»). Acuerdo: un segundo worker de `conversacion` **solo** si la edad medida no cabe; no se inventa el umbral aquí.
+Extras (mismo instante): `celery`/`llm`/`certificados`/`rag_index` también LLEN 0.
+
+Outbox (Django en la caja): `INCIERTO=0`, `ENVIANDO=0`, `ENVIADO=88`, `ERROR=0`.
+
+Comparar con W0 (solo «hay_pendientes» anotado). Acuerdo: un segundo worker de `conversacion` **solo** si la edad medida no cabe; no se inventa el umbral aquí.
 
 ## Gate W2
 
 | Criterio | Estado |
 | --- | --- |
-| Lectura de las tres colas con edad | Código OK (`core/analitica/colas_w2.py`, comando `medir_colas_w2`) |
-| Tabla de un día laborable | **Pendiente ops** (pegar JSON aquí) |
-| Sin abrir W3 | Hasta tabla + W1 setenv si aplica |
+| Lectura de las tres colas con edad | Código OK en rama; live vía Redis OK |
+| Tabla de un día laborable | **Muestra 1** (colas vacías). Falta al menos un muestreo en pico del mismo día o del siguiente laborable |
+| Sin abrir W3 | Hasta pico + dueño RAG (W1) |
 
 ## Fuera
 
 - Prefork concurrencia 2 (W3).
-- Prender `EKI_OUTBOX_ENVIO` / campañas v2.
 - Segundo entorno de conversación.

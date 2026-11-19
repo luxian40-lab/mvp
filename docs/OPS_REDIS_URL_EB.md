@@ -1,32 +1,37 @@
 # Ops — REDIS_URL externo en Elastic Beanstalk
 
-Antes de desplegar `slice/bloque-2-gate` (fail-closed Redis en producción) o de abrir el padrón de 5.000.
+Antes de desplegar código con fail-closed Redis por default, o de abrir el padrón de 5.000.
 
-**No ejecutar setenv desde aquí.** Pedido explícito.
+**No ejecutar setenv desde aquí** salvo pedido explícito.
 
-## Por qué
+## Estado live (2026-11-19, lectura `eb printenv` + SSH)
 
-Con `EKI_REDIS_FAIL_CLOSED` default **true** en `settings_production`, sin `REDIS_URL` / `CELERY_BROKER_URL` externo el proceso **no arranca**. Web y workers deben ver el **mismo** broker.
+| Variable | `eki-prod-final` | `eki-ai-workers` |
+| --- | --- | --- |
+| `CELERY_BROKER_URL` | `redis://eki-celery-prod…:6379/0` | igual |
+| `CELERY_RESULT_BACKEND` | mismo host `/0` | igual |
+| `REDIS_CACHE_URL` | mismo host `/1` | igual |
+| `REDIS_URL` | unset (no hace falta: broker cubre) | unset |
+| `EKI_REDIS_FAIL_CLOSED` | `true` | unset (código desplegado aún default false; setenv en prod-final ya cierra) |
+| `USE_LOCAL_REDIS` | `0` | `0` |
 
-## Checklist (manual)
+Web y workers ven el **mismo** ElastiCache. Checklist Redis externo: **cumplido** en prod.
 
-1. ElastiCache (o Redis gestionado) en la VPC de EB; `noeviction` en el broker.
-2. Caché/locks en otra base lógica (`REDIS_CACHE_URL` o broker con `/1` — ya se deriva en settings).
-3. En **ambos** entornos, misma URL:
-   - `eki-prod-final`
-   - `eki-ai-workers`
-4. Variables (ejemplo):
-   - `REDIS_URL=rediss://…` o `redis://…` (no `127.0.0.1` / `localhost`)
-   - opcional `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` / `REDIS_CACHE_URL`
-5. Verificar tras setenv/deploy:
-   - `eb status` Green
-   - `/health/` 200
-   - Django lee broker externo (no local)
-   - beat único en `eki-prod-final`; IA sin beat
-6. Rollback de emergencia: `EKI_REDIS_FAIL_CLOSED=false` (vuelve el plan B local; no es el estado deseado).
+## Por qué sigue el doc
 
-## Orden sugerido con W1
+Con `EKI_REDIS_FAIL_CLOSED=true` (setenv o default de `slice/bloque-2-gate`), sin broker externo el proceso **no arranca**. Tras desplegar bloque 2, conviene setenv también en `eki-ai-workers` o depender del default del código.
 
-1. `REDIS_URL` en las dos cajas y smoke.
-2. Luego, si pedís: `EKI_MEDIA_ENCODE_SOLO_AI=true` y `EKI_RAG_INDEX_SOLO_AI=true` solo en `eki-prod-final` (ver `docs/INFORME_W1_DUENOS.md`).
-3. W2 medir colas. No prender `EKI_OUTBOX_ENVIO` ni campañas v2 en este paso.
+## Checklist (referencia)
+
+1. ElastiCache en la VPC de EB; `noeviction` en el broker.
+2. Caché/locks en otra base lógica (`REDIS_CACHE_URL` `/1` — ya en prod).
+3. Misma URL de broker en **ambos** entornos.
+4. Verificar: `eb status` Green, `/health/` 200, Django no habla con `127.0.0.1`.
+5. Rollback de emergencia: `EKI_REDIS_FAIL_CLOSED=false`.
+
+## Orden con W1
+
+1. ~~`REDIS_URL` / broker externo~~ → **hecho** (`CELERY_BROKER_URL`).
+2. ~~`EKI_MEDIA_ENCODE_SOLO_AI=true`~~ → **hecho** en `eki-prod-final`.
+3. `EKI_RAG_INDEX_SOLO_AI=true` → **falta** desplegar `slice/bloque-2-gate` (el flag no existe en `origin/main`) y luego setenv en `eki-prod-final`.
+4. W2 medir colas (muestra 1 ya en `docs/INFORME_W2_COLAS.md`).
