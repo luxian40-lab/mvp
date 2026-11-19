@@ -917,6 +917,21 @@ except (TypeError, ValueError):
 EKI_CERTIFICADO_ASYNC = os.environ.get('EKI_CERTIFICADO_ASYNC', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Corte 3 expediente: el diploma sale por reglas, no solo por post_save.
+# Off = comportamiento actual (completado + fecha_completado → emite).
+# On = módulos publicados recorridos + evaluación respondida si existía;
+# llegar a la pregunta abierta final no crea Certificado.
+# Verificado plan docs/PLAN_EXPEDIENTE_APRENDIZAJE_EKI.md 2026-11-18.
+EKI_DIPLOMA_LEE_REGLAS = os.environ.get('EKI_DIPLOMA_LEE_REGLAS', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+# Corte 5 expediente: sin preguntas, la nota del certificado *nuevo* queda vacía.
+# Off = calcular_calificacion_curso sigue devolviendo 100.0 (comportamiento actual).
+# On = sin preguntas → None en el certificado nuevo; PDF ya emitidos no se tocan.
+# Verificado plan docs/PLAN_EXPEDIENTE_APRENDIZAJE_EKI.md 2026-11-18.
+EKI_DIPLOMA_NOTA_VACIA_SIN_PREGUNTAS = os.environ.get(
+    'EKI_DIPLOMA_NOTA_VACIA_SIN_PREGUNTAS', 'false'
+).strip().lower() in ('1', 'true', 'yes', 'on')
 
 # ==========================================
 # 🌱 AGRONEXO — alias legacy de BOT_COMERCIAL (canal unificado bot_comercial)

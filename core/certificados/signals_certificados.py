@@ -14,41 +14,24 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=ProgresoEstudiante)
 def generar_certificado_al_completar(sender, instance, created, **kwargs):
     """
-    Genera automáticamente el certificado cuando el estudiante completa un curso.
+    Dispara la emisión a propósito (``emitir_diploma_si_cumple``).
+
+    Con ``EKI_DIPLOMA_LEE_REGLAS`` apagado: mismo criterio de siempre
+    (completado + fecha_completado). Con el flag prendido, las reglas
+    bloquean el diploma al abrir la pregunta abierta final.
     Solo genera — NO envía por WhatsApp (views.py se encarga del envío
     dentro del flujo de multi-mensaje de felicitación).
     """
-    # Solo procesar si completado cambió a True y hay fecha_completado
-    if instance.completado and instance.fecha_completado:
-        from core.certificado_service import crear_certificado_automatico, generar_y_guardar_certificado
-        from core.models_certificados import Certificado
-        
-        try:
-            # Verificar si ya existe certificado para evitar duplicados
-            certificado_existente = Certificado.objects.filter(
-                estudiante=instance.estudiante,
-                curso=instance.curso
-            ).first()
-            
-            if certificado_existente:
-                logger.info(f"✅ Certificado ya existe para {instance.estudiante.nombre} - {instance.curso.nombre} (código: {certificado_existente.codigo_verificacion})")
-                return
-            
-            # Crear y generar certificado (solo generación, sin envío WhatsApp)
-            logger.info(f"🎓 Generando certificado para {instance.estudiante.nombre} - {instance.curso.nombre}")
-            certificado = crear_certificado_automatico(instance.estudiante, instance.curso)
-            
-            if certificado:
-                from django.conf import settings as _settings_cert
+    if not (instance.completado and instance.fecha_completado):
+        return
+    try:
+        from core.certificados.diploma_reglas import emitir_diploma_si_cumple
 
-                if not getattr(_settings_cert, 'EKI_CERTIFICADO_ASYNC', False):
-                    if not certificado.archivo_imagen and not certificado.archivo_pdf:
-                        logger.info(f"📄 Generando archivo del certificado...")
-                        generar_y_guardar_certificado(certificado)
-                
-                logger.info(f"✅ Certificado generado: {certificado.codigo_verificacion} (envío via views.py)")
-            else:
-                logger.error(f"❌ Error al crear certificado para {instance.estudiante.nombre}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error en signal de certificado para {instance.estudiante.nombre}: {str(e)}", exc_info=True)
+        emitir_diploma_si_cumple(instance)
+    except Exception as e:
+        logger.error(
+            'Error en signal de certificado para %s: %s',
+            getattr(instance.estudiante, 'nombre', '?'),
+            e,
+            exc_info=True,
+        )
