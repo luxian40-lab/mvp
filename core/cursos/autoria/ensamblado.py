@@ -55,6 +55,8 @@ def congelar_ensamblado(curso) -> dict:
             'descripcion': mod.descripcion or '',
             'contenido': mod.contenido or '',
             'publicado_wa': bool(mod.publicado_wa),
+            # Residual B4 commit 1: opcional en schema 1 (compat con snaps viejos).
+            'modo_entrega': getattr(mod, 'modo_entrega', None) or 'auto',
             'secciones': secciones,
         })
     return {

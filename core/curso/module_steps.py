@@ -25,7 +25,8 @@ from core.curso.reglas_modulo import (  # noqa: F401
 if TYPE_CHECKING:
     from core.models import Estudiante, Modulo, PasoModulo, ProgresoEstudiante
 
-logger = logging.getLogger(__name__)
+# Nombre público estable tras reexport core.module_steps → core.curso.module_steps.
+logger = logging.getLogger('core.module_steps')
 
 # Entre secciones y al cerrar el módulo: el envío lo vuelve botón «Continuemos».
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
@@ -109,23 +110,29 @@ FALLBACK_MODULO_PASOS_SIN_PASOS = (
 )
 
 
-def modulo_usa_pasos(modulo: Optional[Modulo]) -> bool:
+def modulo_usa_pasos(modulo: Optional[Modulo], progreso: Optional[ProgresoEstudiante] = None) -> bool:
     """
     True si el flujo WhatsApp debe usar pasos internos (PasoModulo).
     - modo 'pasos'  → True aunque no haya pasos (el operador debe corregir; ver fallback).
     - modo 'legacy' → False aunque existan pasos en BD
     - modo 'auto'   → True solo si hay al menos un PasoModulo activo
+
+    Con ``progreso`` y ``EKI_CURSO_VERSIONES``, el modo sale del ensamblado anclado.
     """
     if not modulo:
         return False
     from core.models import Modulo
 
     modo = getattr(modulo, 'modo_entrega', None) or Modulo.MODO_ENTREGA_AUTO
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import modo_entrega_modulo_para_entrega
+
+        modo = modo_entrega_modulo_para_entrega(progreso, modulo)
     if modo == Modulo.MODO_ENTREGA_PASOS:
         return True
     if modo == Modulo.MODO_ENTREGA_LEGACY:
         return False
-    return pasos_activos_qs(modulo).exists()
+    return pasos_activos_qs(modulo, progreso=progreso).exists()
 
 
 def log_y_mensaje_modo_pasos_sin_pasos(modulo: Modulo, contexto: str) -> str:
@@ -138,13 +145,41 @@ def log_y_mensaje_modo_pasos_sin_pasos(modulo: Modulo, contexto: str) -> str:
     return FALLBACK_MODULO_PASOS_SIN_PASOS
 
 
-def pasos_activos_qs(modulo: Modulo):
+def pasos_activos_qs(modulo: Modulo, progreso: Optional[ProgresoEstudiante] = None):
+    """Pasos activos. Con cohorte versionada, el set activo sale del ensamblado."""
+    from django.db.models import Case, When
+
     from core.models import PasoModulo
 
-    return (
+    vivo = (
         PasoModulo.objects.filter(modulo=modulo, activo=True, seccion__activa=True)
         .select_related('seccion')
         .order_by('orden', 'id')
+    )
+    if progreso is None:
+        return vivo
+
+    from core.cursos.autoria.lectura_entrega import ensamblado_de_progreso, modulo_en_ensamblado
+
+    snap = ensamblado_de_progreso(progreso)
+    fila = modulo_en_ensamblado(snap, getattr(modulo, 'id', None))
+    if fila is None:
+        return vivo
+
+    ids: list[int] = []
+    for sec in fila.get('secciones') or []:
+        if not sec.get('activa', True):
+            continue
+        for paso in sec.get('pasos') or []:
+            if paso.get('activo') and paso.get('id') is not None:
+                ids.append(int(paso['id']))
+    if not ids:
+        return PasoModulo.objects.none()
+    orden = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(ids)])
+    return (
+        PasoModulo.objects.filter(pk__in=ids)
+        .select_related('seccion')
+        .order_by(orden)
     )
 
 
@@ -155,12 +190,22 @@ def modulo_tiene_pasos_activos(modulo: Optional[Modulo]) -> bool:
     return pasos_activos_qs(modulo).exists()
 
 
-def texto_legacy_whatsapp(modulo: Optional[Modulo]) -> str:
+def texto_legacy_whatsapp(
+    modulo: Optional[Modulo],
+    progreso: Optional[ProgresoEstudiante] = None,
+) -> str:
     """Dump de Modulo.contenido solo si el módulo NO usa pasos internos."""
     if not modulo:
         return ''
-    if modulo_usa_pasos(modulo):
+    if modulo_usa_pasos(modulo, progreso=progreso):
         return ''
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import ensamblado_de_progreso, modulo_en_ensamblado
+
+        snap = ensamblado_de_progreso(progreso)
+        fila = modulo_en_ensamblado(snap, getattr(modulo, 'id', None))
+        if fila is not None:
+            return (fila.get('contenido') or '').strip()
     return (getattr(modulo, 'contenido', None) or '').strip()
 
 
@@ -254,23 +299,41 @@ def _feedback_incorrecto_paso_estilo_mini(paso: PasoModulo, letra_usuario: str) 
     return '\n\n'.join(p for p in (cabeza, correcto) if p)
 
 
-def formatear_texto_paso(paso: PasoModulo, curso) -> str:
+def formatear_texto_paso(
+    paso: PasoModulo,
+    curso,
+    progreso: Optional[ProgresoEstudiante] = None,
+) -> str:
     """
     Texto que vería el estudiante en un solo mensaje (sin media o para depuración).
     No incluye el título del paso ni el de la sección: son referencia interna en admin.
     """
-    body = (paso.contenido or '').strip()
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import contenido_paso_para_entrega
+
+        body = (contenido_paso_para_entrega(progreso, paso) or '').strip()
+    else:
+        body = (paso.contenido or '').strip()
     return (body + _suffix_evaluacion_paso(paso)).strip()
 
 
-def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
+def partes_mensaje_paso(
+    paso: PasoModulo,
+    curso,
+    progreso: Optional[ProgresoEstudiante] = None,
+) -> list[str]:
     """
     Bloques para MULTI_MSG.
     Con media: primero adjunto con caption mínimo; el texto del paso (y la evaluación) va después del [DELAY].
     Si el contenido tiene dos párrafos (\\n\\n o \\n), el primero puede ir como caption junto al video.
     """
     url = (paso.media_url or '').strip()
-    body = (paso.contenido or '').strip()
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import contenido_paso_para_entrega
+
+        body = (contenido_paso_para_entrega(progreso, paso) or '').strip()
+    else:
+        body = (paso.contenido or '').strip()
     tail = _suffix_evaluacion_paso(paso)
     if url and getattr(paso, 'pk', None):
         from core.media_encode_async import estado_encode_paso
@@ -532,7 +595,7 @@ def entregar_bloque_secciones_desde_paso(
     progreso: ProgresoEstudiante, modulo: Modulo, idx: int
 ) -> str:
     """Entrega **una sección (bloque) por cada *listo***; dentro de la sección, todos los pasos hasta evaluación."""
-    qs = list(pasos_activos_qs(modulo))
+    qs = list(pasos_activos_qs(modulo, progreso=progreso))
     n = len(qs)
     batch_orig = _batch_pasos_desde_indice(modulo, qs, idx)
     if not batch_orig:
@@ -562,7 +625,7 @@ def entregar_bloque_secciones_desde_paso(
             bool((paso.media_url or '').strip()),
             len((paso.contenido or '').strip()),
         )
-        partes.extend(partes_mensaje_paso(paso, curso))
+        partes.extend(partes_mensaje_paso(paso, curso, progreso=progreso))
     last_paso = batch_orig[-1]
     next_idx = _siguiente_idx_tras_bloque(qs, idx, batch_orig)
 
@@ -613,7 +676,7 @@ def entregar_bloque_secciones_desde_paso(
                     otro_bloque = False
             if siguiente_es_eval:
                 p_ev = qs[sig_idx - 1]
-                partes.extend(partes_mensaje_paso(p_ev, curso))
+                partes.extend(partes_mensaje_paso(p_ev, curso, progreso=progreso))
                 progreso.esperando_respuesta_evaluacion_paso = True
                 progreso.paso_evaluacion_paso = p_ev
                 progreso.paso_actual_modulo = sig_idx
@@ -698,13 +761,13 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
     """Entrega el paso en posición idx (1-based) y actualiza progreso."""
     from core.models import PasoModulo
 
-    qs = list(pasos_activos_qs(modulo))
+    qs = list(pasos_activos_qs(modulo, progreso=progreso))
     n = len(qs)
     if idx < 1 or idx > n:
         raise ValueError('índice de paso fuera de rango')
     paso = qs[idx - 1]
     curso = progreso.curso
-    partes = partes_mensaje_paso(paso, curso)
+    partes = partes_mensaje_paso(paso, curso, progreso=progreso)
     if paso.es_evaluacion:
         progreso.paso_actual_modulo = idx
         progreso.esperando_respuesta_evaluacion_paso = True
@@ -764,12 +827,14 @@ def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modul
     Nudge sin reenviar el microcompleto (evita duplicar texto + infografía al *listo*).
     Si hay evaluación pendiente, sí reenvía el enunciado/opciones.
     """
-    qs = list(pasos_activos_qs(modulo))
+    qs = list(pasos_activos_qs(modulo, progreso=progreso))
     n = len(qs)
     if n == 0:
         return None
     if progreso.esperando_respuesta_evaluacion_paso and progreso.paso_evaluacion_paso_id:
-        partes = partes_mensaje_paso(progreso.paso_evaluacion_paso, progreso.curso)
+        partes = partes_mensaje_paso(
+            progreso.paso_evaluacion_paso, progreso.curso, progreso=progreso,
+        )
         partes.append(
             "Cuando puedas, responde según las opciones de arriba 👆 "
             "(letra o mensaje según el tipo de actividad)."

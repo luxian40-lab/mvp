@@ -31,17 +31,42 @@ def primer_modulo_curso(curso: Curso | None):
     return curso.modulos.order_by('numero', 'id').first()
 
 
-def primer_modulo_publicado_wa(curso: Curso | None):
+def primer_modulo_publicado_wa(curso: Curso | None, progreso: ProgresoEstudiante | None = None):
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import (
+            ensamblado_de_progreso,
+            siguiente_modulo_orm_desde_snap,
+        )
+
+        snap = ensamblado_de_progreso(progreso)
+        if snap is not None:
+            return siguiente_modulo_orm_desde_snap(curso, snap, None)
     return modulos_publicados_wa_qs(curso).order_by('numero', 'id').first()
 
 
-def siguiente_modulo_publicado_wa(curso: Curso | None, modulo_actual) -> Modulo | None:
+def siguiente_modulo_publicado_wa(
+    curso: Curso | None,
+    modulo_actual,
+    progreso: ProgresoEstudiante | None = None,
+) -> Modulo | None:
     """
     Siguiente módulo en orden estricto (M+1). No salta borradores hacia M+2.
     None = fin de curso o el siguiente slot aún no está publicado.
+
+    Con ``progreso`` y cohorte versionada, el orden y ``publicado_wa`` salen
+    del ensamblado anclado (no del árbol vivo).
     """
     if curso is None:
         return None
+    if progreso is not None:
+        from core.cursos.autoria.lectura_entrega import (
+            ensamblado_de_progreso,
+            siguiente_modulo_orm_desde_snap,
+        )
+
+        snap = ensamblado_de_progreso(progreso)
+        if snap is not None:
+            return siguiente_modulo_orm_desde_snap(curso, snap, modulo_actual)
     if modulo_actual is None:
         primero = curso.modulos.order_by('numero', 'id').first()
         if primero is None:

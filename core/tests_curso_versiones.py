@@ -277,3 +277,146 @@ class PublicarVersionAdminTests(TestCase):
         self.assertEqual(curso.version_publicada_id, v.id)
         prog.refresh_from_db()
         self.assertIsNone(prog.curso_version_id)
+
+
+class LecturaEntregaVersionadaTests(TestCase):
+    """Residual B4 commit 1: helpers leen snap; flag off = árbol vivo."""
+
+    def test_congelar_incluye_modo_entrega(self):
+        from core.models import Curso, Modulo
+
+        curso = Curso.objects.create(nombre='Snap modo', descripcion='d')
+        Modulo.objects.create(
+            curso=curso,
+            numero=1,
+            titulo='M1',
+            descripcion='',
+            contenido='x',
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        snap = congelar_ensamblado(curso)
+        self.assertEqual(snap['modulos'][0]['modo_entrega'], Modulo.MODO_ENTREGA_PASOS)
+
+    def test_flag_off_ensamblado_de_progreso_none(self):
+        from core.cursos.autoria.lectura_entrega import ensamblado_de_progreso
+        from core.models import Curso, CursoVersion, Estudiante, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Lect off', descripcion='d')
+        v = CursoVersion.objects.create(
+            curso=curso, numero=1, estado=CursoVersion.PUBLICADO, ensamblado={'schema': 1, 'modulos': []},
+        )
+        est = Estudiante.objects.create(
+            nombre='Off', telefono='573009990201', cedula='CC990201', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(estudiante=est, curso=curso, curso_version=v)
+        with override_settings(EKI_CURSO_VERSIONES=False):
+            self.assertIsNone(ensamblado_de_progreso(prog))
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_lectura_snap_no_sigue_edicion_viva(self):
+        from core.cursos.autoria.lectura_entrega import (
+            contenido_paso_para_entrega,
+            ensamblado_de_progreso,
+            titulo_modulo_para_entrega,
+        )
+        from core.models import (
+            Curso,
+            Estudiante,
+            Modulo,
+            PasoModulo,
+            ProgresoEstudiante,
+            SeccionModulo,
+        )
+
+        curso = Curso.objects.create(nombre='Lect on', descripcion='d')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='Titulo v1', descripcion='', contenido='c',
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        sec = SeccionModulo.objects.create(modulo=mod, orden=1, titulo='B1')
+        paso = PasoModulo.objects.create(
+            modulo=mod, seccion=sec, orden=1, tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='texto v1', activo=True,
+        )
+        v1 = publicar(curso, nota='v1')
+        self.assertIsNotNone(v1)
+        est = Estudiante.objects.create(
+            nombre='Anclado', telefono='573009990202', cedula='CC990202', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(
+            estudiante=est, curso=curso, curso_version=v1, modulo_actual=mod,
+        )
+
+        mod.titulo = 'Titulo editado vivo'
+        mod.save(update_fields=['titulo'])
+        paso.contenido = 'texto editado vivo'
+        paso.save(update_fields=['contenido'])
+
+        snap = ensamblado_de_progreso(prog)
+        self.assertIsNotNone(snap)
+        self.assertEqual(titulo_modulo_para_entrega(prog, mod), 'Titulo v1')
+        self.assertEqual(contenido_paso_para_entrega(prog, paso), 'texto v1')
+        self.assertNotEqual(mod.titulo, 'Titulo v1')
+        self.assertNotEqual(paso.contenido, 'texto v1')
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_module_steps_legacy_lee_snap_no_vivo(self):
+        from core.curso.module_steps import modulo_usa_pasos, texto_legacy_whatsapp
+        from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Legacy snap', descripcion='d')
+        mod = Modulo.objects.create(
+            curso=curso,
+            numero=1,
+            titulo='M1',
+            descripcion='',
+            contenido='contenido v1',
+            modo_entrega=Modulo.MODO_ENTREGA_LEGACY,
+            publicado_wa=True,
+        )
+        v1 = publicar(curso, nota='v1')
+        est = Estudiante.objects.create(
+            nombre='Leg', telefono='573009990203', cedula='CC990203', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(
+            estudiante=est, curso=curso, curso_version=v1, modulo_actual=mod,
+        )
+        mod.contenido = 'contenido editado vivo'
+        mod.save(update_fields=['contenido'])
+        self.assertFalse(modulo_usa_pasos(mod, progreso=prog))
+        self.assertEqual(texto_legacy_whatsapp(mod, progreso=prog), 'contenido v1')
+        self.assertEqual(texto_legacy_whatsapp(mod), 'contenido editado vivo')
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_siguiente_modulo_respeta_snap_no_modulo_nuevo_vivo(self):
+        from core.modulo_publicacion import siguiente_modulo_publicado_wa
+        from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Avance snap', descripcion='d')
+        m1 = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M1', descripcion='', contenido='a',
+            publicado_wa=True,
+        )
+        m2 = Modulo.objects.create(
+            curso=curso, numero=2, titulo='M2', descripcion='', contenido='b',
+            publicado_wa=True,
+        )
+        v1 = publicar(curso, nota='v1-dos')
+        # Autor agrega M3 solo en vivo tras publicar.
+        m3 = Modulo.objects.create(
+            curso=curso, numero=3, titulo='M3 nuevo vivo', descripcion='', contenido='c',
+            publicado_wa=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Av', telefono='573009990204', cedula='CC990204', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(
+            estudiante=est, curso=curso, curso_version=v1, modulo_actual=m2,
+        )
+        # Vivo vería M3; cohorte v1 no.
+        self.assertEqual(siguiente_modulo_publicado_wa(curso, m2), m3)
+        self.assertIsNone(siguiente_modulo_publicado_wa(curso, m2, progreso=prog))
+        self.assertEqual(
+            siguiente_modulo_publicado_wa(curso, m1, progreso=prog),
+            m2,
+        )

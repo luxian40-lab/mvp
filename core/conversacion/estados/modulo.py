@@ -507,7 +507,7 @@ def _preparar_avance_modulo(texto_respuesta, progreso, modulo_actual, estudiante
         siguiente_modulo = None
     else:
         siguiente_modulo = siguiente_modulo_publicado_wa(
-            progreso.curso, modulo_actual
+            progreso.curso, modulo_actual, progreso=progreso,
         )
 
     if siguiente_modulo:

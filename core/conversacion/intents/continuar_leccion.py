@@ -63,8 +63,8 @@ def responder(intent, nombre_usuario, kwargs):
             log_y_mensaje_modo_pasos_sin_pasos,
         )
 
-        usa_pasos = modulo_usa_pasos(modulo_actual) if modulo_actual else False
-        _n_pasos_raw = pasos_activos_qs(modulo_actual).count() if modulo_actual else 0
+        usa_pasos = modulo_usa_pasos(modulo_actual, progreso=progreso) if modulo_actual else False
+        _n_pasos_raw = pasos_activos_qs(modulo_actual, progreso=progreso).count() if modulo_actual else 0
         _n_pasos = _n_pasos_raw if usa_pasos else 0
 
         if usa_pasos and _n_pasos_raw == 0:
@@ -136,12 +136,12 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
         pasos_activos_qs,
         log_y_mensaje_modo_pasos_sin_pasos,
     )
-    if modulo_actual and modulo_usa_pasos(modulo_actual):
-        if not pasos_activos_qs(modulo_actual).exists():
+    if modulo_actual and modulo_usa_pasos(modulo_actual, progreso=progreso):
+        if not pasos_activos_qs(modulo_actual, progreso=progreso).exists():
             return log_y_mensaje_modo_pasos_sin_pasos(
                 modulo_actual, 'continuar_leccion_mensaje_continuar'
             )
-        _np_cur = pasos_activos_qs(modulo_actual).count()
+        _np_cur = pasos_activos_qs(modulo_actual, progreso=progreso).count()
         if (
             progreso.paso_actual_modulo > _np_cur
             and not progreso.esperando_respuesta_evaluacion_paso
@@ -482,8 +482,8 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
         )
         reset_progreso_pasos_modulo(progreso, save=False)
         progreso.save()
-        if modulo_usa_pasos(siguiente_modulo):
-            if not pasos_activos_qs(siguiente_modulo).exists():
+        if modulo_usa_pasos(siguiente_modulo, progreso=progreso):
+            if not pasos_activos_qs(siguiente_modulo, progreso=progreso).exists():
                 return log_y_mensaje_modo_pasos_sin_pasos(
                     siguiente_modulo, 'avance_siguiente_modulo'
                 )
@@ -528,10 +528,12 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
     # v1.9.8i: No "completado" message — just flow to next content
     
     # Mensaje: Siguiente módulo CON multimedia embebida
+    from core.cursos.autoria.lectura_entrega import titulo_modulo_para_entrega
     from core.module_steps import texto_legacy_whatsapp
-    contenido_mod = texto_legacy_whatsapp(siguiente_modulo)
+    contenido_mod = texto_legacy_whatsapp(siguiente_modulo, progreso=progreso)
     chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
-    modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
+    _titulo_mod = titulo_modulo_para_entrega(progreso, siguiente_modulo)
+    modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {_titulo_mod}*\n\n"
     if chunks_mod:
         msg_modulo = modulo_header + chunks_mod[0]
         for chunk_m in chunks_mod[1:]:
@@ -673,7 +675,9 @@ def _cerrar_modulo_listo(usa_pasos, _n_pasos, progreso, modulo_actual, ModuloCom
         from core.avance_whatsapp import adaptar_mensaje_drip_bloqueo
         return adaptar_mensaje_drip_bloqueo(_blk_pub, estudiante)
 
-    siguiente_modulo = siguiente_modulo_publicado_wa(progreso.curso, modulo_actual)
+    siguiente_modulo = siguiente_modulo_publicado_wa(
+        progreso.curso, modulo_actual, progreso=progreso,
+    )
 
     return _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actual, es_modulo_reto, logger, total_modulos, usar_ia_curso, decision_cp, obtener_video_url, dividir_contenido_seguro, activar_checkpoint_facilitador, parte_mensaje_con_media, _cliente_habilita_pregunta_abierta_final, timezone, _mensaje_pregunta_abierta_final, perfil, contexto_limpio, _barra_progreso)
 
@@ -749,8 +753,8 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
         estudiante.contexto_temporal = _ctx_reto or None
         estudiante.save(update_fields=['contexto_temporal'])
 
-        if modulo_usa_pasos(modulo_actual) and pasos_activos_qs(modulo_actual).exists():
-            _n_post = pasos_activos_qs(modulo_actual).count()
+        if modulo_usa_pasos(modulo_actual, progreso=progreso) and pasos_activos_qs(modulo_actual, progreso=progreso).exists():
+            _n_post = pasos_activos_qs(modulo_actual, progreso=progreso).count()
             idx_post = progreso.paso_actual_modulo or 1
             if idx_post > _n_post:
                 reset_progreso_pasos_modulo(progreso, save=True)

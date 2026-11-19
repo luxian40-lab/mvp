@@ -49,12 +49,12 @@ def fecha_desbloqueo_drip(fecha_ultimo_avance, dias_espera: int):
     return timezone.localdate(fecha_ultimo_avance) + timedelta(days=dias_espera)
 
 
-def _siguiente_modulo_orden(curso, modulo_actual) -> Modulo | None:
+def _siguiente_modulo_orden(curso, modulo_actual, progreso=None) -> Modulo | None:
     if modulo_actual is None or curso is None:
         return None
     from core.modulo_publicacion import siguiente_modulo_publicado_wa
 
-    return siguiente_modulo_publicado_wa(curso, modulo_actual)
+    return siguiente_modulo_publicado_wa(curso, modulo_actual, progreso=progreso)
 
 
 def estudiante_autorizado_en_modulo(estudiante: Estudiante | None, modulo: Modulo | None) -> bool:
@@ -207,7 +207,7 @@ def mensaje_bloqueo_avance_siguiente_modulo(
 
     if modulo_actual is None or progreso is None or progreso.curso_id is None:
         return None
-    siguiente = _siguiente_modulo_orden(progreso.curso, modulo_actual)
+    siguiente = _siguiente_modulo_orden(progreso.curso, modulo_actual, progreso=progreso)
     if siguiente is None:
         return None
     if not ModuloCompletado.objects.filter(

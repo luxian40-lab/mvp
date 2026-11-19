@@ -234,7 +234,7 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
             texto_respuesta = f"{msg_eval}\n\n{_blk_tras_reto}"
         else:
             siguiente = siguiente_modulo_publicado_wa(
-                progreso.curso, progreso.modulo_actual
+                progreso.curso, progreso.modulo_actual, progreso=progreso,
             )
             if siguiente:
                 progreso.modulo_actual = siguiente
