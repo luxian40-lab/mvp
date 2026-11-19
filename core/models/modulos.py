@@ -482,12 +482,30 @@ class ModuloPublicacionEvent(models.Model):
 
 class ProgresoEstudiante(models.Model):
     """Progreso del estudiante en los cursos"""
+    ORIGEN_CIERRE_CHAT = 'chat'
+    ORIGEN_CIERRE_OPERACION = 'operacion'
+    ORIGEN_CIERRE_PRESENCIAL = 'presencial'
+    ORIGEN_CIERRE_CHOICES = [
+        (ORIGEN_CIERRE_CHAT, 'Chat'),
+        (ORIGEN_CIERRE_OPERACION, 'Operación'),
+        (ORIGEN_CIERRE_PRESENCIAL, 'Presencial'),
+    ]
+
     estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='progresos')
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
     modulo_actual = models.ForeignKey(Modulo, on_delete=models.SET_NULL, null=True, blank=True)
     completado = models.BooleanField(default=False)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     fecha_completado = models.DateTimeField(null=True, blank=True)
+    # Corte 4 expediente: expand. Null = filas históricas (KPI completado no cambia).
+    origen_cierre = models.CharField(
+        max_length=16,
+        choices=ORIGEN_CIERRE_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='Origen del cierre',
+        help_text='Cómo se cerró el curso: chat, operación o presencial. Vacío en cierres previos.',
+    )
     fecha_ultimo_avance = models.DateTimeField(
         null=True,
         blank=True,
