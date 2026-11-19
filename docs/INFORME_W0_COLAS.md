@@ -45,6 +45,6 @@ Sin pantalla Entregas ni acceso live a Redis en este corte:
 
 ## Redis
 
-- Código: `mvp_project/infra_redis.py` + `EKI_REDIS_FAIL_CLOSED` (default apagado en settings base; producción lo lee del env).
-- Con flag apagado, sin `REDIS_URL` → `redis://127.0.0.1:6379/0`.
-- Cierre del bloque 2: sin caer a localhost en producción (fail-closed).
+- Código: `mvp_project/infra_redis.py` + `EKI_REDIS_FAIL_CLOSED`.
+- En `settings.py` (dev): default apagado; sin `REDIS_URL` puede caer a local.
+- En `settings_production.py` (bloque 2): default **encendido**. Sin `REDIS_URL` externo el proceso no arranca. Rollback de emergencia: `EKI_REDIS_FAIL_CLOSED=false`.
