@@ -13,17 +13,18 @@ Fecha: 2026-11-19. Rama: `feat/expediente-b4-residual` (6 commits sobre `origin/
 5. Corte 5 — nota vacía sin preguntas (`EKI_DIPLOMA_NOTA_VACIA_SIN_PREGUNTAS` off) + 0210  
 6. Residual B4 — `lectura_entrega` (`EKI_CURSO_VERSIONES` off)
 
-## Merge (cuando lo pidas)
+## Merge
 
-Desde worktree limpio de `main`:
+**Local (2026-11-19):** `main` en este worktree ya tiene ff-only de `feat/expediente-b4-residual` (`53479e81`). **No pusheado** a `origin/main`.
+
+Para publicar (pedido explícito):
 
 ```text
-git fetch origin
 git checkout main
-git merge --ff-only feat/expediente-b4-residual
+git push origin main
 ```
 
-Si no es fast-forward: rebasar la rama sobre `origin/main` y repetir. Migraciones 0209/0210 son expand compatibles.
+Si `origin/main` se adelantó: rebasar la rama sobre `origin/main` y repetir ff-only. Migraciones 0209/0210 son expand compatibles.
 
 ## Flags
 
