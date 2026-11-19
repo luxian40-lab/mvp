@@ -59,17 +59,39 @@ def estado_latido() -> dict:
 
 
 def _colas() -> dict:
+    from core.analitica.colas_w2 import snapshot_colas_w2
+
     salida = {nombre: None for nombre in _COLAS}
-    mas_viejo = None
     try:
         cliente = _redis()
         for nombre in _COLAS:
             salida[nombre] = int(cliente.llen(nombre) or 0)
-            if salida[nombre]:
-                mas_viejo = mas_viejo if mas_viejo is not None else 'hay_pendientes'
+        w2 = snapshot_colas_w2(cliente=cliente)
     except Exception:
-        return {'profundidad': salida, 'mas_viejo': None, 'ok': False}
-    return {'profundidad': salida, 'mas_viejo': mas_viejo, 'ok': True}
+        return {
+            'profundidad': salida,
+            'mas_viejo': None,
+            'mas_viejo_seg': None,
+            'por_cola': None,
+            'ok': False,
+        }
+    por_cola = w2.get('colas') or {}
+    edades = [
+        int(v['edad_seg'])
+        for nombre, v in por_cola.items()
+        if (salida.get(nombre) or 0) and v.get('edad_seg') is not None
+    ]
+    mas_viejo_seg = max(edades) if edades else (0 if all((salida.get(n) or 0) == 0 for n in _COLAS) else None)
+    mas_viejo = mas_viejo_seg if mas_viejo_seg is not None else (
+        'hay_pendientes' if any(salida.get(n) for n in _COLAS) else 0
+    )
+    return {
+        'profundidad': salida,
+        'mas_viejo': mas_viejo,
+        'mas_viejo_seg': mas_viejo_seg,
+        'por_cola': por_cola,
+        'ok': bool(w2.get('ok')),
+    }
 
 
 def pct_canal_vacio() -> dict:
