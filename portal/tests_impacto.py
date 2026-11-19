@@ -209,3 +209,12 @@ class ImpactoPortalTests(TestCase):
         bloque = html.split('id="ana-impacto"', 1)[1]
         self.assertIn('Ganancia de aprendizaje', bloque)
         self.assertNotIn('endiente', bloque)
+
+    def test_impacto_sin_subtitulos_grises(self):
+        html = self.http.get('/portal/analitica/?s=impacto').content.decode()
+        bloque = html.split('id="ana-impacto"', 1)[1]
+        self.assertIn('Gestión financiera', bloque)
+        self.assertNotIn('Cierre del agente de finanzas', bloque)
+        self.assertNotIn('Mini-diagnóstico módulo 0', bloque)
+        self.assertNotIn('Denominador:', bloque)
+        self.assertNotIn('Personas únicas con', bloque)

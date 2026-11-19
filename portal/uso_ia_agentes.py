@@ -80,6 +80,7 @@ def uso_ia_por_persona(org, *, ahora=None) -> dict:
     personas = sorted(
         (
             {
+                'estudiante_id': eid,
                 'nombre': nombres[eid],
                 'total': sum(por_agente.values()),
                 'por_agente': [por_agente.get(a, 0) for a in agentes],

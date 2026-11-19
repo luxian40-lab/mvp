@@ -53,6 +53,7 @@ class UsoIaPorPersonaTests(TestCase):
         self.assertEqual(uso['usan_pct'], 50.0)
         self.assertEqual(len(uso['personas']), 1)
         self.assertEqual(uso['personas'][0]['nombre'], 'Ana')
+        self.assertEqual(uso['personas'][0]['estudiante_id'], ana.id)
         self.assertEqual(uso['personas'][0]['por_agente'], [2, 1])
         self.assertEqual(uso['mas_usadas'], ['Coach'])
         self.assertEqual(uso['mas_usada_n'], 2)
@@ -67,5 +68,27 @@ class UsoIaPorPersonaTests(TestCase):
         self.assertIn('Comparación por agentes', html)
         self.assertIn('Uso de IA por persona', html)
         self.assertIn('Agrónomo (Nat)', html)
+        self.assertIn(f'/portal/estudiantes/{ana.id}/', html)
         self.assertNotIn('Ajena', html)
         self.assertIsNone(http.get('/portal/analitica/').context['uso_ia'])
+
+    def test_ranking_habilidades_enlaza_ficha(self):
+        from core.gamificacion import PerfilGamificacion
+
+        org = _org('RankOrg')
+        org.usar_gamificacion = True
+        org.modo_gamificacion = 'puntos'
+        org.save(update_fields=['usar_gamificacion', 'modo_gamificacion'])
+        ana = Estudiante.objects.create(
+            nombre='Ana Rank', cedula='400010', telefono='573001400010', cliente=org, activo=True,
+        )
+        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=ana)
+        PerfilGamificacion.objects.filter(pk=perfil.pk).update(puntos_totales=120, nivel=2)
+        user = User.objects.create_user('rank_admin', 'r@t.com', 'pass')
+        PortalUsuario.objects.create(user=user, organizacion=org, rol='admin')
+        http = Client()
+        http.post('/portal/login/', {'username': 'rank_admin', 'password': 'pass'})
+        html = http.get('/portal/analitica/?s=habilidades').content.decode()
+        hab = html.split('id="ana-habilidades"', 1)[1]
+        self.assertIn(f'/portal/estudiantes/{ana.id}/', hab)
+        self.assertIn('Ana Rank', hab)

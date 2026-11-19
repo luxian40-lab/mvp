@@ -381,7 +381,7 @@
                     {% for fila in ranking.ranking %}
                     <tr>
                         <td>{{ fila.posicion }}</td>
-                        <td>{{ fila.nombre }}</td>
+                        <td>{% if fila.estudiante_id %}<a href="{% url 'portal_estudiante_detalle' fila.estudiante_id %}">{{ fila.nombre }}</a>{% else %}{{ fila.nombre }}{% endif %}</td>
                         <td>{{ fila.valor }}</td>
                         <td>{{ fila.detalle }}</td>
                     </tr>
@@ -453,7 +453,7 @@
                 <tbody>
                     {% for p in uso_ia.personas %}
                     <tr>
-                        <td>{{ p.nombre }}</td>
+                        <td>{% if p.estudiante_id %}<a href="{% url 'portal_estudiante_detalle' p.estudiante_id %}">{{ p.nombre }}</a>{% else %}{{ p.nombre }}{% endif %}</td>
                         <td>{{ p.total }}</td>
                         {% for n in p.por_agente %}<td>{{ n }}</td>{% endfor %}
                         <td>{{ p.ultima|date:"j M Y" }}</td>
@@ -503,23 +503,13 @@
                 <div class="imp-card">
                     <span class="imp-ev">{{ ind.codigo }} · evidencia {{ ind.evidencia }}{% if ind.rotulo %} · {{ ind.rotulo }}{% endif %}</span>
                     <h3>{{ ind.nombre }}</h3>
-                    {% if ind.estado == 'pendiente_captura' %}
-                    <p>{{ ind.nota }}</p>
-                    {% else %}
+                    {% if ind.estado != 'pendiente_captura' %}
                     <p class="imp-val">
                         {% if ind.codigo == 'S1' %}{{ ind.numerador }} personas
                         {% elif ind.pct is not None %}{{ ind.pct }}%
                         {% elif ind.numerador is not None %}{{ ind.numerador }} / {{ ind.denominador }}
                         {% else %}—{% endif %}
                     </p>
-                    {% if ind.denominador is not None %}<p>Denominador: {{ ind.denominador }}</p>{% endif %}
-                    {% if ind.codigo == 'S2' %}
-                    <p>{{ ind.certificados }} certificados / {{ ind.inscritos }} inscritos. Retención día 30: {{ ind.retencion_30.numerador }} / {{ ind.retencion_30.denominador }}{% if ind.retencion_30.pct is not None %} ({{ ind.retencion_30.pct }}%){% endif %}.</p>
-                    {% endif %}
-                    {% if ind.cortes %}
-                    <p>Mujeres {{ ind.cortes.mujeres.n }}{% if ind.cortes.mujeres.pct is not None %} ({{ ind.cortes.mujeres.pct }}%){% endif %} · jóvenes 14–28 {{ ind.cortes.jovenes.n }} · 50+ {{ ind.cortes.mayor_50.n }}{% if ind.cortes.mujeres.nota %} · {{ ind.cortes.mujeres.nota }}{% endif %}</p>
-                    {% endif %}
-                    <p>{{ ind.nota }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
