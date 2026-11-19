@@ -70,6 +70,9 @@ class ColasYRolTests(SimpleTestCase):
     def test_flag_media_encode_solo_ai_apagado_por_defecto(self):
         self.assertFalse(settings.EKI_MEDIA_ENCODE_SOLO_AI)
 
+    def test_flag_rag_index_solo_ai_apagado_por_defecto(self):
+        self.assertFalse(settings.EKI_RAG_INDEX_SOLO_AI)
+
     def test_con_flag_el_encode_queda_en_ai_workers(self):
         worker = Path('scripts/run_worker.sh').read_text(encoding='utf-8')
         proc_ai = Path('Procfile.ai').read_text(encoding='utf-8')
@@ -85,6 +88,14 @@ class ColasYRolTests(SimpleTestCase):
         )
         self.assertIn('-Q media_encode', proc_ai)
         self.assertIn('[ "${EKI_EB_ROLE:-}" = "ai_workers" ]', worker)
+
+    def test_con_flag_rag_prod_duerme_y_ai_sigue(self):
+        rag = Path('scripts/run_worker_rag.sh').read_text(encoding='utf-8')
+        proc_ai = Path('Procfile.ai').read_text(encoding='utf-8')
+        self.assertIn('EKI_RAG_INDEX_SOLO_AI', rag)
+        self.assertIn('sleep infinity', rag)
+        self.assertIn('EKI_EB_ROLE', rag)
+        self.assertIn('-Q rag_index', proc_ai)
 
 
 class MigrateLockedTests(SimpleTestCase):

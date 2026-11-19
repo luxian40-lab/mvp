@@ -406,6 +406,11 @@ EKI_REDIS_FAIL_CLOSED = os.environ.get('EKI_REDIS_FAIL_CLOSED', 'false').strip()
 EKI_MEDIA_ENCODE_SOLO_AI = os.environ.get('EKI_MEDIA_ENCODE_SOLO_AI', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# True: eki-prod-final no indexa RAG (run_worker_rag.sh duerme); solo eki-ai-workers.
+# False: las dos cajas escuchan rag_index, como hoy. Lo lee el script (el env, no Django).
+EKI_RAG_INDEX_SOLO_AI = os.environ.get('EKI_RAG_INDEX_SOLO_AI', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # Compat: bloque 2 ya no duerme el worker; las pausas siempre van a Celery countdown.
 # El setting se lee en pocos tests viejos; el runtime ignora el valor.
 EKI_ENTREGA_DELAYS_CELERY = os.environ.get('EKI_ENTREGA_DELAYS_CELERY', 'true').strip().lower() in (

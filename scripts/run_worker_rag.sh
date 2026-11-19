@@ -1,6 +1,16 @@
 #!/bin/bash
 # Indexación RAG. Concurrencia propia (RAG_WORKER_CONCURRENCY), no CELERY_CONCURRENCY.
+# W1: con EKI_RAG_INDEX_SOLO_AI=true, solo eki-ai-workers indexa (prod duerme).
 set -euo pipefail
+# Flag on + caja prod: no competir con eki-ai-workers por rag_index.
+_solo_ai="$(printf '%s' "${EKI_RAG_INDEX_SOLO_AI:-}" | tr '[:upper:]' '[:lower:]')"
+case "$_solo_ai" in
+  1|true|yes|on)
+    if [ "${EKI_EB_ROLE:-}" != "ai_workers" ]; then
+      exec sleep infinity
+    fi
+    ;;
+esac
 ROLE="${EKI_ROLE:-all}"
 case "$ROLE" in
   web|worker|all) ;;
