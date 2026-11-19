@@ -1,7 +1,9 @@
-# Gate bloque 2 — 2026-11-19 (pre-deploy)
+# Gate bloque 2 — 2026-11-19 (desplegado)
 
-Rama: `slice/bloque-2-gate` rebaseada sobre `origin/main` @ `53479e81` (expediente ya en prod).  
-Prod actual: `main-expediente-b4-20261119-133839` (Green).
+Label: `main-bloque-2-gate-20261119-141312` (`759f4905`).  
+Rollback: `main-expediente-b4-20261119-133839`.  
+Prod + AI: Green; health 200; smoke Celery OK; W2 colas 0; outbox 0 INCIERTO/ERROR.  
+`EKI_RAG_INDEX_SOLO_AI` sigue **false** (setenv aparte).
 
 ## Riesgos al desplegar (revisión)
 
