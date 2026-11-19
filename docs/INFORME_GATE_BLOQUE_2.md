@@ -8,10 +8,10 @@ Expediente + B4 quedó en rama aparte `feat/expediente-b4-residual` (no mezclado
 | Criterio | Resultado |
 | --- | --- |
 | W0 inventario colas | OK — `docs/INFORME_W0_COLAS.md`. `media_encode` aún puede tener dos consumidores con flag apagado (W1 dueño queda anotado, no se prende flag aquí). |
-| Cero `time.sleep` en `conversacion/` / `lineas/` / `avisos/` | OK — AST sin llamada; DELAY/avisos encolan Celery. |
+| Cero `time.sleep` en `conversacion/` / `lineas/` / `avisos/` | OK — `entrega_delays` + `activo_puerta` (reenvío) sin sleep; DELAY/avisos encolan Celery. |
 | Redis sin caer a `127.0.0.1` en prod | OK en código — `EKI_REDIS_FAIL_CLOSED` default **true** en `settings_production`. **Antes de desplegar:** `REDIS_URL` externo obligatorio o el proceso no arranca. |
 | Claim/outbox en camino real | OK — `enviar_respuesta_turno` → `enviar_respuesta_linea` → Sender → `OutboxEnvio.ejecutar`. Flag `EKI_OUTBOX_ENVIO` sigue apagado por defecto (filas solo con flag on). |
-| Mitigación 5 (LLM si Redis cae) | OK — ya en main; reforzado: sin URL de broker no hay llamada de pago. |
+| Mitigación 5 (LLM si Redis cae) | OK — Nat/asesoría + tutor aula (`_get_client`), `pregunta_handler`, `completar_chat`; sin URL de broker no hay llamada de pago. |
 
 ## Commits en esta rama
 

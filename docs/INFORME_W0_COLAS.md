@@ -25,7 +25,7 @@ Fuente: `docs/PLAN_WORKERS_EKI.md` corte W0. Gate: tabla caja / proceso / colas 
 | `masivo` | campañas, reenganche, avisos, recordatorios, reportes | `fast@` (aún mismo proceso que conversación) |
 | `celery` | beat y tareas sin ruta | `fast@` |
 | `media_encode` | `encode_paso_modulo_media` | **dos cajas hoy**: default de `run_worker.sh` **y** `eki-ai-workers` `worker_media`. Flag `EKI_MEDIA_ENCODE_SOLO_AI` (apagado) deja un solo dueño en AI |
-| `rag_index` | indexación Nat/RAG | `worker_rag` en ambas cajas (prod + AI) |
+| `rag_index` | indexación Nat/RAG | **dos cajas:** `rag@` en prod-final y en AI (mismo patrón que encode) |
 | `course_engine` | Course Engine | solo `eki-ai-workers` |
 | `llm` / `certificados` | rutas I1 si `EKI_COLAS_POR_TIPO` | en el default de `fast@`; sin flag las tareas van a `celery` |
 
@@ -42,6 +42,8 @@ Sin pantalla Entregas ni acceso live a Redis en este corte:
 ## Hallazgo bloqueante para W1
 
 `media_encode` tiene **dos consumidores** potenciales mientras `EKI_MEDIA_ENCODE_SOLO_AI` esté apagado. W1 no arranca dueño único hasta decidir: prender el flag (prod deja de escuchar encode) o quitar `media_encode` del default de `run_worker.sh`.
+
+`rag_index` también tiene doble `rag@` (prod + AI). No bloquea W1 en el texto del plan, pero conviene decidir dueño en el mismo corte. Cola `audio` declarada sin ruta ni worker.
 
 ## Redis
 
