@@ -268,7 +268,7 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (solo movimiento; cada fu
 - G1 Un solo parser de marcadores (las 12 copias llaman a uno).
 - G2 `Respuesta` tipada; los marcadores quedan como formato legado de entrada.
 - G3 Delays como tareas Celery con `countdown`, sin `time.sleep` en el worker. Código en `integrar/e4-g6-origin` (`EKI_ENTREGA_DELAYS_CELERY`, default false). Flag off: el worker sigue durmiendo. El 0,5 s entre partes y el reenvío de puerta siguen en sleep. **No sustituye el outbox del bloque 2. No prender.**
-- G4 LLM en la cola `llm` con respuesta diferida.
+- G4 LLM en la cola `llm` con respuesta diferida. Código en `main` (`EKI_LLM_RESPUESTA_DIFERIDA` apagado: el turno sigue síncrono).
 - G5 `print` a `logger`; `except Exception` con `logger.exception`.
 - G6 Tabla explícita de transiciones de estado. Código en `main` (`aplicar` en puertas y reto; `EKI_LOG_TRANSICIONES_ESTADO` y `EKI_VALIDAR_TRANSICIONES` apagados).
 - G7 `get_response_for_intent` por el mismo camino que el cuerpo.

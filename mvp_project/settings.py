@@ -1332,6 +1332,7 @@ EKI_COLAS_POR_TIPO = os.environ.get('EKI_COLAS_POR_TIPO', 'false').strip().lower
 CELERY_RUTAS_POR_TIPO = {
     'core.tasks.generar_certificado_async': {'queue': 'certificados'},
     'core.tasks.generar_curso_ia_async': {'queue': 'llm'},
+    'core.tasks.ejecutar_llm_turno_whatsapp_async': {'queue': 'llm'},
 }
 if EKI_COLAS_POR_TIPO:
     CELERY_TASK_ROUTES.update(CELERY_RUTAS_POR_TIPO)
@@ -1350,6 +1351,10 @@ WEBHOOK_CELERY_ASYNC = os.environ.get('WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 # Línea Meta (menú + Coach/Profe/Ventas con LLM) fuera del request. Off hasta validar workers.
 SANDBOX_CELERY_ASYNC = os.environ.get('SANDBOX_CELERY_ASYNC', 'False').lower() in ('1', 'true', 'yes', 'on')
+# G4: LLM del turno (asesores sandbox) en cola llm con respuesta diferida. Off = sync.
+EKI_LLM_RESPUESTA_DIFERIDA = os.environ.get('EKI_LLM_RESPUESTA_DIFERIDA', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 
 # USD por millón de tokens (entrada, salida). Guía del plan, 2026-10-04.
 # La página oficial de precios no se pudo abrir ese día: gpt-5-nano queda sin tarifa.

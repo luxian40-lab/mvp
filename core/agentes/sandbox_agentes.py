@@ -632,8 +632,12 @@ def responder_agente_sandbox(
     cliente_id=None,
     sin_pregunta_final: bool = False,
     ya_en_conversacion: bool = False,
+    diferir_contexto: dict | None = None,
 ) -> str:
-    """Respuesta LLM con memoria; fallback sólido si falla la API."""
+    """Respuesta LLM con memoria; fallback sólido si falla la API.
+
+    diferir_contexto: con G4 on, pasa post_asesor/from_number/body/derivado a la tarea.
+    """
     q = (pregunta or '').strip()
     if not q:
         return saludo_agente(agente)
@@ -687,22 +691,33 @@ def responder_agente_sandbox(
     messages.extend(_historial_sandbox(telefono, agente))
     messages.append({'role': 'user', 'content': q[:1500]})
 
+    ctx = diferir_contexto or {}
     try:
         from openai import OpenAI
 
-        from core.openai_compat import completar_chat, contexto_uso_llm
+        from core.conversacion.llm_diferido import completar_chat_o_diferir, es_respuesta_diferida
+        from core.openai_compat import contexto_uso_llm
         from core.presupuesto_llm import modelo_segun_presupuesto
 
         token_uso = contexto_uso_llm(telefono=telefono, agente=agente)
         try:
-            texto = completar_chat(
+            texto = completar_chat_o_diferir(
                 OpenAI(api_key=api_key),
                 modelo_segun_presupuesto(_modelo()),
                 messages,
                 _max_tokens(),
+                telefono=telefono,
+                agente=agente,
+                from_number=str(ctx.get('from_number') or ''),
+                post_asesor=bool(ctx.get('post_asesor')),
+                body=str(ctx.get('body') or q),
+                derivado=bool(ctx.get('derivado')),
+                agente_secundario=str(ctx.get('agente_secundario') or ''),
             )
         finally:
             token_uso.var.reset(token_uso)
+        if es_respuesta_diferida(texto):
+            return texto
         if texto:
             return texto
     except Exception:

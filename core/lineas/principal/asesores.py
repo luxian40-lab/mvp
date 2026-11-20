@@ -210,6 +210,54 @@ def _guardar_pregunta_en_memoria(telefono: str, agente: str, body: str) -> None:
         logger.exception('sandbox_memoria_incoming_fail agente=%s', agente)
 
 
+def finalizar_turno_asesor_llm(
+    *,
+    telefono: str,
+    from_number: str,
+    agente: str,
+    body: str,
+    texto: str,
+    derivado: bool = False,
+    agente_secundario: str = '',
+) -> bool:
+    """Cupo, memoria, cierre, envío y ficha. Sync y tarea G4 usan el mismo camino.
+
+    Devuelve True si la respuesta contó como útil para la ficha (no derivada).
+    """
+    from core.planes_linea import registrar_pregunta_asesor
+    from core.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
+    from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
+
+    from_n = from_number or _menu().sandbox_number()
+    ya_pregunto = deja_pregunta_abierta(texto)
+    respuesta_util = not ya_pregunto and not remite_a_otro_asesor(texto)
+    registrar_pregunta_asesor(telefono)
+    _guardar_pregunta_en_memoria(telefono, agente, body)
+    try:
+        from core.conocimiento_agentes import capturar_sugerencia
+
+        capturar_sugerencia(agente, body, texto)
+    except Exception:
+        logger.exception('sandbox_captura_sugerencia_fail agente=%s', agente)
+    if derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        from core.lineas.principal.derivar_asesoria import cierre_derivacion
+
+        cierre = cierre_derivacion(agente_secundario, ya_pregunto=ya_pregunto)
+        texto = f'{texto}\n\n{cierre}'
+    quedan = _tope_asesor_mes(telefono) - respuestas_asesor_en_el_mes(telefono)
+    if quedan == 2:
+        texto = f'{texto}\n\nAviso: le quedan 2 preguntas este mes.'
+    try:
+        _menu().enviar_texto_sandbox(
+            telefono, from_n, texto, agente=f'sandbox_{agente}',
+        )
+    except Exception:
+        logger.exception('sandbox_agente_send_failed agente=%s', agente)
+    if respuesta_util and not derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
+        preguntar_ficha_si_toca(telefono, from_n)
+    return respuesta_util
+
+
 def _reaccion_espera(telefono: str, message_id: str) -> None:
     try:
         from core.sandbox_canal import poner_reaccion_espera
@@ -239,7 +287,6 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
     else:
         agente = 'ia_campo'
     from_n = decision.from_number or _menu().sandbox_number()
-    respuesta_util = False
 
     if decision.reset_nat:
         _menu().marcar_corte_memoria_nat(decision.telefono_usuario)
@@ -254,13 +301,8 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             "_Si envió un *audio* y no lo entendí, pruebe otra vez o escriba el mensaje._"
         )
     else:
-        from core.planes_linea import registrar_pregunta_asesor
-        from core.sandbox_agentes import (
-            _tope_asesor_mes,
-            excedio_cupo_ia_linea,
-            respuestas_asesor_en_el_mes,
-            responder_agente_sandbox,
-        )
+        from core.conversacion.llm_diferido import es_respuesta_diferida
+        from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea, responder_agente_sandbox
 
         tope = _tope_asesor_mes(decision.telefono_usuario)
         if excedio_cupo_ia_linea(decision.telefono_usuario):
@@ -275,27 +317,27 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
             texto = responder_agente_sandbox(
                 agente, body, telefono=decision.telefono_usuario, sin_pregunta_final=sin_pregunta,  # type: ignore[arg-type]
                 ya_en_conversacion=decision.derivado,
+                diferir_contexto={
+                    'post_asesor': True,
+                    'from_number': from_n,
+                    'body': body,
+                    'derivado': bool(decision.derivado),
+                    'agente_secundario': decision.agente_secundario or '',
+                },
             )
-            from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
-
-            ya_pregunto = deja_pregunta_abierta(texto)
-            respuesta_util = not ya_pregunto and not remite_a_otro_asesor(texto)
-            registrar_pregunta_asesor(decision.telefono_usuario)
-            _guardar_pregunta_en_memoria(decision.telefono_usuario, agente, body)
-            try:
-                from core.conocimiento_agentes import capturar_sugerencia
-
-                capturar_sugerencia(agente, body, texto)
-            except Exception:
-                logger.exception('sandbox_captura_sugerencia_fail agente=%s', agente)
-            if decision.derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
-                from core.lineas.principal.derivar_asesoria import cierre_derivacion
-
-                cierre = cierre_derivacion(decision.agente_secundario, ya_pregunto=ya_pregunto)
-                texto = f"{texto}\n\n{cierre}"
-            quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
-            if quedan == 2:
-                texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
+            if es_respuesta_diferida(texto):
+                # G4: la tarea llama finalizar_turno_asesor_llm (mismo post-proceso).
+                return 'handled'
+            finalizar_turno_asesor_llm(
+                telefono=decision.telefono_usuario,
+                from_number=from_n,
+                agente=agente,
+                body=body,
+                texto=texto,
+                derivado=bool(decision.derivado),
+                agente_secundario=decision.agente_secundario or '',
+            )
+            return 'handled'
     try:
         _menu().enviar_texto_sandbox(
             decision.telefono_usuario,
@@ -305,6 +347,4 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         )
     except Exception:
         logger.exception('sandbox_agente_send_failed agente=%s', agente)
-    if respuesta_util and not decision.derivado and getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
-        preguntar_ficha_si_toca(decision.telefono_usuario, from_n)
     return 'handled'

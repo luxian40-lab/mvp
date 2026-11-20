@@ -366,6 +366,81 @@ def procesar_twilio_webhook_async(self, post_data: dict):
         _reintentar_si_lock(self, exc)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=15, acks_late=True, soft_time_limit=55, time_limit=70)
+def ejecutar_llm_turno_whatsapp_async(
+    self,
+    *,
+    modelo: str,
+    messages: list,
+    max_out: int,
+    telefono: str,
+    agente: str = '',
+    from_number: str = '',
+    temperature=None,
+    post_asesor: bool = False,
+    body: str = '',
+    derivado: bool = False,
+    agente_secundario: str = '',
+):
+    """G4: completa el chat en cola llm y envía la respuesta por sandbox/Meta.
+
+    Con post_asesor=True usa el mismo cierre/cupo/ficha que el camino sync.
+    """
+    from django.conf import settings
+
+    from core.locks import telefono_lock
+    from core.nati import normalizar_telefono_whatsapp
+    from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
+
+    tel = normalizar_telefono_whatsapp(str(telefono or '')) or str(telefono or '')
+    try:
+        with telefono_lock(tel or 'sin-telefono'):
+            api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
+            if not api_key:
+                logger.warning('llm_turno sin OPENAI_API_KEY agente=%s', agente)
+                return None
+            token = contexto_uso_llm(telefono=tel, agente=agente or 'llm_diferido')
+            try:
+                texto = completar_chat(
+                    cliente_openai(api_key),
+                    modelo,
+                    messages,
+                    max_out,
+                    temperature,
+                )
+            finally:
+                token.var.reset(token)
+            if not (texto or '').strip():
+                if post_asesor and (body or '').strip():
+                    from core.sandbox_agentes import _respuesta_si_falla
+
+                    texto = _respuesta_si_falla(agente or 'coach', body)
+                else:
+                    return None
+            if post_asesor:
+                from core.lineas.principal.asesores import finalizar_turno_asesor_llm
+
+                return finalizar_turno_asesor_llm(
+                    telefono=tel,
+                    from_number=from_number or '',
+                    agente=agente or 'coach',
+                    body=body or '',
+                    texto=texto,
+                    derivado=bool(derivado),
+                    agente_secundario=agente_secundario or '',
+                )
+            from core.lineas.envio import enviar_sandbox
+
+            return enviar_sandbox(
+                tel,
+                texto,
+                from_number=from_number or None,
+                agente_evento=agente or 'llm_diferido',
+            )
+    except Exception as exc:
+        _reintentar_si_lock(self, exc)
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def generar_certificado_async(self, certificado_id):
     """Pinta el diploma HD (PNG maestro + PDF A4 + copia WA) y lo envía."""

@@ -31,6 +31,7 @@ class ColasPorTipoTests(SimpleTestCase):
             {
                 'core.tasks.generar_certificado_async': {'queue': 'certificados'},
                 'core.tasks.generar_curso_ia_async': {'queue': 'llm'},
+                'core.tasks.ejecutar_llm_turno_whatsapp_async': {'queue': 'llm'},
             },
         )
         for nombre in settings.CELERY_RUTAS_POR_TIPO:
