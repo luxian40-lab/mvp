@@ -28,9 +28,12 @@ TEXTO_TIP_MEDIA = (
     'El curso no avanza con este mensaje: cuando quieras seguir, toca *Continuar*.'
 )
 
+# Nombre legado: en pausa de lección ya no se rechaza; tip en tú + botón.
 TEXTO_NO_ENTENDI = (
-    'No entendí. Si quieres avanzar de módulo, toca *Continuar*. '
-    'Si necesitas ayuda, escribe *ayuda*.'
+    'En esta parte del curso el avance es con *Continuar*.\n\n'
+    'Si un video o una imagen no carga, escríbelo y te ayudamos. '
+    'Si necesitas soporte, escribe *ayuda*.\n\n'
+    'Cuando quieras seguir, toca Continuar.'
 )
 
 TEXTO_PUNTOS_INICIO = (

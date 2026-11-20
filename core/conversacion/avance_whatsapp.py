@@ -67,39 +67,27 @@ def espera_continuar_post_reto(estudiante) -> bool:
 
 
 def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
-    """Copy de la puerta ACTIVO si el mensaje no es Continuar/listo."""
-    from core.lineas.agricapital_experiencia import (
-        estudiante_es_agricapital,
-        texto_no_entendi_agricapital,
+    """Pausa en lección ACTIVO: tip/CTA o Compañero. Nunca «No entendí»."""
+    from core.lineas.agricapital_experiencia import estudiante_es_agricapital
+    from core.conversacion.turno_leccion import (
+        clasificar_mensaje_leccion,
+        responder_duda_en_leccion,
+        texto_tip_turno_leccion,
+        turno_leccion_companero_habilitado,
     )
 
     if espera_continuar_post_reto(estudiante):
         if estudiante_es_agricapital(estudiante):
             return TEXTO_POST_RETO_CONTINUAR_TU
         return TEXTO_POST_RETO_CONTINUAR
-    from core.conversacion.turno_leccion import (
-        clasificar_mensaje_leccion,
-        responder_duda_en_leccion,
-        texto_tip_turno_leccion,
-        turno_leccion_companero_habilitado,
-        turno_leccion_tip_habilitado,
-    )
 
-    tip_on = turno_leccion_tip_habilitado()
-    companero_on = turno_leccion_companero_habilitado()
-    if tip_on or companero_on:
-        clase = clasificar_mensaje_leccion(mensaje or '')
-        if clase == 'media' and tip_on:
-            return texto_tip_turno_leccion(estudiante, mensaje or '')
-        if clase == 'pregunta' and companero_on:
-            duda = responder_duda_en_leccion(estudiante, mensaje or '')
+    mensaje = mensaje or ''
+    if turno_leccion_companero_habilitado():
+        if clasificar_mensaje_leccion(mensaje) == 'pregunta':
+            duda = responder_duda_en_leccion(estudiante, mensaje)
             if duda:
                 return duda
-        if tip_on:
-            return texto_tip_turno_leccion(estudiante, mensaje or '')
-    if estudiante_es_agricapital(estudiante):
-        return texto_no_entendi_agricapital()
-    return TEXTO_NO_ENTENDI
+    return texto_tip_turno_leccion(estudiante, mensaje)
 
 
 # Misma plantilla que core.whatsapp_service (evita import circular en tests).

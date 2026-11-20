@@ -6,7 +6,6 @@ from django.test import SimpleTestCase, override_settings
 
 from core.avance_whatsapp import (
     MARCADOR_BOTON_CONTINUEMOS,
-    TEXTO_NO_ENTENDI,
     texto_cuando_no_es_listo,
 )
 from core.conversacion.turno_leccion import (
@@ -40,14 +39,28 @@ class ClasificarLeccionTests(SimpleTestCase):
 
 
 @override_settings(EKI_TURNO_LECCION_TIP=False, EKI_TURNO_LECCION_COMPANERO=False)
-class FlagApagadoConservaNoEntendiTests(SimpleTestCase):
-    def test_sin_flag_sigue_no_entendi(self):
+class PausaLeccionNuncaNoEntendiTests(SimpleTestCase):
+    """Pausa ACTIVO: tip/CTA, nunca «No entendí». Avance solo con el botón/listo."""
+
+    def test_sin_flag_tip_sin_no_entendi(self):
         est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
         out = texto_cuando_no_es_listo(
             est, 'un gasto hormiga puede ser gasto diario'
         )
-        self.assertEqual(out, TEXTO_NO_ENTENDI)
-        self.assertIn('No entendí', out)
+        self.assertEqual(out, TEXTO_TIP_LECCION_USTED)
+        self.assertNotIn('No entendí', out)
+
+    def test_cortesia_pide_continuar_sin_no_entendi(self):
+        """si/ok/emoji no avanzan; reciben tip, no rechazo."""
+        from core.intent_detector import mensaje_indica_listo
+
+        est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
+        for msg in ('si', 'ok', '👍', '✅'):
+            with self.subTest(msg=msg):
+                self.assertFalse(mensaje_indica_listo(msg))
+                out = texto_cuando_no_es_listo(est, msg)
+                self.assertNotIn('No entendí', out)
+                self.assertIn(MARCADOR_BOTON_CONTINUEMOS, out)
 
 
 @override_settings(EKI_TURNO_LECCION_TIP=True, EKI_TURNO_LECCION_COMPANERO=False)

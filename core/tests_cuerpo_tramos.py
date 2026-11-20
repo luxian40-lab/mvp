@@ -217,12 +217,14 @@ class EntradaActivoTests(_Base):
 
 
 class PuertaListoTests(_Base):
-    def test_texto_que_no_es_listo_responde_no_entendi(self):
+    def test_texto_que_no_es_listo_responde_tip_continuar(self):
         self._est()
         cli = self._post('que tal', 'SM_tr_pl_noent')
         cuerpos = self._cuerpos(cli)
         self.assertEqual(len(cuerpos), 1)
-        self.assertTrue(cuerpos[0].startswith('No entendí. Si quiere avanzar de módulo, pulse continuar'))
+        self.assertNotIn('No entendí', cuerpos[0])
+        self.assertIn('Continuar', cuerpos[0])
+        self.assertIn('avance es con', cuerpos[0])
 
     def test_audio_no_transcrito_pide_repetir(self):
         self._est()

@@ -6,7 +6,6 @@ from django.test import SimpleTestCase
 
 from core.avance_whatsapp import (
     CLAVE_ESPERA_CONTINUAR_POST_RETO,
-    TEXTO_NO_ENTENDI,
     texto_cuando_no_es_listo,
 )
 from core.lineas.agricapital_experiencia import es_mensaje_no_calificable_reto
@@ -68,7 +67,10 @@ class PostRetoSinNoEntendiTests(SimpleTestCase):
         self.assertIn('Ya revisamos su reto', out)
         self.assertNotIn('No entendí', out)
 
-    def test_sin_post_reto_sigue_no_entendi(self):
+    def test_sin_post_reto_tip_sin_no_entendi(self):
+        from core.conversacion.turno_leccion import TEXTO_TIP_LECCION_USTED
+
         est = SimpleNamespace(cliente_id=27, contexto_temporal={})
         out = texto_cuando_no_es_listo(est)
-        self.assertEqual(out, TEXTO_NO_ENTENDI)
+        self.assertEqual(out, TEXTO_TIP_LECCION_USTED)
+        self.assertNotIn('No entendí', out)

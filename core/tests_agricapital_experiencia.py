@@ -214,12 +214,14 @@ class CopyVocesRitmoAgriCapitalTests(SimpleTestCase):
         self.assertIn(f'{DELAY}1]', preparar_salida_agricapital(agri, bruto))
         self.assertEqual(preparar_salida_agricapital(otro, bruto), bruto)
 
-    def test_no_entendi_agri_en_tu(self):
+    def test_pausa_agri_en_tu_sin_no_entendi(self):
         from core.lineas.agricapital_experiencia import texto_no_entendi_agricapital
 
         t = texto_no_entendi_agricapital().lower()
-        self.assertIn('si quieres avanzar', t)
-        self.assertNotIn('si quiere avanzar', t)
+        self.assertNotIn('no entendí', t)
+        self.assertIn('toca continuar', t)
+        self.assertIn('te ayudamos', t)
+        self.assertNotIn('le ayudamos', t)
 
     def test_drip_agri_en_tu(self):
         from core.lineas.agricapital_experiencia import texto_bloqueo_drip_agricapital
