@@ -63,6 +63,14 @@ def escritura_activa() -> bool:
     return bool(getattr(settings, 'EKI_ESTADO_LINEA_ESCRITURA', False)) or lectura_activa()
 
 
+def sin_espejo() -> bool:
+    """E4: al salir del turno, las columnas de Estudiante vuelven a como estaban.
+
+    La fila de la línea se queda con el estado nuevo. Apagado, el espejo sigue.
+    """
+    return bool(getattr(settings, 'EKI_ESTADO_LINEA_SIN_ESPEJO', False))
+
+
 def _valores_de(estudiante_id) -> dict | None:
     estudiantes = apps.get_model('core', 'Estudiante')
     return estudiantes.objects.filter(pk=estudiante_id).values(*CAMPOS).first()
@@ -89,6 +97,16 @@ def guardar_en_linea(estudiante_id: int, phone_id: str, valores: dict, base: dic
     )
     if not creada:
         filas.update(**cambios, actualizado_en=timezone.now())
+
+
+def _restaurar_columnas(estudiante_id: int, snapshot: dict) -> None:
+    """Devuelve estado_chat, onboarding y contexto a la fila de Estudiante. No dispara señales."""
+    datos = _para_fila(snapshot)
+    try:
+        with transaction.atomic():
+            apps.get_model('core', 'Estudiante').objects.filter(pk=estudiante_id).update(**datos)
+    except DatabaseError:
+        logger.warning('estado_linea_no_restaurado', exc_info=True)
 
 
 def _copiar_a_linea(estudiante, phone_id: str) -> None:
@@ -144,15 +162,19 @@ def en_linea(
         yield
         return
     estudiante = buscar()
+    pk = getattr(estudiante, 'pk', None)
+    snapshot = _valores_de(pk) if sin_espejo() and pk else None
     if cargar and lectura_activa():
         _cargar_de_linea(estudiante, phone_id)
-    token = _linea.set((getattr(estudiante, 'pk', None), phone_id, nace_sin_contexto))
+    token = _linea.set((pk, phone_id, nace_sin_contexto))
     try:
         yield
     finally:
         _linea.reset(token)
         if copiar_al_salir:
             _copiar_a_linea(estudiante or buscar(), phone_id)
+        if snapshot is not None:
+            _restaurar_columnas(pk, snapshot)
 
 
 def _toca_estado(update_fields) -> bool:

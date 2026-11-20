@@ -260,6 +260,39 @@ class EnLineaLecturaTests(TestCase):
         self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
 
 
+@override_settings(EKI_ESTADO_LINEA_LECTURA=True, EKI_ESTADO_LINEA_SIN_ESPEJO=True)
+class EnLineaSinEspejoTests(EnLineaLecturaTests):
+    """E4: la fila guarda el turno; las columnas de Estudiante vuelven al entrar."""
+
+    def test_al_salir_la_columna_vuelve_y_la_fila_se_queda_con_el_turno(self):
+        from core.conversacion.estado_linea import en_linea
+
+        with en_linea(LINEA_2.phone_id, lambda: Estudiante.objects.get(pk=self.est.pk)):
+            durante = self._columna()
+            est = Estudiante.objects.get(pk=self.est.pk)
+            est.estado_onboarding = 'esperando_respuesta_asistente'
+            est.save(update_fields=['estado_onboarding'])
+        self.assertEqual(durante['estado_onboarding'], 'esperando_respuesta_modulo')
+        self.assertEqual(self._columna()['estado_onboarding'], 'completado')
+        self.assertEqual(self._columna()['contexto_temporal'], {'curso_activo_id': 1})
+        self.assertEqual(_fila(self.est, LINEA_2).estado_onboarding, 'esperando_respuesta_asistente')
+        self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
+
+    def test_la_campana_no_deja_el_estado_de_esa_linea_en_la_columna(self):
+        from core.campana_audiencia import poner_en_inicio_de_flujo
+
+        poner_en_inicio_de_flujo(self.est, '100000000000003')
+        self.assertEqual(
+            (self._columna()['estado_chat'], self._columna()['estado_onboarding']),
+            ('ACTIVO', 'completado'),
+        )
+        fila = EstadoLinea.objects.get(estudiante=self.est, phone_id='100000000000003')
+        self.assertEqual((fila.estado_chat, fila.estado_onboarding, fila.contexto_temporal), (
+            'ESPERANDO_HABEAS_DATA', 'nuevo', None,
+        ))
+        self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
+
+
 @override_settings(EKI_ESTADO_LINEA_LECTURA=True)
 class DosLineasConLecturaTests(dos_lineas.ContratoDosLineasTests):
     """Contrato A4 con la lectura prendida: cada línea sigue su propio estado.

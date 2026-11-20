@@ -396,6 +396,11 @@ EKI_ESTADO_LINEA_ESCRITURA = os.environ.get('EKI_ESTADO_LINEA_ESCRITURA', 'false
 EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# E4: al salir del turno o de la campaña, Estudiante no conserva el estado de esa línea.
+# La fila EstadoLinea sí. Off = espejo en las columnas, como hoy. No prender hasta el listado por línea.
+EKI_ESTADO_LINEA_SIN_ESPEJO = os.environ.get('EKI_ESTADO_LINEA_SIN_ESPEJO', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: los mensajes del mismo teléfono se aplican en el orden de llegada a la base.
 # False: el candado Redis evita simultáneos, pero un reintento puede adelantar al siguiente.
 EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (
