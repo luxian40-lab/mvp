@@ -27,7 +27,7 @@ class CoreConfig(AppConfig):
 
         import core.signals_publicacion_wa  # Slack borrador en curso activo
 
-        from core.twilio_timeout import aplicar_timeout_twilio
+        from core.canal.twilio_timeout import aplicar_timeout_twilio
         aplicar_timeout_twilio()
 
         import core.avisos.admin  # noqa: F401
