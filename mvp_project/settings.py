@@ -363,6 +363,11 @@ EKI_LINEA_REGISTRO_FLOW_ID = os.environ.get('EKI_LINEA_REGISTRO_FLOW_ID', '')
 EKI_AGRICAPITAL_CLIENTE_ID = os.environ.get('EKI_AGRICAPITAL_CLIENTE_ID', '').strip()
 EKI_AGRICAPITAL_GRUPO_ID = os.environ.get('EKI_AGRICAPITAL_GRUPO_ID', '').strip()
 EKI_AGRICAPITAL_CURSO_ID = os.environ.get('EKI_AGRICAPITAL_CURSO_ID', '').strip()
+# Línea 3 AgriCapital: no volcar MULTI_MSG de sesión si la ventana Meta está cerrada.
+# Default off: sin cambio de comportamiento hasta eb setenv. Verificado diseño 2026-11-19.
+EKI_REGISTRO_RESPETA_VENTANA = os.environ.get(
+    'EKI_REGISTRO_RESPETA_VENTANA', 'false'
+).strip().lower() in ('1', 'true', 'yes', 'on')
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre
 META_LINEAS = os.environ.get('META_LINEAS', '')

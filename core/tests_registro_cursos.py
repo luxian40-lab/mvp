@@ -172,7 +172,9 @@ class AtenderCursosTests(SimpleTestCase):
         textos = [llamada.args[1] for llamada in aviso.call_args_list]
         self.assertEqual(textos, ['Quedó en Suelos.', 'CLASE'])
         self.assertEqual(ficha.contexto_temporal['curso_activo_id'], 5)
-        primera.assert_called_once_with(ficha, progreso, progreso.modulo_actual)
+        primera.assert_called_once_with(
+            ficha, progreso, progreso.modulo_actual, marcar=True,
+        )
 
     def test_ver_curso_ya_empezado_no_repite_el_saludo(self):
         curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
@@ -248,3 +250,95 @@ class AtenderCursosTests(SimpleTestCase):
             atender_cursos('573001112233', 'ver_curso_9', 7)
         alta.assert_not_called()
         self.assertIn('no está', aviso.call_args.args[1])
+
+
+@override_settings(**AJUSTES, EKI_REGISTRO_RESPETA_VENTANA=True)
+class RespetaVentanaTests(SimpleTestCase):
+    def test_ventana_cerrada_inscribe_sin_volcar_clase(self):
+        curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
+        ficha = _Ficha()
+        progreso = SimpleNamespace(modulo_actual=SimpleNamespace(numero=1), curso_id=5)
+        with patch(
+            'core.lineas.registro_cursos.cursos_del_cliente', return_value=[curso],
+        ), patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
+            return_value=(progreso, True),
+        ) as alta, patch(
+            'core.reenganche_meta.ventana_abierta', return_value=False,
+        ), patch(
+            'core.curso.inicio_curso.mensaje_primera_entrega',
+        ) as primera, patch(
+            'core.lineas.registro_abrir._avisar',
+        ) as aviso:
+            atender_cursos('573001112233', 'ver_curso_5', 7)
+        alta.assert_called_once_with(ficha, curso)
+        primera.assert_not_called()
+        aviso.assert_not_called()
+        self.assertEqual(ficha.contexto_temporal['curso_activo_id'], 5)
+        self.assertEqual(ficha.contexto_temporal['inicio_pendiente_curso_id'], 5)
+
+    def test_ventana_abierta_manda_clase_y_marca_si_graph_ok(self):
+        curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
+        ficha = _Ficha()
+        progreso = SimpleNamespace(modulo_actual=SimpleNamespace(numero=1), curso_id=5)
+        with patch(
+            'core.lineas.registro_cursos.cursos_del_cliente', return_value=[curso],
+        ), patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
+            return_value=(progreso, True),
+        ), patch(
+            'core.reenganche_meta.ventana_abierta', return_value=True,
+        ), patch(
+            'core.curso.inicio_curso.curso_sin_empezar', return_value=True,
+        ), patch(
+            'core.curso.inicio_curso.mensaje_primera_entrega', return_value='CLASE',
+        ) as primera, patch(
+            'core.curso.inicio_curso.marcar_inicio_entregado',
+        ) as marca, patch(
+            'core.lineas.registro_abrir._avisar', return_value={'success': True},
+        ) as aviso:
+            atender_cursos('573001112233', 'ver_curso_5', 7)
+        primera.assert_called_once_with(
+            ficha, progreso, progreso.modulo_actual, marcar=False,
+        )
+        textos = [llamada.args[1] for llamada in aviso.call_args_list]
+        self.assertEqual(textos, ['Quedó en Suelos.', 'CLASE'])
+        marca.assert_called_once_with(ficha, 5)
+
+    def test_continuar_reintenta_saludo_si_quedo_pendiente(self):
+        ficha = _Ficha()
+        ficha.contexto_temporal = {
+            'curso_activo_id': 5, 'inicio_pendiente_curso_id': 5,
+        }
+        progreso = SimpleNamespace(
+            modulo_actual=SimpleNamespace(numero=1), curso_id=5, curso=SimpleNamespace(),
+        )
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.reenganche_meta.ventana_abierta', return_value=True,
+        ), patch(
+            'core.lineas.registro_cursos._progreso_activo', return_value=progreso,
+        ), patch(
+            'core.curso.inicio_curso.falta_primera_entrega', return_value=True,
+        ), patch(
+            'core.curso.inicio_curso.curso_sin_empezar', return_value=True,
+        ), patch(
+            'core.curso.inicio_curso.mensaje_primera_entrega', return_value='CLASE',
+        ), patch(
+            'core.curso.inicio_curso.marcar_inicio_entregado',
+        ) as marca, patch(
+            'core.lineas.registro_abrir._avisar', return_value={'success': True},
+        ) as aviso, patch(
+            'core.conversacion.intents.continuar_leccion.responder',
+        ) as avanzar, patch(
+            'core.conversacion.response_templates.soltar_turno_entrega_actual',
+        ):
+            atender_cursos('573001112233', 'listo', 7)
+        aviso.assert_called_once_with('573001112233', 'CLASE')
+        marca.assert_called_once_with(ficha, 5)
+        avanzar.assert_not_called()

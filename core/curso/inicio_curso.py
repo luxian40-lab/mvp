@@ -95,8 +95,12 @@ def primera_entrega_al_confirmar(estudiante) -> str | None:
     return mensaje_primera_entrega(estudiante, progreso, progreso.modulo_actual)
 
 
-def mensaje_primera_entrega(estudiante, progreso, modulo) -> str:
-    """Saludo y el módulo actual. No marca el módulo como completado."""
+def mensaje_primera_entrega(estudiante, progreso, modulo, *, marcar: bool = True) -> str:
+    """Saludo y el módulo actual. No marca el módulo como completado.
+
+    `marcar=False` arma el texto sin `marcar_inicio_entregado` (línea 3 puede
+    marcar solo si Graph aceptó el envío).
+    """
     from core.conversacion.multimsg import MULTI_MSG, SEP
     from core.lineas.agricapital_experiencia import (
         TEXTO_COMIENZA_MODULO,
@@ -132,7 +136,8 @@ def mensaje_primera_entrega(estudiante, progreso, modulo) -> str:
     else:
         partes.append('*Comenzamos con el primer módulo de su curso...*')
     partes.extend(_partes_del_modulo(progreso, modulo))
-    marcar_inicio_entregado(estudiante, progreso.curso_id)
+    if marcar:
+        marcar_inicio_entregado(estudiante, progreso.curso_id)
     texto = MULTI_MSG + SEP.join(p for p in partes if p)
     return preparar_salida_agricapital(estudiante, texto)
 

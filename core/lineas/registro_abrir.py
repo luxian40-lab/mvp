@@ -306,16 +306,20 @@ def _cliente_guardado(telefono: str) -> int | None:
     return sesion.registro_cliente_id or None
 
 
-def _avisar(telefono: str, texto: str) -> None:
+def _avisar(telefono: str, texto: str) -> dict:
+    """Envía texto de sesión en la línea 3. Devuelve el dict del Sender."""
     from core.sandbox_menu import enviar_texto_sandbox, sandbox_number
 
     from django.db import DatabaseError
     from requests import RequestException
 
     try:
-        enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
+        return enviar_texto_sandbox(
+            telefono, sandbox_number(), texto, agente='registro_flow',
+        ) or {'success': False}
     except (DatabaseError, RequestException, OSError):
         logger.exception('registro_flow_aviso')
+        return {'success': False}
 
 
 def _id_existente(items) -> str:

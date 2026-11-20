@@ -228,6 +228,21 @@ def _enviar_lista(telefono: str, cursos) -> None:
         _avisar(telefono, f'{CUERPO_OFERTA} {nombres}')
 
 
+def _respeta_ventana() -> bool:
+    from django.conf import settings
+
+    return bool(getattr(settings, 'EKI_REGISTRO_RESPETA_VENTANA', False))
+
+
+def _ventana_ok(ficha) -> bool:
+    """Con el flag apagado no consulta: se comporta como antes."""
+    if not _respeta_ventana():
+        return True
+    from core.reenganche_meta import ventana_abierta
+
+    return ventana_abierta(ficha)
+
+
 def _inscribir(telefono: str, curso_id: int, cliente_id: int | None) -> None:
     from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
     from core.lineas.registro_abrir import _avisar, _ficha
@@ -251,34 +266,96 @@ def _inscribir(telefono: str, curso_id: int, cliente_id: int | None) -> None:
         _recordar_curso(ficha, curso.id)
     except DatabaseError:
         logger.exception('registro_curso_activo')
-    _avisar(telefono, TEXTO_INSCRITO.format(nombre=curso.nombre))
-    try:
-        clase = _abrir_si_no_empezo(ficha, progreso)
-    except DatabaseError:
-        logger.exception('registro_primera_clase')
+    # Ventana cerrada: inscripción queda; sin dump de sesión (evita 131047 en ráfaga).
+    if not _ventana_ok(ficha):
+        logger.info('registro_ventana_cerrada_omitido curso=%s', curso.id)
         return
-    if clase:
-        _avisar(telefono, clase)
+    _avisar(telefono, TEXTO_INSCRITO.format(nombre=curso.nombre))
+    _entregar_primera_clase(telefono, ficha, progreso)
 
 
 def _recordar_curso(ficha, curso_id: int) -> None:
-    """El listo siguiente avanza este curso, el que la persona acaba de elegir."""
+    """El listo siguiente avanza este curso; con el flag, deja el saludo pendiente."""
+    from core.curso.inicio_curso import inicio_ya_entregado, marcar_inicio_pendiente
+
     ctx = dict(getattr(ficha, 'contexto_temporal', None) or {})
-    if ctx.get('curso_activo_id') == curso_id:
+    mismo = ctx.get('curso_activo_id') == curso_id
+    dejar_pendiente = (
+        _respeta_ventana() and not inicio_ya_entregado(ficha, curso_id)
+        and ctx.get('inicio_pendiente_curso_id') != curso_id
+    )
+    if mismo and not dejar_pendiente:
         return
     ctx['curso_activo_id'] = curso_id
+    if dejar_pendiente:
+        marcar_inicio_pendiente(ctx, curso_id)
     ficha.contexto_temporal = ctx
     ficha.save(update_fields=['contexto_temporal'])
 
 
-def _abrir_si_no_empezo(ficha, progreso) -> str:
+def _abrir_si_no_empezo(ficha, progreso, *, marcar: bool = True) -> str:
     """Saludo y módulo 1 solo si ese curso todavía no se mostró."""
     from core.curso.inicio_curso import curso_sin_empezar, mensaje_primera_entrega
 
     modulo = getattr(progreso, 'modulo_actual', None)
     if modulo is None or not curso_sin_empezar(ficha, progreso, modulo):
         return ''
-    return mensaje_primera_entrega(ficha, progreso, modulo) or ''
+    return mensaje_primera_entrega(ficha, progreso, modulo, marcar=marcar) or ''
+
+
+def _entregar_primera_clase(telefono: str, ficha, progreso) -> bool:
+    """Arma y manda el saludo. Con flag on solo marca entregado si Graph aceptó."""
+    from core.curso.inicio_curso import marcar_inicio_entregado
+    from core.lineas.registro_abrir import _avisar
+
+    deferir = _respeta_ventana()
+    try:
+        clase = _abrir_si_no_empezo(ficha, progreso, marcar=not deferir)
+    except DatabaseError:
+        logger.exception('registro_primera_clase')
+        return False
+    if not clase:
+        return False
+    resultado = _avisar(telefono, clase)
+    if deferir and resultado.get('success'):
+        try:
+            marcar_inicio_entregado(ficha, progreso.curso_id)
+        except DatabaseError:
+            logger.exception('registro_marca_inicio')
+    return bool(resultado.get('success'))
+
+
+def _progreso_activo(ficha):
+    from core.models import ProgresoEstudiante
+
+    curso_id = (getattr(ficha, 'contexto_temporal', None) or {}).get('curso_activo_id')
+    if not curso_id:
+        return None
+    return (
+        ProgresoEstudiante.objects.filter(
+            estudiante_id=ficha.id, curso_id=curso_id, completado=False,
+        )
+        .select_related('curso', 'modulo_actual')
+        .first()
+    )
+
+
+def _reintentar_primera_si_falta(telefono: str, ficha) -> bool:
+    """Tras skip por ventana: al Continuar, entrega el saludo si ya puede."""
+    from core.curso.inicio_curso import curso_sin_empezar, falta_primera_entrega
+
+    if not _respeta_ventana() or not _ventana_ok(ficha):
+        return False
+    progreso = _progreso_activo(ficha)
+    if progreso is None:
+        return False
+    modulo = getattr(progreso, 'modulo_actual', None)
+    if not (
+        falta_primera_entrega(ficha, progreso, modulo)
+        or curso_sin_empezar(ficha, progreso, modulo)
+    ):
+        return False
+    return _entregar_primera_clase(telefono, ficha, progreso)
 
 
 def _avanzar(telefono: str, body: str) -> bool:
@@ -296,6 +373,11 @@ def _avanzar(telefono: str, body: str) -> bool:
     ficha = _ficha(telefono)
     if ficha is None:
         return False
+    try:
+        if _reintentar_primera_si_falta(telefono, ficha):
+            return True
+    except DatabaseError:
+        logger.exception('registro_reintento_primera')
     texto = ''
     try:
         texto = responder(
