@@ -49,5 +49,5 @@ def manejar(contexto: Contexto) -> Respuesta:
         enviar_respuesta_turno(msg_from, texto_respuesta, agente='correccion_legado')
     except Exception as e:
         logger.error(f"❌ Error enviando ayuda modificar: {e}")
-        import traceback; traceback.print_exc()
+        logger.exception('fallo en %s', __name__)
     return CORTAR

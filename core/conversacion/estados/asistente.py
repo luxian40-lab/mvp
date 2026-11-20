@@ -93,14 +93,14 @@ def manejar(contexto: Contexto) -> Respuesta:
     modulos_reto_ids = ctx.get('modulos_reto_ids', [])
     progreso_id = ctx.get('progreso_id')
     nombre_asistente = 'Compañero'
-    print(f"💬 Asistente ({nombre_asistente}): Esperando respuesta del compañero IA")
+    logger.info(f"💬 Asistente ({nombre_asistente}): Esperando respuesta del compañero IA")
 
     msg_lower = msg_body.strip().lower()
     if msg_lower in ['ayuda', 'soporte', 'ticket']:
         from core.security_handler import procesar_solicitud_soporte
         texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
     elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
-        print(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
+        logger.info(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
         from core.agentes_whatsapp import mensaje_con_titular_agente
 
         preguntas_restantes = 2 - preguntas_hechas

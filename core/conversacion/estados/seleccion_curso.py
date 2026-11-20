@@ -1,6 +1,10 @@
 """Estado esperando_seleccion_curso. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
+import logging
+
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
+
+logger = logging.getLogger('core.views.webhook_twilio')
 
 
 def manejar(contexto: Contexto) -> Respuesta:
@@ -27,7 +31,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             estudiante.estado_onboarding = 'completado'
             estudiante.save(update_fields=['estado_onboarding'])
             texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice_sel, msg_body)
-            print(f"✅ Curso seleccionado: {indice_sel}")
+            logger.info(f"✅ Curso seleccionado: {indice_sel}")
         else:
             # Si no es número/tomar ni menú, resetear estado y procesar normalmente
             estudiante.estado_onboarding = 'completado'

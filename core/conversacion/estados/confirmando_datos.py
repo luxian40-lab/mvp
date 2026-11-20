@@ -59,7 +59,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                 texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nAún no hay cursos disponibles. Le notificaremos cuando estén listos."
         except Exception as e:
             logger.error(f"❌ Error enviando curso directo: {e}")
-            import traceback; traceback.print_exc()
+            logger.exception('fallo en %s', __name__)
             texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nSu organización le notificará cuando estén listos los cursos. Escriba *ayuda* si necesita asistencia."
 
         # MENÚ OCULTO (no eliminado del código):
@@ -110,7 +110,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         enviar_marcado(msg_from, telefono_limpio, texto_respuesta, registro='segmentos')
     except Exception as e:
         logger.error(f"❌ Error enviando confirmación: {e}")
-        import traceback; traceback.print_exc()
+        logger.exception('fallo en %s', __name__)
     return CORTAR  # CORTAR EJECUCIÓN
 
 

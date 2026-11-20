@@ -83,5 +83,5 @@ def manejar(contexto: Contexto) -> Respuesta:
         enviar_respuesta_turno(msg_from, texto_respuesta, agente='cedula')
     except Exception as e:
         logger.error(f"❌ Error enviando validación 2FA: {e}")
-        import traceback; traceback.print_exc()
+        logger.exception('fallo en %s', __name__)
     return CORTAR  # CORTAR EJECUCIÓN

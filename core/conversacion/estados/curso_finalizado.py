@@ -1,12 +1,16 @@
 """Estado curso_finalizado. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
+import logging
+
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import Contexto, Respuesta
+
+logger = logging.getLogger('core.views.webhook_twilio')
 
 
 def manejar(contexto: Contexto) -> Respuesta:
     estudiante = contexto.estudiante
     texto_respuesta = contexto.texto_respuesta
-    print(f"🚫 Curso finalizado — sin interacción post-certificado")
+    logger.info(f"🚫 Curso finalizado — sin interacción post-certificado")
     # Check if student has a new active course
     from core.models import ProgresoEstudiante
     nuevo_progreso = ProgresoEstudiante.objects.filter(

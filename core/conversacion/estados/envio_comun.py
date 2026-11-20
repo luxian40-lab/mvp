@@ -17,7 +17,7 @@ def enviar(contexto: Contexto) -> None:
     telefono_limpio = contexto.telefono_limpio
     texto_respuesta = contexto.texto_respuesta
     # 3. Enviar respuesta via Twilio
-    print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)
+    logger.info(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})")
     if (
         'Pregunta abierta final de la Facilitadora' in texto_respuesta
         or 'Siguiente pregunta abierta final' in texto_respuesta
@@ -37,7 +37,7 @@ def enviar(contexto: Contexto) -> None:
         if media_match:
             media_url_to_send = media_match.group(1)
             texto_respuesta = texto_respuesta.replace(media_match.group(0), '').strip()
-            print(f"🖼️ Media URL detectada: {media_url_to_send}")
+            logger.info(f"🖼️ Media URL detectada: {media_url_to_send}")
     
     try:
         from core.views.twilio_transporte import turno_sale_por_meta
@@ -65,10 +65,10 @@ def enviar(contexto: Contexto) -> None:
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
         twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
         twilio_number = str(twilio_number).strip()
-        print(f"DEBUG TWILIO FROM (views.py): '{twilio_number}'")
+        logger.info(f"DEBUG TWILIO FROM (views.py): '{twilio_number}'")
         
         if not account_sid or not auth_token:
-            print("❌ Credenciales Twilio faltantes")
+            logger.error("❌ Credenciales Twilio faltantes")
             return
         
         client = Client(account_sid, auth_token)
@@ -83,14 +83,14 @@ def enviar(contexto: Contexto) -> None:
             tmpl_match = re.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', texto_respuesta.strip())
             if tmpl_match:
                 template_sid = tmpl_match.group(1)
-                print(f"📋 Enviando Content Template standalone: {template_sid}")
+                logger.info(f"📋 Enviando Content Template standalone: {template_sid}")
                 try:
                     from core.whatsapp_service import enviar_template_twilio
                     tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
                     enviar_template_twilio(tel_limpio, template_sid)
-                    print(f"✅ Template {template_sid} enviado OK")
+                    logger.info(f"✅ Template {template_sid} enviado OK")
                 except Exception as tmpl_err:
-                    print(f"⚠️ Error enviando template standalone: {tmpl_err}")
+                    logger.exception(f"⚠️ Error enviando template standalone: {tmpl_err}")
                 return
         
         # Check if response is a multi-message (marked with [MULTI_MSG])
@@ -105,9 +105,7 @@ def enviar(contexto: Contexto) -> None:
             )
         
     except Exception as e:
-        print(f"❌ Error enviando respuesta Twilio: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception('❌ Error enviando respuesta Twilio: %s', e)
 
 
 def _enviar_partes_multimsg(client, twilio_number, destino_formateado, msg_from, telefono_limpio, texto_respuesta):
@@ -128,9 +126,9 @@ def _enviar_mensaje_unico(client, twilio_number, destino_formateado, telefono_li
 
     for seg_idx, (mensaje, texto_enviado) in enumerate(mensajes_enviados, start=1):
         if len(mensajes_enviados) == 1:
-            print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
+            logger.info(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
         else:
-            print(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
+            logger.info(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
 
         from core.twilio_media import mensaje_log_con_media
 
@@ -144,4 +142,4 @@ def _enviar_mensaje_unico(client, twilio_number, destino_formateado, telefono_li
             mensaje_id=mensaje.sid,
             tipo='SENT'
         )
-        print(f"✅ Guardado SENT")
+        logger.info(f"✅ Guardado SENT")

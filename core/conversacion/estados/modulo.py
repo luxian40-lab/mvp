@@ -65,7 +65,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     else:
         # Validar respuesta a pregunta de módulo
         from core.pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
-        print(f"📝 Validando respuesta a pregunta de módulo")
+        logger.info(f"📝 Validando respuesta a pregunta de módulo")
 
         # Verificar si la pregunta es abierta (IA) o de opciones
         ctx = estudiante.contexto_temporal or {}
@@ -259,7 +259,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
         # Opción inválida / error de contexto deben ganar.
         if not texto_respuesta or texto_respuesta == _TEXTO_NO_ENTENDI:
             texto_respuesta = mensaje_respuesta
-        print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
+        logger.info(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
     return Respuesta(texto=texto_respuesta)
 
 
@@ -313,7 +313,7 @@ def _texto_certificado_modulo(estudiante, progreso, mensaje_respuesta) -> str:
             logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
     except Exception as e:
         logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
-        import traceback; traceback.print_exc()
+        logger.exception('fallo en %s', __name__)
         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
 
     radar_msg = _radar_msg_si_aplica(estudiante)

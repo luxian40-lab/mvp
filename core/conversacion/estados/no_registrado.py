@@ -129,7 +129,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
             enviar_respuesta_turno(msg_from, texto_respuesta, agente='prospecto')
         except Exception as e:
-            print(f"❌ Error enviando a prospecto: {e}")
+            logger.exception(f"❌ Error enviando a prospecto: {e}")
         return CORTAR
     
     else:

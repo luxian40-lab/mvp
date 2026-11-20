@@ -26,7 +26,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     evidencia_imagen_url = contexto.evidencia_imagen_url
     evidencia_imagen_type = contexto.evidencia_imagen_type
     texto_respuesta = contexto.texto_respuesta
-    print(f"📋 Facilitadora: Evaluando respuesta al reto")
+    logger.info(f"📋 Facilitadora: Evaluando respuesta al reto")
     ctx = estudiante.contexto_temporal or {}
     modulos_reto_ids = ctx.get('modulos_reto_ids', [])
     reto_texto = ctx.get('reto_texto', '')
@@ -59,7 +59,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         texto_respuesta = texto_reintento_reto(estudiante)
     elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
         # Audio no pudo ser transcrito — pedir reintento sin evaluar
-        print(f"🎤 Audio no transcrito en reto — pidiendo reintento")
+        logger.info(f"🎤 Audio no transcrito en reto — pidiendo reintento")
         texto_respuesta = (
             "No pude escuchar tu audio. Por favor intenta de nuevo "
             "o escríbeme tu respuesta al reto.\n\n"
@@ -200,7 +200,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
         texto_respuesta = _cerrar_reto_final(texto_respuesta, ctx, progreso, estudiante, _pregunta_abierta_final_pendiente, logger, contexto_limpio, msg_eval, _radar_msg_si_aplica)
     else:
         texto_respuesta = _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, msg_eval, _MARCADOR_CONTINUEMOS)
-    print(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}", flush=True)
+    logger.info(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}")
     return texto_respuesta
 
 

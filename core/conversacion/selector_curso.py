@@ -1,10 +1,13 @@
 """
 Función para continuar con un curso específico seleccionado
 """
+import logging
 
 from django.utils import timezone
 
 from core.conversacion.multimsg import partes_multimsg
+
+logger = logging.getLogger(__name__)
 
 
 def _curso_desde_campana_cliente(estudiante, org):
@@ -416,7 +419,7 @@ Cuando termines, escribe: *"listo"*"""
                 progreso.fecha_ultimo_avance = timezone.now()
                 progreso.save(update_fields=['fecha_ultimo_avance'])
         except Exception as e:
-            print(f"Error al completar módulo: {e}")
+            logger.exception(f"Error al completar módulo: {e}")
 
         # Buscar siguiente módulo
         siguiente_modulo = curso_seleccionado.modulos.filter(

@@ -519,7 +519,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
                     archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
             else:
                 archivos_msg += f"\n{icono} {archivo.titulo}"
-        print(f"📎 Multimedia módulo: {archivos_multimedia.count()} archivos, primera_media={'Sí' if primera_media_url else 'No'}, extras={len(extra_media_urls)}", flush=True)
+        logger.info(f"📎 Multimedia módulo: {archivos_multimedia.count()} archivos, primera_media={'Sí' if primera_media_url else 'No'}, extras={len(extra_media_urls)}")
 
     # Si no hay archivos multimedia pero sí video_url, usarlo como primera media
     if not archivos_multimedia.exists() and video_url:
@@ -878,10 +878,9 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
                     and now_ts - float(ctx_lock.get('_ts_leccion') or 0) < _VENTANA_ENTREGA_SEG
                 )
                 if en_curso:
-                    print(
-                        "⏳ [ANTI-DUPLICADO] continuar_leccion en curso: "
-                        "el *listo* anterior todavía se está enviando",
-                        flush=True,
+                    logger.info(
+                        '⏳ [ANTI-DUPLICADO] continuar_leccion en curso: '
+                        'el *listo* anterior todavía se está enviando',
                     )
                 else:
                     ctx_lock['_leccion_enviando'] = True
@@ -891,7 +890,7 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
                     _turno_estudiante.set(estudiante_id)
                     _dedup_ok = True
         except Exception as e:
-            print(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}", flush=True)
+            logger.exception(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}")
             _dedup_ok = True  # En caso de error, permitir (fail-open)
 
     if not _dedup_ok:
@@ -1482,7 +1481,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                     else:
                         archivos_msg += f"\n{icono} {archivo.titulo}"
-                print(f"📎 Multimedia módulo: {archivos_multimedia.count()} archivos, primera_media={'Sí' if primera_media_url else 'No'}, extras={len(extra_media_urls)}", flush=True)
+                logger.info(f"📎 Multimedia módulo: {archivos_multimedia.count()} archivos, primera_media={'Sí' if primera_media_url else 'No'}, extras={len(extra_media_urls)}")
 
             # Si no hay archivos multimedia pero sí video_url, usarlo como primera media
             if not archivos_multimedia.exists() and video_url:
