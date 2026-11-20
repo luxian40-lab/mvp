@@ -15,6 +15,7 @@ from core.admin.estudiantes import (
     EstudianteAdmin,
     etiqueta_estado_chat,
 )
+from core.conversacion.estado_linea import EstadoLinea
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_certificados import Certificado
 
@@ -160,6 +161,28 @@ class EstudianteListadoAdminTests(TestCase):
         self.assertIn('SuelosListadoQa · Mód. 1/4', html)
         self.assertIn('+1', html)
         self.assertNotIn('LiderazgoListadoQa', html)
+
+    def test_estado_chat_espejo_y_filas_por_linea(self):
+        est = self.est_habeas
+        self.assertIn('Habeas', str(self.admin.crm_estado_chat_espejo(est)))
+        self.assertIn('sin fila', str(self.admin.crm_estados_linea(est)))
+        EstadoLinea.objects.create(
+            estudiante=est,
+            phone_id='111111111111111',
+            estado_chat='ESPERANDO_HABEAS_DATA',
+            estado_onboarding='cedula',
+        )
+        EstadoLinea.objects.create(
+            estudiante=est,
+            phone_id='999999999988888888',
+            estado_chat='ACTIVO',
+            estado_onboarding='',
+        )
+        html = str(self.admin.crm_estados_linea(est))
+        self.assertIn('ESPERANDO_HABEAS_DATA', html)
+        self.assertIn('ACTIVO', html)
+        self.assertIn('cedula', html)
+        self.assertIn('…88888888', html)
 
     def test_habeas_no_se_mezcla_con_curso_completado(self):
         est = self._qs().get(pk=self.est_habeas.pk)

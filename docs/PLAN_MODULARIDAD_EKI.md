@@ -231,7 +231,7 @@ Ampliación del 26 de octubre de 2026 (rama `refactor/d5-habeas`). Los doce esta
 - E1 Expand: tabla de estado por (estudiante, línea): `estado_chat`, `estado_onboarding`, `contexto`. Nullable, sin reescribir filas.
 - E2 Escritura doble detrás de flag.
 - E3 Lectura desde la tabla nueva vía `Turno`, detrás de flag. Contrato A4 pasa a exigir estados separados.
-- E4 Contract: dejar de escribir los campos viejos. No se borran columnas en el mismo deploy. Código en `main` (`EKI_ESTADO_LINEA_SIN_ESPEJO`, default false). No prender hasta que el listado de estudiante lea `EstadoLinea` (Unfold slice 3).
+- E4 Contract: dejar de escribir los campos viejos. No se borran columnas en el mismo deploy. Código en `main` (`EKI_ESTADO_LINEA_SIN_ESPEJO`, default false). El listado CRM ya lee `EstadoLinea` al lado del espejo. El flag sigue apagado: un `setenv` no cabe en el tope de 4096 de Elastic Beanstalk.
 - `contexto_temporal = None` deja de borrar claves ajenas: se limpian solo las claves del estado que sale.
 
 Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (E1 a E3; el cuerpo no se tocó):

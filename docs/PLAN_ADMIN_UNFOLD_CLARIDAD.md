@@ -193,6 +193,8 @@ Archivos previstos: columnas o un bloque de solo lectura en `core/admin/estudian
 
 Aceptación: abrir un estudiante no cambia filas. Las dos líneas se leen distintas cuando sus filas lo son.
 
+Hecho: el listado CRM muestra «Estado chat (espejo)» y «Estado por línea» (vacío: «sin fila»). No cambia el guardado. `EKI_ESTADO_LINEA_SIN_ESPEJO` sigue apagado.
+
 ## 5. Fuera de este plan
 
 - Constructor de cursos y Module Builder.

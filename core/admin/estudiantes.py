@@ -18,6 +18,7 @@ from core.admin.estudiantes_crm import (
 )
 from django import forms
 from django.db.models import Count, F, Prefetch, Q
+from django.utils.html import format_html_join
 from io import StringIO
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
@@ -230,6 +231,16 @@ def etiqueta_estado_chat(codigo):
     return _ESTADO_CHAT_POR_CODIGO.get((codigo or '').strip(), ('Onboarding', 'onboarding'))
 
 
+def _phone_id_corto(phone_id):
+    """Últimos dígitos del phone id de Meta para el listado."""
+    raw = (phone_id or '').strip()
+    if not raw:
+        return '—'
+    if len(raw) <= 10:
+        return raw
+    return f'…{raw[-8:]}'
+
+
 def _clave_progreso(progreso):
     avance = progreso.fecha_ultimo_avance
     inicio = getattr(progreso, 'fecha_inicio', None)
@@ -424,6 +435,8 @@ class EstudianteAdmin(admin.ModelAdmin):
         'crm_organizacion',
         'crm_plan',
         'crm_curso',
+        'crm_estado_chat_espejo',
+        'crm_estados_linea',
         'crm_estado',
         'crm_actividad',
     )
@@ -795,6 +808,33 @@ class EstudianteAdmin(admin.ModelAdmin):
             pct,
         )
 
+    @display(description='Estado chat (espejo)', ordering='estado_chat')
+    def crm_estado_chat_espejo(self, obj):
+        """Columna compartida en Estudiante; las filas por línea están al lado."""
+        return self.estado_chat_celda(obj)
+
+    @display(description='Estado por línea')
+    def crm_estados_linea(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        filas = sorted(obj.estados_linea.all(), key=lambda f: f.phone_id or '')
+        if not filas:
+            return format_html('<span class="eki-crm-vacio">sin fila</span>')
+        return format_html_join(
+            '',
+            '<div class="eki-est-meta" title="Phone id {}">'
+            '<span>{}</span> · chat {} · onboarding {}</div>',
+            (
+                (
+                    fila.phone_id,
+                    _phone_id_corto(fila.phone_id),
+                    (fila.estado_chat or '').strip() or '—',
+                    (fila.estado_onboarding or '').strip() or '—',
+                )
+                for fila in filas
+            ),
+        )
+
     @display(description='Estado')
     def crm_estado(self, obj):
         slug, texto = self._estado_crm(obj)
@@ -873,6 +913,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         return respuesta
 
     def get_queryset(self, request):
+        from core.conversacion.estado_linea import EstadoLinea
         from core.models_certificados import Certificado
 
         self._eki_curso_filter = (request.GET.get('curso') or '').strip()
@@ -880,9 +921,13 @@ class EstudianteAdmin(admin.ModelAdmin):
             'id', 'estudiante_id', 'curso_id', 'emitido', 'anulado',
             'fecha_emision', 'creado_en',
         )
+        linea_qs = EstadoLinea.objects.only(
+            'estudiante_id', 'phone_id', 'estado_chat', 'estado_onboarding',
+        ).order_by('phone_id')
         qs = super().get_queryset(request).prefetch_related(
             Prefetch('progresos', queryset=anotar_progresos_lista()),
             Prefetch('certificados', queryset=cert_qs),
+            Prefetch('estados_linea', queryset=linea_qs),
         )
         return anotar_ultima_nota(anotar_ultima_entrada(qs))
 
