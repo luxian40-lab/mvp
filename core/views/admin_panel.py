@@ -23,6 +23,21 @@ _NPS_VACIO = {
 }
 
 
+def _cursos_selector_analitica(*, cliente_id=None, para_embudo=False):
+    """Lista de cursos del filtro. Embudo excluye vitrina/carrusel general."""
+    from django.db.models import Q
+
+    qs = Curso.objects.filter(activo=True).select_related('cliente')
+    if cliente_id:
+        qs = qs.filter(cliente_id=cliente_id)
+    elif para_embudo:
+        # Sin org: no inundar con catálogo Formación (carrusel).
+        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
+    if para_embudo:
+        qs = qs.exclude(Q(cliente__isnull=True) & Q(catalogo_menu=True))
+    return qs.order_by('cliente__nombre', 'orden', 'nombre', 'id')
+
+
 def _charts_y_nps_pulso(
     *,
     estudiantes_q,
