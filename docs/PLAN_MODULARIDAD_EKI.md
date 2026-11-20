@@ -270,7 +270,7 @@ Hecho el 25 de octubre de 2026 en `refactor/fases-e-f` (solo movimiento; cada fu
 - G3 Delays como tareas Celery con `countdown`, sin `time.sleep` en el worker. Código en `integrar/e4-g6-origin` (`EKI_ENTREGA_DELAYS_CELERY`, default false). Flag off: el worker sigue durmiendo. El 0,5 s entre partes y el reenvío de puerta siguen en sleep. **No sustituye el outbox del bloque 2. No prender.**
 - G4 LLM en la cola `llm` con respuesta diferida.
 - G5 `print` a `logger`; `except Exception` con `logger.exception`.
-- G6 Tabla explícita de transiciones de estado.
+- G6 Tabla explícita de transiciones de estado. Código en `main` (`aplicar` en puertas y reto; `EKI_LOG_TRANSICIONES_ESTADO` y `EKI_VALIDAR_TRANSICIONES` apagados).
 - G7 `get_response_for_intent` por el mismo camino que el cuerpo.
 
 Hecho el 25 de octubre de 2026 (G1 desplegado en `main-g1-parser-beat-20261025-205229`; G2 y G7 en `refactor/g2-respuesta` y `refactor/g7-intents`):

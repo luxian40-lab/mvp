@@ -401,6 +401,13 @@ EKI_ESTADO_LINEA_LECTURA = os.environ.get('EKI_ESTADO_LINEA_LECTURA', 'false').s
 EKI_ESTADO_LINEA_SIN_ESPEJO = os.environ.get('EKI_ESTADO_LINEA_SIN_ESPEJO', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# G6: log / validar (warn) transiciones de estado. Off = el mismo setattr de siempre.
+EKI_LOG_TRANSICIONES_ESTADO = os.environ.get('EKI_LOG_TRANSICIONES_ESTADO', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+EKI_VALIDAR_TRANSICIONES = os.environ.get('EKI_VALIDAR_TRANSICIONES', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 # True: los mensajes del mismo teléfono se aplican en el orden de llegada a la base.
 # False: el candado Redis evita simultáneos, pero un reintento puede adelantar al siguiente.
 EKI_BANDEJA_ENTRADA = os.environ.get('EKI_BANDEJA_ENTRADA', 'false').strip().lower() in (

@@ -109,7 +109,9 @@ def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
         campos.extend(['acepto_terminos', 'fecha_aceptacion_terminos'])
         registrar_optin(est, 'sesion_linea')
     if (est.estado_chat or '') == 'ESPERANDO_HABEAS_DATA':
-        est.estado_chat = 'ACTIVO'
+        from core.conversacion.estados.transiciones import aplicar
+
+        aplicar(est, estado_chat='ACTIVO', fuente='puertas.optin_sesion')
         campos.append('estado_chat')
     if campos:
         est.save(update_fields=campos)
@@ -128,12 +130,13 @@ def _aceptar_habeas_y_abrir_menu(telefono: str, from_number: str, est) -> str:
 def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
     """Aceptó: pide la cédula. El menú sale cuando confirme los datos."""
     from core.consentimiento_wa import registrar_optin
+    from core.conversacion.estados.transiciones import aplicar
     from core.habeas_respuestas import MSG_ACEPTO_CEDULA
 
     registrar_optin(est, 'habeas')
     est.acepto_terminos = True
     est.fecha_aceptacion_terminos = timezone.now()
-    est.estado_chat = 'ESPERANDO_CEDULA'
+    aplicar(est, estado_chat='ESPERANDO_CEDULA', fuente='puertas.habeas_cedula')
     est.save(update_fields=['acepto_terminos', 'fecha_aceptacion_terminos', 'estado_chat'])
     sesion = _menu()._get_or_create_sesion(telefono)
     sesion.habeas_aceptado = True
@@ -179,7 +182,9 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
         return 'handled'
     cedula_input = re.sub(r'[\s.\-]', '', (body or '').strip())
     if cedula_input and cedula_input == (est.cedula or ''):
-        est.estado_chat = 'CONFIRMANDO_DATOS'
+        from core.conversacion.estados.transiciones import aplicar
+
+        aplicar(est, estado_chat='CONFIRMANDO_DATOS', fuente='puertas.cedula_ok')
         est.save(update_fields=['estado_chat'])
         _menu()._set_modo(_menu()._get_or_create_sesion(telefono), _menu().MODO_CURSOS)
         _enviar_confirma_numero(telefono, from_number, est)
@@ -217,8 +222,14 @@ def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str |
         return None
     t = (body or '').strip().lower()
     if t in _SI_CONFIRMA_DATOS:
-        est.estado_chat = 'ACTIVO'
-        est.estado_onboarding = 'completado'
+        from core.conversacion.estados.transiciones import aplicar
+
+        aplicar(
+            est,
+            estado_chat='ACTIVO',
+            estado_onboarding='completado',
+            fuente='puertas.confirmar_si',
+        )
         est.save(update_fields=['estado_chat', 'estado_onboarding'])
         abrir_tras_confirmar(est, telefono, from_number)
         return 'handled'

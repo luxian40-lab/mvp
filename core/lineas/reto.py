@@ -53,8 +53,10 @@ def activar_reto_despues_de_maria(
             (estudiante.contexto_temporal or {}).get('modulo_id'),
             modulos_reto_ids,
         )
+        from core.conversacion.estados.transiciones import aplicar
+
         estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
-        estudiante.estado_onboarding = 'completado'
+        aplicar(estudiante, estado_onboarding='completado', fuente='lineas.reto.vacio')
         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
         if progreso_r and progreso_r.completado:
             return (
@@ -86,7 +88,9 @@ def activar_reto_despues_de_maria(
         'es_final': es_reto_final,
         '_ts_leccion': prev_ts,
     })
-    estudiante.estado_onboarding = 'esperando_respuesta_reto'
+    from core.conversacion.estados.transiciones import aplicar
+
+    aplicar(estudiante, estado_onboarding='esperando_respuesta_reto', fuente='lineas.reto.activar')
     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
     bloque = bloque_reto_whatsapp(nombre_tutor, reto)
     return f'{prefijo}\n\n{bloque}'.strip()
