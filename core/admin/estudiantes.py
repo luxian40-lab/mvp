@@ -2528,7 +2528,7 @@ class PlantillaAdminDuplicado(admin.ModelAdmin):
     @admin.action(description='📱 Enviar a Meta para aprobación')
     def enviar_a_meta_accion(self, request, queryset):
         """Envía plantillas a Meta WhatsApp Business para aprobación"""
-        from core.meta_templates import enviar_plantilla_a_meta
+        from core.canal.meta_templates import enviar_plantilla_a_meta
         
         enviadas = 0
         errores = 0
