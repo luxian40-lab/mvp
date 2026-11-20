@@ -87,7 +87,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
         to_es_sandbox,
     )
     from core.sandbox_menu import dispatch_sandbox_menu, sandbox_menu_enabled, sandbox_number
-    from core.wa_reply_context import reply_from
+    from core.canal.wa_reply_context import reply_from
 
     if isinstance(data, dict) and data.get('_eki_skip') == 'ignorar':
         marcar_resultado('ignorado', ruta='ignorado')

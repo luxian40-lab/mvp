@@ -34,7 +34,7 @@ def _encolar_twilio_edu_si_async(post_data, *, reply_from_number: str | None = N
     from_override = (reply_from_number or '').strip()
     if not from_override:
         try:
-            from core.wa_reply_context import get_reply_from_override
+            from core.canal.wa_reply_context import get_reply_from_override
 
             from_override = (get_reply_from_override() or '').strip()
         except Exception:
