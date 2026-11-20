@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.habeas_respuestas import aplicar_respuesta_habeas
-from core.linea_registrados import debe_cortar, permitir_numero_nuevo
+from core.canal.linea_registrados import debe_cortar, permitir_numero_nuevo
 from core.models import Cliente, Estudiante
 from core.sandbox_menu import dispatch_sandbox_menu
 
@@ -80,7 +80,7 @@ class SoloRegistradosTests(TestCase):
                 return True
 
         falso = Redis()
-        with patch('core.linea_registrados._cliente_redis', return_value=falso):
+        with patch('core.canal.linea_registrados._cliente_redis', return_value=falso):
             self.assertTrue(permitir_numero_nuevo('573009990011'))
             self.assertTrue(permitir_numero_nuevo('573009990012'))
             self.assertFalse(permitir_numero_nuevo('573009990013'))

@@ -207,7 +207,7 @@ def _procesar_meta_webhook(payload):
                             tipo='INCOMING'
                         )
 
-                        from core.linea_registrados import (
+                        from core.canal.linea_registrados import (
                             TEXTO_SOLO_REGISTRADOS,
                             debe_cortar,
                             permitir_numero_nuevo,
