@@ -12,6 +12,12 @@ from core.views.ventana_drip import _pregunta_abierta_final_pendiente
 logger = logging.getLogger('core.views.webhook_twilio')
 
 
+def _reto_respuesta_no_califica(msg_body: str) -> bool:
+    from core.lineas.agricapital_experiencia import es_mensaje_no_calificable_reto
+
+    return es_mensaje_no_calificable_reto(msg_body)
+
+
 def manejar(contexto: Contexto) -> Respuesta:
     estudiante = contexto.estudiante
     msg_body = contexto.msg_body
