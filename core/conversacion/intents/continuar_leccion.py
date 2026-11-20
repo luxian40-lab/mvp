@@ -845,6 +845,21 @@ def _elegir_progreso(progresos_activos, ProgresoEstudiante, estudiante):
 def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno, soltar_turno_entrega_actual, Estudiante, _VENTANA_ENTREGA_SEG, LECCION_EN_CURSO, ProgresoEstudiante):
     import time as _time
     from django.db import transaction
+    from core.models import ModuloCompletado
+    from core.response_templates import (
+        _barra_progreso,
+        _cliente_habilita_pregunta_abierta_final,
+        _es_mensaje_listo_avance_curso,
+        _mensaje_pregunta_abierta_final,
+        activar_checkpoint_facilitador,
+        contexto_limpio,
+        dividir_contenido_seguro,
+        evaluar_checkpoint_reto_ia,
+        logger,
+        obtener_video_url,
+        parte_mensaje_con_media,
+        timezone,
+    )
 
     _dedup_ok = bool(kwargs.get('_bypass_anti_duplicado'))
     if not _dedup_ok:
