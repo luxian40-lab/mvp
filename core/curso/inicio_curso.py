@@ -135,14 +135,34 @@ def mensaje_primera_entrega(estudiante, progreso, modulo, *, marcar: bool = True
         partes.append(TEXTO_COMIENZA_MODULO)
     else:
         partes.append('*Comenzamos con el primer módulo de su curso...*')
-    partes.extend(_partes_del_modulo(progreso, modulo))
+    partes.extend(_partes_del_modulo(progreso, modulo, persistir=marcar))
     if marcar:
         marcar_inicio_entregado(estudiante, progreso.curso_id)
     texto = MULTI_MSG + SEP.join(p for p in partes if p)
     return preparar_salida_agricapital(estudiante, texto)
 
 
-def _partes_del_modulo(progreso, modulo) -> list[str]:
+def _partes_sin_guardar(progreso, modulo) -> list[str]:
+    """Arma el módulo 1 y revierte el avance de pasos si Graph todavía no aceptó."""
+    from django.db import transaction
+
+    from core.conversacion.multimsg import partes_multimsg
+    from core.module_steps import (
+        entregar_bloque_secciones_desde_paso,
+        reset_progreso_pasos_modulo,
+    )
+
+    partes: list[str] = []
+    with transaction.atomic():
+        reset_progreso_pasos_modulo(progreso, save=True)
+        bloque = entregar_bloque_secciones_desde_paso(progreso, modulo, 1) or ''
+        partes = [p for p in partes_multimsg(bloque) if p]
+        transaction.set_rollback(True)
+    progreso.refresh_from_db()
+    return partes
+
+
+def _partes_del_modulo(progreso, modulo, *, persistir: bool = True) -> list[str]:
     from core.module_steps import (
         entregar_bloque_secciones_desde_paso,
         modulo_usa_pasos,
@@ -152,6 +172,8 @@ def _partes_del_modulo(progreso, modulo) -> list[str]:
     )
 
     if modulo_usa_pasos(modulo) and pasos_activos_qs(modulo).exists():
+        if not persistir:
+            return _partes_sin_guardar(progreso, modulo)
         reset_progreso_pasos_modulo(progreso, save=True)
         bloque = entregar_bloque_secciones_desde_paso(progreso, modulo, 1) or ''
         return [p for p in partes_multimsg(bloque) if p]

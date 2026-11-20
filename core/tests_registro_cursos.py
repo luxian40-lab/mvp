@@ -34,6 +34,8 @@ AJUSTES = dict(
     META_LINEAS='',
     EKI_LINEAS_BD_ENABLED=False,
     EKI_AGRICAPITAL_CLIENTE_ID='7',
+    EKI_REGISTRO_RESPETA_VENTANA=False,
+    EKI_REGISTRO_VENTANA_BD=False,
 )
 
 
@@ -217,7 +219,9 @@ class AtenderCursosTests(SimpleTestCase):
             'continuar_leccion', 'Ana',
             {'estudiante_id': 3, 'mensaje_original': 'listo'},
         )
-        aviso.assert_called_once_with('573001112233', 'SIGUIENTE')
+        aviso.assert_called_once_with(
+            '573001112233', 'SIGUIENTE', agente='registro_cursos',
+        )
         soltar.assert_called_once()
         carrusel.assert_not_called()
 
@@ -252,7 +256,10 @@ class AtenderCursosTests(SimpleTestCase):
         self.assertIn('no está', aviso.call_args.args[1])
 
 
-@override_settings(**AJUSTES, EKI_REGISTRO_RESPETA_VENTANA=True)
+AJUSTES_VENTANA = {**AJUSTES, 'EKI_REGISTRO_RESPETA_VENTANA': True}
+
+
+@override_settings(**AJUSTES_VENTANA)
 class RespetaVentanaTests(SimpleTestCase):
     def test_ventana_cerrada_inscribe_sin_volcar_clase(self):
         curso = SimpleNamespace(id=5, nombre='Suelos', descripcion='')
@@ -339,6 +346,8 @@ class RespetaVentanaTests(SimpleTestCase):
             'core.conversacion.response_templates.soltar_turno_entrega_actual',
         ):
             atender_cursos('573001112233', 'listo', 7)
-        aviso.assert_called_once_with('573001112233', 'CLASE')
+        aviso.assert_called_once_with(
+            '573001112233', 'CLASE', agente='registro_cursos',
+        )
         marca.assert_called_once_with(ficha, 5)
         avanzar.assert_not_called()

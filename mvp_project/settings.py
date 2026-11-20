@@ -364,10 +364,13 @@ EKI_AGRICAPITAL_CLIENTE_ID = os.environ.get('EKI_AGRICAPITAL_CLIENTE_ID', '').st
 EKI_AGRICAPITAL_GRUPO_ID = os.environ.get('EKI_AGRICAPITAL_GRUPO_ID', '').strip()
 EKI_AGRICAPITAL_CURSO_ID = os.environ.get('EKI_AGRICAPITAL_CURSO_ID', '').strip()
 # Línea 3 AgriCapital: no volcar MULTI_MSG de sesión si la ventana Meta está cerrada.
-# Default on: eb setenv falla por tope CFN 4096 de EnvironmentVariables (2026-11-19).
-# Apagar: EKI_REGISTRO_RESPETA_VENTANA=false cuando el env vuelva a caber.
+# Default off. Se prende en Configuración Global (registro_respeta_ventana) sin eb setenv:
+# el bloque EnvironmentVariables de EB no cabe otro valor (tope CFN 4096, 2026-11-19).
 EKI_REGISTRO_RESPETA_VENTANA = os.environ.get(
-    'EKI_REGISTRO_RESPETA_VENTANA', 'true'
+    'EKI_REGISTRO_RESPETA_VENTANA', 'false'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+EKI_REGISTRO_VENTANA_BD = os.environ.get(
+    'EKI_REGISTRO_VENTANA_BD', 'true'
 ).strip().lower() in ('1', 'true', 'yes', 'on')
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre

@@ -31,7 +31,7 @@ def ultimo_entrante(estudiante):
     if digitos:
         formas.update({digitos, f'+{digitos}', f'whatsapp:+{digitos}', f'whatsapp:{digitos}'})
     consulta = Q()
-    if estudiante.pk:
+    if getattr(estudiante, 'pk', None):
         consulta |= Q(estudiante_id=estudiante.pk)
     if formas:
         consulta |= Q(telefono__in=formas)

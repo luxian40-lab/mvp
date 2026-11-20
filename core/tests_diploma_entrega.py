@@ -73,6 +73,9 @@ class DiplomaEntregaPlantillaYFlagTests(TestCase):
             activo=True,
         )
         self.curso = Curso.objects.create(nombre='Curso C1', cliente=self.cli, activo=True)
+        from core.models import NotaCierreCurso
+
+        NotaCierreCurso.objects.create(estudiante=self.est, curso=self.curso, nota=9)
         hoy = timezone.now().date()
         self.cert = Certificado.objects.create(
             estudiante=self.est,
@@ -158,3 +161,19 @@ class DiplomaEntregaPlantillaYFlagTests(TestCase):
                 'https://eki-produccion.s3.amazonaws.com/clase.mp4',
             )
         )
+
+    def test_sin_nota_de_cierre_no_envia_el_diploma(self):
+        from core.lineas.diploma_entrega import entregar_si_corresponde
+        from core.models import NotaCierreCurso
+
+        NotaCierreCurso.objects.filter(estudiante=self.est, curso=self.curso).delete()
+        with patch('core.lineas.diploma_entrega.enviar_diploma_plantilla_meta') as tpl:
+            r = entregar_si_corresponde(
+                self.est.telefono,
+                '🎓 *¡Tu certificado!*',
+                self.media,
+            )
+        self.assertEqual(r.get('modo'), 'sin_nota')
+        tpl.assert_not_called()
+        self.cert.refresh_from_db()
+        self.assertFalse(self.cert.enviado_whatsapp)

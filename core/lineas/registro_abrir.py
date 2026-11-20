@@ -306,7 +306,7 @@ def _cliente_guardado(telefono: str) -> int | None:
     return sesion.registro_cliente_id or None
 
 
-def _avisar(telefono: str, texto: str) -> dict:
+def _avisar(telefono: str, texto: str, *, agente: str = 'registro_flow') -> dict:
     """Envía texto de sesión en la línea 3. Devuelve el dict del Sender."""
     from core.sandbox_menu import enviar_texto_sandbox, sandbox_number
 
@@ -315,7 +315,7 @@ def _avisar(telefono: str, texto: str) -> dict:
 
     try:
         return enviar_texto_sandbox(
-            telefono, sandbox_number(), texto, agente='registro_flow',
+            telefono, sandbox_number(), texto, agente=agente,
         ) or {'success': False}
     except (DatabaseError, RequestException, OSError):
         logger.exception('registro_flow_aviso')

@@ -35,6 +35,16 @@ class ConfiguracionGlobal(models.Model):
             'Si META_TEMPLATE_DIPLOMA está en el entorno, ese valor gana.'
         ),
     )
+    registro_respeta_ventana = models.BooleanField(
+        default=True,
+        verbose_name='Línea 3 — no enviar la primera clase fuera de la ventana de 24 h',
+        help_text=(
+            'AgriCapital: si la persona no escribió en las últimas 23 h, no se vuelca '
+            'el saludo ni el módulo. Queda pendiente y sale cuando escribe Continuar. '
+            'Apagado: el comportamiento anterior. No usa variable de entorno '
+            '(el setenv de EB no cabe en CloudFormation).'
+        ),
+    )
     cursos_linea_2 = models.ManyToManyField(
         'Curso',
         blank=True,

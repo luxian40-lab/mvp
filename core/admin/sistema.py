@@ -42,7 +42,7 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Diploma por Meta', {
             'classes': ['tab'],
-            'fields': ('meta_plantilla_diploma',),
+            'fields': ('meta_plantilla_diploma', 'registro_respeta_ventana'),
             'description': (
                 'Nombre de la plantilla ya aprobada en Meta. Encabezado de imagen y cuerpo '
                 'con {{1}} nombre, {{2}} curso y {{3}} código. Con el nombre lleno, el botón '

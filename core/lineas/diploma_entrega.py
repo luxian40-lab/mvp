@@ -98,12 +98,23 @@ def entregar_si_corresponde(
     if not es_entrega_diploma(texto, media_url):
         return None
 
-    nombre, curso, codigo, cert = _datos_certificado(telefono, media_url)
+    nombre, curso_nombre, codigo, cert = _datos_certificado(telefono, media_url)
+    if cert is not None:
+        from core.certificados.nota_antes_diploma import omite_diploma_sin_nota
+
+        if omite_diploma_sin_nota(cert.estudiante, cert.curso):
+            logger.info('diploma_omitido_sin_nota cert=%s', cert.pk)
+            return {
+                'success': False,
+                'mensaje_id': None,
+                'response': 'sin_nota_cierre',
+                'modo': 'sin_nota',
+            }
     r_tpl = enviar_diploma_plantilla_meta(
         telefono,
         media_url,
         nombre_estudiante=nombre,
-        curso=curso,
+        curso=curso_nombre,
         codigo=codigo,
     )
     if r_tpl and r_tpl.get('success'):

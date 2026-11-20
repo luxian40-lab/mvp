@@ -229,9 +229,23 @@ def _enviar_lista(telefono: str, cursos) -> None:
 
 
 def _respeta_ventana() -> bool:
+    """Env gana. Si está apagado, manda el checkbox de Configuración Global.
+
+    EKI_REGISTRO_VENTANA_BD=false evita la base (tests sin BD).
+    """
     from django.conf import settings
 
-    return bool(getattr(settings, 'EKI_REGISTRO_RESPETA_VENTANA', False))
+    if getattr(settings, 'EKI_REGISTRO_RESPETA_VENTANA', False):
+        return True
+    if not getattr(settings, 'EKI_REGISTRO_VENTANA_BD', True):
+        return False
+    try:
+        from core.models import ConfiguracionGlobal
+
+        return bool(ConfiguracionGlobal.get_solo().registro_respeta_ventana)
+    except Exception:
+        logger.exception('registro_ventana_flag')
+        return False
 
 
 def _ventana_ok(ficha) -> bool:
@@ -316,9 +330,14 @@ def _entregar_primera_clase(telefono: str, ficha, progreso) -> bool:
         return False
     if not clase:
         return False
-    resultado = _avisar(telefono, clase)
+    resultado = _avisar(telefono, clase, agente='registro_cursos')
     if deferir and resultado.get('success'):
         try:
+            from core.curso.inicio_curso import _partes_del_modulo
+
+            modulo = getattr(progreso, 'modulo_actual', None)
+            if getattr(modulo, 'pk', None):
+                _partes_del_modulo(progreso, modulo, persistir=True)
             marcar_inicio_entregado(ficha, progreso.curso_id)
         except DatabaseError:
             logger.exception('registro_marca_inicio')
@@ -394,5 +413,5 @@ def _avanzar(telefono: str, body: str) -> bool:
         except DatabaseError:
             logger.exception('registro_soltar_turno')
     if texto and texto != LECCION_EN_CURSO:
-        _avisar(telefono, texto)
+        _avisar(telefono, texto, agente='registro_cursos')
     return True

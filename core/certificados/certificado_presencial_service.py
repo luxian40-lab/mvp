@@ -723,6 +723,13 @@ def enviar_certificados_seleccion(
                     resumen['omitidos'] += 1
                     continue
 
+            if enviar_whatsapp_certificado:
+                from core.certificados.nota_antes_diploma import omite_diploma_sin_nota
+
+                if omite_diploma_sin_nota(est, curso):
+                    resumen['omitidos'] += 1
+                    continue
+
             if usar_previo:
                 ok_prev = enviar_previo_whatsapp(
                     est,
