@@ -213,15 +213,15 @@
     <section id="ana-uso" aria-labelledby="ana-uso-title" {% if seccion != 'uso' %}hidden{% endif %}>
         <h2 id="ana-uso-title" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Uso de plataforma</h2>
         <div class="ana-grid">
-            <article class="ana-box" title="Personas con ficha activa en la organización.">
+            <article class="ana-box" title="Personas de la cohorte real: registro por flow cuando la org ya lo usa. No cuentan teléfonos de prueba/hook.">
                 <h3>Registrados</h3>
                 <p class="metric-number">{{ uso.registrados }}</p>
-                <p>Personas activas de la organización.</p>
+                <p>Cohorte de analítica (sin números de prueba).</p>
             </article>
-            <article class="ana-box" title="Personas con al menos un curso sin terminar (propio o general de eki).">
+            <article class="ana-box" title="Personas que iniciaron de verdad un curso y aún no lo terminan (fecha de avance o módulo cerrado). Aceptar el flujo no cuenta.">
                 <h3>En curso</h3>
                 <p class="metric-number">{{ uso.en_curso }}</p>
-                <p>Con un curso sin terminar: de la organización o general de eki.</p>
+                <p>Iniciaron un curso y aún no lo terminan (organización o general de eki).</p>
             </article>
             <article class="ana-box" title="Diplomas emitidos que no están anulados.">
                 <h3>Certificados</h3>

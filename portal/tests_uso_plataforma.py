@@ -82,6 +82,45 @@ class UsoPlataformaTests(TestCase):
             activo=True,
         )
 
+    def test_en_curso_no_cuenta_solo_aceptar_flujo(self):
+        """Progreso abierto sin avance real no entra en En curso."""
+        solo_acepto = self._est('Solo', '573001110006')
+        ProgresoEstudiante.objects.create(
+            estudiante=solo_acepto, curso=self.propio, completado=False,
+            fecha_ultimo_avance=None,
+        )
+        data = uso_plataforma(self.org)
+        self.assertEqual(data['registrados'], 6)
+        self.assertEqual(data['en_curso'], 3)
+
+    def test_no_cuenta_telefono_prueba_ni_fuera_de_flow(self):
+        """Hook 0629 y quien no viene de flow_registro no entran si ya hay cohorte flow."""
+        for est in (self.ana, self.beto, self.caro, self.dani, self.eva):
+            est.wa_optin_origen = 'flow_registro'
+            est.save(update_fields=['wa_optin_origen'])
+        hook = self._est('Julian', '573026480629')
+        hook.wa_optin_origen = 'habeas'
+        hook.save(update_fields=['wa_optin_origen'])
+        ProgresoEstudiante.objects.create(
+            estudiante=hook, curso=self.propio, completado=True,
+            fecha_ultimo_avance=timezone.now(),
+        )
+        Certificado.objects.create(
+            estudiante=hook,
+            curso=self.propio,
+            calificacion_final=Decimal('95.00'),
+            fecha_inicio=timezone.localdate(),
+            emitido=True,
+        )
+        andres = self._est('Andres Prueba', '573001110085')
+        andres.wa_optin_origen = 'habeas'
+        andres.save(update_fields=['wa_optin_origen'])
+        with self.settings(EKI_ANALITICA_EXCLUIR_TELEFONOS=['573001110085']):
+            data = uso_plataforma(self.org)
+        self.assertEqual(data['registrados'], 5)
+        self.assertEqual(data['certificados'], 1)
+        self.assertEqual(data['finalizacion_n'], 1)
+
     def test_cajas_con_definicion_real(self):
         data = uso_plataforma(self.org)
         self.assertEqual(data['registrados'], 5)

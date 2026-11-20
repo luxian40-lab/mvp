@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from django.db.models import Q
 from django.utils import timezone
 
-from core.models import Estudiante, ProgresoEstudiante, WhatsappLog
+from core.models import ProgresoEstudiante, WhatsappLog
+from portal.analitica_universo import estudiantes_analitica, telefonos_excluidos_analitica
 
 _MESES = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
 
@@ -65,29 +66,30 @@ def _barras(filas: list[tuple[str, int]]):
     return salida
 
 
-def _ids_con_avance(org):
+def _ids_con_avance(org, ids_universo: set[int]):
+    if not ids_universo:
+        return set()
     return set(
         ProgresoEstudiante.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
             fecha_ultimo_avance__isnull=False,
         ).values_list('estudiante_id', flat=True)
     )
 
 
-def _ids_actividad(org, inicio, fin):
+def _ids_actividad(org, inicio, fin, ids_universo: set[int]):
+    if not ids_universo:
+        return set()
     avance = set(
         ProgresoEstudiante.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
             fecha_ultimo_avance__gte=inicio,
             fecha_ultimo_avance__lt=fin,
         ).values_list('estudiante_id', flat=True)
     )
     escritos = set(
         WhatsappLog.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
             tipo='INCOMING',
             fecha__gte=inicio,
             fecha__lt=fin,
@@ -97,10 +99,23 @@ def _ids_actividad(org, inicio, fin):
     return avance | escritos
 
 
-def _tiempo_respuesta_segundos(org, ahora):
+def _es_telefono_excluido(telefono: str) -> bool:
+    digitos = ''.join(c for c in (telefono or '') if c.isdigit())
+    if not digitos:
+        return False
+    for tel in telefonos_excluidos_analitica():
+        if digitos == tel or digitos.endswith(tel) or digitos.endswith(tel[-10:]):
+            return True
+    return False
+
+
+def _tiempo_respuesta_segundos(org, ahora, ids_universo: set[int]):
     desde = ahora - timedelta(days=30)
     filas = (
-        WhatsappLog.objects.filter(estudiante__cliente=org, fecha__gte=desde)
+        WhatsappLog.objects.filter(
+            estudiante_id__in=ids_universo,
+            fecha__gte=desde,
+        )
         .order_by('fecha', 'id')
         .values_list('telefono', 'tipo', 'fecha')[:800]
     )
@@ -108,7 +123,7 @@ def _tiempo_respuesta_segundos(org, ahora):
     deltas = []
     for telefono, tipo, fecha in filas:
         tel = (telefono or '').strip()
-        if not tel or fecha is None:
+        if not tel or fecha is None or _es_telefono_excluido(tel):
             continue
         if tipo == 'INCOMING':
             pendiente[tel] = fecha
@@ -124,54 +139,61 @@ def _tiempo_respuesta_segundos(org, ahora):
 def uso_plataforma(org) -> dict:
     """Nueve cajas y tres series de los últimos seis meses, para una organización."""
     ahora = timezone.now()
-    registrados_qs = Estudiante.objects.filter(cliente=org, activo=True)
-    registrados = registrados_qs.count()
-    con_avance = _ids_con_avance(org)
+    registrados_qs = estudiantes_analitica(org)
+    ids_universo = set(registrados_qs.values_list('id', flat=True))
+    registrados = len(ids_universo)
+    con_avance = _ids_con_avance(org, ids_universo)
     sin_avance = registrados_qs.exclude(id__in=con_avance).count() if con_avance else registrados
 
+    # Misma idea de «inicio» que metricas_curso: no basta aceptar el flujo.
     en_curso = (
         ProgresoEstudiante.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
             completado=False,
         )
         .filter(Q(curso__cliente=org) | Q(curso__catalogo_menu=True, curso__cliente__isnull=True))
+        .filter(
+            Q(fecha_ultimo_avance__isnull=False) | Q(modulos_completados__isnull=False),
+        )
         .values('estudiante_id')
         .distinct()
         .count()
-    )
+    ) if ids_universo else 0
     finalizaron = (
         ProgresoEstudiante.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
             completado=True,
         )
         .values('estudiante_id')
         .distinct()
         .count()
-    )
+    ) if ids_universo else 0
 
     certificados = 0
     try:
         from core.models_certificados import Certificado
 
-        certificados = Certificado.objects.filter(
-            estudiante__cliente=org,
-            anulado=False,
-        ).count()
+        certificados = (
+            Certificado.objects.filter(
+                estudiante_id__in=ids_universo,
+                anulado=False,
+            ).count()
+            if ids_universo
+            else 0
+        )
     except Exception:
         certificados = 0
 
     meses = _meses_atras(6)
     inicio_mes, fin_mes = _rango_mes(*meses[-1])
-    activos_mes = len(_ids_actividad(org, inicio_mes, fin_mes))
+    activos_mes = len(_ids_actividad(org, inicio_mes, fin_mes, ids_universo))
 
     hace_30 = ahora - timedelta(days=30)
-    cohorte = _ids_actividad(org, ahora - timedelta(days=3650), hace_30)
-    recientes = _ids_actividad(org, hace_30, ahora + timedelta(seconds=1))
+    cohorte = _ids_actividad(org, ahora - timedelta(days=3650), hace_30, ids_universo)
+    recientes = _ids_actividad(org, hace_30, ahora + timedelta(seconds=1), ids_universo)
     volvieron = len(cohorte & recientes)
 
-    respuesta = _tiempo_respuesta_segundos(org, ahora)
+    respuesta = _tiempo_respuesta_segundos(org, ahora, ids_universo)
     uso_personas = activos_mes
 
     serie_activos = []
@@ -180,20 +202,23 @@ def uso_plataforma(org) -> dict:
     for anio, mes in meses:
         inicio, fin = _rango_mes(anio, mes)
         etiqueta = _MESES[mes - 1]
-        actividad = _ids_actividad(org, inicio, fin)
+        actividad = _ids_actividad(org, inicio, fin, ids_universo)
         serie_activos.append((etiqueta, len(actividad)))
         abandonos = registrados_qs.filter(
             fecha_registro__gte=inicio,
             fecha_registro__lt=fin,
         ).exclude(id__in=con_avance).count()
         serie_abandonos.append((etiqueta, abandonos))
-        escritos = WhatsappLog.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
-            tipo='INCOMING',
-            fecha__gte=inicio,
-            fecha__lt=fin,
-        ).values('estudiante_id').distinct().count()
+        escritos = (
+            WhatsappLog.objects.filter(
+                estudiante_id__in=ids_universo,
+                tipo='INCOMING',
+                fecha__gte=inicio,
+                fecha__lt=fin,
+            ).values('estudiante_id').distinct().count()
+            if ids_universo
+            else 0
+        )
         serie_uso.append((etiqueta, escritos))
 
     return {

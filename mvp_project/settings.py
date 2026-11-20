@@ -1364,6 +1364,13 @@ EKI_CAMPANA_META_PRUEBA_NUMEROS = [
     for parte in os.environ.get('EKI_CAMPANA_META_PRUEBA_NUMEROS', '573026480629').split(',')
     if parte.strip()
 ]
+# Teléfonos que la analítica del portal nunca cuenta (hooks / pruebas internas).
+# Se suman a EKI_CAMPANA_META_PRUEBA_NUMEROS. Separados por coma.
+EKI_ANALITICA_EXCLUIR_TELEFONOS = [
+    parte.strip()
+    for parte in os.environ.get('EKI_ANALITICA_EXCLUIR_TELEFONOS', '').split(',')
+    if parte.strip()
+]
 # Campo del POST de messages. Límite 512 en la doc de Cloud API; no reabierta el 2026-10-04.
 META_OPAQUE_MAX = 512
 # Cuerpo de un mensaje interactivo con botones: máximo 1024 caracteres. Verificado el 2026-10-27 en la página

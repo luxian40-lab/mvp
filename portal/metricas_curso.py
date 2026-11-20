@@ -14,7 +14,8 @@ from django.db.models import Count, Q
 
 from core.lineas.modelo import LineaWhatsapp
 from core.modulo_publicacion import modulos_publicados_wa_qs
-from core.models import Curso, Estudiante, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
+from core.models import Curso, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
+from portal.analitica_universo import ids_estudiantes_analitica
 
 
 def _pct(num: int, den: int):
@@ -83,10 +84,10 @@ def _destacados(por_curso: list[dict]) -> dict:
 
 def metricas_cursos(org) -> dict:
     """Totales, una fila por curso y los cursos agrupados por línea de WhatsApp."""
+    ids_universo = ids_estudiantes_analitica(org)
     progresos = list(
         ProgresoEstudiante.objects.filter(
-            estudiante__cliente=org,
-            estudiante__activo=True,
+            estudiante_id__in=ids_universo,
         ).values_list(
             'id',
             'estudiante_id',
@@ -94,7 +95,7 @@ def metricas_cursos(org) -> dict:
             'completado',
             'fecha_ultimo_avance',
         )
-    )
+    ) if ids_universo else []
     ids_curso = {curso_id for _, _, curso_id, _, _ in progresos}
     cursos = list(
         Curso.objects.filter(Q(id__in=ids_curso) | Q(cliente=org, activo=True))
@@ -106,11 +107,11 @@ def metricas_cursos(org) -> dict:
         for curso in cursos
     }
     cerrados: dict[int, set[int]] = {}
-    for progreso_id, modulo_id in ModuloCompletado.objects.filter(
-        progreso__estudiante__cliente=org,
-        progreso__estudiante__activo=True,
-    ).values_list('progreso_id', 'modulo_id'):
-        cerrados.setdefault(progreso_id, set()).add(modulo_id)
+    if ids_universo:
+        for progreso_id, modulo_id in ModuloCompletado.objects.filter(
+            progreso__estudiante_id__in=ids_universo,
+        ).values_list('progreso_id', 'modulo_id'):
+            cerrados.setdefault(progreso_id, set()).add(modulo_id)
 
     acumulado: dict[int, list[int]] = {curso.id: [0, 0, 0, 0] for curso in cursos}
     cursos_iniciados: dict[int, set[int]] = {}
@@ -146,7 +147,7 @@ def metricas_cursos(org) -> dict:
     # Totales por inscripción (tabla / culminación sobre iniciadores).
     total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(4)))
     # Cajas de Uso: inicio y «culminación sobre aceptantes» van sobre registrados (personas).
-    registrados = Estudiante.objects.filter(cliente=org, activo=True).count()
+    registrados = len(ids_universo)
     personas_iniciaron = len(cursos_iniciados)
     personas_terminaron = len(terminaron_persona)
     total['registrados'] = registrados
@@ -200,9 +201,11 @@ def _nota_cierre(org) -> dict:
     Promotores 9–10, pasivos 7–8, detractores 1–6.
     NPS = porcentaje de promotores menos porcentaje de detractores.
     """
+    ids_universo = ids_estudiantes_analitica(org)
+    if not ids_universo:
+        return {'n': 0, 'nps': None}
     fila = NotaCierreCurso.objects.filter(
-        estudiante__cliente=org,
-        estudiante__activo=True,
+        estudiante_id__in=ids_universo,
     ).aggregate(
         n=Count('id'),
         promotores=Count('id', filter=Q(nota__gte=9)),
