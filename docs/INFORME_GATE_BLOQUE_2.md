@@ -3,7 +3,7 @@
 Label: `main-bloque-2-gate-20261119-141312` (`759f4905`).  
 Rollback: `main-expediente-b4-20261119-133839`.  
 Prod + AI: Green; health 200; smoke Celery OK; W2 colas 0; outbox 0 INCIERTO/ERROR.  
-`EKI_RAG_INDEX_SOLO_AI` sigue **false** (setenv aparte).
+`EKI_RAG_INDEX_SOLO_AI` unset: setenv chocó con el tope 4096 de EB. Prod no indexa igual (`EKI_ROLE=web`). Ver `docs/INFORME_W3_DECISION.md`.
 
 ## Riesgos al desplegar (revisión)
 
@@ -22,15 +22,15 @@ Prod + AI: Green; health 200; smoke Celery OK; W2 colas 0; outbox 0 INCIERTO/ERR
 | --- | --- |
 | W0 inventario colas | OK |
 | W1 encode | Ops OK (`EKI_MEDIA_ENCODE_SOLO_AI=true`) |
-| W1 RAG código | En rama; setenv **después** del deploy |
+| W1 RAG | Ops OK por `EKI_ROLE=web` + `rag@` en AI; setenv del flag no cupo (4096) |
 | Cero sleep / DELAY Celery | En rama |
 | Redis fail-closed | Código + ops OK |
 | Outbox camino real | Ops ON |
 | Mit5 LLM | En rama |
-| W2 medir | Código OK; falta pico |
+| W2 medir | Código OK; noche 2026-11-19 LLEN 0 (no es pico) |
 
 ## Tras deploy
 
 1. Health Green + smoke Celery.  
-2. Pedido explícito: `EKI_RAG_INDEX_SOLO_AI=true` en prod-final.  
-3. Muestreo W2 en pico → luego W3.
+2. W3 cerrado en decisión: no crecer (`docs/INFORME_W3_DECISION.md`).  
+3. Pico laborable de W2 sigue útil antes de separar `masivo`.
