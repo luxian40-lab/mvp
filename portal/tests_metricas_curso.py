@@ -164,9 +164,47 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(data['segundo_curso']['base'], 2 + 5 + 6 + 1)
         self.assertEqual(data['destacados']['mas_inicios']['nombre'], 'Largo')
         self.assertEqual(data['destacados']['mas_inicios']['iniciaron'], 6)
-        self.assertEqual(data['destacados']['mayor_culminacion']['nombre'], 'Amplio')
-        self.assertEqual(data['destacados']['mayor_culminacion']['culminacion_iniciados_pct'], 40.0)
+        # Chico 1/1 no gana. Finca (1 de 2 = 50%) gana a Amplio (2 de 5 = 40%).
+        self.assertEqual(data['destacados']['mayor_culminacion']['nombre'], 'Curso finca')
+        self.assertEqual(data['destacados']['mayor_culminacion']['culminacion_iniciados_pct'], 50.0)
+        self.assertTrue(data['destacados']['culminacion_por_terminados'])
         self.assertEqual(data['destacados']['min_iniciadores'], 5)
+
+    def test_mayor_culminacion_prioriza_cursos_con_diploma_aunque_sean_chicos(self):
+        """Cohorte chica con diploma: no debe ganar un curso grande en 0%."""
+        ahora = timezone.now()
+        # Quitar la culminación de Finca del setUp para aislar el caso.
+        ProgresoEstudiante.objects.filter(
+            estudiante__telefono='573001300004', curso=self.finca,
+        ).update(completado=False)
+        ProgresoEstudiante.objects.filter(
+            estudiante__telefono='573001300003', curso=self.finca,
+        ).delete()
+        ModuloCompletado.objects.filter(progreso__curso=self.finca).delete()
+        ia = Curso.objects.create(nombre='IA emprendedores', cliente=self.org, activo=True)
+        for i in range(3):
+            est = Estudiante.objects.create(
+                nombre=f'Ia{i}', cedula=f'84{i:04d}', telefono=f'5730084000{i}',
+                cliente=self.org, activo=True, wa_optin_origen='flow_registro',
+            )
+            progreso = ProgresoEstudiante.objects.create(
+                estudiante=est, curso=ia, fecha_ultimo_avance=ahora,
+            )
+            if i == 0:
+                self._completar(progreso)
+        grande = Curso.objects.create(nombre='Grande sin fin', cliente=self.org, activo=True)
+        for i in range(5):
+            est = Estudiante.objects.create(
+                nombre=f'Gr{i}', cedula=f'85{i:04d}', telefono=f'5730085000{i}',
+                cliente=self.org, activo=True, wa_optin_origen='flow_registro',
+            )
+            ProgresoEstudiante.objects.create(
+                estudiante=est, curso=grande, fecha_ultimo_avance=ahora,
+            )
+        data = metricas_cursos(self.org)
+        self.assertEqual(data['destacados']['mayor_culminacion']['nombre'], 'IA emprendedores')
+        self.assertEqual(data['destacados']['mayor_culminacion']['culminacion_iniciados_pct'], 33.3)
+        self.assertTrue(data['destacados']['culminacion_por_terminados'])
 
     def test_recomendacion_es_nps_no_promedio(self):
         vacio = metricas_cursos(self.org)['nota_cierre']
@@ -217,8 +255,9 @@ class MetricasCursoTests(TestCase):
         ):
             self.assertIn(etiqueta, uso)
         self.assertIn('Curso finca', uso)
-        self.assertIn('0 de 2', uso)
-        self.assertIn('Ningún curso llega a 5 iniciadores.', uso)
+        self.assertIn('1 de 2', uso)
+        self.assertIn('Prioriza cursos donde ya alguien terminó.', uso)
+        self.assertNotIn('Ningún curso llega a 5 iniciadores.', uso)
         self.assertIn('Promotores 9–10, detractores 1–6.', uso)
         self.assertNotIn('Culminación de quienes iniciaron', uso)
         self.assertNotIn('Culminación de inscritos', uso)

@@ -307,10 +307,10 @@
                 <h3>Curso con mayor culminación</h3>
                 {% if cursos_destacados.mayor_culminacion %}
                 <p class="ana-box__dato">{{ cursos_destacados.mayor_culminacion.nombre }}</p>
-                <p>{{ cursos_destacados.mayor_culminacion.culminacion_iniciados_pct|stringformat:".1f" }}% · {{ cursos_destacados.mayor_culminacion.terminaron }} de {{ cursos_destacados.mayor_culminacion.iniciaron }} iniciadores. Entran cursos con al menos {{ cursos_destacados.min_iniciadores }} iniciadores.</p>
+                <p>{{ cursos_destacados.mayor_culminacion.culminacion_iniciados_pct|stringformat:".1f" }}% · {{ cursos_destacados.mayor_culminacion.terminaron }} de {{ cursos_destacados.mayor_culminacion.iniciaron }} iniciadores.{% if cursos_destacados.culminacion_por_terminados %} Prioriza cursos donde ya alguien terminó.{% else %} Sin culminaciones aún: entran cursos con al menos {{ cursos_destacados.min_iniciadores }} iniciadores.{% endif %}</p>
                 {% else %}
                 <p class="metric-number">Sin dato</p>
-                <p>Ningún curso llega a {{ cursos_destacados.min_iniciadores }} iniciadores.</p>
+                <p>Nadie ha terminado (con ≥2 iniciadores) y ningún curso llega a {{ cursos_destacados.min_iniciadores }} iniciadores.</p>
                 {% endif %}
             </article>
         </div>

@@ -54,8 +54,9 @@ def _recorte(fila):
 def _destacados(por_curso: list[dict]) -> dict:
     """Curso con más inicios, y el de mayor culminación sobre iniciadores.
 
-    La culminación solo entra si el curso tiene al menos cinco iniciadores:
-    un 1 de 1 no gana la caja.
+    Si ya hay culminaciones con al menos 2 iniciadores (p. ej. diploma), gana
+    entre esos. Un 1 de 1 no llena la caja. Si nadie terminó así, solo entran
+    cursos con al menos cinco iniciadores.
     """
     con_inicio = [fila for fila in por_curso if fila['iniciaron']]
     mas_inicios = None
@@ -64,21 +65,25 @@ def _destacados(por_curso: list[dict]) -> dict:
             con_inicio,
             key=lambda fila: (-fila['iniciaron'], -fila['inscritos'], fila['nombre']),
         )[0]
-    elegibles = [fila for fila in por_curso if fila['iniciaron'] >= MIN_INICIADORES_CULMINACION]
-    mayor = None
-    if elegibles:
-        mayor = sorted(
-            elegibles,
-            key=lambda fila: (
-                -(fila['culminacion_iniciados_pct'] or 0),
-                -fila['iniciaron'],
-                fila['nombre'],
-            ),
-        )[0]
+    clave = lambda fila: (
+        -(fila['culminacion_iniciados_pct'] or 0),
+        -fila['iniciaron'],
+        fila['nombre'],
+    )
+    con_termino = [
+        fila for fila in por_curso
+        if fila['terminaron'] and fila['iniciaron'] >= 2
+    ]
+    if con_termino:
+        mayor = sorted(con_termino, key=clave)[0]
+    else:
+        elegibles = [fila for fila in por_curso if fila['iniciaron'] >= MIN_INICIADORES_CULMINACION]
+        mayor = sorted(elegibles, key=clave)[0] if elegibles else None
     return {
         'mas_inicios': _recorte(mas_inicios),
         'mayor_culminacion': _recorte(mayor),
         'min_iniciadores': MIN_INICIADORES_CULMINACION,
+        'culminacion_por_terminados': bool(con_termino),
     }
 
 
