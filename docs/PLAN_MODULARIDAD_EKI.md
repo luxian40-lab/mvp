@@ -110,23 +110,25 @@ Riesgos o dudas: <lista>
 
 Esperar «continúa» antes del siguiente bloque. Deploy solo con pedido explícito.
 
-## 4b. Estado vivo (8 de noviembre de 2026)
+## 4b. Estado vivo (20 de noviembre de 2026)
 
 Thermos y git, no un número de lápiz.
 
 | Cifra | Valor | Qué hacer |
 |---|---|---|
-| Ciclo en `origin/main` | **211** | Dejarlo. No portar H1. No bajar a 30 para vender. |
+| Ciclo en `origin/main` | **211** | Dejarlo hasta el padrón. Limpieza = **bloque 6** (H4). No rehacer H1/H2. |
 | Checkpoint H1 (28 oct) | 159 | Hecho. Modelos fuera del ciclo. |
-| Canvas que decía 233 | Muerto | Corregido el 8 nov. |
+| Producción (ambas cajas) | `main-e4-g6-20261120-001200`, tip `df7fdfa2`, Health Green | Confirmar antes del próximo deploy. |
 
-E1–E3 están ON en producción (espejo en `Estudiante` a propósito). E4, G3–G6 y MULTI_MSG→`enviar_marcado` viven en `integrar/e4-g6-origin` (195 tests, flags apagados). **No están en origin ni en prod.** No se prenden flags. E4 espera al listado Unfold que lee `EstadoLinea`. G3 no sustituye el outbox del bloque 2.
+E1–E3 siguen ON en producción (espejo en `Estudiante` a propósito). **E4, G4, G5 y G6 están en `origin/main` y en las dos cajas**, con flags de comportamiento apagados (LLM diferido, transiciones G, etc.). Listado CRM lee `EstadoLinea` con `EKI_ESTADO_LINEA_SIN_ESPEJO` apagado (`f11153aa`). **G3 del integrar no se porta:** el outbox y los dueños de cola del bloque 2 lo superseden. MULTI_MSG→`enviar_marcado` va con el mismo corte E4–G6 en main.
 
-`EKI_CONTEXTO_CONSERVA_CLAVES=true` en prod. Las dos `contexto_temporal = None` del cuerpo, en origin, siguen: no se tocan en esta corrección de docs.
+Bloque 2 (outbox, sleeps vía `delays_por_celery`, Redis fail-closed, dueños W1) ya desplegado; W3 cerrado como no-crecer (`docs/INFORME_W3_DECISION.md`). W2: muestra noche 19 nov con LLEN 0; falta evidencia de pico en día laborable. RAG: setenv falló por límite 4096; prod con `EKI_ROLE=web` no indexa.
 
-Cognito no es una fase de este plan. Se sacó de aquí el 8 nov.
+Expediente (origen de cierre, calificación nullable, flags de diploma apagados) mergeado y desplegado antes de este corte.
 
-El siguiente código de producto no es una fase G/H: es **bandeja FIFO** desde `origin/main`, o ajustes de líneas en esa misma base. No mezclar con `slice/bloque-1-bandeja`.
+`EKI_CONTEXTO_CONSERVA_CLAVES=true` en prod. Cognito no es una fase de este plan.
+
+El siguiente frente de código de producto alineado al plan maestro es el **bloque 6** (retirar reexports, ciclo 211→&lt;30), no reabrir G3 ni bajar el ciclo antes del padrón.
 
 ## 5. Fases
 
