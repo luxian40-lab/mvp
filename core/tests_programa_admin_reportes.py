@@ -27,6 +27,16 @@ class ProgramaEnReportesAdminTests(TestCase):
             activo=True,
         )
 
+    def test_dashboard_learning_y_pulso_no_nameerror(self):
+        # Regresión prod: llamada a _cursos_selector_analitica sin definir → 500.
+        for qs in (
+            '?tab=learning&section=reportes',
+            f'?tab=learning&section=reportes&cliente={self.org.id}',
+            '?tab=executive',
+        ):
+            resp = self.client.get(reverse('dashboard_unificado') + qs)
+            self.assertEqual(resp.status_code, 200, qs)
+
     def test_sin_org_pide_elegir(self):
         resp = self.client.get(reverse('dashboard_unificado') + '?tab=learning&section=reportes')
         self.assertEqual(resp.status_code, 200)
