@@ -9,19 +9,34 @@ from .capabilities import categorias_pqrs_portal, modulos_portal, portal_home_ur
 
 
 def _resumen_header_org(org):
-    """Cifras ligeras (solo COUNT) para la cabecera editorial. Nunca rompe la página."""
+    """Cifras ligeras (solo COUNT) para la cabecera editorial. Nunca rompe la página.
+
+    Mismo universo que analítica: flow_registro si hay cohorte, sin teléfonos de prueba.
+    Cursos = con inscripción de esa cohorte (propios o generales), no solo cursos dueños de la org.
+    """
     try:
         from django.db.models import Count, Q
 
-        from core.models import Curso, Estudiante, ProgresoEstudiante
+        from core.models import ProgresoEstudiante
         from core.models_certificados import Certificado
+        from portal.analitica_universo import ids_estudiantes_analitica
 
-        participantes = Estudiante.objects.filter(cliente=org).count()
-        cursos = Curso.objects.filter(cliente=org, activo=True).count()
+        ids = ids_estudiantes_analitica(org)
+        participantes = len(ids)
+        if not ids:
+            return {
+                'participantes': 0,
+                'cursos': 0,
+                'certificados': 0,
+                'avance_pct': 0,
+            }
+        progresos = ProgresoEstudiante.objects.filter(estudiante_id__in=ids)
+        cursos = progresos.values('curso_id').distinct().count()
         certificados = Certificado.objects.filter(
-            estudiante__cliente=org, emitido=True,
+            estudiante_id__in=ids,
+            anulado=False,
         ).count()
-        agg = ProgresoEstudiante.objects.filter(curso__cliente=org).aggregate(
+        agg = progresos.aggregate(
             total=Count('id'),
             completos=Count('id', filter=Q(completado=True)),
         )

@@ -238,10 +238,10 @@
                 <p class="metric-number">{% if uso.finalizacion_pct is None %}Sin dato{% else %}{{ uso.finalizacion_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que completaron al menos un curso{% if uso.finalizacion_pct is not None %}: {{ uso.finalizacion_n }} de {{ uso.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box" title="Personas que este mes calendario avanzaron un curso o escribieron por WhatsApp.">
+            <article class="ana-box" title="Personas en curso (inicio real, sin terminar) que este mes avanzaron o escribieron.">
                 <h3>Activos este mes</h3>
                 <p class="metric-number">{{ uso.activos_mes }}</p>
-                <p>Avanzaron un curso o escribieron en {{ uso.mes_label }}.</p>
+                <p>En curso y con actividad en {{ uso.mes_label }}.</p>
             </article>
             <article class="ana-box" title="Promedio de segundos entre un mensaje entrante y la respuesta enviada, últimos 30 días (pares de hasta 24 h).">
                 <h3>Tiempo de respuesta</h3>

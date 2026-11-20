@@ -146,19 +146,21 @@ def uso_plataforma(org) -> dict:
     sin_avance = registrados_qs.exclude(id__in=con_avance).count() if con_avance else registrados
 
     # Misma idea de «inicio» que metricas_curso: no basta aceptar el flujo.
-    en_curso = (
-        ProgresoEstudiante.objects.filter(
-            estudiante_id__in=ids_universo,
-            completado=False,
+    ids_en_curso = set()
+    if ids_universo:
+        ids_en_curso = set(
+            ProgresoEstudiante.objects.filter(
+                estudiante_id__in=ids_universo,
+                completado=False,
+            )
+            .filter(Q(curso__cliente=org) | Q(curso__catalogo_menu=True, curso__cliente__isnull=True))
+            .filter(
+                Q(fecha_ultimo_avance__isnull=False) | Q(modulos_completados__isnull=False),
+            )
+            .values_list('estudiante_id', flat=True)
+            .distinct()
         )
-        .filter(Q(curso__cliente=org) | Q(curso__catalogo_menu=True, curso__cliente__isnull=True))
-        .filter(
-            Q(fecha_ultimo_avance__isnull=False) | Q(modulos_completados__isnull=False),
-        )
-        .values('estudiante_id')
-        .distinct()
-        .count()
-    ) if ids_universo else 0
+    en_curso = len(ids_en_curso)
     finalizaron = (
         ProgresoEstudiante.objects.filter(
             estudiante_id__in=ids_universo,
@@ -186,7 +188,9 @@ def uso_plataforma(org) -> dict:
 
     meses = _meses_atras(6)
     inicio_mes, fin_mes = _rango_mes(*meses[-1])
-    activos_mes = len(_ids_actividad(org, inicio_mes, fin_mes, ids_universo))
+    actividad_mes = _ids_actividad(org, inicio_mes, fin_mes, ids_universo)
+    # Activos del mes = quienes van en curso y tuvieron señal este mes.
+    activos_mes = len(actividad_mes & ids_en_curso)
 
     hace_30 = ahora - timedelta(days=30)
     cohorte = _ids_actividad(org, ahora - timedelta(days=3650), hace_30, ids_universo)
@@ -194,7 +198,7 @@ def uso_plataforma(org) -> dict:
     volvieron = len(cohorte & recientes)
 
     respuesta = _tiempo_respuesta_segundos(org, ahora, ids_universo)
-    uso_personas = activos_mes
+    uso_personas = len(actividad_mes)
 
     serie_activos = []
     serie_abandonos = []

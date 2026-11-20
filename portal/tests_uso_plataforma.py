@@ -130,7 +130,8 @@ class UsoPlataformaTests(TestCase):
         self.assertEqual(data['abandono_n'], 1)
         self.assertEqual(data['finalizacion_pct'], 20.0)
         self.assertEqual(data['finalizacion_n'], 1)
-        self.assertEqual(data['activos_mes'], 3)
+        # Activos del mes = en curso ∩ actividad del mes (Ana y Eva; Caro ya terminó).
+        self.assertEqual(data['activos_mes'], 2)
         self.assertEqual(data['respuesta'], '2 min')
         self.assertEqual(data['retorno_pct'], 50.0)
         self.assertEqual(data['retorno_n'], 1)
@@ -138,7 +139,8 @@ class UsoPlataformaTests(TestCase):
         self.assertEqual(data['uso_pct'], 60.0)
         self.assertEqual(len(data['serie_activos']), 6)
         self.assertEqual(data['serie_abandonos'][-1]['valor'], 1)
-        self.assertEqual(data['serie_activos'][-1]['valor'], data['activos_mes'])
+        # La serie sigue midiendo actividad del mes; la caja Activos filtra a en curso.
+        self.assertEqual(data['serie_activos'][-1]['valor'], 3)
 
     def test_sin_registrados_no_inventa_porcentaje(self):
         from core.models import Cliente
