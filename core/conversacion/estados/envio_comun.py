@@ -130,7 +130,7 @@ def _enviar_mensaje_unico(client, twilio_number, destino_formateado, telefono_li
         else:
             logger.info(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
 
-        from core.twilio_media import mensaje_log_con_media
+        from core.canal.twilio_media import mensaje_log_con_media
 
         texto_log = mensaje_log_con_media(
             texto_enviado or texto_respuesta,

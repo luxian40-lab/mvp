@@ -284,7 +284,7 @@ def enviar_whatsapp_twilio(
         # S3 URLs: usar URL pública directa (bucket tiene ACL public-read)
         # NO generar presigned URL — causa 63019 por redirect de región
         if media_url and 'amazonaws.com' in media_url:
-            from core.twilio_media import normalizar_media_url_s3, preparar_url_media_whatsapp
+            from core.canal.twilio_media import normalizar_media_url_s3, preparar_url_media_whatsapp
 
             media_url = normalizar_media_url_s3(media_url)
             try:
@@ -293,7 +293,7 @@ def enviar_whatsapp_twilio(
                 logger.warning('[MEDIA] preparar_url falló: %s', prep_err)
             logger.info(f"[S3] URL pública directa: {media_url[:100]}...")
         elif media_url:
-            from core.twilio_media import preparar_url_media_whatsapp
+            from core.canal.twilio_media import preparar_url_media_whatsapp
 
             try:
                 media_url = preparar_url_media_whatsapp(media_url) or media_url
@@ -337,7 +337,7 @@ def enviar_whatsapp_twilio(
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
         from core.response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
-        from core.twilio_media import es_error_media_twilio
+        from core.canal.twilio_media import es_error_media_twilio
 
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
 

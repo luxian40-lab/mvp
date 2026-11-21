@@ -62,7 +62,7 @@ def _reenviar_media_fallida_como_enlace(log, error_code: str = '') -> None:
     y el productor puede pedir *reenvía video*.
     """
     from ..media_entrega import reintentar_media_desde_log
-    from ..twilio_media import es_error_media_twilio
+    from ..canal.twilio_media import es_error_media_twilio
 
     if not es_error_media_twilio(error_code):
         return
@@ -210,7 +210,7 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
 
 def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
     """True si la URL es página/embed (YouTube/Drive/…), no archivo directo adjuntarle por Twilio."""
-    from ..twilio_media import url_no_es_media_directo
+    from ..canal.twilio_media import url_no_es_media_directo
 
     return url_no_es_media_directo(url)
 
@@ -256,7 +256,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
         if meta:
             return []
 
-    from ..twilio_media import (
+    from ..canal.twilio_media import (
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
         es_url_s3_o_firmada,

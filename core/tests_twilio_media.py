@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, TestCase
 
 from core.models import WhatsappLog
-from core.twilio_media import (
+from core.canal.twilio_media import (
     _es_url_audio_o_imagen,
     cuerpo_con_enlace_archivo,
     codigo_error_twilio_desde_detalle,
@@ -103,7 +103,7 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertFalse(media_requiere_enlace_previo('https://x/a.png'))
 
     def test_mp4_faststart_remux_mueve_moov(self):
-        from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
+        from core.canal.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
 
         # ftyp(8+8) + mdat(8+4) + moov(8+4) — moov al final
         ftyp = (20).to_bytes(4, 'big') + b'ftyp' + b'isom' + b'\x00' * 8
@@ -119,7 +119,7 @@ class TwilioMediaHelpersTests(SimpleTestCase):
     def test_probe_codecs_empty_without_ffprobe(self):
         from unittest.mock import patch
 
-        from core.twilio_media import probe_mp4_codecs
+        from core.canal.twilio_media import probe_mp4_codecs
 
         with patch('shutil.which', return_value=None):
             self.assertEqual(
@@ -130,7 +130,7 @@ class TwilioMediaHelpersTests(SimpleTestCase):
     def test_optimizar_mp4_sin_ffmpeg_hace_remux(self):
         from unittest.mock import patch
 
-        from core.twilio_media import mp4_necesita_faststart
+        from core.canal.twilio_media import mp4_necesita_faststart
 
         ftyp = (20).to_bytes(4, 'big') + b'ftyp' + b'isom' + b'\x00' * 8
         mdat = (12).to_bytes(4, 'big') + b'mdat' + b'XXXX'
@@ -146,7 +146,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
     """Escalera eki_wa_v2: nitidez primero, 480 px solo si el presupuesto no da para 720."""
 
     def test_archivo_que_cabe_prioriza_crf_bajo_sin_480(self):
-        from core.twilio_media import plan_mp4_encodes_whatsapp
+        from core.canal.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(4 * 1024 * 1024, 40.0, 1280)
         self.assertEqual(len(plan), 1)
@@ -157,14 +157,14 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         self.assertNotIn(480, [step['max_width'] for step in plan])
 
     def test_archivo_que_cabe_no_amplia_ancho_chico(self):
-        from core.twilio_media import plan_mp4_encodes_whatsapp
+        from core.canal.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(2 * 1024 * 1024, 15.0, 540)
         self.assertEqual(plan[0]['max_width'], 540)
         self.assertEqual(plan[0]['crf'], 20)
 
     def test_clip_90s_sobre_16mb_se_queda_en_720(self):
-        from core.twilio_media import plan_mp4_encodes_whatsapp
+        from core.canal.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(20 * 1024 * 1024, 90.0, 1920)
         first = plan[0]
@@ -173,7 +173,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         self.assertGreaterEqual(first['maxrate_bps'], 400_000)
 
     def test_video_largo_baja_resolucion(self):
-        from core.twilio_media import plan_mp4_encodes_whatsapp
+        from core.canal.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(40 * 1024 * 1024, 600.0, 1920)
         self.assertEqual(plan[0]['max_width'], 480)
@@ -181,7 +181,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         self.assertIsNotNone(plan[0]['maxrate_bps'])
 
     def test_sin_duracion_no_empieza_en_480(self):
-        from core.twilio_media import plan_mp4_encodes_whatsapp
+        from core.canal.twilio_media import plan_mp4_encodes_whatsapp
 
         plan = plan_mp4_encodes_whatsapp(20 * 1024 * 1024, 0, 1920)
         self.assertEqual(plan[0]['max_width'], 720)
@@ -189,7 +189,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
         self.assertEqual(plan[-1]['max_width'], 480)
 
     def test_argv_lleva_lanczos_preset_medium_y_main(self):
-        from core.twilio_media import ffmpeg_wa_argv
+        from core.canal.twilio_media import ffmpeg_wa_argv
 
         argv = ffmpeg_wa_argv(
             'in.mp4',
@@ -215,7 +215,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
 
         raw = b'\x00\x00\x00\x18ftypisom' + (b'\x00' * 80)
         with patch(
-            'core.twilio_media.evaluar_mp4_listo_whatsapp',
+            'core.canal.twilio_media.evaluar_mp4_listo_whatsapp',
             return_value={
                 'apto': True,
                 'bytes': len(raw),
@@ -223,7 +223,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
                 'necesita_faststart': False,
             },
         ):
-            with patch('core.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
+            with patch('core.canal.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
                 out, _name, carpeta, gate = _procesar_mp4_bytes_whatsapp(
                     raw, 'clip.mp4', carpeta='modulos/pasos',
                 )
@@ -237,7 +237,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
 
         raw = b'\x00\x00\x00\x18ftypisom' + (b'\x00' * 80)
         with patch(
-            'core.twilio_media.evaluar_mp4_listo_whatsapp',
+            'core.canal.twilio_media.evaluar_mp4_listo_whatsapp',
             return_value={
                 'apto': True,
                 'bytes': len(raw),
@@ -245,7 +245,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
                 'necesita_faststart': False,
             },
         ):
-            with patch('core.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
+            with patch('core.canal.twilio_media.optimizar_mp4_bytes_whatsapp') as opt:
                 out, gate = preparar_mp4_eki_wa_v1(raw)
         opt.assert_not_called()
         self.assertEqual(out, raw)
@@ -260,10 +260,10 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
 
         with patch('shutil.which', return_value='ffmpeg'):
             with patch(
-                'core.twilio_media.probe_mp4_fuente',
+                'core.canal.twilio_media.probe_mp4_fuente',
                 return_value={'width': 1280, 'height': 720, 'duration': 40.0},
             ):
-                with patch('core.twilio_media._ffmpeg_encode_wa', side_effect=_fake):
+                with patch('core.canal.twilio_media._ffmpeg_encode_wa', side_effect=_fake):
                     out = optimizar_mp4_bytes_whatsapp(b'abcd' * 100)
         self.assertEqual(out, b'x' * 2000)
         self.assertEqual(len(calls), 1)
@@ -275,7 +275,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
     def test_el_limite_de_celery_no_se_traga(self):
         from celery.exceptions import SoftTimeLimitExceeded
 
-        from core.twilio_media import _ffmpeg_encode_wa
+        from core.canal.twilio_media import _ffmpeg_encode_wa
 
         with patch('shutil.which', return_value='ffmpeg'):
             with patch(
@@ -293,7 +293,7 @@ class EncodeWhatsappPlanTests(SimpleTestCase):
 
         if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
             self.skipTest('ffmpeg/ffprobe no instalados')
-        from core.twilio_media import (
+        from core.canal.twilio_media import (
             evaluar_mp4_listo_whatsapp,
             mp4_necesita_faststart,
             probe_mp4_codecs,
@@ -357,7 +357,7 @@ class TwilioMediaCallbackFallbackTests(TestCase):
         )
         with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
             send_mock.return_value = {'success': True, 'mensaje_id': 'MMnew'}
-            with patch('core.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
+            with patch('core.canal.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
                 _registrar_estado_twilio_callback({
                     'MessageSid': log.mensaje_id,
                     'MessageStatus': 'undelivered',
@@ -397,7 +397,7 @@ class PersistirMediaPasoWhatsappTests(TestCase):
         self.assertTrue(_es_url_audio_o_imagen('https://x/file.mp3'))
         self.assertTrue(_es_url_audio_o_imagen('https://x/cv.pdf'))
 
-    @patch('core.twilio_media.preparar_url_media_whatsapp')
+    @patch('core.canal.twilio_media.preparar_url_media_whatsapp')
     def test_persistir_marca_apto_y_actualiza_url(self, mock_prep):
         ready = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/whatsapp_ready/cv.pdf'
         mock_prep.return_value = ready
@@ -407,7 +407,7 @@ class PersistirMediaPasoWhatsappTests(TestCase):
         self.assertTrue(self.paso.media_wa_apto)
         self.assertEqual(self.paso.media_url, ready)
 
-    @patch('core.twilio_media.preparar_url_media_whatsapp')
+    @patch('core.canal.twilio_media.preparar_url_media_whatsapp')
     def test_persistir_no_marca_apto_si_no_preparable(self, mock_prep):
         mock_prep.return_value = None
         ok, msg = persistir_media_paso_whatsapp(self.paso)

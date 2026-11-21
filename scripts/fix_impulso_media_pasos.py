@@ -2,7 +2,7 @@
 from urllib.request import Request, urlopen
 
 from core.models import Estudiante, PasoModulo, ProgresoEstudiante
-from core.twilio_media import preparar_url_media_whatsapp
+from core.canal.twilio_media import preparar_url_media_whatsapp
 
 IDS_MEDIA = (251, 254, 257, 260, 261)
 IDS_TRES = (1937, 1963, 1964)  # Yuli, Tatiana, Sarita

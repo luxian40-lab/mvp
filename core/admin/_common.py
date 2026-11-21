@@ -88,7 +88,7 @@ def _procesar_mp4_bytes_whatsapp(raw: bytes, filename: str, *, carpeta: str) -> 
     Encode/remux MP4 para WhatsApp.
     Returns (bytes, filename, carpeta_destino, gate_dict). Raises ValidationError si no apto.
     """
-    from core.twilio_media import (
+    from core.canal.twilio_media import (
         WHATSAPP_VIDEO_MAX_BYTES,
         evaluar_mp4_listo_whatsapp,
         optimizar_mp4_bytes_whatsapp,

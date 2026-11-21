@@ -98,7 +98,7 @@ class CourseEngineWaGateTests(SimpleTestCase):
             'core.course_engine.compose.preparar_mp4_eki_wa_v1',
             return_value=(b'wa_ready', gate_ok),
         ):
-            with patch('core.twilio_media._subir_bytes_s3', return_value=fake_url) as up:
+            with patch('core.canal.twilio_media._subir_bytes_s3', return_value=fake_url) as up:
                 url = subir_video_s3(path, 'abc12')
 
         self.assertEqual(url, fake_url)

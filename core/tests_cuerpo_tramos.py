@@ -236,7 +236,7 @@ class PuertaListoTests(_Base):
         reenvio = '[MULTI_MSG]Aquí va el video[SEP][MEDIA:https://cdn.example.com/v.mp4]'
         with patch('core.media_recuperacion.intentar_reenvio_media_curso', return_value=reenvio), \
                 patch(
-                    'core.twilio_media.preparar_url_media_whatsapp',
+                    'core.canal.twilio_media.preparar_url_media_whatsapp',
                     side_effect=lambda url, **kw: url,
                 ):
             cli = self._post('reenviame el video', 'SM_tr_pl_reenvio')

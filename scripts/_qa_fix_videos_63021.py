@@ -29,7 +29,7 @@ django.setup()
 
 from twilio.rest import Client
 
-from core.twilio_media import (
+from core.canal.twilio_media import (
     _public_s3_url,
     _subir_bytes_s3,
     optimizar_mp4_bytes_whatsapp,

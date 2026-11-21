@@ -18,7 +18,7 @@ from core.media_entrega import (
     reintentar_media_desde_log,
 )
 from core.models import Cliente, Estudiante, WhatsappLog
-from core.twilio_media import mensaje_log_con_media
+from core.canal.twilio_media import mensaje_log_con_media
 
 
 pytestmark = pytest.mark.django_db
@@ -59,7 +59,7 @@ def test_callback_63019_reintenta_media_una_vez():
     with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
         send_mock.return_value = {'success': True, 'mensaje_id': 'MMretry2'}
         with patch('core.media_entrega.preparar_url_media_whatsapp', create=True):
-            with patch('core.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
+            with patch('core.canal.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
                 _registrar_estado_twilio_callback({
                     'MessageSid': log.mensaje_id,
                     'MessageStatus': 'undelivered',

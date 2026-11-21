@@ -12,7 +12,7 @@ from core.module_structure import (
     mensaje_error_intercalado,
     modulo_tiene_secciones_intercaladas,
 )
-from core.twilio_media import (
+from core.canal.twilio_media import (
     WHATSAPP_VIDEO_MAX_BYTES,
     evaluar_mp4_listo_whatsapp,
 )
@@ -106,8 +106,8 @@ class EvaluarMp4WhatsappTests(SimpleTestCase):
         self.assertFalse(r['apto'])
         self.assertIn('supera_', r['razon'])
 
-    @patch('core.twilio_media.probe_mp4_codecs', return_value={'video': 'h264', 'audio': 'aac', 'ok_wa': True})
-    @patch('core.twilio_media.mp4_bitstream_ilegible', return_value=False)
+    @patch('core.canal.twilio_media.probe_mp4_codecs', return_value={'video': 'h264', 'audio': 'aac', 'ok_wa': True})
+    @patch('core.canal.twilio_media.mp4_bitstream_ilegible', return_value=False)
     def test_toy_apto_si_no_ilegible(self, _mock_ileg, _mock_probe):
         r = evaluar_mp4_listo_whatsapp(_mp4_toy())
         self.assertTrue(r['apto'], msg=r.get('razon'))
@@ -117,7 +117,7 @@ class EvaluarMp4WhatsappTests(SimpleTestCase):
 class GuardarUploadWaGateTests(SimpleTestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch('core.admin._common._validar_video_decodificable')
-    @patch('core.twilio_media.optimizar_mp4_bytes_whatsapp')
+    @patch('core.canal.twilio_media.optimizar_mp4_bytes_whatsapp')
     def test_rechaza_si_sigue_grande(self, mock_opt, _mock_val):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

@@ -48,7 +48,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             try:
                 from core.media_recuperacion import intentar_reenvio_media_curso
                 from core.lineas.salida_turno import entregar_en_turno
-                from core.twilio_media import mensaje_log_con_media
+                from core.canal.twilio_media import mensaje_log_con_media
 
                 _resp_reenvio = intentar_reenvio_media_curso(estudiante, msg_body)
                 if _resp_reenvio:

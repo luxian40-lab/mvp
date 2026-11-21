@@ -81,7 +81,7 @@ def _asegurar_url_publica_whatsapp(url: str) -> str:
         return url
 
     try:
-        from core.twilio_media import (
+        from core.canal.twilio_media import (
             _descargar_bytes,
             _public_s3_url,
             _subir_bytes_s3,

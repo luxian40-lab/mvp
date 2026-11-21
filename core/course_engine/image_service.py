@@ -12,7 +12,7 @@ from django.conf import settings
 from core.course_engine.budget import COST_IMAGE_USD
 from core.course_engine.prompt_context import prompt_imagen_escena
 from core.course_engine.types import Scene, SceneType
-from core.twilio_media import _subir_bytes_s3
+from core.canal.twilio_media import _subir_bytes_s3
 
 logger = logging.getLogger(__name__)
 

@@ -59,7 +59,7 @@ def preparar_mp4_eki_wa_v1(data: bytes) -> tuple[bytes | None, dict]:
     Gate eki_wa_v1 — mismo criterio que Module Builder (H.264 Main, faststart, ≤16 MB).
     Returns (bytes_ready, gate_dict). bytes_ready None si no pasa el gate.
     """
-    from core.twilio_media import (
+    from core.canal.twilio_media import (
         evaluar_mp4_listo_whatsapp,
         optimizar_mp4_bytes_whatsapp,
         remux_mp4_faststart,
@@ -96,7 +96,7 @@ def subir_video_s3(local_path: Path, run_id: str) -> Optional[str]:
         prepared, gate = preparar_mp4_eki_wa_v1(raw)
         if prepared is None:
             return None
-        from core.twilio_media import _subir_bytes_s3
+        from core.canal.twilio_media import _subir_bytes_s3
 
         safe_rid = ''.join(c if c.isalnum() or c in '-_' else '_' for c in (run_id or ''))[:40]
         key = f'media/course_engine/videos/wa_safe/{safe_rid}_h264_main_faststart.mp4'
@@ -125,7 +125,7 @@ def subir_asset_s3(
     if not local_path.is_file():
         return None
     try:
-        from core.twilio_media import _subir_bytes_s3
+        from core.canal.twilio_media import _subir_bytes_s3
 
         data = local_path.read_bytes()
         key = f'media/course_engine/{subpath}/{run_id}.{ext}'

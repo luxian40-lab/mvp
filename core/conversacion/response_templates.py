@@ -453,7 +453,7 @@ def obtener_video_url(leccion_o_modulo):
     Returns:
         str: URL completa del video o None
     """
-    from core.twilio_media import normalizar_media_url_s3
+    from core.canal.twilio_media import normalizar_media_url_s3
 
     # Prioridad 1: Archivo subido a S3 → pública regional
     if hasattr(leccion_o_modulo, 'video_archivo') and leccion_o_modulo.video_archivo:

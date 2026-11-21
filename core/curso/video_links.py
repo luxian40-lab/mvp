@@ -74,7 +74,7 @@ def _es_youtube_o_vimeo(url: str) -> bool:
 def clasificar_destino(url: str) -> tuple[str, str]:
     """(destino_tipo, destino_ref). destino_ref nunca es una URL firmada."""
     from core.models_video import VideoEnlace
-    from core.twilio_media import _s3_key_desde_url
+    from core.canal.twilio_media import _s3_key_desde_url
 
     limpia = (url or '').strip()
     if _es_youtube_o_vimeo(limpia):

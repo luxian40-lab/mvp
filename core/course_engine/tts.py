@@ -10,7 +10,7 @@ from typing import Literal, Optional
 
 from django.conf import settings
 
-from core.twilio_media import _subir_bytes_s3
+from core.canal.twilio_media import _subir_bytes_s3
 
 logger = logging.getLogger(__name__)
 

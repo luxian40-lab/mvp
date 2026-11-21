@@ -637,7 +637,7 @@ class CodigoTwilioWhatsappFilter(admin.SimpleListFilter):
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        from core.twilio_media import CODIGOS_ERROR_TWILIO_OPS
+        from core.canal.twilio_media import CODIGOS_ERROR_TWILIO_OPS
 
         labels = {
             '63019': '63019 media URL/MIME',
@@ -666,7 +666,7 @@ class CodigoTwilioWhatsappFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         from django.db.models import Q
 
-        from core.twilio_media import CODIGOS_ERROR_TWILIO_OPS
+        from core.canal.twilio_media import CODIGOS_ERROR_TWILIO_OPS
 
         val = self._valor()
         if not val:
@@ -768,7 +768,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
     mensaje_preview.short_description = "💬 Mensaje"
 
     def codigo_twilio_col(self, obj):
-        from core.twilio_media import codigo_error_twilio_desde_detalle
+        from core.canal.twilio_media import codigo_error_twilio_desde_detalle
 
         code = codigo_error_twilio_desde_detalle(obj.error_detalle)
         if not code:

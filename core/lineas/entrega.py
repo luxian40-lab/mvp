@@ -67,7 +67,7 @@ def enviar_marcado(
                 media_url=parte_media,
             )
             if registro == 'segmentos':
-                from core.twilio_media import mensaje_log_con_media
+                from core.canal.twilio_media import mensaje_log_con_media
 
                 for seg_i, (msg_sent, texto_env) in enumerate(enviados, start=1):
                     WhatsappLog.objects.create(
