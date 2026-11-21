@@ -83,3 +83,5 @@ scripts/_ops_*
 !core/templates/certificados/
 /GreatVibes-Regular.ttf
 generar_certificado_local.py
+
+backup/
