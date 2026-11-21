@@ -102,7 +102,7 @@ class CortesLineaTests(SimpleTestCase):
             'Body': 'ok',
             'MessageSid': 'wamid.diploma1',
         }
-        with patch('core.utils_telefono.estudiante_por_telefono', return_value=est), \
+        with patch('core.canal.utils_telefono.estudiante_por_telefono', return_value=est), \
                 patch(
                     'core.views.certificados_wa._intentar_responder_envio_certificado',
                     return_value=True,

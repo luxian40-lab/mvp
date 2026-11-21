@@ -1,8 +1,9 @@
 # Informe bloque 6.1 — retiro de reexports `canal` (parcial)
 
-Fecha: 2026-11-20. Solo movimiento. Sin deploy. Sin setenv.
+Fecha: 2026-11-21. Solo movimiento. Sin deploy. Sin setenv.
+Rama: `slice/bloque-6-1-canal`.
 
-## Hecho en esta sesión
+## Hecho
 
 | Stub retirado | Commit |
 | --- | --- |
@@ -12,20 +13,29 @@ Fecha: 2026-11-20. Solo movimiento. Sin deploy. Sin setenv.
 | `core/wa_reply_context.py` | `a396e145` |
 | `core/twilio_puerta.py` | `599286b3` |
 | `core/meta_inbound.py` | `7e9c5e76` |
+| (sesión previa) `wa_canal`, `meta_estados`, `models_meta_webhook`, `webhook_evento`, `meta_token`, … | ver `git log` |
+| `core/planes_linea.py` | `abfe1a82` |
+| `core/twilio_media.py` | `24cca8ef` |
+| `core/whatsapp_service.py` | `ee7e16f0` |
+| `core/utils_telefono.py` | `c8a54328` |
 
-Callers y `patch()` apuntan a `core.canal.*`.
+Callers y `patch()` apuntan a `core.canal.*`. Imports relativos `..twilio_media` en `views/twilio_transporte.py` también retargeteados.
 
-## Freno (medir local, sin `--actualizar`)
+## Tests de área (esta tanda)
 
-| Métrica | Antes de 6.1 (misma main) | Después de estos 6 stubs |
-| --- | ---: | ---: |
-| `ciclo_mayor` | 233 | **230** |
-| `archivos_sueltos_core` | 234 | **228** |
+- `core.tests_planes_linea` (+ oferta/cursos_linea): OK
+- `core.tests_twilio_media`: OK (28)
+- `core.tests_sender` + habeas + sandbox_canal_meta: OK
+- `core.tests_campana_telefonos` + meta_inbound + excel + documento: OK
 
-El baseline de CI sigue en 211 / 231: el ratchet ya estaba rojo en main; este corte **bajó** el actual. No se subió el baseline.
+## Nota (no introducida por utils_telefono)
 
-## Queda en `canal` (stubs aún en raíz)
+`core.tests_lineas_cortes.test_enviar_meta_vive_en_lineas` falla por orden: tests de `EntregaMarcadaTests` dejan `core.sandbox_canal.enviar_meta` como MagicMock (stub `sys.modules`). Se reproduce con el stub de `utils_telefono` aún presente. Aislado OK. Tratar al retirar `sandbox_canal`.
 
-Entre otros: `sandbox_canal`, `utils_telefono`, `utils`/`envios`, `twilio_media`, `meta_token`, `meta_waba`, `planes_linea`, `whatsapp_service`, `webhook_evento`, `wa_canal`, `meta_estados`, `models_meta_webhook`, `twilio_balance`, `twilio_content_preview`, `twilio_inbound_media`, `twilio_webhook_security`.
+## Queda en raíz (`canal`)
 
-Siguiente: seguir retirando stubs chicos de `canal` (mismo patrón), un stub por commit.
+`sandbox_canal`, `utils` → `envios`, `meta_waba`.
+
+## Siguiente
+
+Retirar `sandbox_canal` (cuidado con patches) o `meta_waba` / `utils`, un stub por commit. Sin deploy hasta pedido.
