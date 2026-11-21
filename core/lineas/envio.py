@@ -159,7 +159,7 @@ def _post_graph(payload: dict, api_version: str | None = None, agente: str = '')
         ultimo_error['status'],
         ultimo_error['code'],
     )
-    from core.meta_token import es_token_invalido, marcar_token_invalido
+    from core.canal.meta_token import es_token_invalido, marcar_token_invalido
 
     if es_token_invalido(ultimo_error['err']):
         marcar_token_invalido()

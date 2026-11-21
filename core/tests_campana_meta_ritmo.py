@@ -95,7 +95,7 @@ class RitmoTests(TestCase):
         self.assertTrue(campana.pausada)
         self.assertEqual(campana.pausa_motivo, 'tasa_fallos')
 
-    @patch('core.meta_token.token_invalido', return_value=False)
+    @patch('core.canal.meta_token.token_invalido', return_value=False)
     def test_preflight_cuenta_optin(self, _token):
         plantilla = PlantillaMeta.objects.create(
             nombre_interno='Aviso pre', categoria='UTILITY', idioma='es', cuerpo='Hola',
@@ -112,7 +112,7 @@ class RitmoTests(TestCase):
         self.assertIn('duracion_estimada_s 0.1', texto)
 
     @override_settings(WA_META_BUCKET_POR_LINEA=True, WA_META_MPS_POR_LINEA={'222': 5})
-    @patch('core.meta_token.token_invalido', return_value=False)
+    @patch('core.canal.meta_token.token_invalido', return_value=False)
     def test_preflight_estima_con_el_tope_de_la_linea(self, _token):
         plantilla = PlantillaMeta.objects.create(
             nombre_interno='Aviso linea', categoria='UTILITY', idioma='es', cuerpo='Hola',

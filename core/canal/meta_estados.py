@@ -158,7 +158,7 @@ def aplicar_statuses(statuses) -> int:
             log.error_detalle = ' '.join(p for p in (accion, code, title) if p)[:2000]
             campos.extend(['error_codigo', 'error_detalle'])
             if accion == 'token_invalido' or code == '190':
-                from core.meta_token import marcar_token_invalido
+                from core.canal.meta_token import marcar_token_invalido
 
                 marcar_token_invalido()
             elif accion == 'reintentar':

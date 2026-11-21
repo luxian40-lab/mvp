@@ -810,7 +810,7 @@ def _playbook_colas(colas: dict[str, Any]) -> dict[str, Any]:
 
 
 def _playbook_token_meta() -> dict[str, Any]:
-    from core.meta_token import token_invalido
+    from core.canal.meta_token import token_invalido
 
     activo = False
     try:

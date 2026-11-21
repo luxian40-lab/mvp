@@ -168,7 +168,7 @@ def ejecutar(ahora: datetime | None = None) -> dict:
             'omitidos_sin_ventana': 0,
             'omitidos_token': 0,
         }
-    from core.meta_token import token_invalido
+    from core.canal.meta_token import token_invalido
 
     if token_invalido():
         plan = plan_del_dia(timezone.localdate(ahora), ahora)

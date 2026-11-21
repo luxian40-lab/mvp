@@ -908,7 +908,7 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
         from core.campana_meta_v2 import ejecutar_campana_meta_v2
 
         return ejecutar_campana_meta_v2(campana)
-    from core.meta_token import token_invalido
+    from core.canal.meta_token import token_invalido
 
     if token_invalido():
         logger.critical('campana_meta_omitida_token_invalido id=%s', getattr(campana, 'pk', None))

@@ -69,7 +69,7 @@ class RecordatorioCursoTests(TestCase):
         from core.avisos.recordatorio_curso import ejecutar
 
         sender = _sender_ok()
-        with patch('core.meta_token.token_invalido', return_value=False), \
+        with patch('core.canal.meta_token.token_invalido', return_value=False), \
                 patch('core.lineas.sender.sender_de_linea', return_value=sender):
             resultado = ejecutar(ahora or self.ahora)
         return resultado, sender

@@ -187,7 +187,7 @@ def ejecutar(ahora: datetime | None = None) -> dict:
                'avisos_invalidos': 0, 'omitido_token': False}
     if not resumen['habilitado']:
         return resumen
-    from core.meta_token import token_invalido
+    from core.canal.meta_token import token_invalido
 
     if token_invalido():
         resumen['omitido_token'] = True

@@ -16,7 +16,7 @@ def ejecutar_campana_servicio(campana):
       - template_twilio_id: Envío directo con Content Template de Twilio
       - plantilla Django: Envío con texto personalizado (cuerpo_mensaje)
     """
-    from core.meta_token import token_invalido
+    from core.canal.meta_token import token_invalido
 
     if token_invalido():
         logger.critical('campana_omitida_token_invalido id=%s', getattr(campana, 'pk', None))

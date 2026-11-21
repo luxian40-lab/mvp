@@ -1,7 +1,7 @@
 """Borra la bandera de token Meta inválido. No imprime el token."""
 from django.core.management.base import BaseCommand
 
-from core.meta_token import CLAVE_TOKEN_INVALIDO
+from core.canal.meta_token import CLAVE_TOKEN_INVALIDO
 
 
 class Command(BaseCommand):

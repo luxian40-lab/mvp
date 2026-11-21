@@ -111,7 +111,7 @@ def pct_canal_vacio() -> dict:
 
 def resumen_para_infra() -> dict:
     try:
-        from core.meta_token import CLAVE_TOKEN_INVALIDO
+        from core.canal.meta_token import CLAVE_TOKEN_INVALIDO
 
         token = {'invalido': bool(_redis().get(CLAVE_TOKEN_INVALIDO))}
     except Exception:

@@ -93,7 +93,7 @@ class AvisoModuloTests(TestCase):
         from core.avisos.modulo_disponible import ejecutar
 
         sender = sender or _sender_ok()
-        with patch('core.meta_token.token_invalido', return_value=False), \
+        with patch('core.canal.meta_token.token_invalido', return_value=False), \
                 patch('core.lineas.sender.sender_de_linea', return_value=sender) as fabrica:
             resultado = ejecutar(self.ahora)
         return resultado, sender, fabrica
@@ -207,7 +207,7 @@ class AvisoModuloTests(TestCase):
 
         self._estudiante('573001110014')
         sender = _sender_ok()
-        with patch('core.meta_token.token_invalido', return_value=True), \
+        with patch('core.canal.meta_token.token_invalido', return_value=True), \
                 patch('core.lineas.sender.sender_de_linea', return_value=sender):
             resultado = ejecutar(self.ahora)
         self.assertEqual(resultado['enviados'], 0)

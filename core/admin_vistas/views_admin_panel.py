@@ -418,7 +418,7 @@ def _build_alertas_ops(
         })
 
     try:
-        from core.meta_token import token_invalido
+        from core.canal.meta_token import token_invalido
 
         if token_invalido():
             alertas.append({

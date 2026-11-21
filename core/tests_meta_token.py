@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from core.meta_token import CLAVE_TOKEN_INVALIDO, es_token_invalido
+from core.canal.meta_token import CLAVE_TOKEN_INVALIDO, es_token_invalido
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.tasks import reenganche_drip_content_diario
 from datetime import timedelta
@@ -59,7 +59,7 @@ class MetaTokenTests(TestCase):
         )
         with patch('core.locks._cliente_redis', return_value=redis), \
                 patch('core.sandbox_canal.requests.post', return_value=_respuesta(190)), \
-                self.assertLogs('core.meta_token', level='CRITICAL') as logs, \
+                self.assertLogs('core.canal.meta_token', level='CRITICAL') as logs, \
                 patch('core.sandbox_canal.enviar_meta') as envio:
             _post_graph({
                 'messaging_product': 'whatsapp',
