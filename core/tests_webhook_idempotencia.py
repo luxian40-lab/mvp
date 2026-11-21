@@ -12,7 +12,7 @@ from django.test import Client, TransactionTestCase
 from django.test.utils import override_settings
 from django.utils import timezone
 
-from core.webhook_evento import CANAL_META, CANAL_TWILIO, WebhookEventoProcesado, reclamar_evento
+from core.canal.webhook_evento import CANAL_META, CANAL_TWILIO, WebhookEventoProcesado, reclamar_evento
 
 
 def _meta(messages=None, statuses=None, field='messages'):
@@ -249,7 +249,7 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa():
 def test_limpiar_logs_borra_eventos_de_mas_de_10_dias():
     from pathlib import Path
 
-    from core.webhook_evento import purgar_eventos_procesados
+    from core.canal.webhook_evento import purgar_eventos_procesados
 
     tarea = Path('core/tasks.py').read_text(encoding='utf-8')
     assert 'purgar_eventos_procesados(10)' in tarea

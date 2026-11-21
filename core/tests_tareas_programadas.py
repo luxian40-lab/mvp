@@ -8,7 +8,7 @@ from django.utils import timezone
 from core.models import Estudiante, WhatsappLog
 from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.tasks import generar_reporte_actividad, limpiar_logs_antiguos
-from core.webhook_evento import WebhookEventoProcesado
+from core.canal.webhook_evento import WebhookEventoProcesado
 
 
 class BeatRegistradoTests(SimpleTestCase):

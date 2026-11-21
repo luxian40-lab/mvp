@@ -2,7 +2,7 @@
 
 Este archivo solo reexporta, en el orden en que se cargan los modelos.
 """
-from core.webhook_evento import WebhookEventoProcesado, WebhookFallido  # noqa: F401
+from core.canal.webhook_evento import WebhookEventoProcesado, WebhookFallido  # noqa: F401
 from core.conversacion.bandeja_entrada import EntradaBandeja  # noqa: F401
 
 from core.models.clientes import (  # noqa: F401

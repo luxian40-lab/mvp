@@ -22,7 +22,7 @@ from core.conversacion.bandeja_entrada import (
     reclamar_cabeza,
     tomar_turno,
 )
-from core.webhook_evento import CANAL_META
+from core.canal.webhook_evento import CANAL_META
 
 
 class BandejaEntradaTests(TestCase):

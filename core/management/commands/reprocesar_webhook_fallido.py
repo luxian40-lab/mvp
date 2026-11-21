@@ -42,7 +42,7 @@ class Command(BaseCommand):
             procesar_sandbox_meta_async,
             procesar_twilio_webhook_async,
         )
-        from core.webhook_evento import WebhookFallido
+        from core.canal.webhook_evento import WebhookFallido
 
         permitidas = {
             'procesar_sandbox_meta_async': procesar_sandbox_meta_async,

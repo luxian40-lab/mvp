@@ -15,7 +15,7 @@ from core.conversacion.bandeja_entrada import (
     aplicar_con_turno,
     omitir_turno,
 )
-from core.webhook_evento import (
+from core.canal.webhook_evento import (
     CANAL_META,
     CANAL_TWILIO,
     firma_meta_invalida,

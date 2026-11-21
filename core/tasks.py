@@ -76,7 +76,7 @@ def _log_fallo_definitivo(canal: str, args) -> None:
     from core.locks import telefono_hash
     from core.nati import normalizar_telefono_whatsapp
 
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     payload = _datos_webhook(args)
     telefono = normalizar_telefono_whatsapp(str(payload.get('From') or ''))
@@ -92,7 +92,7 @@ def _guardar_webhook_fallido(task, exc, args, kwargs) -> None:
     """Persiste el fallo para poder reprocesarlo. El payload queda solo para staff."""
     import json
 
-    from core.webhook_evento import WebhookFallido, external_id_de_payload
+    from core.canal.webhook_evento import WebhookFallido, external_id_de_payload
 
     datos = _datos_webhook(args)
     external_id = external_id_de_payload(datos)
@@ -129,7 +129,7 @@ def _cortar_reentregas(task, datos, kwargs=None) -> bool:
     Los retry() por candado no cuentan: solo delivery_info['redelivered'].
     """
     from core.locks import ENTREGA_TOPE, contar_entrega
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     info = getattr(getattr(task, 'request', None), 'delivery_info', None) or {}
     if not isinstance(info, dict) or info.get('redelivered') is not True:
@@ -184,7 +184,7 @@ def _frenar_flood(telefono, avisar) -> bool:
 
 def _soltar_bandeja_si_fallo(task, args, exc):
     from core.conversacion.bandeja_entrada import FueraDeTurno, soltar_turno_fallido
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     if isinstance(exc, FueraDeTurno):
         return
@@ -196,7 +196,7 @@ def _soltar_bandeja_si_fallo(task, args, exc):
 
 def _omitir_bandeja(canal, datos):
     from core.conversacion.bandeja_entrada import omitir_turno
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     if isinstance(datos, dict):
         omitir_turno(canal, external_id_de_payload(datos))
@@ -204,7 +204,7 @@ def _omitir_bandeja(canal, datos):
 
 def _bajo_turno(canal, datos, telefono, aplicar):
     from core.conversacion.bandeja_entrada import aplicar_con_turno
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     ext = external_id_de_payload(datos if isinstance(datos, dict) else {})
     return aplicar_con_turno(canal, ext, telefono, aplicar)
@@ -717,7 +717,7 @@ def limpiar_logs_antiguos():
     Se ejecuta a las 2 AM vía Celery Beat.
     """
     try:
-        from core.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
+        from core.canal.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
         from core.canal.models_meta_webhook import MetaWebhookEvento
 
         eventos = purgar_eventos_procesados(10)

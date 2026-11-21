@@ -43,7 +43,7 @@ def test_admin_webhook_fallido_es_solo_lectura_de_staff():
     from django.contrib.admin.sites import site
     from django.contrib.auth.models import AnonymousUser
 
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     admin_model = site._registry[WebhookFallido]
     request = RequestFactory().get('/admin/core/webhookfallido/')
@@ -61,7 +61,7 @@ def test_admin_webhook_fallido_es_solo_lectura_de_staff():
 
 @pytest.mark.django_db
 def test_purga_de_fallidos_a_los_10_dias():
-    from core.webhook_evento import WebhookFallido, purgar_webhooks_fallidos
+    from core.canal.webhook_evento import WebhookFallido, purgar_webhooks_fallidos
 
     tarea = Path('core/tasks.py').read_text(encoding='utf-8')
     assert 'purgar_webhooks_fallidos(10)' in tarea
@@ -83,7 +83,7 @@ def test_on_failure_guarda_el_fallo_sin_reintentar_soft_timeout():
 
     from core.salida_usuario import marcar_mensaje_salio, reset_mensaje_salio
     from core.tasks import _reintentar_si_lock, procesar_twilio_webhook_async
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     procesar_twilio_webhook_async.on_failure(
         RuntimeError('timeout'),
@@ -117,7 +117,7 @@ def test_comando_reprocesar_encola_la_tarea_guardada():
 
     from django.core.management import call_command
 
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     fila = WebhookFallido.objects.create(
         canal='twilio',
@@ -149,7 +149,7 @@ def test_reprocesar_muestra_texto_pide_confirmar_y_rechaza_viejos(capsys):
     from django.core.management import call_command
     from django.core.management.base import CommandError
 
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     fila = WebhookFallido.objects.create(
         canal='meta',
@@ -185,7 +185,7 @@ def test_reprocesar_encola_nat_con_forzar_canal():
 
     from django.core.management import call_command
 
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     fila = WebhookFallido.objects.create(
         canal='twilio',
@@ -206,7 +206,7 @@ def test_reprocesar_encola_nat_con_forzar_canal():
 def test_external_id_de_las_tres_tareas():
     """Twilio y Nat usan MessageSid. Meta copia el wamid (message.id) a MessageSid."""
     from core.sandbox_canal import inbound_desde_meta_message
-    from core.webhook_evento import external_id_de_payload
+    from core.canal.webhook_evento import external_id_de_payload
 
     twilio = {'MessageSid': 'SMtwilio', 'From': 'whatsapp:+573001112233', 'Body': 'listo'}
     assert external_id_de_payload(twilio) == 'SMtwilio'
@@ -286,7 +286,7 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
 
     from core import tasks as tasks_mod
     from core.locks import ENTREGA_TTL_SEG
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     @contextmanager
     def _abierto(*args, **kw):
@@ -324,7 +324,7 @@ def test_ocho_reintentos_de_lock_no_cuentan_como_reentrega():
     from redis.exceptions import LockError
 
     from core.tasks import procesar_twilio_webhook_async
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     falso = _RedisFalso()
     datos = {'MessageSid': 'SMlock8', 'From': 'whatsapp:+573009998877', 'Body': 'hola'}
@@ -348,7 +348,7 @@ def test_ocho_reintentos_de_lock_no_cuentan_como_reentrega():
 def test_on_failure_de_meta_guarda_el_wamid_aunque_solo_venga_id():
     pytest.importorskip('celery')
     from core.tasks import procesar_sandbox_meta_async
-    from core.webhook_evento import WebhookFallido
+    from core.canal.webhook_evento import WebhookFallido
 
     procesar_sandbox_meta_async.on_failure(
         RuntimeError('graph'),

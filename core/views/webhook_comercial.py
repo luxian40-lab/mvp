@@ -55,7 +55,7 @@ def bot_comercial_webhook(request):
 
     from core.conversacion.bandeja_entrada import anotar_payload_twilio, aplicar_con_turno, omitir_turno
     from core.nati import normalizar_telefono_whatsapp
-    from core.webhook_evento import CANAL_TWILIO
+    from core.canal.webhook_evento import CANAL_TWILIO
 
     def _sid(data):
         return str(data.get('MessageSid') or '').strip()[:128]

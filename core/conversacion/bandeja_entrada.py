@@ -80,7 +80,7 @@ def anotar_payload_meta(payload) -> None:
     if not bandeja_activa() or not isinstance(payload, dict):
         return
     from core.canal.telefono import normalizar_telefono
-    from core.webhook_evento import CANAL_META
+    from core.canal.webhook_evento import CANAL_META
 
     for entry in payload.get('entry') or []:
         if not isinstance(entry, dict):
@@ -109,7 +109,7 @@ def anotar_payload_twilio(data) -> None:
     if estado in _STATUS_TWILIO:
         return
     from core.canal.telefono import normalizar_telefono
-    from core.webhook_evento import CANAL_TWILIO
+    from core.canal.webhook_evento import CANAL_TWILIO
 
     sid = str(data.get('MessageSid') or '').strip()[:128]
     if not sid:

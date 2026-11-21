@@ -8,7 +8,7 @@ from core.admin.agentes_v2_flag import admin_agentes_v2_activo
 from core.admin import agentes_v2_textos as textos
 from core.models import BoletinEki as _BoletinEki
 from core.models import ConfiguracionGlobal as _ConfiguracionGlobal
-from core.webhook_evento import WebhookFallido
+from core.canal.webhook_evento import WebhookFallido
 
 @admin.register(_BoletinEki)
 class BoletinEkiAdmin(admin.ModelAdmin):

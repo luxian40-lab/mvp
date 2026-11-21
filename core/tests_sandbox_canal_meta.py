@@ -407,7 +407,7 @@ class SandboxCanalMetaWebhookTests(TestCase):
 
     @override_settings(SANDBOX_CELERY_ASYNC=True)
     def test_sin_redis_responde_500_y_suelta_el_reclamo(self):
-        from core.webhook_evento import WebhookEventoProcesado
+        from core.canal.webhook_evento import WebhookEventoProcesado
 
         payload = _meta_envelope(
             {'from': '573001234597', 'id': 'wamid.async2', 'type': 'text', 'text': {'body': 'hola'}},
