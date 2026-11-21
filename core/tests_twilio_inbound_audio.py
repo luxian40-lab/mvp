@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.intent_detector import mensaje_indica_listo
-from core.twilio_inbound_media import (
+from core.canal.twilio_inbound_media import (
     descargar_bytes_twilio,
     es_audio_inbound_twilio,
 )
@@ -52,7 +52,7 @@ class DescargaTwilioRedirectTests(SimpleTestCase):
             resp.raise_for_status = MagicMock()
             return resp
 
-        with patch('core.twilio_inbound_media.requests.get', side_effect=fake_get):
+        with patch('core.canal.twilio_inbound_media.requests.get', side_effect=fake_get):
             data, ctype = descargar_bytes_twilio(twilio_url)
 
         self.assertEqual(data, b'OggS-bytes')

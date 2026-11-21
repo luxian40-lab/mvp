@@ -34,7 +34,7 @@ def descargar_media_twilio(media_url: str) -> tuple[bytes | None, str]:
     if not media_url:
         return None, ''
     try:
-        from core.twilio_inbound_media import descargar_bytes_twilio
+        from core.canal.twilio_inbound_media import descargar_bytes_twilio
 
         contenido, ctype = descargar_bytes_twilio(media_url, timeout=20)
     except Exception as exc:

@@ -43,7 +43,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
 
         return del_turno(media_url, lambda: transcribir_audio_meta(media_url, media_type))
     try:
-        from core.twilio_inbound_media import descargar_bytes_twilio
+        from core.canal.twilio_inbound_media import descargar_bytes_twilio
 
         audio_bytes, ctype_dl = descargar_bytes_twilio(media_url, timeout=25)
         if not audio_bytes:

@@ -196,7 +196,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         longitud_raw = post_data.get('Longitude')
         print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
 
-        from core.twilio_inbound_media import es_audio_inbound_twilio
+        from core.canal.twilio_inbound_media import es_audio_inbound_twilio
 
         es_audio = es_audio_inbound_twilio(num_media, media_type, media_url)
         # Imagen: puede ser evidencia de un reto de campo (se resuelve en esa rama).
