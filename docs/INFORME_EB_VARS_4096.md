@@ -1,7 +1,9 @@
 # Informe — tope CloudFormation `EnvironmentVariables` (4096) en EB
 
 Fecha de lectura: **2026-11-20** (rama `main`, worktree `C:\Users\luxia\eki_deploy_main`).  
-Inventario inicial: sin mutar. **Ops 2026-11-21:** lote mínimo SEGURAS quitado en `eki-prod-final` + `EKI_ESTADO_LINEA_SIN_ESPEJO=true` (E4). Backup: `backup/printenv-eki-prod-final-20261121.txt`. Health 200 / Green tras ambos.
+Inventario inicial: sin mutar. **Ops 2026-11-21:** lote mínimo SEGURAS + segundo lote SEGURAS; `EKI_ESTADO_LINEA_SIN_ESPEJO=true` (E4). Backup: `backup/printenv-eki-prod-final-20261121.txt`. Health 200 / Green.
+
+**L3 registro (mismo día):** las vars `EKI_LINEA_REGISTRO_*` estaban en `environmentsecrets` (ARN SSM) pero **no entraban al proceso** (`deployment/env` vacío → `lineas_producto()` solo 2 líneas). Se pasaron a `application:environment` con valores de SSM (`phone`/`e164`/`waba`/`flow=1121031830722938`). Tras el update: `lineas_producto()` = 3 (incluye registro `1477762615411333`).
 
 ## Resumen ejecutivo
 
