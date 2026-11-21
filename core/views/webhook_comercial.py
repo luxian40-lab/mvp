@@ -47,7 +47,7 @@ def bot_comercial_webhook(request):
     if request.method != 'POST':
         return HttpResponse('Method Not Allowed', status=405)
 
-    from core.twilio_webhook_security import validate_twilio_request
+    from core.canal.twilio_webhook_security import validate_twilio_request
 
     denied = validate_twilio_request(request)
     if denied is not None:

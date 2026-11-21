@@ -232,7 +232,7 @@ def whatsapp_webhook(request):
 
         # Raw body → firma Twilio (HMAC/compare_digest) antes de procesar inbound Twilio.
         # Meta Cloud API (JSON con entry) no usa X-Twilio-Signature.
-        from core.twilio_webhook_security import (
+        from core.canal.twilio_webhook_security import (
             looks_like_meta_whatsapp_payload,
             validate_twilio_request,
         )

@@ -8,7 +8,7 @@ from django.test import Client, RequestFactory
 from django.test.utils import override_settings
 from twilio.request_validator import RequestValidator
 
-from core.twilio_webhook_security import (
+from core.canal.twilio_webhook_security import (
     looks_like_meta_whatsapp_payload,
     validate_twilio_request,
 )
