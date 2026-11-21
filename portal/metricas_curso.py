@@ -5,7 +5,9 @@ Inició = tiene fecha_ultimo_avance, cerró un módulo o terminó el curso.
 No basta con paso_actual_modulo > 1: el primer envío mueve el puntero
 sin que la persona haya avanzado.
 Terminó = progreso completado.
-Avance = módulos cerrados / módulos publicados; un curso terminado cuenta 100.
+En curso (inscripción) = inició y aún no terminó.
+Avance promedio = media del % de módulos cerrados solo entre inscripciones
+en curso (no diluye con fichas en 0 % ni con cursos ya terminados).
 Los totales se cuentan por inscripción (persona y curso), así suman lo mismo que la tabla.
 """
 from __future__ import annotations
@@ -27,15 +29,22 @@ def _pct(num: int, den: int):
 MIN_INICIADORES_CULMINACION = 5
 
 
-def _fila(inscritos: int, iniciaron: int, terminaron: int, suma_avance: int) -> dict:
+def _fila(
+    inscritos: int,
+    iniciaron: int,
+    terminaron: int,
+    suma_avance: int,
+    n_en_curso: int,
+) -> dict:
     return {
         'inscritos': inscritos,
         'iniciaron': iniciaron,
         'terminaron': terminaron,
+        'en_curso': n_en_curso,
         'inicio_pct': _pct(iniciaron, inscritos),
         'culminacion_iniciados_pct': _pct(terminaron, iniciaron),
         'culminacion_inscritos_pct': _pct(terminaron, inscritos),
-        'avance_pct': round(suma_avance / inscritos, 1) if inscritos else None,
+        'avance_pct': round(suma_avance / n_en_curso, 1) if n_en_curso else None,
     }
 
 
@@ -118,7 +127,8 @@ def metricas_cursos(org) -> dict:
         ).values_list('progreso_id', 'modulo_id'):
             cerrados.setdefault(progreso_id, set()).add(modulo_id)
 
-    acumulado: dict[int, list[int]] = {curso.id: [0, 0, 0, 0] for curso in cursos}
+    # inscritos, iniciaron, terminaron, suma_avance (solo en curso), n_en_curso
+    acumulado: dict[int, list[int]] = {curso.id: [0, 0, 0, 0, 0] for curso in cursos}
     cursos_iniciados: dict[int, set[int]] = {}
     terminaron_persona: set[int] = set()
     for progreso_id, estudiante_id, curso_id, completado, fecha_avance in progresos:
@@ -139,7 +149,9 @@ def metricas_cursos(org) -> dict:
         fila[0] += 1
         fila[1] += int(inicio)
         fila[2] += int(completado)
-        fila[3] += avance
+        if inicio and not completado:
+            fila[3] += avance
+            fila[4] += 1
 
     por_curso = []
     for curso in cursos:
@@ -150,7 +162,7 @@ def metricas_cursos(org) -> dict:
         por_curso.append(datos)
 
     # Totales por inscripción (tabla / culminación sobre iniciadores).
-    total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(4)))
+    total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(5)))
     # Cajas de Uso: inicio y «culminación sobre aceptantes» van sobre registrados (personas).
     registrados = len(ids_universo)
     personas_iniciaron = len(cursos_iniciados)

@@ -273,10 +273,10 @@
                 <p class="metric-number">{% if cursos_total.culminacion_inscritos_pct is None %}Sin dato{% else %}{{ cursos_total.culminacion_inscritos_pct|stringformat:".1f" }}%{% endif %}</p>
                 <p>Registrados que completaron al menos un curso{% if cursos_total.culminacion_inscritos_pct is not None %}: {{ cursos_total.terminaron_reg }} de {{ cursos_total.registrados }}{% endif %}.</p>
             </article>
-            <article class="ana-box" title="Promedio de módulos cerrados sobre módulos del curso; un curso terminado cuenta 100 %.">
+            <article class="ana-box" title="Promedio del % de módulos cerrados solo entre quienes están en curso (inicio real y aún no terminaron). No incluye fichas en 0 % ni cursos ya terminados.">
                 <h3>Avance promedio</h3>
                 <p class="metric-number">{% if cursos_total.avance_pct is None %}Sin dato{% else %}{{ cursos_total.avance_pct|stringformat:".1f" }}%{% endif %}</p>
-                <p>Módulos cerrados sobre módulos del curso, promedio de las {{ cursos_total.inscritos }} inscripciones.</p>
+                <p>Módulos cerrados sobre módulos del curso, promedio de quienes están en curso{% if cursos_total.en_curso %}: {{ cursos_total.en_curso }} inscripción{{ cursos_total.en_curso|pluralize:"es" }}{% endif %}.</p>
             </article>
             <article class="ana-box" title="Personas que iniciaron al menos dos cursos, sobre quienes iniciaron al menos uno.">
                 <h3>Inicio de segundo curso</h3>

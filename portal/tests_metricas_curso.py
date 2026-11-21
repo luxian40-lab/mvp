@@ -71,11 +71,14 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(finca['inicio_pct'], 50.0)
         self.assertEqual(finca['culminacion_iniciados_pct'], 50.0)
         self.assertEqual(finca['culminacion_inscritos_pct'], 25.0)
-        # Avance: 0, 0, 50 y 100 → 37.5
-        self.assertEqual(finca['avance_pct'], 37.5)
+        # En curso solo el de un módulo cerrado (50 %); 0 % y terminado no entran.
+        self.assertEqual(finca['en_curso'], 1)
+        self.assertEqual(finca['avance_pct'], 50.0)
         self.assertTrue(filas['Riendas']['general'])
         self.assertEqual(filas['Riendas']['inicio_pct'], 0.0)
         self.assertIsNone(filas['Riendas']['culminacion_iniciados_pct'])
+        self.assertEqual(filas['Riendas']['en_curso'], 0)
+        self.assertIsNone(filas['Riendas']['avance_pct'])
         self.assertEqual(filas['Sin gente']['inscritos'], 0)
         self.assertIsNone(filas['Sin gente']['inicio_pct'])
         self.assertIsNone(filas['Sin gente']['avance_pct'])
@@ -107,7 +110,24 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(total['terminaron_reg'], 1)
         self.assertEqual(total['inicio_pct'], 40.0)
         self.assertEqual(total['culminacion_inscritos_pct'], 20.0)
-        self.assertEqual(total['avance_pct'], 30.0)
+        self.assertEqual(total['en_curso'], 1)
+        self.assertEqual(total['avance_pct'], 50.0)
+
+    def test_avance_promedio_solo_en_curso(self):
+        """Fichas en 0 % y cursos terminados no entran al denominador del avance."""
+        solo_puntero = ProgresoEstudiante.objects.get(
+            estudiante__telefono='573001300002', curso=self.finca,
+        )
+        ProgresoEstudiante.objects.filter(pk=solo_puntero.pk).update(
+            fecha_ultimo_avance=timezone.now(),
+        )
+        finca = {f['nombre']: f for f in metricas_cursos(self.org)['por_curso']}['Curso finca']
+        # En curso: módulo cerrado (50 %) + puntero que ahora inició (0 %) → 25.
+        self.assertEqual(finca['en_curso'], 2)
+        self.assertEqual(finca['avance_pct'], 25.0)
+        total = metricas_cursos(self.org)['total']
+        self.assertEqual(total['en_curso'], 2)
+        self.assertEqual(total['avance_pct'], 25.0)
 
     def test_inicio_y_culminacion_aceptantes_sobre_registrados(self):
         """Las cajas de Uso dividen sobre personas registradas, no sobre inscripciones."""
