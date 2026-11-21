@@ -2,7 +2,7 @@
 from django.test import SimpleTestCase
 from django.utils.safestring import SafeString
 
-from core.twilio_content_preview import (
+from core.canal.twilio_content_preview import (
     _parse_types,
     content_sid_de_campana,
     fill_samples,

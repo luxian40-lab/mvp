@@ -159,7 +159,7 @@ def cmd_create_template(_args) -> int:
 
 
 def cmd_status(args) -> int:
-    from core.twilio_content_preview import fetch_content_preview
+    from core.canal.twilio_content_preview import fetch_content_preview
 
     hx = (args.content_sid or os.environ.get(ENV_SID) or '').strip()
     if not hx:
@@ -180,7 +180,7 @@ def cmd_status(args) -> int:
 
 def cmd_send_qa(args) -> int:
     from core.enviar_plantillas import enviar_plantilla_twilio
-    from core.twilio_content_preview import fetch_content_preview
+    from core.canal.twilio_content_preview import fetch_content_preview
 
     tel = ''.join(c for c in TEL_QA if c.isdigit())
     if not tel.endswith('3026480629'):

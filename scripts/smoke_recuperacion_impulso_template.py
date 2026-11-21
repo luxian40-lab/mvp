@@ -38,7 +38,7 @@ django.setup()
 from django.conf import settings  # noqa: E402
 
 from core.enviar_plantillas import enviar_plantilla_twilio  # noqa: E402
-from core.twilio_content_preview import fetch_content_preview  # noqa: E402
+from core.canal.twilio_content_preview import fetch_content_preview  # noqa: E402
 
 TEL_QA_DEFAULT = '573026480629'
 CURSO_NOMBRE_FILTRO = 'Impulso Joven Rural'

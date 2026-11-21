@@ -63,7 +63,7 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     estado_template.short_description = "WhatsApp"
 
     def twilio_preview_live(self, obj):
-        from core.twilio_content_preview import fetch_content_preview, preview_html
+        from core.canal.twilio_content_preview import fetch_content_preview, preview_html
 
         sid = (getattr(obj, 'twilio_template_sid', None) or '').strip()
         if not sid:

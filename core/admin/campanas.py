@@ -134,7 +134,7 @@ class CampanaAdmin(admin.ModelAdmin):
                 extra_context['eki_hx_preview'] = None
                 extra_context['eki_hx_preview_html'] = ''
                 try:
-                    from core.twilio_content_preview import (
+                    from core.canal.twilio_content_preview import (
                         content_sid_de_campana,
                         fetch_content_preview,
                         preview_html,

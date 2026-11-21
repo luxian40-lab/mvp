@@ -106,7 +106,7 @@ class AdminCampanaCertTabsTests(TestCase):
             'error': '',
         }
         self.client.force_login(self.user)
-        with patch('core.twilio_content_preview.fetch_content_preview', return_value=fake):
+        with patch('core.canal.twilio_content_preview.fetch_content_preview', return_value=fake):
             r = self.client.get(reverse('admin:core_campana_change', args=[camp.pk]))
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
