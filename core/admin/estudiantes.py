@@ -1182,7 +1182,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                     extraer_fila_estudiante,
                     mapear_columnas_estudiante,
                 )
-                from core.utils_telefono import normalizar_telefono, validar_telefono_whatsapp
+                from core.canal.utils_telefono import normalizar_telefono, validar_telefono_whatsapp
 
                 def _normalizar_celda(val):
                     return celda_excel_a_texto(val)

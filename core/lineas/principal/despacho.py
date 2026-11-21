@@ -96,7 +96,7 @@ def _responder_identidad(decision: SandboxRouteDecision, payload: Any, body: str
         return 'handled'
 
     if decision.action == 'confirmar_datos':
-        from core.utils_telefono import estudiante_por_telefono
+        from core.canal.utils_telefono import estudiante_por_telefono
 
         est = estudiante_por_telefono(decision.telefono_usuario)
         if est is not None:

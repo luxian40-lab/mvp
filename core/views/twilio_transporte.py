@@ -132,7 +132,7 @@ def _registrar_estado_twilio_callback(post_data):
             try:
                 from core.models import Estudiante, EstudianteEventoAprendizaje
                 from core.telemetria import registrar_evento
-                from core.utils_telefono import variantes_telefono
+                from core.canal.utils_telefono import variantes_telefono
 
                 est = log.estudiante
                 if est is None and log.telefono:

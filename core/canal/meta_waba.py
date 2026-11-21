@@ -678,7 +678,7 @@ def enviar_prueba_de_plantilla(plantilla: PlantillaMeta, telefono: str, phone_nu
 
 def enviar_prueba_meta(campana: CampanaMeta, telefono: str) -> dict:
     """Un solo número. No marca la campaña como ejecutada."""
-    from core.utils_telefono import normalizar_e164_co
+    from core.canal.utils_telefono import normalizar_e164_co
 
     plantilla = campana.plantilla
     if plantilla.estado != 'APPROVED':

@@ -18,7 +18,7 @@ from django.test import Client, override_settings
 from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
 from aprende.credencial_service import tiene_clave
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.utils_telefono import normalizar_telefono
+from core.canal.utils_telefono import normalizar_telefono
 
 TEL = normalizar_telefono(sys.argv[1] if len(sys.argv) > 1 else '3026480629')
 print('tel_norm=', TEL)

@@ -44,7 +44,7 @@ def _enviar_twilio(post_data, texto: str, agente: str) -> None:
 def _enviar_codigo_twilio(post_data) -> None:
     from core.puentes import emitir_acceso_desde_whatsapp
     from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(normalizar_telefono_whatsapp(post_data.get('From', '')))
     if est is None:
@@ -88,7 +88,7 @@ def responder_aula_meta(post_data) -> bool:
     if not mensaje_pide_acceso_aula(body):
         return False
     from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(normalizar_telefono_whatsapp(data.get('From', '')))
     if est is None:

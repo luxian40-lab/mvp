@@ -60,7 +60,7 @@ def _linea_organizacion(telefono: str) -> list[str]:
 
 def _lineas_estudiante(telefono: str) -> list[str]:
     from core.models import ProgresoEstudiante
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     estudiante = estudiante_por_telefono(telefono)
     if estudiante is None:
@@ -113,7 +113,7 @@ def ultimo_agente(telefono: str) -> tuple[str, str] | None:
 def _lineas_entrada(telefono: str) -> list[str]:
     """Nombre, cómo está y el lugar que ella dijo. Sin municipio del registro."""
     from core.models import FichaNegocio
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     lineas = []
     nombre = ''

@@ -122,7 +122,7 @@ def eki_command_search_callback(request, search_term: str) -> list[SearchResult]
     digits = ''.join(c for c in q if c.isdigit())
     if len(digits) >= 7:
         from core.models import Estudiante, WhatsappLog
-        from core.utils_telefono import normalizar_telefono
+        from core.canal.utils_telefono import normalizar_telefono
 
         tel = normalizar_telefono(digits) or digits
         est = (

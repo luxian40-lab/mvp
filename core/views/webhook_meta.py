@@ -69,7 +69,7 @@ def _estado_de_la_linea(data):
     from core.conversacion.estado_linea import en_linea
     from core.nati import normalizar_telefono_whatsapp
     from core.sandbox_canal import inbound_es_meta, phone_id_de_salida
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     es_meta = isinstance(data, dict) and inbound_es_meta(data)
     telefono = normalizar_telefono_whatsapp(str(data.get('From', '') or '')) if es_meta else ''
@@ -184,7 +184,7 @@ def _procesar_meta_webhook(payload):
                             clasificar_mensaje,
                             registrar_mensaje_legacy,
                         )
-                        from core.utils_telefono import normalizar_e164_co
+                        from core.canal.utils_telefono import normalizar_e164_co
 
                         phone = normalizar_e164_co(m.get('from') or '')
                         info = clasificar_mensaje(m)

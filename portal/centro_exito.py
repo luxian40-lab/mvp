@@ -12,7 +12,7 @@ from typing import Any
 from django.db.models import Count
 from django.utils import timezone
 
-from core.utils_telefono import variantes_telefono
+from core.canal.utils_telefono import variantes_telefono
 
 RIESGO_BAJO = 'bajo'
 RIESGO_MEDIO = 'medio'

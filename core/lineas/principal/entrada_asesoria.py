@@ -46,7 +46,7 @@ def _ficha(telefono: str):
 
 
 def _nombre(telefono: str, ficha) -> str:
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     nombre = ''
     estudiante = estudiante_por_telefono(telefono)

@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from core.models import Estudiante, SandboxCanalSesion, WhatsappLog
 from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.canal.planes_linea import cursos_iniciados_en_el_mes, explicar_plan, preguntas_usadas_mes
-from core.utils_telefono import normalizar_e164_co
+from core.canal.utils_telefono import normalizar_e164_co
 
 
 class Command(BaseCommand):
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         digitos = normalizar_e164_co(bruto)
         qs = Estudiante.objects.all()
         if len(digitos) >= 10:
-            from core.utils_telefono import variantes_telefono
+            from core.canal.utils_telefono import variantes_telefono
 
             qs = qs.filter(telefono__in=variantes_telefono(digitos))
         else:

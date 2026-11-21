@@ -39,7 +39,7 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
     from core.habeas_respuestas import texto_desde_webhook_twilio
     from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     body = texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '')
     if not mensaje_pide_acceso_aula(body):
@@ -81,7 +81,7 @@ def _entrada_para_medir(post_data, turno):
     from django.db import DatabaseError
 
     from core.conversacion.medicion import EntradaTurno
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     if not getattr(settings, 'EKI_MEDIR_TURNO', True):
         return None

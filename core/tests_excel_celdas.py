@@ -4,7 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from core.excel_celdas import celda_excel_a_texto
-from core.utils_telefono import normalizar_telefono
+from core.canal.utils_telefono import normalizar_telefono
 
 
 def test_celda_float_telefono_colombia():

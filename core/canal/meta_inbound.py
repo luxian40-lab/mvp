@@ -63,7 +63,7 @@ def marcar_resultado(resultado: str, *, ruta: str = '', error: str = '') -> None
 
 
 def _telefono_de(data) -> str:
-    from core.utils_telefono import normalizar_e164_co
+    from core.canal.utils_telefono import normalizar_e164_co
 
     if not isinstance(data, dict):
         return ''
@@ -116,7 +116,7 @@ def _abrir(data, mensaje: dict | None = None):
 
 
 def normalizar_desde_mensaje(mensaje: dict) -> str:
-    from core.utils_telefono import normalizar_e164_co
+    from core.canal.utils_telefono import normalizar_e164_co
 
     return normalizar_e164_co(str((mensaje or {}).get('from') or ''))
 

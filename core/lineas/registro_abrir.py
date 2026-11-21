@@ -264,7 +264,7 @@ def _ficha(telefono: str):
     """Ficha usable. Sin cédula real, sigue en el registro."""
     from django.db import DatabaseError
 
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     try:
         est = estudiante_por_telefono(telefono)

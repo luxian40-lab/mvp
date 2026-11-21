@@ -19,7 +19,7 @@ from django.db import connection
 
 from core.inscripcion_curso import inscribir_estudiante_en_curso, resolver_curso_por_nombre
 from core.models import Curso, Estudiante, ProgresoEstudiante
-from core.utils_telefono import normalizar_telefono
+from core.canal.utils_telefono import normalizar_telefono
 
 TEL = normalizar_telefono('3026480629')
 NOMBRE_CURSO = 'Tome las riendas de su dinero'

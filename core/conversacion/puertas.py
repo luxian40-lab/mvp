@@ -53,7 +53,7 @@ def correr_puertas(telefono: str, body: str) -> str | None:
 
 def _responder_optout(telefono: str, body: str) -> str | None:
     from core.consentimiento_wa import es_optout, registrar_optout
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     if es_optout(body):
         est = estudiante_por_telefono(telefono)
@@ -73,7 +73,7 @@ def _responder_optout(telefono: str, body: str) -> str | None:
 
 
 def _habeas_listo(telefono: str) -> bool:
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
     if est is not None and not est.acepto_terminos:
@@ -95,7 +95,7 @@ def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
     """
     if not telefono or not _habeas_listo(telefono):
         return
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
     if est is None:
@@ -171,7 +171,7 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
     import re
 
     from core.habeas_respuestas import MSG_ACEPTO_CEDULA, MSG_CEDULA_NO_COINCIDE
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
     if est is None or (est.estado_chat or '') != 'ESPERANDO_CEDULA':
@@ -215,7 +215,7 @@ def abrir_tras_confirmar(est, telefono: str, from_number: str) -> None:
 def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str | None:
     """None si no está confirmando. 'handled' si esta vuelta fue la verificación."""
     from core.habeas_respuestas import MSG_DATOS_NO
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
     if est is None or (est.estado_chat or '') != 'CONFIRMANDO_DATOS':
@@ -242,7 +242,7 @@ def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str |
 
 def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     """None si ya puede ver el menú. 'handled' si esta vuelta fue solo habeas."""
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     t = (body or '').strip().lower()
     est = estudiante_por_telefono(telefono)

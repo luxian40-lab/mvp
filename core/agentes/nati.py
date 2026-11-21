@@ -108,7 +108,7 @@ NATI_SYSTEM_PROMPT_BASE = NAT_SYSTEM_PROMPT_BASE
 
 def normalizar_telefono_whatsapp(numero: str) -> str:
     """Misma forma que normalizar_e164_co: webhook, ficha y envío."""
-    from core.utils_telefono import normalizar_e164_co
+    from core.canal.utils_telefono import normalizar_e164_co
 
     return normalizar_e164_co(numero)
 

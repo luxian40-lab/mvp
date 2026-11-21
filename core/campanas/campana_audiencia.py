@@ -672,7 +672,7 @@ def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
     from core.lineas.sesion import sesion_de
     from core.sandbox_canal import salida_por_phone_id
     from core.sandbox_menu import MODO_MENU
-    from core.utils_telefono import normalizar_e164_co
+    from core.canal.utils_telefono import normalizar_e164_co
 
     telefono = normalizar_e164_co(getattr(estudiante, 'telefono', '') or '')
     linea = (phone_id or '').strip()

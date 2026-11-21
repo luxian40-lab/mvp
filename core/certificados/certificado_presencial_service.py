@@ -272,7 +272,7 @@ def buscar_estudiante_por_documento_o_telefono(
     cedula: str | None = None,
     telefono: str | None = None,
 ) -> Estudiante | None:
-    from core.utils_telefono import normalizar_telefono
+    from core.canal.utils_telefono import normalizar_telefono
 
     ced = (cedula or '').strip()
     if ced:
@@ -296,7 +296,7 @@ def agregar_participante_certificado(
     Si ya existe (cédula/teléfono global), lo devuelve aunque sea de otro cliente.
     Si no existe, lo crea bajo cliente_evento.
     """
-    from core.utils_telefono import normalizar_telefono
+    from core.canal.utils_telefono import normalizar_telefono
 
     nombre = (nombre or '').strip()
     cedula = (cedula or '').strip()

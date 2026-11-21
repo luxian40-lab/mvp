@@ -21,7 +21,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
         'label': 'Core',
         'django_app': 'core',
         'description': 'Clientes, estudiantes, autenticación admin, utilidades compartidas.',
-        'modules': ['core.models', 'core.utils_telefono', 'core.views'],
+        'modules': ['core.models', 'core.canal.utils_telefono', 'core.views'],
     },
     'learning': {
         'label': 'Learning',

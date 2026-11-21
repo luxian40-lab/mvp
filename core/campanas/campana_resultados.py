@@ -8,7 +8,7 @@ from typing import Any
 
 from django.db.models import QuerySet
 
-from core.utils_telefono import explicar_error_envio_whatsapp, validar_telefono_whatsapp
+from core.canal.utils_telefono import explicar_error_envio_whatsapp, validar_telefono_whatsapp
 
 
 def _qs_destinatarios(campana) -> QuerySet:

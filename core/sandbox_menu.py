@@ -565,7 +565,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     # Plantilla inicial: habeas ya se cortó arriba. Aquí no abrir "sin curso".
     if _es_boton_inicio_flujo(body):
-        from core.utils_telefono import estudiante_por_telefono
+        from core.canal.utils_telefono import estudiante_por_telefono
 
         persona = estudiante_por_telefono(from_tel)
         estado = getattr(persona, 'estado_chat', '') if persona is not None else ''
@@ -651,7 +651,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     if (body or '').strip().lower() in ('continuemos', 'continuar'):
-        from core.utils_telefono import estudiante_por_telefono
+        from core.canal.utils_telefono import estudiante_por_telefono
 
         persona = estudiante_por_telefono(from_tel)
         if persona is not None and persona.estado_chat in (
@@ -822,7 +822,7 @@ def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str
         return 'handled'
     from core.lineas.cursos_linea import fijar_curso_de_la_linea
     from core.sandbox_canal import phone_id_de_salida
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     fijar_curso_de_la_linea(phone_id_de_salida(), lambda: estudiante_por_telefono(decision.telefono_usuario))
     return 'cursos'

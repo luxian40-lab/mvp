@@ -25,7 +25,7 @@ def evaluar_cuota_nat(telefono: str) -> tuple[bool, int, int]:
         return False, 0, 0
 
     from core.models import WhatsappLog
-    from core.utils_telefono import normalizar_telefono, variantes_telefono
+    from core.canal.utils_telefono import normalizar_telefono, variantes_telefono
 
     tel = normalizar_telefono(telefono or '')
     if not tel:

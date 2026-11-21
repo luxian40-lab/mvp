@@ -5,7 +5,7 @@ import pytest
 
 from core.campana_resultados import revisar_audiencia_campana, resumen_envios_campana
 from core.models import Campana, Cliente, EnvioLog, Estudiante
-from core.utils_telefono import (
+from core.canal.utils_telefono import (
     explicar_error_envio_whatsapp,
     normalizar_telefono,
     validar_telefono_whatsapp,

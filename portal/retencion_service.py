@@ -8,7 +8,7 @@ from typing import Any
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from core.utils_telefono import normalizar_telefono, variantes_telefono
+from core.canal.utils_telefono import normalizar_telefono, variantes_telefono
 
 from . import centro_exito
 

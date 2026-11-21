@@ -24,7 +24,7 @@ from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante, 
 from core.models_extras import GrupoEstudiantes
 from core.nati import normalizar_telefono_whatsapp
 from core.canal.planes_linea import PLAN_ASESOR_60, PLAN_CURSO_ASESOR, PLAN_DOS_CURSOS, resolver_plan
-from core.utils_telefono import normalizar_telefono
+from core.canal.utils_telefono import normalizar_telefono
 
 CAMPOS_VIEJOS = {
     'tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo',

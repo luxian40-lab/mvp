@@ -6,7 +6,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 
 from core.models import Cliente, EnvioLog, Estudiante, WhatsappLog
-from core.utils_telefono import normalizar_telefono, variantes_telefono
+from core.canal.utils_telefono import normalizar_telefono, variantes_telefono
 
 MSG_LIMIT = 400
 PAGE_SIZE = 80

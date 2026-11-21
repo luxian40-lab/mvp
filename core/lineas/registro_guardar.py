@@ -57,7 +57,7 @@ def guardar_registro(telefono: str, datos: dict) -> str:
     from core.documento_identidad import normalizar_numero_documento
     from core.models import Cliente, Estudiante
     from core.nati import normalizar_telefono_whatsapp
-    from core.utils_telefono import estudiante_por_telefono
+    from core.canal.utils_telefono import estudiante_por_telefono
 
     if not _acepto(datos.get('habeas')):
         return 'Sin la autorización no queda el registro. Abra el formulario y acepte el tratamiento de sus datos.'
@@ -160,7 +160,7 @@ def responder_registro(telefono: str, body: str) -> str | None:
     enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
     if texto.startswith('Listo'):
         from core.lineas.registro_agricapital import es_cliente_agricapital
-        from core.utils_telefono import estudiante_por_telefono
+        from core.canal.utils_telefono import estudiante_por_telefono
 
         est = estudiante_por_telefono(telefono)
         cliente_id = getattr(est, 'cliente_id', None) if est is not None else None

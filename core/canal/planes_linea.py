@@ -59,7 +59,7 @@ def _plan_organizacion(telefono: str) -> str:
     from django.db.models import Q
 
     from core.models import Estudiante
-    from core.utils_telefono import variantes_telefono
+    from core.canal.utils_telefono import variantes_telefono
 
     tels = variantes_telefono(telefono) or [telefono]
     return (
@@ -92,7 +92,7 @@ def _plan_grupo(telefono: str) -> str:
     from django.db.models import Q
 
     from core.models_extras import GrupoEstudiantes
-    from core.utils_telefono import variantes_telefono
+    from core.canal.utils_telefono import variantes_telefono
 
     tels = variantes_telefono(telefono) or [telefono]
     return (

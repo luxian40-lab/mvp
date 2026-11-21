@@ -8,7 +8,7 @@ from core.documento_identidad import (
 )
 from core.form_externo_service import _buscar_por_cedula
 from core.models import Cliente, Estudiante
-from core.utils_telefono import normalizar_telefono
+from core.canal.utils_telefono import normalizar_telefono
 
 
 class DocumentoIdentidadTests(TestCase):

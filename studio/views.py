@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from core.models import Estudiante
-from core.utils_telefono import normalizar_telefono, variantes_telefono
+from core.canal.utils_telefono import normalizar_telefono, variantes_telefono
 
 from .aprende_bridge import url_handoff_aprende
 from .catalogo_service import (
