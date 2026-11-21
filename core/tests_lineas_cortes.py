@@ -17,7 +17,7 @@ class CortesLineaTests(SimpleTestCase):
 
     def test_puerta_en_meta_no_abre_cliente_twilio(self):
         from core.lineas.salida_turno import enviar_respuesta_turno
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         with canal_webhook(CANAL_META), \
                 patch('twilio.rest.Client') as cliente, \
@@ -32,7 +32,7 @@ class CortesLineaTests(SimpleTestCase):
 
     def test_menu_multimsg_en_meta_usa_entrega_marcada(self):
         from core.lineas.salida_turno import entregar_en_turno
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         with canal_webhook(CANAL_META), \
                 patch('core.lineas.entrega.enviar_marcado') as marcado:
@@ -150,7 +150,7 @@ class EntregaMarcadaTests(TestCase):
 
     def test_turno_meta_el_video_sale_por_graph(self):
         from core.lineas.entrega import enviar_marcado
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         cliente = MagicMock()
         with canal_webhook(CANAL_META), \
@@ -171,7 +171,7 @@ class EntregaMarcadaTests(TestCase):
 
     def test_fallo_de_graph_no_cae_a_twilio(self):
         from core.lineas.entrega import enviar_marcado
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         cliente = MagicMock()
         with canal_webhook(CANAL_META), \
@@ -188,7 +188,7 @@ class EntregaMarcadaTests(TestCase):
     @override_settings(EKI_ENTREGA_DELAYS_CELERY=True)
     def test_pausa_en_meta_reencola_en_la_misma_linea(self):
         from core.lineas.entrega import enviar_marcado
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         with canal_webhook(CANAL_META), \
                 patch(
@@ -210,7 +210,7 @@ class EntregaMarcadaTests(TestCase):
 
     def test_turno_meta_no_dispara_plantilla_twilio(self):
         from core.lineas.entrega import enviar_marcado
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         with canal_webhook(CANAL_META), \
                 patch(
@@ -274,7 +274,7 @@ class CursoPorSenderTests(TestCase):
     def test_turno_meta_pasa_por_sender_y_outbox(self, _meta, _pn):
         from core.lineas.salida_turno import enviar_respuesta_turno
         from core.models.outbox_envio import OutboxEnvio
-        from core.wa_canal import CANAL_META, canal_webhook
+        from core.canal.wa_canal import CANAL_META, canal_webhook
 
         with canal_webhook(CANAL_META):
             enviar_respuesta_turno(

@@ -221,7 +221,7 @@ def turno_sale_por_meta() -> bool:
 
         if sandbox_meta_activo():
             return True
-        from core.wa_canal import CANAL_META, canal_actual
+        from core.canal.wa_canal import CANAL_META, canal_actual
 
         return canal_actual() == CANAL_META
     except Exception:

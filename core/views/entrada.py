@@ -282,7 +282,7 @@ def whatsapp_webhook(request):
                     )
                 except Exception:
                     logger.exception('meta_template_status_update_fail')
-                from core.wa_canal import CANAL_META, canal_webhook
+                from core.canal.wa_canal import CANAL_META, canal_webhook
 
                 with canal_webhook(CANAL_META):
                     resultado_meta = _procesar_meta_por_mensaje(payload)
@@ -310,7 +310,7 @@ def whatsapp_webhook(request):
                     if not seguir_tw:
                         return HttpResponse('OK')
 
-                    from core.wa_canal import CANAL_TWILIO, canal_webhook
+                    from core.canal.wa_canal import CANAL_TWILIO, canal_webhook
 
                     with canal_webhook(CANAL_TWILIO):
                         resultado_tw = _procesar_twilio_reclamado(
@@ -342,7 +342,7 @@ def whatsapp_webhook(request):
             if not seguir_tw:
                 return HttpResponse('OK')
 
-            from core.wa_canal import CANAL_TWILIO, canal_webhook
+            from core.canal.wa_canal import CANAL_TWILIO, canal_webhook
 
             with canal_webhook(CANAL_TWILIO):
                 twilio_result = _procesar_twilio_reclamado(

@@ -432,7 +432,7 @@ class WhatsappLog(models.Model):
     def save(self, *args, **kwargs):
         # Auto-asignar estudiante por teléfono si el log nace “ciego”.
         if not (self.canal or '').strip():
-            from core.wa_canal import canal_actual
+            from core.canal.wa_canal import canal_actual
 
             marcado = canal_actual()
             if marcado:

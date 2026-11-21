@@ -65,7 +65,7 @@ def _turno_desde_post(post_data, canal):
     from core.conversacion.turno import Turno
     from core.lineas.meta import nombre_de_linea
     from core.lineas.variante import perfil_de
-    from core.wa_canal import CANAL_TWILIO
+    from core.canal.wa_canal import CANAL_TWILIO
 
     telefono = str(post_data.get('From', '') or '').replace('whatsapp:', '')
     if canal == CANAL_TWILIO:
@@ -102,7 +102,7 @@ def _procesar_twilio_webhook(post_data):
     from core.conversacion.medicion import medir_turno
     from core.conversacion.turno import turno_activo
     from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
-    from core.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
+    from core.canal.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO
     turno = _turno_desde_post(post_data, canal)

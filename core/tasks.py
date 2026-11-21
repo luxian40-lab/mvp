@@ -282,7 +282,7 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
                 (post_data or {}).get('MessageSid', ''),
                 forzar_canal,
             )
-            from core.wa_canal import CANAL_TWILIO, canal_webhook
+            from core.canal.wa_canal import CANAL_TWILIO, canal_webhook
 
             def _cuerpo():
                 with canal_webhook(CANAL_TWILIO):
@@ -321,7 +321,7 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Línea Meta | sid=%s", (inbound or {}).get('MessageSid', ''))
-            from core.wa_canal import CANAL_META, canal_webhook
+            from core.canal.wa_canal import CANAL_META, canal_webhook
 
             def _cuerpo():
                 with canal_webhook(CANAL_META):
@@ -353,7 +353,7 @@ def procesar_twilio_webhook_async(self, post_data: dict):
         with telefono_lock(telefono):
             logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))
             from core.canal.twilio_puerta import aplicar_puerta_twilio
-            from core.wa_canal import CANAL_TWILIO, canal_webhook
+            from core.canal.wa_canal import CANAL_TWILIO, canal_webhook
 
             def _cuerpo():
                 if aplicar_puerta_twilio(post_data) != 'seguir':
