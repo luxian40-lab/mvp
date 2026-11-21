@@ -37,7 +37,7 @@ Comparar con W0 (solo «hay_pendientes» anotado). Acuerdo: un segundo worker de
 | Criterio | Estado |
 | --- | --- |
 | Lectura de las tres colas con edad | Código OK en rama; live vía Redis OK |
-| Tabla de un día laborable | **Muestra 1** (19 nov ~13:15, vacías). **Muestra 2** (19 nov ~23:16 noche, no pico, LLEN 0). **Muestra 3** (20 nov ~11:00 Bogotá, mañana laborable, LLEN 0 en `conversacion`/`masivo`/`media_encode`/`celery`/`llm`/`certificados`/`rag_index`, rol `web`). Día laborable sí; carga de cola no. Sin edad &gt;0 no autoriza separar `masivo` |
+| Tabla de un día laborable | **Muestra 1** (19 nov ~13:15, vacías). **Muestra 2** (19 nov ~23:16 noche, no pico, LLEN 0). **Muestra 3** (20 nov ~11:00 Bogotá, mañana laborable, LLEN 0 en `conversacion`/`masivo`/`media_encode`/`celery`/`llm`/`certificados`/`rag_index`, rol `web`). Día laborable sí; carga de cola no. **Muestra 4** (21 nov tarde Bogotá, día laborable **no pico**: `conversacion`/`masivo`/`media_encode` LLEN 0; extras en 0; rol `web`). Sin profundidad &gt;0 no autoriza separar `masivo` |
 | Sin abrir W3 | Hasta pico + dueño RAG (W1) |
 
 ## Fuera
