@@ -296,7 +296,7 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
 @shared_task(bind=True, max_retries=2, default_retry_delay=15, acks_late=True, soft_time_limit=20, time_limit=30)
 def procesar_statuses_meta_async(self, statuses):
     """Statuses de Meta fuera del request. Varios por mensaje; no se deduplican."""
-    from core.meta_estados import aplicar_statuses
+    from core.canal.meta_estados import aplicar_statuses
 
     return aplicar_statuses(statuses)
 

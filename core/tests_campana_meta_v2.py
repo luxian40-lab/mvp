@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from core.campana_meta_v2 import ejecutar_campana_meta_v2, marcar_enviando_viejos, reclamar
-from core.meta_estados import aplicar_statuses
+from core.canal.meta_estados import aplicar_statuses
 from core.models import Estudiante, WhatsappLog
 from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 

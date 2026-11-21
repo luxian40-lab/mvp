@@ -97,7 +97,7 @@ def _procesar_meta_por_mensaje(payload):
 
     inbounds = list(iter_mensajes_inbound_meta(payload))
     if not inbounds:
-        from core.meta_estados import payload_solo_statuses
+        from core.canal.meta_estados import payload_solo_statuses
 
         if payload_solo_statuses(payload):
             return HttpResponse('OK')
@@ -263,7 +263,7 @@ def whatsapp_webhook(request):
                     return HttpResponse('Forbidden', status=403)
                 anotar_payload_meta(payload)
                 try:
-                    from core.meta_estados import encolar_statuses
+                    from core.canal.meta_estados import encolar_statuses
 
                     encolar_statuses(payload)
                 except Exception:

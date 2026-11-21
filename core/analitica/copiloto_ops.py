@@ -166,7 +166,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
     )
     n_63021 = fallos.filter(error_detalle__icontains='63021').count()
     n_63019 = fallos.filter(error_detalle__icontains='63019').count()
-    from core.meta_estados import contar_fallos_meta_24h
+    from core.canal.meta_estados import contar_fallos_meta_24h
 
     meta_fallos = contar_fallos_meta_24h(desde)
     ejemplos = []

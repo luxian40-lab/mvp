@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 
-from core.meta_estados import aplicar_statuses
+from core.canal.meta_estados import aplicar_statuses
 from core.models import WhatsappLog
 
 
@@ -41,7 +41,7 @@ class OrdenEstadosTests(TestCase):
         self.assertEqual(log.estado, 'delivered')
 
     def test_status_desconocido_se_ignora(self):
-        with self.assertLogs('core.meta_estados', level='DEBUG') as logs:
+        with self.assertLogs('core.canal.meta_estados', level='DEBUG') as logs:
             n = aplicar_statuses([{'id': 'wamid.nadie', 'status': 'sent'}])
         self.assertEqual(n, 0)
         self.assertFalse(WhatsappLog.objects.filter(mensaje_id='wamid.nadie').exists())

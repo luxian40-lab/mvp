@@ -846,7 +846,7 @@ def _playbook_fallos_meta() -> dict[str, Any]:
 
     from django.utils import timezone
 
-    from core.meta_estados import contar_fallos_meta_24h
+    from core.canal.meta_estados import contar_fallos_meta_24h
 
     try:
         conteo = contar_fallos_meta_24h(timezone.now() - timedelta(hours=24))
