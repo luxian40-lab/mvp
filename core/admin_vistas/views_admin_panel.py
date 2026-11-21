@@ -984,7 +984,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     except Exception:
         pass
     try:
-        from core.twilio_balance import twilio_balance_badge
+        from core.canal.twilio_balance import twilio_balance_badge
 
         twilio_txt, _tono = twilio_balance_badge()
     except Exception:

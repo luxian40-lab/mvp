@@ -568,7 +568,7 @@ def _ocultar_ultimos(numero: str) -> str:
 
 def _twilio_mes() -> str:
     try:
-        from core.twilio_balance import twilio_balance_badge
+        from core.canal.twilio_balance import twilio_balance_badge
 
         texto, _tono = twilio_balance_badge()
     except Exception:

@@ -154,7 +154,7 @@ def _es_produccion() -> bool:
 
 def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
     from core.models import Campana, WhatsappLog
-    from core.twilio_balance import twilio_balance_badge
+    from core.canal.twilio_balance import twilio_balance_badge
 
     desde = timezone.now() - timedelta(hours=horas)
     logs = WhatsappLog.objects.filter(tipo='SENT', fecha__gte=desde)

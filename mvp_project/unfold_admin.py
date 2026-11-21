@@ -85,7 +85,7 @@ def modulos_nav_activo(request):
 
 def environment_callback(request):
     """Badge esquina superior: saldo Twilio (cache 15 min) o PRODUCCIÓN."""
-    from core.twilio_balance import twilio_balance_badge
+    from core.canal.twilio_balance import twilio_balance_badge
 
     texto, tono = twilio_balance_badge()
     return [texto, tono]

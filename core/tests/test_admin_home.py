@@ -226,7 +226,7 @@ class AdminHomeDatosTests(TestCase):
         self.assertEqual(data['badges']['modulos'], 0)
 
     def test_cache_60s_y_actualizar(self):
-        with patch('core.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
+        with patch('core.canal.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
             primero = home_para(self.user, force=True)
         Estudiante.objects.create(
             cedula='home4',
@@ -235,11 +235,11 @@ class AdminHomeDatosTests(TestCase):
             cliente=self.cliente,
             activo=True,
         )
-        with patch('core.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
+        with patch('core.canal.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
             segundo = home_para(self.user)
         self.assertEqual(primero['cifras'][0]['valor'], segundo['cifras'][0]['valor'])
         invalidar_home(self.user)
-        with patch('core.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
+        with patch('core.canal.twilio_balance.twilio_balance_badge', return_value=('Twilio $1 este mes', 'info')):
             tercero = home_para(self.user)
         self.assertEqual(int(tercero['cifras'][0]['valor']), int(primero['cifras'][0]['valor']) + 1)
         self.assertEqual(tercero['twilio_mes'], '$1')
@@ -341,7 +341,7 @@ class AdminHomePaginaTests(TestCase):
         self.assertEqual(lineas.json()['lineas'][0]['estado'], 'Sin dato')
 
     def test_actualizar_invalida_el_cache(self):
-        with patch('core.twilio_balance.twilio_balance_badge', return_value=('Twilio $2 este mes', 'info')):
+        with patch('core.canal.twilio_balance.twilio_balance_badge', return_value=('Twilio $2 este mes', 'info')):
             self.client.get('/admin/')
         from core.models import Cliente
 
@@ -360,7 +360,7 @@ class AdminHomePaginaTests(TestCase):
             cliente=cliente,
             activo=True,
         )
-        with patch('core.twilio_balance.twilio_balance_badge', return_value=('Twilio $2 este mes', 'info')):
+        with patch('core.canal.twilio_balance.twilio_balance_badge', return_value=('Twilio $2 este mes', 'info')):
             r = self.client.post('/admin/inicio/actualizar/', follow=True)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Personas activas')

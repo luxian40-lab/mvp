@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
-from core.twilio_balance import twilio_balance_badge
+from core.canal.twilio_balance import twilio_balance_badge
 from mvp_project.static_safe import static_safe
 from mvp_project.unfold_admin import environment_callback
 
@@ -44,7 +44,7 @@ class TwilioBalanceBadgeTests(SimpleTestCase):
             resp.__exit__.return_value = False
             return resp
 
-        with patch('core.twilio_balance.urlopen', side_effect=fake_open):
+        with patch('core.canal.twilio_balance.urlopen', side_effect=fake_open):
             texto, tono = twilio_balance_badge()
         self.assertEqual(texto, 'Twilio $12.35 este mes · $87.40 queda')
         self.assertEqual(tono, 'info')
@@ -52,7 +52,7 @@ class TwilioBalanceBadgeTests(SimpleTestCase):
     @override_settings(TWILIO_ACCOUNT_SID='ACxx', TWILIO_AUTH_TOKEN='tok')
     def test_environment_callback(self):
         with patch(
-            'core.twilio_balance.twilio_balance_badge',
+            'core.canal.twilio_balance.twilio_balance_badge',
             return_value=('Twilio $12', 'danger'),
         ):
             self.assertEqual(
@@ -68,7 +68,7 @@ class TwilioNavHeaderTests(TestCase):
         c = Client()
         c.login(username='navstaff', password='x')
         with patch(
-            'core.twilio_balance.twilio_balance_badge',
+            'core.canal.twilio_balance.twilio_balance_badge',
             return_value=('Twilio $9.00 este mes · $50.00 queda', 'info'),
         ):
             r = c.get('/admin/')

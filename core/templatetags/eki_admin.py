@@ -102,7 +102,7 @@ def eki_panel_snap():
 @register.inclusion_tag("admin/partials/eki_twilio_nav.html", takes_context=True)
 def eki_twilio_nav(context):
     """Gasto/saldo Twilio visible en la barra superior (no el pill Unfold)."""
-    from core.twilio_balance import twilio_balance_badge
+    from core.canal.twilio_balance import twilio_balance_badge
 
     texto, tono = 'Twilio', 'info'
     try:
