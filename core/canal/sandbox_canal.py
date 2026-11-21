@@ -265,7 +265,7 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
     lat = ''
     lng = ''
 
-    from core.meta_inbound import clasificar_mensaje
+    from core.canal.meta_inbound import clasificar_mensaje
 
     info = clasificar_mensaje(message)
     if info['skip']:

@@ -78,7 +78,7 @@ def _estado_de_la_linea(data):
 
 
 def _aplicar_sandbox_menu_cuerpo(data):
-    from core.meta_inbound import TEXTO_TIPO_NO_SOPORTADO, marcar_resultado
+    from core.canal.meta_inbound import TEXTO_TIPO_NO_SOPORTADO, marcar_resultado
     from core.sandbox_canal import (
         canal_sandbox_si_meta,
         es_inbound_twilio_http,
@@ -93,7 +93,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
         marcar_resultado('ignorado', ruta='ignorado')
         return HttpResponse('OK')
     if isinstance(data, dict) and data.get('_eki_skip') == 'tipo_no_soportado':
-        from core.meta_inbound import _enviar_texto
+        from core.canal.meta_inbound import _enviar_texto
 
         _enviar_texto(data, TEXTO_TIPO_NO_SOPORTADO)
         marcar_resultado('tipo_no_soportado', ruta='tipo_no_soportado')
@@ -178,7 +178,7 @@ def _procesar_meta_webhook(payload):
                 for m in messages:
                     phone = ''
                     try:
-                        from core.meta_inbound import (
+                        from core.canal.meta_inbound import (
                             TEXTO_PROBLEMA,
                             TEXTO_TIPO_NO_SOPORTADO,
                             clasificar_mensaje,

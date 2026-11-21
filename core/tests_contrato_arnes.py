@@ -7,7 +7,7 @@ import requests
 from django.db import connection
 from django.utils import timezone
 
-from core.meta_inbound import clasificar_mensaje
+from core.canal.meta_inbound import clasificar_mensaje
 from core.tests_support.contrato_linea import (
     INSTANTE_BASE,
     LINEA_2,
