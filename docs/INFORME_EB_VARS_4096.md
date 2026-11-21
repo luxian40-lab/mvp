@@ -1,7 +1,7 @@
 # Informe — tope CloudFormation `EnvironmentVariables` (4096) en EB
 
 Fecha de lectura: **2026-11-20** (rama `main`, worktree `C:\Users\luxia\eki_deploy_main`).  
-**Solo inventario y plan.** No se ejecutó `eb setenv`, no se borraron variables, no hubo deploy.
+Inventario inicial: sin mutar. **Ops 2026-11-21:** lote mínimo SEGURAS quitado en `eki-prod-final` + `EKI_ESTADO_LINEA_SIN_ESPEJO=true` (E4). Backup: `backup/printenv-eki-prod-final-20261121.txt`. Health 200 / Green tras ambos.
 
 ## Resumen ejecutivo
 
