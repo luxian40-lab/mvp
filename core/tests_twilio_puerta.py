@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import Estudiante
-from core.twilio_puerta import TEXTO_CERRADO, aplicar_puerta_twilio, responder_aula_meta
+from core.canal.twilio_puerta import TEXTO_CERRADO, aplicar_puerta_twilio, responder_aula_meta
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

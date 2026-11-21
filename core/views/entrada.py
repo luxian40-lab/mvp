@@ -162,7 +162,7 @@ def _procesar_meta_por_mensaje(payload):
 
 
 def _procesar_twilio_reclamado(data, ids, es_comercial):
-    from core.twilio_puerta import aplicar_puerta_twilio
+    from core.canal.twilio_puerta import aplicar_puerta_twilio
 
     if aplicar_puerta_twilio(data) != 'seguir':
         omitir_turno(CANAL_TWILIO, ids[0] if ids else _sid_de(data))

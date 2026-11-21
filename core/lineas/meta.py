@@ -2,7 +2,7 @@
 
 Vacío `META_LINEAS` deja las dos líneas de siempre. Con valor, esa lista
 es la única: phone number id, número y nombre, separados por punto y coma.
-Twilio no es una línea de este registro. El aula sigue en core.twilio_puerta.
+Twilio no es una línea de este registro. El aula sigue en core.canal.twilio_puerta.
 """
 from __future__ import annotations
 

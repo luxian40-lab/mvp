@@ -99,7 +99,7 @@ class VentanaCanalWebhookTests(TestCase):
         with patch(
             'core.views.webhook_twilio._intentar_responder_envio_certificado',
             return_value=True,
-        ), patch('core.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'):
+        ), patch('core.canal.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'):
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data={

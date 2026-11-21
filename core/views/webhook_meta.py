@@ -50,7 +50,7 @@ def _aplicar_sandbox_menu(data):
     las tareas del canal Twilio, que aplican la puerta del aula y pierden la línea.
     """
     from core.conversacion.transcripcion_turno import un_turno
-    from core.meta_inbound import traza_inbound
+    from core.canal.meta_inbound import traza_inbound
     from core.sandbox_canal import phone_ids_meta, salida_por_phone_id
 
     pnid = ''
@@ -110,7 +110,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
         return HttpResponse('OK')
 
     with canal_sandbox_si_meta():
-        from core.twilio_puerta import responder_aula_meta
+        from core.canal.twilio_puerta import responder_aula_meta
 
         if inbound_es_meta(data) and responder_aula_meta(data):
             marcar_resultado('aula', ruta='aula')

@@ -75,7 +75,7 @@ def test_whatsapp_webhook_firma_valida_ok(mock_route, mock_async, mock_proc):
     }
     url = 'https://testserver/webhook/whatsapp/'
     sig = _sign(url, data)
-    with patch('core.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'):
+    with patch('core.canal.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'):
         resp = client.post(
             '/webhook/whatsapp/',
             data=data,

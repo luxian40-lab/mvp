@@ -352,7 +352,7 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     try:
         with telefono_lock(telefono):
             logger.info("[Celery] Webhook Twilio educativo | sid=%s", (post_data or {}).get('MessageSid', ''))
-            from core.twilio_puerta import aplicar_puerta_twilio
+            from core.canal.twilio_puerta import aplicar_puerta_twilio
             from core.wa_canal import CANAL_TWILIO, canal_webhook
 
             def _cuerpo():
