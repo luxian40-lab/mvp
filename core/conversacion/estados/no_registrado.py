@@ -115,11 +115,11 @@ def manejar(contexto: Contexto) -> Respuesta:
                 button_payload='',
             ):
                 return CORTAR
-            from core.whatsapp_service import enviar_mensaje_ventas
+            from core.canal.whatsapp_service import enviar_mensaje_ventas
             enviar_mensaje_ventas(msg_from)
             return CORTAR
         else:
-            from core.whatsapp_service import enviar_mensaje_ventas
+            from core.canal.whatsapp_service import enviar_mensaje_ventas
             enviar_mensaje_ventas(msg_from)
             return CORTAR
         
@@ -147,7 +147,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         ):
             logger.info(f"🏢 Nuevo prospecto + carrusel demo: {telefono_limpio}")
             return CORTAR
-        from core.whatsapp_service import enviar_mensaje_ventas
+        from core.canal.whatsapp_service import enviar_mensaje_ventas
         enviar_mensaje_ventas(msg_from)
         logger.info(f"🏢 Nuevo prospecto B2B capturado: {telefono_limpio}")
         return CORTAR

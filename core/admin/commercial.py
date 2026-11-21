@@ -46,7 +46,7 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
         """Envía una campaña B2B elegida por el admin a los prospectos seleccionados."""
         from core.models import CampanaB2B
         from core.utils import enviar_whatsapp_twilio
-        from core.whatsapp_service import enviar_template_twilio
+        from core.canal.whatsapp_service import enviar_template_twilio
 
         campanas = CampanaB2B.objects.all().order_by('-fecha_creacion')
         if not campanas.exists():

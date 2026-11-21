@@ -85,7 +85,7 @@ def enviar(contexto: Contexto) -> None:
                 template_sid = tmpl_match.group(1)
                 logger.info(f"📋 Enviando Content Template standalone: {template_sid}")
                 try:
-                    from core.whatsapp_service import enviar_template_twilio
+                    from core.canal.whatsapp_service import enviar_template_twilio
                     tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
                     enviar_template_twilio(tel_limpio, template_sid)
                     logger.info(f"✅ Template {template_sid} enviado OK")

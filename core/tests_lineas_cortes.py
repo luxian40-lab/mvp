@@ -217,7 +217,7 @@ class EntregaMarcadaTests(TestCase):
                     'core.sandbox_canal.enviar_meta',
                     return_value={'success': True, 'mensaje_id': 'wamid.1'},
                 ), \
-                patch('core.whatsapp_service.enviar_template_twilio') as plantilla:
+                patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:
             enviar_marcado(
                 'whatsapp:+573001110001',
                 '573001110001',
@@ -230,7 +230,7 @@ class EntregaMarcadaTests(TestCase):
         from core.lineas.entrega import enviar_marcado
 
         with patch('twilio.rest.Client', return_value=MagicMock()), \
-                patch('core.whatsapp_service.enviar_template_twilio') as plantilla:
+                patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:
             enviar_marcado(
                 'whatsapp:+573001110001',
                 '573001110001',

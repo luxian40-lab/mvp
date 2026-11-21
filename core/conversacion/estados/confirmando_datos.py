@@ -63,7 +63,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nSu organización le notificará cuando estén listos los cursos. Escriba *ayuda* si necesita asistencia."
 
         # MENÚ OCULTO (no eliminado del código):
-        # from .whatsapp_service import enviar_menu_principal
+        # from .canal.whatsapp_service import enviar_menu_principal
         # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
         # if resultado.get('success'):
         #     return
@@ -88,7 +88,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         estudiante.save()
     else:
         # Re-enviar la plantilla de confirmación (tiene botones Confirmar/Modificar)
-        from core.whatsapp_service import enviar_confirmacion_datos
+        from core.canal.whatsapp_service import enviar_confirmacion_datos
         org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
         resultado_reenvio = enviar_confirmacion_datos(
             msg_from,

@@ -40,7 +40,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
         # Enviar confirmación con datos + botones (5 variables)
         org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-        from core.whatsapp_service import enviar_confirmacion_datos
+        from core.canal.whatsapp_service import enviar_confirmacion_datos
         resultado = enviar_confirmacion_datos(
             msg_from,
             estudiante.nombre,

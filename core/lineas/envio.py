@@ -849,7 +849,7 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
     sid = (content_sid or '').strip()
     habeas_sid = ''
     try:
-        from core.whatsapp_service import TWILIO_CONTENT_SIDS
+        from core.canal.whatsapp_service import TWILIO_CONTENT_SIDS
 
         habeas_sid = (TWILIO_CONTENT_SIDS.get('habeas_data') or '').strip()
     except Exception:
@@ -870,7 +870,7 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
             [(BOTON_CONTINUEMOS_ID, BOTON_CONTINUEMOS_TITULO)],
         )
     try:
-        from core.whatsapp_service import TWILIO_CONTENT_SIDS as _SIDS
+        from core.canal.whatsapp_service import TWILIO_CONTENT_SIDS as _SIDS
         sid_datos = (_SIDS.get('confirmar_datos_v2') or '').strip()
     except Exception:
         sid_datos = ''

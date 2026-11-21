@@ -45,7 +45,7 @@ class HabeasCuerpoTests(TestCase):
         })
 
     @patch('twilio.rest.Client')
-    @patch('core.whatsapp_service.enviar_habeas_data', return_value={'success': True})
+    @patch('core.canal.whatsapp_service.enviar_habeas_data', return_value={'success': True})
     def test_texto_sin_respuesta_reenvia_la_plantilla_y_no_manda_texto(self, mock_tpl, mock_client_cls):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
@@ -58,7 +58,7 @@ class HabeasCuerpoTests(TestCase):
         self.assertFalse(self.est.acepto_terminos)
 
     @patch('twilio.rest.Client')
-    @patch('core.whatsapp_service.enviar_habeas_data', return_value={'success': False})
+    @patch('core.canal.whatsapp_service.enviar_habeas_data', return_value={'success': False})
     def test_plantilla_que_no_sale_manda_el_texto_de_respaldo(self, mock_tpl, mock_client_cls):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client

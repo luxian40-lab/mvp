@@ -5,7 +5,7 @@ import pytest
 pytest.importorskip("twilio")
 
 from core.models import Cliente, ConfiguracionGlobal
-from core.whatsapp_service import enviar_habeas_data
+from core.canal.whatsapp_service import enviar_habeas_data
 
 
 pytestmark = pytest.mark.django_db
@@ -22,7 +22,7 @@ def _cliente(**kwargs):
     return Cliente.objects.create(**base)
 
 
-@patch("core.whatsapp_service.enviar_template_twilio")
+@patch("core.canal.whatsapp_service.enviar_template_twilio")
 def test_habeas_template_prefiere_sid_cliente(mock_send):
     cliente = _cliente(content_sid_habeas_data_twilio="HXCLIENTE001")
     ConfiguracionGlobal.get_solo().save()
@@ -33,7 +33,7 @@ def test_habeas_template_prefiere_sid_cliente(mock_send):
     mock_send.assert_called_once_with("573009999999", "HXCLIENTE001")
 
 
-@patch("core.whatsapp_service.enviar_template_twilio")
+@patch("core.canal.whatsapp_service.enviar_template_twilio")
 def test_habeas_template_usa_global_si_cliente_vacio(mock_send):
     cliente = _cliente(content_sid_habeas_data_twilio="")
     cfg = ConfiguracionGlobal.get_solo()

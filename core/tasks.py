@@ -510,7 +510,7 @@ def enviar_notificacion_async(self, telefono, mensaje, media_url=None):
     Envía una notificación WhatsApp de forma asíncrona.
     """
     try:
-        from core.whatsapp_service import enviar_mensaje_whatsapp
+        from core.canal.whatsapp_service import enviar_mensaje_whatsapp
         resultado = enviar_mensaje_whatsapp(telefono, mensaje, media_url=media_url)
         logger.info(f"[Celery] Notificación enviada a {telefono}: {mensaje[:50]}...")
         return resultado
@@ -527,7 +527,7 @@ def enviar_archivo_modulo_async(self, telefono, archivo_id):
     """
     try:
         from core.models_extras import ArchivoModulo
-        from core.whatsapp_service import enviar_archivo_modulo_whatsapp
+        from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp
 
         archivo = ArchivoModulo.objects.get(id=archivo_id)
         resultado = enviar_archivo_modulo_whatsapp(telefono, archivo)

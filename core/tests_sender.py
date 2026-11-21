@@ -92,6 +92,6 @@ class TwilioSenderTests(TestCase):
         self.assertEqual(envio.call_args.args[1], 'Elija\n\n• Sí\n• No')
 
     def test_plantilla_delega_en_content_api(self):
-        with patch('core.whatsapp_service.enviar_template_twilio', return_value={'success': True}) as envio:
+        with patch('core.canal.whatsapp_service.enviar_template_twilio', return_value={'success': True}) as envio:
             TwilioSender().plantilla('+573001112233', 'HX123', {'1': 'Ana'})
         envio.assert_called_once_with('+573001112233', 'HX123', {'1': 'Ana'})

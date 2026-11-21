@@ -18,7 +18,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     telefono_limpio = contexto.telefono_limpio
     # Detectar "Mis puntos" (botón o texto) - rama legacy
     if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:
-        from core.whatsapp_service import enviar_gamificacion_visual
+        from core.canal.whatsapp_service import enviar_gamificacion_visual
         enviar_gamificacion_visual(msg_from, estudiante)
         return CORTAR
     

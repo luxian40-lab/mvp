@@ -371,7 +371,7 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     from core.models_extras import ArchivoModulo
     from core.response_templates import dividir_contenido_seguro
     from core.utils import enviar_whatsapp_twilio
-    from core.whatsapp_service import enviar_archivo_modulo_whatsapp
+    from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp
 
     m1 = primer_modulo_curso(curso)
     if m1 is None:
@@ -416,7 +416,7 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
     ni se le resetea el avance.
     """
     from core.utils import enviar_whatsapp_twilio
-    from core.whatsapp_service import enviar_habeas_data
+    from core.canal.whatsapp_service import enviar_habeas_data
 
     dest = dest_wa or telefono
     if sandbox:
@@ -556,7 +556,7 @@ def respuesta_por_texto(texto: str) -> str | None:
 
 def enviar_carrusel_demo(telefono: str) -> dict[str, Any]:
     """Envía plantilla carousel si hay Content SID; si no, lista en texto."""
-    from core.whatsapp_service import enviar_template_twilio
+    from core.canal.whatsapp_service import enviar_template_twilio
     from core.utils import enviar_whatsapp_twilio
 
     sid = content_sid_carrusel()

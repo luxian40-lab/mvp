@@ -53,7 +53,7 @@ def enviar_marcado(
                     logger.warning('entrega_meta_omite_plantilla_twilio')
                     return True
                 if parte.sid:
-                    from core.whatsapp_service import enviar_template_twilio
+                    from core.canal.whatsapp_service import enviar_template_twilio
 
                     tel_limpio_t = str(msg_from).replace('whatsapp:', '').replace('+', '')
                     enviar_template_twilio(tel_limpio_t, parte.sid)

@@ -15,7 +15,7 @@ django.setup()
 
 from core.models import ConfiguracionGlobal, Estudiante
 from core.utils_telefono import normalizar_telefono
-from core.whatsapp_service import (
+from core.canal.whatsapp_service import (
     TWILIO_CONTENT_SIDS,
     _resolver_content_sid_habeas_data,
     enviar_habeas_data,

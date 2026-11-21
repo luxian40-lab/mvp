@@ -155,7 +155,7 @@ class SandboxCanalMetaSendTests(TestCase):
     @patch('core.sandbox_canal.requests.post')
     def test_confirmacion_de_cedula_sale_con_botones(self, mock_post):
         from core.sandbox_canal import enviar_sandbox_template_fallback
-        from core.whatsapp_service import TWILIO_CONTENT_SIDS
+        from core.canal.whatsapp_service import TWILIO_CONTENT_SIDS
 
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.datos'}]}
@@ -185,7 +185,7 @@ class SandboxCanalMetaSendTests(TestCase):
     def test_habeas_en_meta_sale_con_botones_aunque_el_sid_sea_otro(self):
         from core.models import Cliente, ConfiguracionGlobal
         from core.sandbox_canal import canal_sandbox_meta
-        from core.whatsapp_service import enviar_habeas_data
+        from core.canal.whatsapp_service import enviar_habeas_data
 
         cliente = Cliente.objects.create(
             nombre='Org Habeas',

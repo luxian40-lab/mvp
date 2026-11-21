@@ -81,7 +81,7 @@ class CampanaAvisoClasesInscribeSinHabeasTests(TestCase):
         )
         self.campana.destinatarios.add(self.est)
 
-    @patch('core.whatsapp_service.enviar_template_twilio')
+    @patch('core.canal.whatsapp_service.enviar_template_twilio')
     def test_inscribe_sin_reiniciar_habeas(self, mock_send):
         mock_send.return_value = {'success': True, 'mensaje_id': 'SM1'}
         res = ejecutar_campana_servicio(self.campana)

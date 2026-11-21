@@ -191,7 +191,7 @@ class TwilioSender:
         return self.texto(telefono, f'{texto}\n\n{opciones}'.strip(), agente=agente)
 
     def plantilla(self, telefono: str, nombre: str, variables: dict, *, agente: str = '') -> dict:
-        from core.whatsapp_service import enviar_template_twilio
+        from core.canal.whatsapp_service import enviar_template_twilio
 
         return enviar_template_twilio(telefono, nombre, variables)
 

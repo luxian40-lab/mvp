@@ -132,7 +132,7 @@ class CanalesRealesTests(SimpleTestCase):
                 enviados.append(params)
 
         twilio_rest.Client = _Registro
-        with patch('core.whatsapp_service.enviar_template_twilio', return_value={'mensaje_id': 'HXok'}) as plantilla:
+        with patch('core.canal.whatsapp_service.enviar_template_twilio', return_value={'mensaje_id': 'HXok'}) as plantilla:
             with interceptar_envio_boton_twilio():
                 from twilio.rest import Client
 

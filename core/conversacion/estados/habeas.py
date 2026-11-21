@@ -22,7 +22,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         texto_respuesta = resultado_habeas.get('texto')
 
         if accion == 'reenviar_plantilla':
-            from core.whatsapp_service import enviar_habeas_data
+            from core.canal.whatsapp_service import enviar_habeas_data
             resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
             if resultado_tpl.get('success'):
                 return CORTAR

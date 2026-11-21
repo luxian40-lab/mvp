@@ -558,7 +558,7 @@ class ArchivoModuloAdmin(admin.ModelAdmin):
 
     @admin.action(description='📤 Enviar video por WhatsApp')
     def enviar_video_whatsapp_action(self, request, queryset):
-        from core.whatsapp_service import enviar_video_whatsapp
+        from core.canal.whatsapp_service import enviar_video_whatsapp
         from django.contrib import messages
         enviados = 0
         errores = 0

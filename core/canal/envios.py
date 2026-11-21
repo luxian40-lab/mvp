@@ -245,7 +245,7 @@ def enviar_whatsapp_twilio(
                 canal_evento=canal_evento,
                 agente_evento=agente_evento,
             )
-        from core.whatsapp_service import enviar_template_twilio
+        from core.canal.whatsapp_service import enviar_template_twilio
 
         return enviar_template_twilio(telefono, sid_plantilla_continuemos())
 

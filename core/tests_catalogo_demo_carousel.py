@@ -129,7 +129,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
         )
         with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
             with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
-                'core.whatsapp_service.enviar_habeas_data'
+                'core.canal.whatsapp_service.enviar_habeas_data'
             ) as mock_hab:
                 mock_txt.return_value = {'success': True}
                 mock_hab.return_value = {'success': True}
@@ -184,7 +184,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
         )
         with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
             with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
-                'core.whatsapp_service.enviar_habeas_data'
+                'core.canal.whatsapp_service.enviar_habeas_data'
             ) as mock_hab:
                 mock_txt.return_value = {'success': True}
                 ok = intentar_flujo_prospecto_carrusel(

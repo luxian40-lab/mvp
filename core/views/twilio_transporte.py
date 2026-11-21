@@ -365,7 +365,7 @@ class _ClienteConBoton:
         elif params.get('media_url'):
             params_resto.pop('body', None)
             self._inner.messages.create(**params_resto)
-        from core.whatsapp_service import enviar_template_twilio
+        from core.canal.whatsapp_service import enviar_template_twilio
 
         res = enviar_template_twilio(params.get('to') or '', sid_plantilla_continuemos())
         return _SidBoton((res or {}).get('mensaje_id') or '')

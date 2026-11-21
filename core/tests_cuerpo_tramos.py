@@ -65,7 +65,7 @@ class NoRegistradoTests(_Base):
 
     def test_numero_nuevo_crea_prospecto_y_manda_ventas(self):
         with patch('core.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False), \
-                patch('core.whatsapp_service.enviar_mensaje_ventas') as ventas:
+                patch('core.canal.whatsapp_service.enviar_mensaje_ventas') as ventas:
             self._post_p('hola', 'SM_tr_p_nuevo')
         p = ProspectoB2B.objects.get(telefono=TEL_PROSPECTO)
         self.assertEqual((p.mensaje_original, p.origen), ('hola', 'whatsapp_bot'))
@@ -143,7 +143,7 @@ class ArranqueTests(_Base):
 
     def test_sin_estado_sin_terminos_pasa_a_habeas(self):
         est = self._est(estado_chat='', acepto_terminos=False, estado_onboarding='nuevo')
-        with patch('core.whatsapp_service.enviar_habeas_data', return_value=True) as habeas:
+        with patch('core.canal.whatsapp_service.enviar_habeas_data', return_value=True) as habeas:
             self._post('hola', 'SM_tr_arr_habeas')
         est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
@@ -253,7 +253,7 @@ class PuertaListoTests(_Base):
 class MenuLegadoTests(_Base):
     def test_mis_puntos_durante_un_agente_manda_gamificacion(self):
         est = self._est(estado_onboarding='esperando_respuesta_asistente')
-        with patch('core.whatsapp_service.enviar_gamificacion_visual') as gami:
+        with patch('core.canal.whatsapp_service.enviar_gamificacion_visual') as gami:
             self._post('mis puntos', 'SM_tr_ml_puntos')
         gami.assert_called_once()
         self.assertEqual((gami.call_args.args[0], gami.call_args.args[1].id), (f'+{TEL}', est.id))
@@ -335,7 +335,7 @@ class EnvioComunTests(_Base):
         with patch('core.eventos_ia.detectar_intent_con_evento', return_value='saludo'), \
                 patch('core.response_templates.get_response_for_intent', return_value=texto), \
                 patch('time.sleep') as dormir, \
-                patch('core.whatsapp_service.enviar_template_twilio') as plantilla:
+                patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:
             cli = self._post('listo', sid)
         return cli, dormir, plantilla
 

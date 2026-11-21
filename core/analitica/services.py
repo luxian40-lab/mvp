@@ -94,7 +94,7 @@ def ejecutar_campana_servicio(campana):
             
             if content_sid:
                 # Envío con Content Template de Twilio
-                from core.whatsapp_service import enviar_template_twilio
+                from core.canal.whatsapp_service import enviar_template_twilio
                 variables = {'1': estudiante.nombre or 'Estudiante'}
                 resultado = enviar_template_twilio(
                     telefono=estudiante.telefono,
