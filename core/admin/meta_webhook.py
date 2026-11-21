@@ -1,5 +1,5 @@
 from core.admin._common import *  # noqa: F401,F403
-from core.models_meta_webhook import MetaWebhookEvento
+from core.canal.models_meta_webhook import MetaWebhookEvento
 
 
 @admin.register(MetaWebhookEvento)

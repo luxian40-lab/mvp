@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.test import Client, TestCase, override_settings
 
 from core.models import Cliente, Estudiante
-from core.models_meta_webhook import MetaWebhookEvento
+from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.utils_telefono import normalizar_e164_co
 
 SECRET = 'sekreto-test'

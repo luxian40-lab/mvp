@@ -718,7 +718,7 @@ def limpiar_logs_antiguos():
     """
     try:
         from core.webhook_evento import purgar_eventos_procesados, purgar_webhooks_fallidos
-        from core.models_meta_webhook import MetaWebhookEvento
+        from core.canal.models_meta_webhook import MetaWebhookEvento
 
         eventos = purgar_eventos_procesados(10)
         fallidos = purgar_webhooks_fallidos(10)

@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from core.models import Estudiante, WhatsappLog
-from core.models_meta_webhook import MetaWebhookEvento
+from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.tasks import generar_reporte_actividad, limpiar_logs_antiguos
 from core.webhook_evento import WebhookEventoProcesado
 

@@ -17,7 +17,7 @@ from core.admin.home_data import (
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante, WhatsappLog
 from core.models_campana_meta import PlantillaMeta
 from core.models_certificados import Certificado
-from core.models_meta_webhook import MetaWebhookEvento
+from core.canal.models_meta_webhook import MetaWebhookEvento
 
 
 def _cliente():

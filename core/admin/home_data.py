@@ -156,7 +156,7 @@ def construir_inicio(user) -> dict:
 
 def _armar(user, ahora, saludo: str, fecha: str) -> dict:
     from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante, WhatsappLog
-    from core.models_meta_webhook import MetaWebhookEvento
+    from core.canal.models_meta_webhook import MetaWebhookEvento
 
     puede_est = _puede(user, 'core.view_estudiante')
     puede_cert = _puede(user, 'core.view_certificado')
@@ -454,7 +454,7 @@ def _serie_vacia(ahora) -> dict:
 
 
 def _errores_recientes() -> list[dict]:
-    from core.models_meta_webhook import MetaWebhookEvento
+    from core.canal.models_meta_webhook import MetaWebhookEvento
 
     filas = []
     for ev in MetaWebhookEvento.objects.filter(resultado='error').order_by('-recibido_en')[:5]:

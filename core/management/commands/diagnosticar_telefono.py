@@ -4,7 +4,7 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand
 
 from core.models import Estudiante, SandboxCanalSesion, WhatsappLog
-from core.models_meta_webhook import MetaWebhookEvento
+from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.planes_linea import cursos_iniciados_en_el_mes, explicar_plan, preguntas_usadas_mes
 from core.utils_telefono import normalizar_e164_co
 

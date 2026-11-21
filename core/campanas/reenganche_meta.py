@@ -53,7 +53,7 @@ _PREFIJO_WAMID_META = 'wamid.'
 
 def ultimo_evento_meta(estudiante):
     """Hora del último entrante autenticado de Meta, aunque no haya pasado por el curso."""
-    from core.models_meta_webhook import MetaWebhookEvento
+    from core.canal.models_meta_webhook import MetaWebhookEvento
     from core.utils_telefono import normalizar_e164_co
 
     telefono = normalizar_e164_co(getattr(estudiante, 'telefono', ''))

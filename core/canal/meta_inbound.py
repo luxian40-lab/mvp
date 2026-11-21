@@ -75,7 +75,7 @@ def _abrir(data, mensaje: dict | None = None):
     from django.utils import timezone
 
     from core.models import Estudiante
-    from core.models_meta_webhook import MetaWebhookEvento
+    from core.canal.models_meta_webhook import MetaWebhookEvento
     from core.planes_linea import explicar_plan
 
     if isinstance(data, dict):
