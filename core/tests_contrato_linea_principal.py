@@ -6,7 +6,7 @@ el cambio de comportamiento tiene que ser a propósito.
 from datetime import date
 
 from core.models import Cliente, Estudiante, ProgresoEstudiante, SandboxCanalSesion
-from core.planes_linea import PLAN_ASESOR_60, PLAN_CURSO_ASESOR, inicio_mes_local
+from core.canal.planes_linea import PLAN_ASESOR_60, PLAN_CURSO_ASESOR, inicio_mes_local
 from core.tests_support.contrato_linea import (
     LINEA_PRINCIPAL,
     ContratoLineaTestCase,

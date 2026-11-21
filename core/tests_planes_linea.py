@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from core.cursos_generales import NOMBRE_INNOVACION, NOMBRE_RIENDAS, NOMBRE_TIEMPO
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, SandboxCanalSesion, WhatsappLog
-from core.planes_linea import (
+from core.canal.planes_linea import (
     PLAN_ASESOR_60,
     PLAN_CURSO_ASESOR,
     PLAN_DOS_CURSOS,

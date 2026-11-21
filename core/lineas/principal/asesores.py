@@ -224,7 +224,7 @@ def finalizar_turno_asesor_llm(
 
     Devuelve True si la respuesta contó como útil para la ficha (no derivada).
     """
-    from core.planes_linea import registrar_pregunta_asesor
+    from core.canal.planes_linea import registrar_pregunta_asesor
     from core.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
     from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
 

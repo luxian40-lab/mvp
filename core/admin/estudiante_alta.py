@@ -18,7 +18,7 @@ from core.cursos_permitidos import (
 )
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 from core.models_extras import GrupoEstudiantes
-from core.planes_linea import PLAN_CHOICES, plan_por_clave
+from core.canal.planes_linea import PLAN_CHOICES, plan_por_clave
 from core.utils_telefono import normalizar_telefono
 
 # Campos del modelo que el formulario de hoy no muestra. Siguen con su default.

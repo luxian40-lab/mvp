@@ -16,7 +16,7 @@ from core.lineas.principal.derivar_asesoria import (
     texto_repregunta,
 )
 from core.models import Cliente, SandboxCanalSesion, UsoLLM
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.sandbox_menu import dispatch_sandbox_menu
 from core.tests_planes_linea import META, OK, _payload, _textos
 

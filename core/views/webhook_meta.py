@@ -262,7 +262,7 @@ def _procesar_meta_webhook(payload):
                                 mensaje_id=resultado_envio.get('mensaje_id'),
                                 tipo='SENT'
                             )
-                        from core.planes_linea import explicar_plan
+                        from core.canal.planes_linea import explicar_plan
 
                         plan = explicar_plan(phone)
                         registrar_mensaje_legacy(

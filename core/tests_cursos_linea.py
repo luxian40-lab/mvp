@@ -9,7 +9,7 @@ from core.lineas.cursos_linea import cursos_de_linea, fijar_curso_de_la_linea, s
 from core.sandbox_canal import salida_por_phone_id
 from core.lineas.perfil import USO_SOLO_CURSOS
 from core.models import Cliente, Estudiante, LineaWhatsapp, ProgresoEstudiante
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.tests_support.contrato_linea import (
     LINEA_2,
     LINEA_PRINCIPAL,

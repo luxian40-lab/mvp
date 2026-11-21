@@ -18,7 +18,7 @@ def _menu():
 
 def _abiertos_del_mes(telefono: str):
     from core.lineas.cursos_linea import solo_de_la_linea
-    from core.planes_linea import cursos_iniciados_en_el_mes
+    from core.canal.planes_linea import cursos_iniciados_en_el_mes
     from core.sandbox_canal import phone_id_de_salida
 
     return list(

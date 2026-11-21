@@ -499,7 +499,7 @@ class SandboxMenuTests(TestCase):
         from datetime import timedelta
 
         from core.models import WhatsappLog
-        from core.planes_linea import registrar_pregunta_asesor
+        from core.canal.planes_linea import registrar_pregunta_asesor
         from core.sandbox_agentes import excedio_cupo_ia_linea
 
         tel = '573009991111'

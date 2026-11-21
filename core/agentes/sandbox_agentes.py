@@ -568,7 +568,7 @@ def respuestas_asesor_en_el_mes(telefono: str) -> int:
     if not tel:
         return 0
     try:
-        from core.planes_linea import preguntas_usadas_mes
+        from core.canal.planes_linea import preguntas_usadas_mes
 
         return preguntas_usadas_mes(tel)
     except Exception:
@@ -577,7 +577,7 @@ def respuestas_asesor_en_el_mes(telefono: str) -> int:
 
 
 def _tope_asesor_mes(telefono: str = '') -> int:
-    from core.planes_linea import resolver_plan
+    from core.canal.planes_linea import resolver_plan
 
     return resolver_plan(telefono).preguntas_mes
 

@@ -215,7 +215,7 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
             except Exception:
                 logger.exception('sandbox_nat_saludo_entrada_fail')
             return 'handled'
-        from core.planes_linea import registrar_pregunta_asesor
+        from core.canal.planes_linea import registrar_pregunta_asesor
         from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
 
         if decision.es_toque:

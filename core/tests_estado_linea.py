@@ -11,7 +11,7 @@ from core import tests_contrato_linea_principal as principal
 from core import tests_seleccion_curso_cadena as seleccion
 from core.conversacion.estado_linea import EstadoLinea
 from core.models import Cliente, Estudiante
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.tests_support.contrato_linea import (
     LINEA_2,
     LINEA_PRINCIPAL,

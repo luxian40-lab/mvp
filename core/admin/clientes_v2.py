@@ -24,7 +24,7 @@ from core.admin.clientes import (
     ProductoCatalogoInline,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProductoComercial, ProgresoEstudiante, WhatsappLog
-from core.planes_linea import PLAN_CHOICES
+from core.canal.planes_linea import PLAN_CHOICES
 from core.puentes import PORTAL_PRODUCTO_CHOICES, ClientePortalAdminForm
 
 

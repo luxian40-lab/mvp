@@ -16,7 +16,7 @@ from core.lineas.principal.ficha_negocio import (
     siguiente_pregunta,
 )
 from core.models import DerivacionAsesoria, FichaNegocio, SandboxCanalSesion, WhatsappLog
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.sandbox_menu import dispatch_sandbox_menu
 from core.tests_asesoria_pregunta import PREGUNTA
 from core.tests_planes_linea import OK, _payload, _textos

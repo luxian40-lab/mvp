@@ -58,7 +58,7 @@ from core.lineas.principal.menu import (
     responder_catalogo_general,  # noqa: F401
 )
 from core.nati import normalizar_telefono_whatsapp
-from core.planes_linea import (
+from core.canal.planes_linea import (
     PLAN_CURSO_ASESOR,
     TEXTO_PLAN_SIN_ASESOR,
     TEXTO_PLAN_SIN_CURSOS,  # noqa: F401

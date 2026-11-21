@@ -2,7 +2,7 @@
 from django.test import TestCase, override_settings
 
 from core.models import Cliente, Curso, Estudiante, SandboxCanalSesion
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.models_extras import GrupoEstudiantes
 from core.sandbox_canal import salida_por_phone_id
 

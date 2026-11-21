@@ -10,7 +10,7 @@ from django.test import TestCase, override_settings
 
 from core.lineas.principal.contexto_asesoria import contexto_persona
 from core.models import Estudiante, FichaNegocio, SandboxCanalSesion
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.sandbox_menu import dispatch_sandbox_menu
 from core.tests_asesoria_pregunta import PREGUNTA
 from core.tests_planes_linea import OK, _payload, _textos

@@ -61,7 +61,7 @@ def _preguntar_curso(telefono: str, from_number: str, clave: str) -> None:
     from core.cursos_generales import evaluar_catalogo
     from core.lineas.principal.confirmar_curso import BOTON_OTRO, BOTON_SI, ID_OTRO, recordar, texto_pregunta
     from core.lineas.variante import perfil_de
-    from core.planes_linea import resolver_plan
+    from core.canal.planes_linea import resolver_plan
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     visto = evaluar_catalogo(telefono, clave)

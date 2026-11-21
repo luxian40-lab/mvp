@@ -23,7 +23,7 @@ from io import StringIO
 from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
 from core.admin.estudiante_alta_flag import alta_v2_activa
-from core.planes_linea import PLAN_CHOICES
+from core.canal.planes_linea import PLAN_CHOICES
 
 
 class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):

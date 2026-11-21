@@ -76,7 +76,7 @@ def _abrir(data, mensaje: dict | None = None):
 
     from core.models import Estudiante
     from core.canal.models_meta_webhook import MetaWebhookEvento
-    from core.planes_linea import explicar_plan
+    from core.canal.planes_linea import explicar_plan
 
     if isinstance(data, dict):
         wamid = str(data.get('MessageSid') or data.get('id') or '').strip()
@@ -163,7 +163,7 @@ def _resultado_si_vacio(data) -> str:
     if not telefono:
         return 'respondido'
     try:
-        from core.planes_linea import explicar_plan
+        from core.canal.planes_linea import explicar_plan
 
         plan = explicar_plan(telefono)
     except Exception:

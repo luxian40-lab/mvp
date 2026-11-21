@@ -9,7 +9,7 @@ from datetime import date
 
 from core.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Estudiante, ProgresoEstudiante, SandboxCanalSesion
-from core.planes_linea import PLAN_CURSO_ASESOR
+from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.tests_support.contrato_linea import (
     LINEA_2,
     LINEA_PRINCIPAL,

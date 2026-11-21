@@ -563,7 +563,7 @@ def _crear_modulos_tiempo(curso) -> None:
 def evaluar_catalogo(telefono: str, clave: str) -> dict:
     """Sin escrituras. Los mismos rechazos que la inscripción."""
     from core.nati import normalizar_telefono_whatsapp
-    from core.planes_linea import cursos_iniciados_en_el_mes, resolver_plan
+    from core.canal.planes_linea import cursos_iniciados_en_el_mes, resolver_plan
 
     tel = normalizar_telefono_whatsapp(telefono)
     item = item_catalogo(clave)

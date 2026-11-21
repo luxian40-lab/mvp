@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import Cliente, Estudiante, SandboxCanalSesion
-from core.planes_linea import PLAN_CURSO_ASESOR, resolver_plan
+from core.canal.planes_linea import PLAN_CURSO_ASESOR, resolver_plan
 from core.sandbox_canal import _TEXTO_HABEAS_SANDBOX
 from core.sandbox_menu import dispatch_sandbox_menu, es_destino_sandbox
 

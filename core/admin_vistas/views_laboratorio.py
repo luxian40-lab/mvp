@@ -18,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from core.admin.agentes_v2_textos import SIN_DATO
 from core.models import Cliente, ConversacionRAGCandidata, EventoIA
 from core.models_agentes import ConocimientoAgente, PruebaAgente
-from core.planes_linea import PLAN_CHOICES
+from core.canal.planes_linea import PLAN_CHOICES
 
 AGENTES_LAB = PruebaAgente.AGENTE_CHOICES
 _TOPE_HORA_KEY = 'lab_hora:{user}:{hora}'
