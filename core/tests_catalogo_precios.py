@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.utils import timezone
 
-from core.catalogo_precios import (
+from core.campanas.catalogo_precios import (
     buscar_precios,
     es_consulta_catalogo,
     formatear_contexto_precios,

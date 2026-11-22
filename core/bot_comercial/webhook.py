@@ -1143,7 +1143,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                 contexto_rag = ''
                 contexto_web = ''
 
-                from core.catalogo_precios import (
+                from core.campanas.catalogo_precios import (
                     buscar_precios,
                     es_consulta_catalogo,
                     formatear_contexto_precios,
