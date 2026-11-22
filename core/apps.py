@@ -10,7 +10,7 @@ class CoreConfig(AppConfig):
         """Importar signals al iniciar la app"""
         # Gamificación activada
         import core.gamificacion  # Crea perfil automáticamente
-        import core.signals_gamificacion  # Otorga puntos/badges
+        import core.gamificacion.signals  # Otorga puntos/badges
         import core.signals_eventos_ia  # Eventos IA observables
         
         # Compresión automática de videos
