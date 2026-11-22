@@ -47,7 +47,7 @@ from core.admin_vistas.views_campana_meta_dia import campana_meta_dia_view
 from core.admin_vistas.views_gamificacion_ajuste import gamificacion_ajuste_view
 from core.admin_vistas.views_certificados_presenciales import certificados_presenciales_view
 from core.admin_vistas.views_envio_certificados import envio_certificados_view
-from core.views_drip_estudiantes import drip_estudiantes_view
+from core.admin_vistas.views_drip_estudiantes import drip_estudiantes_view
 from core.views_push_estudiantes import push_estudiantes_view
 from core.views_retencion_admin import retencion_admin_agente, retencion_admin_view
 from core.puentes import aula_web_admin_view
