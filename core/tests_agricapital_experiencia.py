@@ -9,7 +9,7 @@ from core.lineas.agricapital_experiencia import (
     es_mensaje_no_calificable_reto,
     estudiante_es_agricapital,
 )
-from core.media_recuperacion import intentar_reenvio_media_curso
+from core.curso.media_recuperacion import intentar_reenvio_media_curso
 
 AGRI_ID = 26
 OTRO_ID = 99

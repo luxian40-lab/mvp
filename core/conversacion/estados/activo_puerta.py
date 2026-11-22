@@ -46,7 +46,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         # 🎥 Reenvío de video/material (sin avanzar curso) — antes de eval/listo
         if estado_chat == 'ACTIVO':
             try:
-                from core.media_recuperacion import intentar_reenvio_media_curso
+                from core.curso.media_recuperacion import intentar_reenvio_media_curso
                 from core.lineas.salida_turno import entregar_en_turno
                 from core.canal.twilio_media import mensaje_log_con_media
 

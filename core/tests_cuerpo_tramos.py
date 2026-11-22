@@ -234,7 +234,7 @@ class PuertaListoTests(_Base):
     def test_reenvio_de_media_manda_las_partes(self):
         self._est()
         reenvio = '[MULTI_MSG]Aquí va el video[SEP][MEDIA:https://cdn.example.com/v.mp4]'
-        with patch('core.media_recuperacion.intentar_reenvio_media_curso', return_value=reenvio), \
+        with patch('core.curso.media_recuperacion.intentar_reenvio_media_curso', return_value=reenvio), \
                 patch(
                     'core.canal.twilio_media.preparar_url_media_whatsapp',
                     side_effect=lambda url, **kw: url,
