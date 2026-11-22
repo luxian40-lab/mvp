@@ -274,7 +274,7 @@ def _con_aviso_del_dia(to: str, texto: str) -> str:
     if not texto:
         return texto
     try:
-        from core.rachas_linea import tomar_aviso_pendiente
+        from core.gamificacion.rachas_linea import tomar_aviso_pendiente
 
         aviso = tomar_aviso_pendiente(to)
     except Exception:

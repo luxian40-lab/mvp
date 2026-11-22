@@ -891,7 +891,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         if correr_puertas(from_tel, body_habeas) == 'handled':
             return 'handled'
         try:
-            from core.rachas_linea import registrar_actividad_linea
+            from core.gamificacion.rachas_linea import registrar_actividad_linea
 
             registrar_actividad_linea(from_tel)
         except Exception:
