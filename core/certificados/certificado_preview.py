@@ -231,7 +231,7 @@ def generar_preview_certificado(
     url_verificacion: str | None = None,
 ) -> BytesIO:
     """Genera PNG de vista previa según modo y campos del formulario."""
-    from core.certificado_diseno_eki import render_certificado_diseno_eki
+    from core.certificados.certificado_diseno_eki import render_certificado_diseno_eki
     from core.certificados.utils_certificados import generar_certificado_marcadores
 
     post_data = post_data or {}

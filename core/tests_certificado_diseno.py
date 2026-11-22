@@ -9,7 +9,7 @@ from PIL import Image
 
 from django.test import TestCase
 
-from core.certificado_diseno_eki import _cargar_fuentes, render_certificado_diseno_eki
+from core.certificados.certificado_diseno_eki import _cargar_fuentes, render_certificado_diseno_eki
 from core.certificado_service import resolver_plantilla_certificado
 from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
@@ -97,7 +97,7 @@ def test_render_diseno_eki_genera_png():
     assert data[:8] == b'\x89PNG\r\n\x1a\n'
     assert len(data) > 5000
     img = Image.open(BytesIO(data))
-    from core.certificado_diseno_eki import A4_ALTO_DEFAULT, A4_ANCHO_DEFAULT, PAPEL_EKI
+    from core.certificados.certificado_diseno_eki import A4_ALTO_DEFAULT, A4_ANCHO_DEFAULT, PAPEL_EKI
     assert img.size == (A4_ANCHO_DEFAULT, A4_ALTO_DEFAULT)
     assert img.getpixel((20, 20)) != (255, 255, 255)
     # Papel a un lado del bloque central (nombre/pill); no el centro.
@@ -198,7 +198,7 @@ def test_preview_diseno_eki_sin_guardar():
 def test_preview_diseno_eki_usa_nombre_del_curso():
     from types import SimpleNamespace
 
-    from core.certificado_diseno_eki import CURSO_DEMO
+    from core.certificados.certificado_diseno_eki import CURSO_DEMO
     from core.certificados.certificado_preview import _curso_nombre_para_preview
 
     plantilla = SimpleNamespace(

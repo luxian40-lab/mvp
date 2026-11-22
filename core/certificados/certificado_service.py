@@ -500,7 +500,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         # =====================================================
         if not generado and plantilla and modo == 'diseno_eki':
             try:
-                from core.certificado_diseno_eki import generar_certificado_diseno_eki
+                from core.certificados.certificado_diseno_eki import generar_certificado_diseno_eki
                 img_buffer = generar_certificado_diseno_eki(certificado, plantilla)
                 if img_buffer:
                     generado = _guardar_cert_s3(certificado, img_buffer, 'P0 Diseño eki')

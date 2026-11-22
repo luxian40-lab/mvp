@@ -68,7 +68,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Creada id={bueno.pk}'))
 
         # Prueba de render
-        from core.certificado_diseno_eki import render_certificado_diseno_eki
+        from core.certificados.certificado_diseno_eki import render_certificado_diseno_eki
 
         buf = render_certificado_diseno_eki(
             plantilla=bueno,

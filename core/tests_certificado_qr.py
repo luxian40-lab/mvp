@@ -28,7 +28,7 @@ def test_qr_nitido_lado_pedido():
 
 
 def test_texto_marca_quita_soluciones_educativas():
-    from core.certificado_diseno_eki import _texto_marca
+    from core.certificados.certificado_diseno_eki import _texto_marca
 
     assert _texto_marca(None) == 'eki'
     assert _texto_marca('') == 'eki'
@@ -37,7 +37,7 @@ def test_texto_marca_quita_soluciones_educativas():
 
 
 def test_qr_diseno_eki_dentro_del_marco():
-    from core.certificado_diseno_eki import (
+    from core.certificados.certificado_diseno_eki import (
         ALTO,
         _caja_qr,
         _px,
@@ -49,7 +49,7 @@ def test_qr_diseno_eki_dentro_del_marco():
     w, h = img.size
     escala = h / float(ALTO)
     x, y, lado = _caja_qr(w, h, escala)
-    from core.certificado_diseno_eki import _margen_interno
+    from core.certificados.certificado_diseno_eki import _margen_interno
 
     inner = _margen_interno(escala)
     assert x >= inner
@@ -62,9 +62,9 @@ def test_qr_diseno_eki_dentro_del_marco():
 
 
 def test_qr_diseno_eki_esquina_sin_grises():
-    from core.certificado_diseno_eki import render_certificado_diseno_eki
+    from core.certificados.certificado_diseno_eki import render_certificado_diseno_eki
 
-    from core.certificado_diseno_eki import ALTO
+    from core.certificados.certificado_diseno_eki import ALTO
 
     buf = render_certificado_diseno_eki(url_verificacion=URL)
     img = Image.open(buf).convert('RGB')
