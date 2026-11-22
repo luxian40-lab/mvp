@@ -54,7 +54,7 @@ from core.puentes import aula_web_admin_view
 from core.admin_vistas.views_infra_admin import infra_monitor_api, infra_monitor_view
 from core.admin_vistas.views_lineas_admin import lineas_admin_view
 from core.admin_vistas.views_laboratorio import laboratorio_view
-from core.views_territorio_alertas import territorio_alertas_view
+from core.admin_vistas.views_territorio_alertas import territorio_alertas_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 from core.admin_vistas.views_admin_panel import admin_panel_view
 from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
