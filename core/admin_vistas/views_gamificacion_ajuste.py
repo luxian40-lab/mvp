@@ -6,13 +6,13 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect, render
 
-from core.gamificacion_ajuste_service import (
+from core.gamificacion.ajuste_service import (
     _modo_label,
     ajustar_puntos_estudiantes,
     filas_estudiantes_gamificacion,
     registrar_nota_manual_estudiante,
 )
-from core.gamificacion_modo import gamificacion_activa, modo_usa_calificacion, modo_usa_puntos
+from core.gamificacion.modo import gamificacion_activa, modo_usa_calificacion, modo_usa_puntos
 from core.models import Cliente, Curso
 
 
