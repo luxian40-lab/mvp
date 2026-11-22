@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from core.impacto_captura import anexar_cierre, capturar_si_pendiente
+from core.analitica.impacto_captura import anexar_cierre, capturar_si_pendiente
 from core.models import Cliente, Estudiante, SandboxCanalSesion, WhatsappLog
 from core.sandbox_menu import dispatch_sandbox_menu
 from portal.impacto import impacto_nucleo
