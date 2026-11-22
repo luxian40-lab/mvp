@@ -1,7 +1,7 @@
 """Formularios auxiliares del portal (admin de clientes)."""
 from django import forms
 
-from core.gamificacion_modo import MODO_GAMIFICACION_CHOICES
+from core.gamificacion.modo import MODO_GAMIFICACION_CHOICES
 from core.models import Cliente
 
 PORTAL_PRODUCTO_CHOICES = [

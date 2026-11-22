@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from core.gamificacion import PerfilGamificacion
-from core.gamificacion_modo import (
+from core.gamificacion.modo import (
     gamificacion_activa,
     curso_usa_calificacion,
     curso_usa_puntos,

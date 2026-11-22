@@ -951,7 +951,7 @@ def evaluar_elegibilidad_certificado(estudiante, curso) -> tuple[bool, str | Non
     """
     from decimal import Decimal
 
-    from core.gamificacion_modo import (
+    from core.gamificacion.modo import (
         MODO_CALIFICACION,
         formatear_nota,
         get_modo_gamificacion,
@@ -980,7 +980,7 @@ def evaluar_elegibilidad_certificado(estudiante, curso) -> tuple[bool, str | Non
 
 def mensaje_whatsapp_sin_certificado(estudiante, curso, motivo: str | None = None) -> str:
     """Texto cuando el curso se completó pero no aplica certificado."""
-    from core.gamificacion_modo import formatear_nota, resumen_calificaciones_estudiante
+    from core.gamificacion.modo import formatear_nota, resumen_calificaciones_estudiante
 
     cliente = getattr(estudiante, 'cliente', None)
     resumen = resumen_calificaciones_estudiante(estudiante, curso.id if curso else None)

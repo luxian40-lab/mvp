@@ -10,7 +10,7 @@ from core.gamificacion.ajuste_service import (
     ajustar_puntos_estudiantes,
     registrar_nota_manual_estudiante,
 )
-from core.gamificacion_modo import MODO_CALIFICACION, MODO_PUNTOS
+from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS
 from core.models import Cliente, Estudiante
 
 _ADMIN_STORAGES = {

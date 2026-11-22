@@ -88,7 +88,7 @@ def _leer_evidencia_foto(evidencia_imagen_url, progreso_id, evidencia_imagen_typ
     evidencia_url_guardada = ''
     resultado_foto = None
     if evidencia_imagen_url:
-        from core.gamificacion_modo import get_modo_gamificacion
+        from core.gamificacion.modo import get_modo_gamificacion
         from core.models import ProgresoEstudiante
         from core.reto_evidencia import (
             descargar_media_twilio,
@@ -147,7 +147,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
         modulos_reto_ids, progreso.curso_id if progreso else None
     )
 
-    from core.gamificacion_modo import get_modo_gamificacion, construir_mensaje_evaluacion_reto
+    from core.gamificacion.modo import get_modo_gamificacion, construir_mensaje_evaluacion_reto
 
     _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
     modo_gami = get_modo_gamificacion(_cliente)

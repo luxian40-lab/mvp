@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.gamificacion_modo import MODO_CALIFICACION, MODO_PUNTOS, construir_mensaje_evaluacion_reto
+from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS, construir_mensaje_evaluacion_reto
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 from core.tutor_ia_modulo import (
     _es_respuesta_sin_contenido_reto,

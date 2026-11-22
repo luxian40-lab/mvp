@@ -23,7 +23,7 @@ from core.models import Curso
 from aprende.calificacion_aula_service import recalcular_notas_asistencia_curso
 from aprende.ranking_service import ranking_curso_profesor
 from core.gamificacion import EvaluacionNotaGamificacion
-from core.gamificacion_modo import curso_usa_calificacion
+from core.gamificacion.modo import curso_usa_calificacion
 
 curso = Curso.objects.select_related('cliente').get(pk=34)
 print('curso', curso.id, curso.nombre, 'clases', curso.es_modo_clases())

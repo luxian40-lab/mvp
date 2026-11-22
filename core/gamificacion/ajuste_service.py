@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from core.gamificacion import PerfilGamificacion
 from core.gamificacion.actions import obtener_posicion_estudiante
-from core.gamificacion_modo import (
+from core.gamificacion.modo import (
     MODO_GAMIFICACION_CHOICES,
     get_modo_gamificacion,
     modo_usa_calificacion,

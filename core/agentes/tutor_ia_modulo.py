@@ -635,7 +635,7 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
     Returns:
         tuple: (puntaje int 1-10 o nota float 1-5, feedback: str)
     """
-    from core.gamificacion_modo import MODO_CALIFICACION, MODO_PUNTOS
+    from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS
 
     modo = modo_gamificacion or MODO_PUNTOS
     usar_notas = modo == MODO_CALIFICACION

@@ -10,7 +10,7 @@ from core.certificados.certificado_presencial_service import cerrar_curso_si_tra
 from core.certificados.certificado_service import calcular_calificacion_curso, evaluar_elegibilidad_certificado
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
-from core.gamificacion_modo import MODO_CALIFICACION
+from core.gamificacion.modo import MODO_CALIFICACION
 from core.models import (
     Cliente,
     Curso,

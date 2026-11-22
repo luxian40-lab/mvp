@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from decimal import Decimal
 
-from core.gamificacion_modo import (
+from core.gamificacion.modo import (
     MODO_CALIFICACION,
     MODO_DESACTIVADO,
     MODO_PUNTOS,

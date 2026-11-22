@@ -3,7 +3,7 @@
 
 def ranking_portal(org, curso_id=None, limite=15):
     from core.gamificacion import PerfilGamificacion
-    from core.gamificacion_modo import (
+    from core.gamificacion.modo import (
         MODO_CALIFICACION,
         MODO_PUNTOS,
         formatear_nota,

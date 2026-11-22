@@ -9,7 +9,7 @@ from django.db.models import Count, F, Sum
 from django.utils.dateparse import parse_date
 
 from core.gamificacion import EvaluacionNotaGamificacion, PerfilGamificacion
-from core.gamificacion_modo import (
+from core.gamificacion.modo import (
     gamificacion_activa,
     curso_usa_calificacion,
     curso_usa_puntos,

@@ -81,7 +81,7 @@ def evaluar_evidencia_foto(
     import base64
 
     from core.facilitador_perfil import system_prompt_evaluacion_para_curso
-    from core.gamificacion_modo import MODO_CALIFICACION, MODO_PUNTOS
+    from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS
     from core.tutor_ia_modulo import _extraer_nota_1_5, _get_client
 
     if not contenido:

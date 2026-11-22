@@ -873,7 +873,7 @@ def estudiante_detalle(request, estudiante_id):
 
     gamificacion = None
     try:
-        from core.gamificacion_modo import gamificacion_activa
+        from core.gamificacion.modo import gamificacion_activa
         if gamificacion_activa(org):
             from core.gamificacion.actions import obtener_estadisticas_estudiante
             gamificacion = obtener_estadisticas_estudiante(estudiante)
@@ -1567,7 +1567,7 @@ def portal_gamificacion(request):
         return redirect('/portal/login/')
 
     from core.gamificacion import Badge, BadgeEstudiante
-    from core.gamificacion_modo import gamificacion_activa, get_modo_gamificacion, modo_usa_calificacion
+    from core.gamificacion.modo import gamificacion_activa, get_modo_gamificacion, modo_usa_calificacion
 
     curso_id = request.GET.get('curso')
     curso_id_int = int(curso_id) if curso_id and str(curso_id).isdigit() else None

@@ -7,7 +7,7 @@ from typing import Any
 from django.core.exceptions import ValidationError
 
 from core.gamificacion import PerfilGamificacion
-from core.gamificacion_modo import (
+from core.gamificacion.modo import (
     gamificacion_activa,
     get_modo_gamificacion,
     modo_usa_calificacion,
