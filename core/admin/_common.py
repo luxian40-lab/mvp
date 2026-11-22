@@ -52,7 +52,10 @@ from ..models import (
     SenalTerritorial,
     SandboxCanalSesion,
 )
-from ..admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
+from core.campanas.admin_campana_actualizado import (
+    CampanaUnicaAdmin,
+    RespuestaCampanaUnicaAdmin,
+)
 from ..models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
     MensajePush, EnvioMensajePush,
