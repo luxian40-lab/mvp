@@ -2,7 +2,7 @@
 
 from django.test import TestCase, override_settings
 
-from core.clasificador_senales import (
+from core.analitica.clasificador_senales import (
     clasificar_consulta_territorial,
     precision_ejemplos_etiquetados,
 )

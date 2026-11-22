@@ -33,7 +33,7 @@ def procesar_senal_shadow_nat(
     if not senal_clasificador_enabled():
         return None
     try:
-        from core.clasificador_senales import clasificar_consulta_territorial
+        from core.analitica.clasificador_senales import clasificar_consulta_territorial
         from core.event_engine import registrar_senal_territorial
         from core.territorio import obtener_territory_id_estudiante, resolver_territorio
 
