@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from core.campana_resultados import revisar_audiencia_campana, resumen_envios_campana
+from core.campanas.campana_resultados import (
+    resumen_envios_campana,
+    revisar_audiencia_campana,
+)
 from core.models import Campana, Cliente, EnvioLog, Estudiante
 from core.canal.utils_telefono import (
     explicar_error_envio_whatsapp,

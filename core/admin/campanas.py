@@ -96,7 +96,7 @@ class CampanaAdmin(admin.ModelAdmin):
                     n = obj.destinatarios.filter(activo=True).count()
                     participantes = f'{n} estudiante(s)' if n else 'Sin destinatarios'
                 try:
-                    from core.campana_resultados import (
+                    from core.campanas.campana_resultados import (
                         revisar_audiencia_campana,
                         resumen_envios_campana,
                     )
@@ -168,7 +168,7 @@ class CampanaAdmin(admin.ModelAdmin):
         from django.http import HttpResponse
         from django.shortcuts import get_object_or_404
 
-        from core.campana_resultados import csv_fallidos_campana
+        from core.campanas.campana_resultados import csv_fallidos_campana
         from core.models import Campana
 
         campana = get_object_or_404(Campana, pk=object_id)
@@ -355,7 +355,7 @@ class CampanaAdmin(admin.ModelAdmin):
                 continue
 
             try:
-                from core.campana_resultados import revisar_audiencia_campana
+                from core.campanas.campana_resultados import revisar_audiencia_campana
 
                 aud = revisar_audiencia_campana(campana)
                 if aud['n_error']:
