@@ -45,6 +45,26 @@ class ConfiguracionGlobal(models.Model):
             '(el setenv de EB no cabe en CloudFormation).'
         ),
     )
+    habeas_respeta_ventana = models.BooleanField(
+        default=True,
+        verbose_name='Habeas Meta — no enviar botones fuera de la ventana de 24 h',
+        help_text=(
+            'Si la persona no escribió en ~24 h, no se manda el habeas interactivo '
+            '(Meta lo rechaza con 131047). Vacío de plantilla: se omite hasta que escriba. '
+            'Apagado: comportamiento anterior (intenta botones + texto). '
+            'No usa setenv de EB (tope CloudFormation).'
+        ),
+    )
+    meta_plantilla_habeas = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        verbose_name='Habeas — nombre de plantilla Meta (opcional)',
+        help_text=(
+            'Plantilla APPROVED en Meta para habeas fuera de ventana. Vacío: solo omitir. '
+            'Si EKI_HABEAS_META_PLANTILLA está en el entorno, ese valor gana.'
+        ),
+    )
     cursos_linea_2 = models.ManyToManyField(
         'Curso',
         blank=True,

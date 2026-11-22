@@ -51,6 +51,15 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
                 'y la persona tiene que haber escrito en las últimas 24 horas.'
             ),
         }),
+        ('Habeas Meta (ventana 24 h)', {
+            'classes': ['tab'],
+            'fields': ('habeas_respeta_ventana', 'meta_plantilla_habeas'),
+            'description': (
+                'El habeas con botones es mensaje libre: fuera de ventana Meta responde 131047. '
+                'Con la guardia encendida se omite hasta que la persona escriba. '
+                'Si hay nombre de plantilla APPROVED, se usa esa en su lugar.'
+            ),
+        }),
         ('Línea 2', {
             'classes': ['tab'],
             'description': (

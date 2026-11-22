@@ -804,7 +804,51 @@ def enviar_meta_flow(
     return result
 
 
+def _habeas_respeta_ventana() -> bool:
+    """Default on: no dispara botones libres fuera de la ventana de 24 h."""
+    try:
+        from core.models import ConfiguracionGlobal
+
+        return bool(ConfiguracionGlobal.get_solo().habeas_respeta_ventana)
+    except Exception:
+        return True
+
+
+def _plantilla_habeas_meta() -> str:
+    """Nombre APPROVED opcional. Entorno gana sobre Config Global."""
+    env = (getattr(settings, 'EKI_HABEAS_META_PLANTILLA', '') or '').strip()
+    if env:
+        return env
+    try:
+        from core.models import ConfiguracionGlobal
+
+        return (ConfiguracionGlobal.get_solo().meta_plantilla_habeas or '').strip()
+    except Exception:
+        return ''
+
+
+def _ventana_habeas_ok(telefono: str) -> bool:
+    from types import SimpleNamespace
+
+    from core.reenganche_meta import ventana_abierta
+
+    return ventana_abierta(SimpleNamespace(telefono=telefono, pk=None))
+
+
 def enviar_sandbox_habeas(telefono: str) -> dict:
+    if _habeas_respeta_ventana() and not _ventana_habeas_ok(telefono):
+        plantilla = _plantilla_habeas_meta()
+        if plantilla:
+            return enviar_meta_plantilla(
+                telefono,
+                plantilla,
+                {},
+                agente_evento='habeas_meta_plantilla',
+            )
+        digitos = ''.join(ch for ch in str(telefono or '') if ch.isdigit())
+        cola = digitos[-4:] if digitos else '????'
+        logger.info('habeas_omitido_ventana telefono=…%s', cola)
+        return {'success': False, 'mensaje_id': None, 'response': 'ventana_cerrada'}
     to = _telefono_graph(telefono)
     payload = {
         'messaging_product': 'whatsapp',

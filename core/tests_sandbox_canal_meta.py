@@ -198,7 +198,8 @@ class SandboxCanalMetaSendTests(TestCase):
         cfg.content_sid_habeas_data_global = 'HXOTROHABEAS0001'
         cfg.save(update_fields=['content_sid_habeas_data_global', 'fecha_actualizacion'])
         with canal_sandbox_meta():
-            with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.h'}) as post:
+            with patch('core.lineas.envio._ventana_habeas_ok', return_value=True), \
+                 patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.h'}) as post:
                 result = enviar_habeas_data('573001234567', cliente=cliente)
         self.assertTrue(result.get('success'))
         payload = post.call_args[0][0]
@@ -206,6 +207,59 @@ class SandboxCanalMetaSendTests(TestCase):
         ids = [b['reply']['id'] for b in payload['interactive']['action']['buttons']]
         self.assertEqual(ids, ['acepto', 'no_acepto'])
         self.assertNotIn('Mensaje del curso', payload['interactive']['body']['text'])
+
+    def test_habeas_ventana_cerrada_omite_sin_llamar_graph(self):
+        from core.models import ConfiguracionGlobal
+        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.habeas_respeta_ventana = True
+        cfg.meta_plantilla_habeas = ''
+        cfg.save(update_fields=['habeas_respeta_ventana', 'meta_plantilla_habeas', 'fecha_actualizacion'])
+        with canal_sandbox_meta():
+            with patch('core.lineas.envio._ventana_habeas_ok', return_value=False), \
+                 patch('core.lineas.envio._post_graph') as post, \
+                 patch('core.lineas.envio.enviar_meta') as texto:
+                result = enviar_sandbox_habeas('573001234567')
+        self.assertFalse(result.get('success'))
+        self.assertEqual(result.get('response'), 'ventana_cerrada')
+        self.assertIsNone(result.get('mensaje_id'))
+        post.assert_not_called()
+        texto.assert_not_called()
+
+    def test_habeas_ventana_abierta_manda_botones(self):
+        from core.models import ConfiguracionGlobal
+        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.habeas_respeta_ventana = True
+        cfg.save(update_fields=['habeas_respeta_ventana', 'fecha_actualizacion'])
+        with canal_sandbox_meta():
+            with patch('core.lineas.envio._ventana_habeas_ok', return_value=True), \
+                 patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.open'}) as post:
+                result = enviar_sandbox_habeas('573001234568')
+        self.assertTrue(result.get('success'))
+        self.assertEqual(result.get('mensaje_id'), 'wamid.open')
+        payload = post.call_args[0][0]
+        self.assertEqual(payload.get('type'), 'interactive')
+
+    @override_settings(EKI_HABEAS_META_PLANTILLA='habeas_eki_meta')
+    def test_habeas_ventana_cerrada_con_plantilla_usa_template(self):
+        from core.models import ConfiguracionGlobal
+        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+
+        cfg = ConfiguracionGlobal.get_solo()
+        cfg.habeas_respeta_ventana = True
+        cfg.save(update_fields=['habeas_respeta_ventana', 'fecha_actualizacion'])
+        with canal_sandbox_meta():
+            with patch('core.lineas.envio._ventana_habeas_ok', return_value=False), \
+                 patch('core.lineas.envio.enviar_meta_plantilla', return_value={'success': True, 'mensaje_id': 'wamid.tpl'}) as tpl, \
+                 patch('core.lineas.envio._post_graph') as post:
+                result = enviar_sandbox_habeas('573001234569')
+        self.assertTrue(result.get('success'))
+        tpl.assert_called_once()
+        self.assertEqual(tpl.call_args[0][1], 'habeas_eki_meta')
+        post.assert_not_called()
 
     def test_dispatch_menu_no_llama_twilio(self):
         from core.models import SandboxCanalSesion
