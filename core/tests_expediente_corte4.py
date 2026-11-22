@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from django.test import TestCase
 
-from core.certificado_presencial_service import cerrar_curso_si_tramo_final
+from core.certificados.certificado_presencial_service import cerrar_curso_si_tramo_final
 from core.conversacion.progreso_completado import (
     ORIGEN_CHAT,
     ORIGEN_PRESENCIAL,

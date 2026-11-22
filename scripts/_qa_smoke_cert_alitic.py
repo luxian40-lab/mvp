@@ -20,7 +20,7 @@ django.setup()
 
 from core.models import Curso, Estudiante, ModuloCompletado, ProgresoEstudiante
 from core.models_certificados import Certificado, PlantillaCertificado
-from core.certificado_presencial_service import (
+from core.certificados.certificado_presencial_service import (
     crear_certificado_presencial,
     enviar_previo_whatsapp,
     marcar_cert_envio_pendiente,

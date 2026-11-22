@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
-from core.certificado_presencial_service import (
+from core.certificados.certificado_presencial_service import (
     enviar_certificados_seleccion,
     enviar_plantilla_inicial_certificado,
     filas_estudiantes_certificado,
@@ -41,9 +41,9 @@ class EnvioCertificadosServiceTests(TestCase):
             estudiante=self.est, curso=self.curso_digital, modulo_actual=self.m1,
         )
 
-    @patch('core.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
-    @patch('core.certificado_presencial_service.enviar_previo_whatsapp')
+    @patch('core.certificados.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.enviar_previo_whatsapp')
     def test_mensaje_previo_marca_pendiente_sin_imagen_inmediata(self, mock_previo, _mock_gen, mock_cert_wa):
         mock_previo.return_value = {'success': True}
         resumen = enviar_certificados_seleccion(
@@ -60,9 +60,9 @@ class EnvioCertificadosServiceTests(TestCase):
         self.est.refresh_from_db()
         self.assertIsNotNone((self.est.contexto_temporal or {}).get('cert_envio_pendiente'))
 
-    @patch('core.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
-    @patch('core.certificado_presencial_service.enviar_previo_whatsapp')
+    @patch('core.certificados.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.enviar_previo_whatsapp')
     def test_usa_plantilla_twilio_previo_marca_pendiente(self, mock_previo, _mock_gen, mock_cert_wa):
         pl = Plantilla.objects.create(
             nombre_interno='Cert aviso',
@@ -85,7 +85,7 @@ class EnvioCertificadosServiceTests(TestCase):
         mock_cert_wa.assert_not_called()
 
     @patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_imagen_diploma_tras_plantilla_previo(self, _mock_gen, mock_intento):
         from core.certificados.certificado_service import enviar_certificado_whatsapp
         from django.utils import timezone
@@ -184,8 +184,8 @@ class EnvioCertificadosServiceTests(TestCase):
         plantilla.assert_called_once()
         imagen.assert_called_once()
 
-    @patch('core.certificado_presencial_service._enviar_plantilla_twilio_cert', return_value={'success': True})
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service._enviar_plantilla_twilio_cert', return_value={'success': True})
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_plantilla_inicial_marca_pendiente(self, _mock_gen, mock_tpl):
         resumen = enviar_plantilla_inicial_certificado(
             {self.est.id},
@@ -395,10 +395,10 @@ class CerrarCursoAlDiplomaTests(TestCase):
         prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
         self.assertFalse(prog.completado)
 
-    @patch('core.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_envio_directo_cierra_ultimo_modulo(self, _gen, _wa):
-        from core.certificado_presencial_service import enviar_certificados_seleccion
+        from core.certificados.certificado_presencial_service import enviar_certificados_seleccion
 
         self._progreso(self.m9)
         resumen = enviar_certificados_seleccion(

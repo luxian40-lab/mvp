@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
-from core.certificado_presencial_service import crear_certificado_presencial, emitir_certificados_presenciales
+from core.certificados.certificado_presencial_service import crear_certificado_presencial, emitir_certificados_presenciales
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_certificados import Certificado
 
@@ -27,7 +27,7 @@ class CertificadoPresencialServiceTests(TestCase):
             cedula='20', nombre='Luis', telefono='573005555553', cliente=self.cliente, activo=True,
         )
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_crear_sin_avance_whatsapp(self, _mock_gen):
         cert, estado = crear_certificado_presencial(self.e1, self.curso, calificacion=95)
         self.assertEqual(estado, 'creado')
@@ -35,13 +35,13 @@ class CertificadoPresencialServiceTests(TestCase):
         self.assertEqual(float(cert.calificacion_final), 95)
         self.assertTrue(cert.emitido)
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_emitir_masivo(self, _mock_gen):
         resumen = emitir_certificados_presenciales({self.e1.id, self.e2.id}, self.curso, calificacion=100)
         self.assertEqual(resumen['creados'], 2)
         self.assertEqual(Certificado.objects.filter(curso=self.curso).count(), 2)
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_no_duplica_sin_regenerar(self, _mock_gen):
         emitir_certificados_presenciales({self.e1.id}, self.curso)
         resumen = emitir_certificados_presenciales({self.e1.id}, self.curso)
@@ -85,7 +85,7 @@ class CertificadoPresencialDualCursoTests(TestCase):
             completado=False,
         )
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_presencial_no_toca_progreso_digital(self, _mock_gen):
         cert, estado = crear_certificado_presencial(self.est, self.curso_presencial)
         self.assertEqual(estado, 'creado')
@@ -96,7 +96,7 @@ class CertificadoPresencialDualCursoTests(TestCase):
         self.assertEqual(self.est.estado_onboarding, 'completado')
         self.assertEqual(cert.curso_id, self.curso_presencial.id)
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_dos_certificados_cursos_distintos(self, _mock_gen):
         crear_certificado_presencial(self.est, self.curso_presencial)
         Certificado.objects.create(
@@ -112,7 +112,7 @@ class CertificadoPresencialDualCursoTests(TestCase):
             {self.curso_presencial.id, self.curso_digital.id},
         )
 
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_emitir_presencial_con_digital_activo_cuenta_como_creado(self, _mock_gen):
         resumen = emitir_certificados_presenciales({self.est.id}, self.curso_presencial)
         self.assertEqual(resumen['creados'], 1)
@@ -121,7 +121,7 @@ class CertificadoPresencialDualCursoTests(TestCase):
         self.assertFalse(self.progreso.completado)
 
     def test_filas_muestran_curso_digital_activo(self):
-        from core.certificado_presencial_service import filas_estudiantes_certificado
+        from core.certificados.certificado_presencial_service import filas_estudiantes_certificado
 
         filas = filas_estudiantes_certificado(self.cliente, self.curso_presencial)
         fila = next(f for f in filas if f['estudiante'].id == self.est.id)
@@ -129,7 +129,7 @@ class CertificadoPresencialDualCursoTests(TestCase):
 
 
 class CertificadoOtroClienteTests(TestCase):
-    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_certificado_curso_evento_estudiante_otro_cliente(self, _mock_gen):
         org_evento = Cliente.objects.create(
             nombre='Evento', contacto_principal='A', email='ev@test.com',

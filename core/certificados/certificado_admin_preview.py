@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.http import HttpResponse
 
 from core.certificados.certificado_preview import generar_preview_certificado
-from core.certificado_presencial_service import info_plantilla_curso
+from core.certificados.certificado_presencial_service import info_plantilla_curso
 from core.models import Cliente, Curso, Estudiante
 from core.models_certificados import PlantillaCertificado
 

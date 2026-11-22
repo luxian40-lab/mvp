@@ -11,7 +11,7 @@ from core.certificados.certificado_admin_preview import (
     guardar_plantilla_imagen_curso,
     respuesta_preview_png,
 )
-from core.certificado_presencial_service import (
+from core.certificados.certificado_presencial_service import (
     agregar_participante_certificado,
     enviar_certificados_seleccion,
     enviar_plantilla_inicial_certificado,

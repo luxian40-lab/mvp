@@ -12,7 +12,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from core.certificado_presencial_service import cerrar_curso_si_tramo_final
+from core.certificados.certificado_presencial_service import cerrar_curso_si_tramo_final
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.selector_curso import continuar_curso_seleccionado
