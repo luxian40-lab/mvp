@@ -197,7 +197,7 @@ class CertificadoPresencialAdminTests(TestCase):
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
     )
-    @patch('core.certificado_admin_preview.generar_preview_certificado')
+    @patch('core.certificados.certificado_admin_preview.generar_preview_certificado')
     def test_preview_devuelve_png(self, mock_preview):
         from io import BytesIO
         from core.models_certificados import PlantillaCertificado

@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect, render
 
-from core.certificado_admin_preview import (
+from core.certificados.certificado_admin_preview import (
     GUIA_MARCADORES_HTML,
     guardar_plantilla_imagen_curso,
     respuesta_preview_png,
