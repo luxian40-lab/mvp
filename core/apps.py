@@ -14,7 +14,7 @@ class CoreConfig(AppConfig):
         import core.signals_eventos_ia  # Eventos IA observables
         
         # Compresión automática de videos
-        import core.signals_videos
+        import core.curso.signals_videos
         
         # Certificados automáticos
         import core.certificados.signals_certificados  # Genera certificado al completar curso
