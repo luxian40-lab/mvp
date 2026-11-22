@@ -8,7 +8,7 @@ from django.shortcuts import redirect, render
 
 from core.cursos_generales import CATALOGO
 from core.models_campana_meta import PlantillaMeta
-from core.plantilla_builder import guardar_borrador_carrusel
+from core.campanas.plantilla_builder import guardar_borrador_carrusel
 
 
 @staff_member_required

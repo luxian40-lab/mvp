@@ -7,7 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
 from django.shortcuts import redirect, render
 
-from core.mensajes_push import enviar_push_a_estudiantes
+from core.campanas.mensajes_push import enviar_push_a_estudiantes
 from core.models import Cliente, Curso, Estudiante
 from core.models_extras import GrupoEstudiantes, MensajePush
 

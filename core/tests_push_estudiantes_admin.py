@@ -51,7 +51,7 @@ class PushEstudiantesAdminTests(TestCase):
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
     )
-    @patch('core.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
+    @patch('core.campanas.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
     def test_enviar_a_seleccionados(self, mock_push):
         self.http.login(username='admin_push', password='pass')
         r = self.http.post('/admin/push-estudiantes/', {
@@ -89,7 +89,7 @@ class PushEstudiantesAdminTests(TestCase):
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
     )
-    @patch('core.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
+    @patch('core.campanas.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
     def test_enviar_todo_grupo(self, mock_push):
         grupo = GrupoEstudiantes.objects.create(
             nombre='G Push', cliente=self.cliente, activo=True,
@@ -112,7 +112,7 @@ class PushEstudiantesAdminTests(TestCase):
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
     )
-    @patch('core.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
+    @patch('core.campanas.mensajes_push.enviar_mensaje_push_a_estudiante', return_value={'success': True})
     def test_enviar_solo_individuales_marcados(self, mock_push):
         otro = Estudiante.objects.create(
             cedula='88', nombre='Otro', telefono='573007777773',

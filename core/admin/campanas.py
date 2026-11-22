@@ -454,7 +454,7 @@ class MensajePushAdmin(admin.ModelAdmin):
 
     @admin.action(description='📲 Enviar push a audiencia del mensaje')
     def enviar_push_seleccionados(self, request, queryset):
-        from core.mensajes_push import enviar_mensaje_push_masivo
+        from core.campanas.mensajes_push import enviar_mensaje_push_masivo
         for mp in queryset.filter(activo=True):
             r = enviar_mensaje_push_masivo(mp)
             self.message_user(
