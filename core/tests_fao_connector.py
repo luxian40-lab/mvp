@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 
-from core.fao_connector import (
+from core.analitica.fao_connector import (
     debe_consultar_fao,
     enriquecer_contexto_fao,
     formatear_contexto_fao,
@@ -54,7 +54,7 @@ def test_enriquecer_concatena_sin_pisar_el_conocimiento():
         'url': 'https://openknowledge.fao.org/handle/1',
         'handle': '1',
     }]
-    with patch('core.fao_connector.buscar_fao', return_value=items) as mock_buscar:
+    with patch('core.analitica.fao_connector.buscar_fao', return_value=items) as mock_buscar:
         ctx, meta = enriquecer_contexto_fao(
             'el cliente dice que el precio está caro',
             contexto_rag='Conocimiento aprobado.',
@@ -68,7 +68,7 @@ def test_enriquecer_concatena_sin_pisar_el_conocimiento():
 @override_settings(OPENAI_API_KEY='sk-test', BOT_VENTAS_FAO_ENABLED=True)
 def test_solo_ventas_consulta_la_fao():
     with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
-            patch('core.fao_connector.enriquecer_contexto_fao', return_value=('FAO', {'fao_usada': True})) as fao, \
+            patch('core.analitica.fao_connector.enriquecer_contexto_fao', return_value=('FAO', {'fao_usada': True})) as fao, \
             patch('core.openai_compat.completar_chat', return_value='Respuesta de prueba.'):
         ventas = responder_agente_sandbox('ventas', 'no consigo clientes para vender')
         coach = responder_agente_sandbox('coach', 'no consigo constancia para vender hoy')

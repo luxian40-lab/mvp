@@ -62,7 +62,7 @@ def enriquecer_contexto_cafe(
         return (f'{base}\n\n{bloque}'.strip() if base else bloque), meta
 
     try:
-        from core.fao_connector import buscar_fao, formatear_contexto_fao
+        from core.analitica.fao_connector import buscar_fao, formatear_contexto_fao
 
         fao = formatear_contexto_fao(buscar_fao(q))
     except Exception:

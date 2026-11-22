@@ -662,7 +662,7 @@ def responder_agente_sandbox(
         extra = ''
     if agente == 'ventas':
         try:
-            from core.fao_connector import enriquecer_contexto_fao
+            from core.analitica.fao_connector import enriquecer_contexto_fao
 
             extra, _meta_fao = enriquecer_contexto_fao(q, extra)
         except Exception:

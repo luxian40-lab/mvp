@@ -14,7 +14,7 @@ class CafeFuentesTests(SimpleTestCase):
         self.assertEqual(consulta_cafe('broca'), 'café Colombia broca')
         self.assertEqual(consulta_cafe('roya en el café'), 'roya en el café')
 
-    @patch('core.fao_connector.buscar_fao')
+    @patch('core.analitica.fao_connector.buscar_fao')
     @patch('core.nati.buscar_en_web_colombia')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia')
     def test_agrosavia_corta_el_resto(self, agro, web, fao):
@@ -29,7 +29,7 @@ class CafeFuentesTests(SimpleTestCase):
         fao.assert_not_called()
         self.assertIn('café', agro.call_args[0][0].lower())
 
-    @patch('core.fao_connector.buscar_fao')
+    @patch('core.analitica.fao_connector.buscar_fao')
     @patch('core.nati.buscar_en_web_colombia', return_value='Según Cenicafé, recoja frutos brocados.')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_web_si_agrosavia_no_responde(self, _agro, web, fao):
@@ -40,8 +40,8 @@ class CafeFuentesTests(SimpleTestCase):
         fao.assert_not_called()
         web.assert_called_once_with('café Colombia broca', ambito='cafe')
 
-    @patch('core.fao_connector.formatear_contexto_fao', return_value='FUENTE INSTITUCIONAL FAO\ncoffee')
-    @patch('core.fao_connector.buscar_fao', return_value=[{'titulo': 'Coffee'}])
+    @patch('core.analitica.fao_connector.formatear_contexto_fao', return_value='FUENTE INSTITUCIONAL FAO\ncoffee')
+    @patch('core.analitica.fao_connector.buscar_fao', return_value=[{'titulo': 'Coffee'}])
     @patch('core.nati.buscar_en_web_colombia', return_value='')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_fao_solo_si_agrosavia_y_web_vacias(self, _agro, _web, fao, _fmt):
@@ -50,8 +50,8 @@ class CafeFuentesTests(SimpleTestCase):
         self.assertIn('FAO', ctx)
         fao.assert_called_once()
 
-    @patch('core.fao_connector.formatear_contexto_fao', return_value='')
-    @patch('core.fao_connector.buscar_fao', return_value=[])
+    @patch('core.analitica.fao_connector.formatear_contexto_fao', return_value='')
+    @patch('core.analitica.fao_connector.buscar_fao', return_value=[])
     @patch('core.nati.buscar_en_web_colombia', return_value='')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_sin_fuente_no_arma_bloque(self, _agro, _web, _fao, _fmt):
