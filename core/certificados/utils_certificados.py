@@ -384,7 +384,7 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
     Returns:
         str: URL del certificado en S3
     """
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
     
     # URL de plantilla por defecto
     if not plantilla_url:

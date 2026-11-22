@@ -55,7 +55,7 @@ class CertificadoMarcadoresQrTests(SimpleTestCase):
         self.assertEqual(FUENTE_FECHA_DEFAULT, 29)
 
     def test_plantilla_expone_tamanos_editables(self):
-        from core.models_certificados import PlantillaCertificado
+        from core.certificados.models_certificados import PlantillaCertificado
 
         plantilla = PlantillaCertificado(fuente_nombre=90, fuente_cedula=40, fuente_fecha=35)
         self.assertEqual(

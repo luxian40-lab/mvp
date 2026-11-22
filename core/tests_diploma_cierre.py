@@ -10,7 +10,7 @@ from core.conversacion.contexto import Contexto, Respuesta
 class DiplomaCierreTests(TestCase):
     def setUp(self):
         from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         self.cli = Cliente.objects.create(
             nombre='Coop C3',

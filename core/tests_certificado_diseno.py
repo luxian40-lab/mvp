@@ -13,7 +13,7 @@ from core.certificados.certificado_diseno_eki import _cargar_fuentes, render_cer
 from core.certificados.certificado_service import resolver_plantilla_certificado
 from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado, PlantillaCertificado
+from core.certificados.models_certificados import Certificado, PlantillaCertificado
 
 
 @pytest.mark.django_db

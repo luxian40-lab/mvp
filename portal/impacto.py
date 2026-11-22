@@ -13,7 +13,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from core.models import Estudiante, ProgresoEstudiante, WhatsappLog
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 MIN_PUBLICACION = 10
 DIAS_PERIODO = 90

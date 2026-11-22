@@ -729,7 +729,7 @@ def recomendaciones_programa(
 def comparativa_eki(org, *, curso_id: int | None, pct_certificacion: float) -> dict:
     """Tu curso/org vs promedio anonimizado de la plataforma."""
     from core.models import ProgresoEstudiante
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
 
     # Promedio eki: % certificados / inscritos en otros clientes (muestra reciente).
     otros = (

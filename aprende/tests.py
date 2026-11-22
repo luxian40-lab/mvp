@@ -197,7 +197,7 @@ class AprendeWebTests(TestCase):
 
     def test_estudiante_curso_muestra_diploma_alta_calidad(self):
         from django.utils import timezone
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         Certificado.objects.create(
             estudiante=self.est,

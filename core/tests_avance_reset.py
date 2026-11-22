@@ -21,7 +21,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 class AvanceResetServiceTests(TestCase):

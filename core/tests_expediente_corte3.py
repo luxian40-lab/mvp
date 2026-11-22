@@ -22,7 +22,7 @@ from core.models import (
     ProgresoEstudiante,
     RespuestaAbiertaFinal,
 )
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from core.views.ventana_drip import _pregunta_abierta_final_pendiente
 
 

@@ -384,7 +384,7 @@ class PortalCertificadosFlujoTests(TestCase):
         self.assertIn('/portal/cursos/', r['Location'])
 
     def test_certificados_solo_org(self):
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
         from django.utils import timezone
 
         Certificado.objects.create(

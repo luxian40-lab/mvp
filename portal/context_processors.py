@@ -18,7 +18,7 @@ def _resumen_header_org(org):
         from django.db.models import Count, Q
 
         from core.models import ProgresoEstudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
         from portal.analitica_universo import ids_estudiantes_analitica
 
         ids = ids_estudiantes_analitica(org)

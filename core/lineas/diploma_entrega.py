@@ -174,7 +174,7 @@ def _datos_certificado(telefono: str, media_url: str | None):
 
     def _buscar():
         from core.models import Estudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         cert = None
         if codigo_url:
@@ -213,7 +213,7 @@ def _marcar_enviado(cert, telefono: str) -> None:
 
     def _aplicar():
         from core.models import Estudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         objetivo = cert
         if objetivo is None:

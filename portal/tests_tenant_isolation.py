@@ -33,7 +33,7 @@ from core.models import (
     SolicitudSoporte,
     WhatsappLog,
 )
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from core.models_extras import GrupoEstudiantes
 from formulario.models import FichaGEI
 from portal.middleware import PORTAL_SESSION_KEY

@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from portal.impacto import MIN_PUBLICACION, corte_edad, impacto_nucleo
 from portal.models import PortalUsuario
 

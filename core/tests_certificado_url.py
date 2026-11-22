@@ -3,7 +3,7 @@ from django.test import Client, override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 @pytest.mark.django_db
@@ -117,7 +117,7 @@ def test_pagina_verificar_certificado_valido_e_invalido():
     SECURE_SSL_REDIRECT=False,
 )
 def test_ficha_publica_respeta_hero_y_tamano_plantilla():
-    from core.models_certificados import PlantillaCertificado
+    from core.certificados.models_certificados import PlantillaCertificado
 
     cliente = Cliente.objects.create(
         nombre="Org Hero",

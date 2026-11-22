@@ -17,7 +17,7 @@ from core.admin.estudiantes import (
 )
 from core.conversacion.estado_linea import EstadoLinea
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 class EtiquetaEstadoChatTests(SimpleTestCase):

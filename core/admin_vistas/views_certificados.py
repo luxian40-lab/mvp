@@ -7,7 +7,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, Http404, FileResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from core.certificados.certificado_service import (
     asegurar_pdf_certificado,
     generar_y_guardar_certificado,

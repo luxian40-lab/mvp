@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from core.certificados.certificado_service import enviar_certificado_whatsapp, texto_descarga_alta_calidad
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 def _org_curso_est():

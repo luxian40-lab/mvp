@@ -344,7 +344,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     cursos_completados = progreso_q.filter(completado=True).count()
 
     try:
-        from ..models_certificados import Certificado
+        from ..certificados.models_certificados import Certificado
         certificados_q = Certificado.objects.all()
         if cliente_id:
             certificados_q = certificados_q.filter(estudiante__cliente_id=cliente_id)

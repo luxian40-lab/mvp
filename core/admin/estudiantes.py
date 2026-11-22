@@ -914,7 +914,7 @@ class EstudianteAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         from core.conversacion.estado_linea import EstadoLinea
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         self._eki_curso_filter = (request.GET.get('curso') or '').strip()
         cert_qs = Certificado.objects.filter(emitido=True, anulado=False).only(

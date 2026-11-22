@@ -276,7 +276,7 @@ def estudiante_logout(request):
 
 
 def _diploma_emitido(estudiante, curso):
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
 
     return (
         Certificado.objects.filter(

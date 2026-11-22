@@ -7,7 +7,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mvp_project.settings")
 django.setup()
 
 from core.models import ProgresoEstudiante, ModuloCompletado
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 CURSO_ID = 7
 

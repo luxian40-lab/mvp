@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from core.gamificacion import PerfilGamificacion
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante, WhatsappLog
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from core.models_extras import GrupoEstudiantes
 from core.puentes import PortalUsuario
 from core.puentes import provisionar_usuario_portal

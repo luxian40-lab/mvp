@@ -8,7 +8,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.models import ProgresoEstudiante, SolicitudSoporte
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 def _mes_rango(offset_meses: int = 0):

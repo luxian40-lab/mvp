@@ -19,7 +19,7 @@ if not _aws_key or not _aws_bucket:
 django.setup()
 
 from core.models import Curso, Estudiante, ModuloCompletado, ProgresoEstudiante
-from core.models_certificados import Certificado, PlantillaCertificado
+from core.certificados.models_certificados import Certificado, PlantillaCertificado
 from core.certificados.certificado_presencial_service import (
     crear_certificado_presencial,
     enviar_previo_whatsapp,

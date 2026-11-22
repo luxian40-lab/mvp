@@ -238,7 +238,7 @@ def _armar(user, ahora, saludo: str, fecha: str) -> dict:
 
     certs = 0
     if puede_cert:
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         certs = Certificado.objects.filter(
             emitido=True,

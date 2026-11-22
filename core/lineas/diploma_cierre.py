@@ -19,7 +19,7 @@ def certificado_emitido_para_curso(estudiante, curso):
     """Último certificado emitido de ese estudiante×curso, o None."""
     if estudiante is None or curso is None:
         return None
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
 
     return (
         Certificado.objects.filter(estudiante=estudiante, curso=curso, emitido=True)

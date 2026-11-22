@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
         from core.certificados.certificado_service import (
             crear_certificado_automatico,
             enviar_certificado_whatsapp,

@@ -582,7 +582,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     )
 
     try:
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         certs = Certificado.objects.filter(emitido=True).count()
         certs_ayer = Certificado.objects.filter(
@@ -834,7 +834,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         )
 
     try:
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         certs_pend_wa = Certificado.objects.filter(
             emitido=True,

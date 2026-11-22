@@ -14,7 +14,7 @@ from django.utils import timezone
 from core.certificados.certificado_service import calcular_calificacion_curso, crear_certificado_automatico
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 def _curso_sin_preguntas(tag: str):

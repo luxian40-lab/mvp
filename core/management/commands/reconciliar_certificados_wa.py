@@ -110,7 +110,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from core.models import Estudiante, WhatsappLog
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         aplicar = bool(options['aplicar'])
         dias = max(1, int(options['dias'] or 30))

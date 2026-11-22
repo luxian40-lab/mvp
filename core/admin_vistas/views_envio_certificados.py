@@ -24,7 +24,7 @@ from core.certificados.certificado_presencial_service import (
 )
 from core.models import Cliente, Curso
 from core.models_extras import GrupoEstudiantes
-from core.models_certificados import PlantillaCertificado
+from core.certificados.models_certificados import PlantillaCertificado
 
 MENSAJE_PREVIO_DEFAULT = (
     'Hola {nombre}, te escribimos desde eki. '

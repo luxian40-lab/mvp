@@ -264,7 +264,7 @@ def _analitica_retencion_portal_uncached(
     dias_activo: int = DIAS_ESTUDIANTE_ACTIVO,
 ) -> dict[str, Any]:
     from core.models import Curso
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
 
     curso = Curso.objects.filter(pk=curso_id, cliente=org).first() if curso_id else None
     progreso_qs = _progreso_qs(org, curso_id=curso_id, grupo_id=grupo_id, desde=desde, hasta=hasta)

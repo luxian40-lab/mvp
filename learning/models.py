@@ -16,7 +16,7 @@ from core.gamificacion import (
     PerfilGamificacion as _PerfilGamificacion,
     TransaccionPuntos as _TransaccionPuntos,
 )
-from core.models_certificados import (
+from core.certificados.models_certificados import (
     Certificado as _Certificado,
     PlantillaCertificado as _PlantillaCertificado,
 )

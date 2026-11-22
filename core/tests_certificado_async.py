@@ -10,7 +10,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 pytestmark = pytest.mark.django_db

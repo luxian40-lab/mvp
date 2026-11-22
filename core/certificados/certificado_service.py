@@ -384,7 +384,7 @@ def resolver_plantilla_certificado(estudiante, curso, plantilla_id=None):
     Elige la plantilla que se usará al generar el certificado.
     Prioridad: id explícito → curso+cliente → curso → cliente → por_defecto.
     """
-    from core.models_certificados import PlantillaCertificado
+    from core.certificados.models_certificados import PlantillaCertificado
 
     if plantilla_id:
         p = PlantillaCertificado.objects.filter(pk=plantilla_id, activa=True).first()
@@ -430,7 +430,7 @@ def resolver_plantilla_certificado(estudiante, curso, plantilla_id=None):
 
 def plantillas_selectables_para_curso(cliente, curso):
     """Plantillas que el admin puede elegir para un curso presencial."""
-    from core.models_certificados import PlantillaCertificado
+    from core.certificados.models_certificados import PlantillaCertificado
     from django.db.models import Q
 
     return list(
@@ -474,7 +474,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             logger.warning(f"⚠️ Certificado {certificado.codigo_verificacion} tenía imagen pero NO EXISTE en S3, regenerando...")
     
     try:
-        from core.models_certificados import PlantillaCertificado
+        from core.certificados.models_certificados import PlantillaCertificado
         
         if not plantilla:
             plantilla, origen = resolver_plantilla_certificado(
@@ -1043,7 +1043,7 @@ def crear_certificado_automatico(estudiante, curso, *, encolar=None):
     Returns:
         Certificado o None si falla
     """
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
     from core.models import ProgresoEstudiante
     
     # Verificar que el curso esté completo
@@ -1125,7 +1125,7 @@ def verificar_certificado_publico(codigo_verificacion):
     Returns:
         dict con información del certificado o None si no existe
     """
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
     from django.urls import reverse
     
     try:
@@ -1216,7 +1216,7 @@ def verificar_certificado_publico(codigo_verificacion):
 
 def _plantilla_para_certificado(certificado):
     """Resuelve plantilla: curso → cliente → por defecto."""
-    from core.models_certificados import PlantillaCertificado
+    from core.certificados.models_certificados import PlantillaCertificado
 
     curso = getattr(certificado, 'curso', None)
     if curso and curso.pk:

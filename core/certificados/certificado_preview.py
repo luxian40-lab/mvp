@@ -195,7 +195,7 @@ def _preview_pdf_placeholder() -> BytesIO:
 
 def plantilla_desde_request(post_data: dict, plantilla_id: str | None = None):
     """Construye instancia PlantillaCertificado desde POST (con o sin PK)."""
-    from core.models_certificados import PlantillaCertificado
+    from core.certificados.models_certificados import PlantillaCertificado
 
     plantilla = None
     pk = (plantilla_id or post_data.get('plantilla_id') or '').strip()

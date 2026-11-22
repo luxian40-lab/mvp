@@ -7,7 +7,7 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 CODIGO_DEMO = "eki-DEMO-PRUE-BA01"
 CEDULA_DEMO = "9000000001"

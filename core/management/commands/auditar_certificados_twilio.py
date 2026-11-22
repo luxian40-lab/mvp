@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.models import WhatsappLog
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 class Command(BaseCommand):

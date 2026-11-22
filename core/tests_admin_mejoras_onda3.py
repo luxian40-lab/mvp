@@ -14,7 +14,7 @@ from core.models import (
     WhatsappLog,
 )
 from core.views_admin_panel import build_panel_snapshot
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

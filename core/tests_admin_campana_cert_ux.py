@@ -10,7 +10,7 @@ from core.admin.campanas import CampanaAdmin
 from core.admin.certificados import CertificadoAdmin, PlantillaCertificadoAdmin
 from core.admin.plantillas import PlantillaDashboardAdmin
 from core.models import Campana, Cliente, Curso, Estudiante, Plantilla
-from core.models_certificados import Certificado, PlantillaCertificado
+from core.certificados.models_certificados import Certificado, PlantillaCertificado
 
 
 @override_settings(

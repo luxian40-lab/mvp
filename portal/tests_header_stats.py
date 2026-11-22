@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from portal.context_processors import _resumen_header_org
 
 

@@ -16,7 +16,7 @@ from core.certificados.certificado_service import (
     verificar_certificado_publico,
 )
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 pytestmark = pytest.mark.django_db

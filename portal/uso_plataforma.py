@@ -173,7 +173,7 @@ def uso_plataforma(org) -> dict:
 
     certificados = 0
     try:
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         certificados = (
             Certificado.objects.filter(

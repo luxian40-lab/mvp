@@ -14,7 +14,7 @@ from core.certificados.certificado_service import (
     resolver_plantilla_certificado,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, Plantilla, ProgresoEstudiante
-from core.models_certificados import Certificado, PlantillaCertificado
+from core.certificados.models_certificados import Certificado, PlantillaCertificado
 
 
 def plantillas_twilio_whatsapp() -> list[Plantilla]:

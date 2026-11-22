@@ -10,7 +10,7 @@ from django.utils import timezone
 class ReconciliarCertificadosWaTests(TestCase):
     def setUp(self):
         from core.models import Cliente, Curso, Estudiante, WhatsappLog
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         self.cli = Cliente.objects.create(
             nombre='Coop C4',

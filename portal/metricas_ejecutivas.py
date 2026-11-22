@@ -95,7 +95,7 @@ def resumen_ejecutivo_portal(org, curso_id=None, grupo_id=None, desde=None, hast
 
     total_certificados = 0
     try:
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         cert_q = Certificado.objects.filter(estudiante__cliente=org)
         if curso_id:

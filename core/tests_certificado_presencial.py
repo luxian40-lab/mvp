@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 
 from core.certificados.certificado_presencial_service import crear_certificado_presencial, emitir_certificados_presenciales
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 class CertificadoPresencialServiceTests(TestCase):
@@ -200,7 +200,7 @@ class CertificadoPresencialAdminTests(TestCase):
     @patch('core.certificados.certificado_admin_preview.generar_preview_certificado')
     def test_preview_devuelve_png(self, mock_preview):
         from io import BytesIO
-        from core.models_certificados import PlantillaCertificado
+        from core.certificados.models_certificados import PlantillaCertificado
 
         mock_preview.return_value = BytesIO(b'fakepng')
         PlantillaCertificado.objects.create(

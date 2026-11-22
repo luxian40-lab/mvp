@@ -26,7 +26,7 @@ from core.models import (
     ProgresoEstudiante,
     WhatsappLog,
 )
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 DIAS_SIN_AVANCE = 14
 CACHE_SEGUNDOS = 60

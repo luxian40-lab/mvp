@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mvp_project.settings")
 django.setup()
 
 from core.models import Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from core.certificados.certificado_presencial_service import (
     cerrar_curso_si_tramo_final,
     progreso_en_tramo_cierre,

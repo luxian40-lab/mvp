@@ -37,7 +37,7 @@ def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio,
         return False
 
     cert_id = pend.get('certificado_id')
-    from ..models_certificados import Certificado
+    from ..certificados.models_certificados import Certificado
     from ..certificado_service import enviar_certificado_whatsapp
     from ..certificado_presencial_service import (
         cerrar_curso_si_tramo_final,

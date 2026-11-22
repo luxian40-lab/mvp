@@ -47,7 +47,7 @@ def _progreso_cohorte(org_id: int, desde: date):
 
 def _fila_org(org, *, desde: date, hace7) -> dict:
     from core.models import WhatsappLog
-    from core.models_certificados import Certificado
+    from core.certificados.models_certificados import Certificado
 
     progreso_q = _progreso_cohorte(org.pk, desde)
     inscritos = progreso_q.count()

@@ -378,7 +378,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
 
     def _clonar_plantilla_certificado(self, plantilla):
         """Copia la plantilla; no marca por_defecto la copia."""
-        from core.models_certificados import PlantillaCertificado
+        from core.certificados.models_certificados import PlantillaCertificado
 
         src = PlantillaCertificado.objects.get(pk=plantilla.pk)
         src.pk = None
@@ -452,7 +452,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         if change:  # Solo al editar (no al crear)
             # Buscar certificados que usen esta plantilla y regenerarlos
-            from core.models_certificados import Certificado
+            from core.certificados.models_certificados import Certificado
             from core.certificados.certificado_service import generar_y_guardar_certificado
             import logging
             logger = logging.getLogger(__name__)
@@ -466,7 +466,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             else:
                 # Plantilla por defecto — regenerar solo los que NO tienen plantilla especifica
                 if obj.por_defecto:
-                    from core.models_certificados import PlantillaCertificado
+                    from core.certificados.models_certificados import PlantillaCertificado
                     cursos_con_plantilla = PlantillaCertificado.objects.filter(
                         activa=True, curso__isnull=False
                     ).exclude(pk=obj.pk).values_list('curso_id', flat=True)

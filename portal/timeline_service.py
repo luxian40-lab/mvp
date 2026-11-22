@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.utils import timezone
 
 from core.models import ProgresoEstudiante, SolicitudSoporte
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 def timeline_organizacion(org, *, limite: int = 40) -> list[dict]:

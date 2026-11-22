@@ -53,7 +53,7 @@ class SegmentadoDiplomaInterceptTests(SimpleTestCase):
 class DiplomaEntregaPlantillaYFlagTests(TestCase):
     def setUp(self):
         from core.models import Cliente, Curso, Estudiante
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
 
         self.cli = Cliente.objects.create(
             nombre='Coop C1 Dip',

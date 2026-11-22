@@ -6,7 +6,7 @@ from io import BytesIO
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 from portal.dashboard_ops import resumen_dashboard_rapido
 
 

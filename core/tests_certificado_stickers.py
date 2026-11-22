@@ -16,7 +16,7 @@ from core.certificados.utils_certificados import (
     generar_certificado_marcadores,
     resolver_layout_stickers,
 )
-from core.models_certificados import PlantillaCertificado
+from core.certificados.models_certificados import PlantillaCertificado
 
 URL = 'https://certificados.eki.technology/verificar-certificado/EKI-STICKER/'
 

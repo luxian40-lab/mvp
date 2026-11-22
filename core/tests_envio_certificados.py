@@ -12,7 +12,7 @@ from core.certificados.certificado_presencial_service import (
     resolver_twilio_content_sid,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, Plantilla, ProgresoEstudiante
-from core.models_certificados import Certificado
+from core.certificados.models_certificados import Certificado
 
 
 class EnvioCertificadosServiceTests(TestCase):
@@ -109,7 +109,7 @@ class EnvioCertificadosServiceTests(TestCase):
     @patch('core.certificados.certificado_service._enviar_plantilla_media_twilio', return_value={'success': True, 'mensaje_id': 'MMmedia'})
     def test_plantilla_media_entrega_imagen_en_un_mensaje(self, mock_tpl):
         from core.certificados.certificado_service import enviar_certificado_whatsapp
-        from core.models_certificados import Certificado
+        from core.certificados.models_certificados import Certificado
         from django.utils import timezone
 
         hoy = timezone.now().date()
