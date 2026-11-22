@@ -9,7 +9,7 @@ from django.db import transaction
 from django.forms import BaseModelFormSet, modelformset_factory
 from django.shortcuts import redirect, render
 
-from core.drip_matriz_service import (
+from core.curso.drip_matriz_service import (
     filas_matriz_modulo,
     habilitaciones_activas_modulo,
     modulos_para_curso,
