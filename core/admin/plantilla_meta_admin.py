@@ -247,7 +247,7 @@ class CampanasDePlantillaInline(admin.TabularInline):
         return False
 
     def estado_en_linea(self, obj):
-        from core.campana_audiencia import estado_campana
+        from core.campanas.campana_audiencia import estado_campana
 
         if not obj or not obj.pk:
             return '—'
@@ -255,7 +255,7 @@ class CampanasDePlantillaInline(admin.TabularInline):
     estado_en_linea.short_description = 'Estado'
 
     def embudo_en_linea(self, obj):
-        from core.campana_audiencia import embudo, texto_embudo
+        from core.campanas.campana_audiencia import embudo, texto_embudo
 
         if not obj or not obj.pk:
             return '—'
@@ -542,7 +542,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     def _campanas_de(self, plantilla):
         if plantilla is None or not plantilla.pk:
             return []
-        from core.campana_audiencia import embudo, estado_campana, texto_embudo
+        from core.campanas.campana_audiencia import embudo, estado_campana, texto_embudo
 
         filas = []
         for campana in plantilla.campanas.select_related('plantilla').order_by('-id'):

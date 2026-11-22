@@ -807,7 +807,7 @@ def _cambios_status(payload: dict) -> list[dict]:
 
 
 def _resolver_valor(token: str, estudiante) -> str:
-    from core.campana_audiencia import resolver_token
+    from core.campanas.campana_audiencia import resolver_token
 
     return resolver_token(token, estudiante)
 
@@ -882,7 +882,7 @@ def phone_pertenece_a_waba(phone_id: str, waba_id: str) -> tuple[bool, str]:
 
 
 def _destinatarios(campana: CampanaMeta):
-    from core.campana_audiencia import personas_que_reciben
+    from core.campanas.campana_audiencia import personas_que_reciben
 
     return personas_que_reciben(campana)
 
@@ -932,7 +932,7 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
     if not ok:
         raise ValueError(motivo)
 
-    from core.campana_audiencia import debe_omitir_reintento
+    from core.campanas.campana_audiencia import debe_omitir_reintento
 
     destinatarios = list(_destinatarios(campana))
     enviados = 0
@@ -964,7 +964,7 @@ def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
                 _guardar_envio_v1(previo, campana, estudiante, 'ENVIADO', wamid, 'sent')
                 enviados += 1
                 if getattr(campana, 'es_inicio_flujo', False):
-                    from core.campana_audiencia import poner_en_inicio_de_flujo
+                    from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
                     poner_en_inicio_de_flujo(estudiante, phone_id=phone_id)
             else:

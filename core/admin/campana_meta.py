@@ -13,7 +13,7 @@ from unfold.forms import BaseDialogForm
 
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.plantilla_meta_admin import PlantillaMetaAdmin  # noqa: F401
-from core.campana_audiencia import (
+from core.campanas.campana_audiencia import (
     ORIGENES,
     SI_FALTA,
     avisos_compatibilidad,
@@ -184,7 +184,7 @@ def tabs_campana_meta(request):
         return []
     if not (request.path or '').startswith(str(ruta)):
         return []
-    from core.campana_audiencia import conteos_estado
+    from core.campanas.campana_audiencia import conteos_estado
 
     conteos = conteos_estado(CampanaMeta.objects.all())
     vista = request.GET.get('eki_cm') or ''
@@ -222,7 +222,7 @@ def _ids(texto: str) -> list[int]:
 
 
 def _guardar_audiencia(campana, datos: dict) -> None:
-    from core.campana_audiencia import aplicar_mapeo
+    from core.campanas.campana_audiencia import aplicar_mapeo
 
     if 'reglas_json' in datos:
         try:
@@ -771,7 +771,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         if n == 0:
             self.message_user(request, f'{campana.nombre}: no tiene destinatarios.', level=messages.WARNING)
             return
-        from core.campana_audiencia import marcar_para_reenvio
+        from core.campanas.campana_audiencia import marcar_para_reenvio
 
         marcar_para_reenvio(campana)
         try:

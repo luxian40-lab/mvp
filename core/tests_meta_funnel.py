@@ -204,7 +204,7 @@ class MetaFunnelTests(TestCase):
         self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
 
     def test_listo_de_campana_pide_habeas_cedula_numero_y_menu(self):
-        from core.campana_audiencia import poner_en_inicio_de_flujo
+        from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
         tel = '573009991020'
         est = Estudiante.objects.create(
@@ -255,7 +255,7 @@ class MetaFunnelTests(TestCase):
         self.assertEqual(titulos, ['Formación', 'Asesoría'])
 
     def test_comenzar_de_la_plantilla_inicio_crea_y_vende_pide_habeas_y_cedula(self):
-        from core.campana_audiencia import poner_en_inicio_de_flujo
+        from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
         tel = '573009991021'
         est = Estudiante.objects.create(

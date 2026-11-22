@@ -10,7 +10,7 @@ from unfold.forms import BaseDialogForm
 
 from core.avisos import recordatorio_curso
 from core.avisos.modulo_disponible import aviso_habilitado, enviar_prueba, motivo_plantilla, vista_previa
-from core.campana_audiencia import numero_de_prueba_permitido, numeros_de_prueba
+from core.campanas.campana_audiencia import numero_de_prueba_permitido, numeros_de_prueba
 from core.models.avisos import AvisoModuloDisponible, AvisoModuloEnviado, RecordatorioCurso, RecordatorioCursoEnviado
 from core.models_campana_meta import PlantillaMeta
 from core.campanas.plantilla_meta_editor import lineas_disponibles

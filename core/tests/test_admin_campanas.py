@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.campana_audiencia import marcar_programadas_sin_aprobacion, resumir_audiencia
+from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion, resumir_audiencia
 from core.meta_waba import ejecutar_campana_meta
 from core.models import Estudiante, SandboxCanalSesion
 from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
@@ -145,7 +145,7 @@ class CampanasAdminTests(TestCase):
         campana = self._campana()
         campana.grupos.add(g1, g2)
         campana.destinatarios.add(ana)
-        from core.campana_audiencia import aplicar_mapeo
+        from core.campanas.campana_audiencia import aplicar_mapeo
 
         campana.reglas_variables = {
             '1': {'origen': 'nombre', 'si_falta': 'respaldo', 'respaldo': '', 'texto': ''},
@@ -172,7 +172,7 @@ class CampanasAdminTests(TestCase):
         )
 
     def _enviar_a(self, campana, persona):
-        from core.campana_audiencia import aplicar_mapeo
+        from core.campanas.campana_audiencia import aplicar_mapeo
 
         campana.destinatarios.add(persona)
         campana.reglas_variables = {
@@ -287,7 +287,7 @@ class CampanasAdminTests(TestCase):
         persona = _persona('Una', '573001110041', 'c-una')
         campana = self._campana()
         campana.destinatarios.add(persona)
-        from core.campana_audiencia import aplicar_mapeo
+        from core.campanas.campana_audiencia import aplicar_mapeo
 
         campana.reglas_variables = {
             '1': {'origen': 'nombre', 'si_falta': 'respaldo', 'respaldo': '', 'texto': ''},
@@ -308,12 +308,12 @@ class CampanasAdminTests(TestCase):
         self.assertEqual(EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').count(), 1)
 
     def test_el_lanzamiento_manual_reenvia_lo_ya_enviado(self):
-        from core.campana_audiencia import marcar_para_reenvio
+        from core.campanas.campana_audiencia import marcar_para_reenvio
 
         persona = _persona('Dos', '573001110042', 'c-dos')
         campana = self._campana()
         campana.destinatarios.add(persona)
-        from core.campana_audiencia import aplicar_mapeo
+        from core.campanas.campana_audiencia import aplicar_mapeo
 
         campana.reglas_variables = {
             '1': {'origen': 'nombre', 'si_falta': 'respaldo', 'respaldo': '', 'texto': ''},

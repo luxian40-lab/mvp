@@ -1149,7 +1149,7 @@ def enviar_campanas_meta_programadas():
     from core.meta_waba import encolar_campana_meta
     from core.models_campana_meta import CampanaMeta
 
-    from core.campana_audiencia import marcar_programadas_sin_aprobacion
+    from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion
 
     marcar_programadas_sin_aprobacion()
     if not getattr(settings, 'META_CAMPANAS_V2_ENABLED', False):

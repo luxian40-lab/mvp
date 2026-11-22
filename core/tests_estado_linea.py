@@ -248,7 +248,7 @@ class EnLineaLecturaTests(TestCase):
         self.assertEqual(_fila(self.est, LINEA_2).estado_onboarding, 'esperando_respuesta_modulo')
 
     def test_campana_nueva_en_una_linea_nace_sin_el_contexto_de_otra(self):
-        from core.campana_audiencia import poner_en_inicio_de_flujo
+        from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
         otra = '100000000000003'
         poner_en_inicio_de_flujo(self.est, otra)
@@ -279,7 +279,7 @@ class EnLineaSinEspejoTests(EnLineaLecturaTests):
         self.assertEqual(_fila(self.est, LINEA_PRINCIPAL).estado_onboarding, 'esperando_respuesta_reto')
 
     def test_la_campana_no_deja_el_estado_de_esa_linea_en_la_columna(self):
-        from core.campana_audiencia import poner_en_inicio_de_flujo
+        from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
         poner_en_inicio_de_flujo(self.est, '100000000000003')
         self.assertEqual(

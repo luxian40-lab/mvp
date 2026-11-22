@@ -206,7 +206,7 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
         if estado == 'ENVIADO':
             anotar_resultado(campana, fallo=False, nuevo=True)
             if getattr(campana, 'es_inicio_flujo', False):
-                from core.campana_audiencia import poner_en_inicio_de_flujo
+                from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
                 poner_en_inicio_de_flujo(estudiante, phone_id=phone_id)
         elif estado == 'ERROR':

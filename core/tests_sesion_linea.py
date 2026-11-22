@@ -42,7 +42,7 @@ class SesionPorLineaTests(TestCase):
         )
 
     def test_la_campana_de_la_linea_2_abre_sesion_en_esa_linea(self):
-        from core.campana_audiencia import poner_en_inicio_de_flujo
+        from core.campanas.campana_audiencia import poner_en_inicio_de_flujo
 
         org = Cliente.objects.create(
             nombre='Org sesion',
