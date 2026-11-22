@@ -8,7 +8,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 from PIL import Image
 
-from core.utils_certificados import (
+from core.certificados.utils_certificados import (
     FUENTE_CEDULA_DEFAULT,
     FUENTE_NOMBRE_DEFAULT,
     MARCADOR_CEDULA,
@@ -50,7 +50,7 @@ class CertificadoMarcadoresQrTests(SimpleTestCase):
     def test_defaults_nombre_y_cedula_mas_pequenos(self):
         self.assertLessEqual(FUENTE_NOMBRE_DEFAULT, 60)
         self.assertEqual(FUENTE_CEDULA_DEFAULT, 33)
-        from core.utils_certificados import FUENTE_FECHA_DEFAULT
+        from core.certificados.utils_certificados import FUENTE_FECHA_DEFAULT
 
         self.assertEqual(FUENTE_FECHA_DEFAULT, 29)
 

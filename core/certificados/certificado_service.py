@@ -518,7 +518,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
 
         if not generado and plantilla_url_db:
             try:
-                from core.utils_certificados import generar_certificado_marcadores
+                from core.certificados.utils_certificados import generar_certificado_marcadores
                 img_buffer = generar_certificado_marcadores(
                     plantilla_url_o_path=plantilla_url_db,
                     nombre_estudiante=nombre_est,
@@ -542,7 +542,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         if not generado:
             for url_template in [DEFAULT_TEMPLATE_URL, DEFAULT_TEMPLATE_URL_JPG]:
                 try:
-                    from core.utils_certificados import generar_certificado_marcadores
+                    from core.certificados.utils_certificados import generar_certificado_marcadores
                     img_buffer = generar_certificado_marcadores(
                         plantilla_url_o_path=url_template,
                         nombre_estudiante=nombre_est,
