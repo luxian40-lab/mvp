@@ -119,7 +119,7 @@ def disponible_desde(progreso, ahora: datetime):
 def ultima_senal(progreso):
     """Lo más reciente entre su último mensaje y el último aviso de módulo de este curso. None si nunca escribió."""
     from core.models import AvisoModuloEnviado
-    from core.reenganche_meta import ultimo_entrante, ultimo_evento_meta
+    from core.campanas.reenganche_meta import ultimo_entrante, ultimo_evento_meta
 
     estudiante = progreso.estudiante
     log = ultimo_entrante(estudiante)

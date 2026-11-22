@@ -255,7 +255,7 @@ def _ventana_ok(ficha) -> bool:
     """Con el flag apagado no consulta: se comporta como antes."""
     if not _respeta_ventana():
         return True
-    from core.reenganche_meta import ventana_abierta
+    from core.campanas.reenganche_meta import ventana_abierta
     from core.canal.sandbox_canal import phone_id_de_salida
 
     return ventana_abierta(ficha, phone_id=phone_id_de_salida())

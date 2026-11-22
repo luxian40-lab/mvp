@@ -31,7 +31,7 @@ def reenganche_drip_content_diario():
     Reenganche diario por Graph. Con META_REENGANCHE_ENABLED en false no envía.
     """
     try:
-        from core.reenganche_meta import ejecutar
+        from core.campanas.reenganche_meta import ejecutar
 
         resultado = ejecutar()
         logger.info('[Celery] Reenganche drip: %s', resultado)

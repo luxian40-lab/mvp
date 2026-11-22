@@ -273,7 +273,7 @@ class RespetaVentanaTests(SimpleTestCase):
             'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
             return_value=(progreso, True),
         ) as alta, patch(
-            'core.reenganche_meta.ventana_abierta', return_value=False,
+            'core.lineas.registro_cursos.ventana_abierta', return_value=False,
         ), patch(
             'core.curso.inicio_curso.mensaje_primera_entrega',
         ) as primera, patch(
@@ -298,7 +298,7 @@ class RespetaVentanaTests(SimpleTestCase):
             'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
             return_value=(progreso, True),
         ), patch(
-            'core.reenganche_meta.ventana_abierta', return_value=True,
+            'core.lineas.registro_cursos.ventana_abierta', return_value=True,
         ), patch(
             'core.curso.inicio_curso.curso_sin_empezar', return_value=True,
         ), patch(
@@ -322,7 +322,7 @@ class RespetaVentanaTests(SimpleTestCase):
         with patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
         ), patch(
-            'core.reenganche_meta.ventana_abierta', return_value=False,
+            'core.lineas.registro_cursos.ventana_abierta', return_value=False,
         ), patch(
             'core.lineas.registro_cursos._reintentar_primera_si_falta', return_value=False,
         ), patch(
@@ -347,7 +347,7 @@ class RespetaVentanaTests(SimpleTestCase):
         with patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
         ), patch(
-            'core.reenganche_meta.ventana_abierta', return_value=True,
+            'core.lineas.registro_cursos.ventana_abierta', return_value=True,
         ), patch(
             'core.lineas.registro_cursos._progreso_activo', return_value=progreso,
         ), patch(

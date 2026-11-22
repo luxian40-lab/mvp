@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from core.models import Estudiante, WhatsappLog
-from core.reenganche_meta import ventana_abierta
+from core.campanas.reenganche_meta import ventana_abierta
 
 TEL = '573001234700'
 L3 = '1477762615411333'

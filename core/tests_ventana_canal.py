@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 
 from core.models import Estudiante, WhatsappLog
-from core.reenganche_meta import ventana_abierta
+from core.campanas.reenganche_meta import ventana_abierta
 from core.sandbox_menu import MODO_CURSOS
 
 SECRET = 'sekreto-test'

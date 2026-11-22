@@ -830,7 +830,7 @@ def _plantilla_habeas_meta() -> str:
 def _ventana_habeas_ok(telefono: str) -> bool:
     from types import SimpleNamespace
 
-    from core.reenganche_meta import ventana_abierta
+    from core.campanas.reenganche_meta import ventana_abierta
 
     return ventana_abierta(SimpleNamespace(telefono=telefono, pk=None))
 

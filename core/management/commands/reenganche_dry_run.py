@@ -2,7 +2,7 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from core.reenganche_meta import previsualizar, reenganche_habilitado
+from core.campanas.reenganche_meta import previsualizar, reenganche_habilitado
 
 
 class Command(BaseCommand):

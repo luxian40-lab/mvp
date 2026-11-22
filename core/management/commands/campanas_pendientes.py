@@ -1,7 +1,7 @@
 """Lista campañas no ejecutadas que aún tienen destinatarios. No envía."""
 from django.core.management.base import BaseCommand
 
-from core.reenganche_meta import campanas_pendientes
+from core.campanas.reenganche_meta import campanas_pendientes
 
 
 class Command(BaseCommand):
