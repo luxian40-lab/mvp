@@ -15,6 +15,6 @@ class TwilioHttpTimeoutTests(SimpleTestCase):
 
     def test_media_y_correo_tienen_timeout(self):
         media = Path('core/views/media.py').read_text(encoding='utf-8')
-        correo = Path('core/email_service.py').read_text(encoding='utf-8')
+        correo = Path('core/analitica/email_service.py').read_text(encoding='utf-8')
         self.assertIn('timeout=(5, 30)', media)
         self.assertEqual(correo.count('timeout=15'), 3)

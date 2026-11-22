@@ -1101,7 +1101,7 @@ class CertificadoAdmin(admin.ModelAdmin):
     @admin.action(description='�📧 Enviar certificados por email a clientes')
     def enviar_email_a_clientes(self, request, queryset):
         """Envía los certificados por email al cliente (no al estudiante) usando API"""
-        from core.email_service import enviar_certificados_a_cliente
+        from core.analitica.email_service import enviar_certificados_a_cliente
         
         # Filtrar solo certificados con PDF
         queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)

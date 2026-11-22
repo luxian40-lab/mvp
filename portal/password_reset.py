@@ -34,7 +34,7 @@ def _usuario_portal_por_identificador(ident: str):
 
 
 def _enviar_email_reset(request, pu: PortalUsuario) -> bool:
-    from core.email_service import get_email_service
+    from core.analitica.email_service import get_email_service
 
     user = pu.user
     email = (user.email or '').strip()

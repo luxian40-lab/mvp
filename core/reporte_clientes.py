@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from core.analitica.nps_cierre import nps_nota_cierre
-from core.email_service import get_email_service
+from core.analitica.email_service import get_email_service
 
 COHORTE_NOMBRES = ('Alitic', 'Lhaura vet', 'Agricapital')
 DESDE_COHORTE = date(2026, 9, 1)

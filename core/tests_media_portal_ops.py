@@ -146,7 +146,7 @@ def test_portal_recuperar_contraseña_flujo():
     r = http.get('/portal/recuperar/')
     assert r.status_code == 200
 
-    with patch('core.email_service.get_email_service') as mock_svc:
+    with patch('core.analitica.email_service.get_email_service') as mock_svc:
         svc = MagicMock()
         svc.send_email.return_value = True
         mock_svc.return_value = svc
