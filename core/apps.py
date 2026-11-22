@@ -17,7 +17,7 @@ class CoreConfig(AppConfig):
         import core.signals_videos
         
         # Certificados automáticos
-        import core.signals_certificados  # Genera certificado al completar curso
+        import core.certificados.signals_certificados  # Genera certificado al completar curso
         
         # Base de conocimientos para IAs
         import core.signals_conocimientos  # Actualiza conocimientos cuando se modifican cursos
