@@ -1,5 +1,5 @@
 """
-Rutas de integración — fachada hacia core.api (migración gradual a integrations/).
+Rutas de integración — fachada hacia core.admin_vistas.api (migración gradual a integrations/).
 
 Angular / LXP consumen estas URLs bajo el mismo host de eki.
 """
@@ -8,7 +8,7 @@ from django.urls import path
 
 from core.views_form_externo import webhook_formulario_externo
 
-from core.api import (
+from core.admin_vistas.api import (
     api_empleabilidad_claim,
     api_empleabilidad_completar,
     api_empleabilidad_flujo,

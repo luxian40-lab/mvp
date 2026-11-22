@@ -59,7 +59,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
         'label': 'Integraciones',
         'django_app': 'integrations',
         'description': 'API REST LXP / Angular, CORS.',
-        'modules': ['integrations.urls', 'core.api'],
+        'modules': ['integrations.urls', 'core.admin_vistas.api'],
     },
     'formulario': {
         'label': 'Formularios',
