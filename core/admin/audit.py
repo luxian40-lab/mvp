@@ -76,7 +76,7 @@ class AuditLogAdmin(admin.ModelAdmin):
 
 # Importar y ejecutar la personalización del admin
 try:
-    from core.admin_dashboard import setup_custom_admin_dashboard
+    from core.admin_vistas.admin_dashboard import setup_custom_admin_dashboard
     setup_custom_admin_dashboard()
 except Exception as e:
     logger.warning(f"No se pudo cargar la personalización del dashboard: {str(e)}")
