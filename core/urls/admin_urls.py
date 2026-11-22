@@ -25,7 +25,7 @@ from core.views import (
     test_email_gmail_view,
     vista_previa_curso_ia,
 )
-from core.views_admin_analytics import (
+from core.admin_vistas.views_admin_analytics import (
     api_metricas_json,
     detalle_estudiante,
     exportar_metricas_csv,
@@ -56,7 +56,7 @@ from core.views_lineas_admin import lineas_admin_view
 from core.views_laboratorio import laboratorio_view
 from core.views_territorio_alertas import territorio_alertas_view
 from core.views_copiar_curso import copiar_curso_cliente_view
-from core.views_admin_panel import admin_panel_view
+from core.admin_vistas.views_admin_panel import admin_panel_view
 from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
 from core.views_module_builder import module_builder_probar_persona, module_builder_view
 from core.views_curso_nuevo import curso_nuevo_wizard
