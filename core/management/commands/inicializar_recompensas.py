@@ -3,7 +3,7 @@ Comando para crear recompensas de ejemplo configurables
 """
 
 from django.core.management.base import BaseCommand
-from core.recompensas import Recompensa
+from core.gamificacion.recompensas import Recompensa
 
 
 class Command(BaseCommand):

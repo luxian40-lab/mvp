@@ -20,7 +20,7 @@ from core.certificados.models_certificados import (
     Certificado as _Certificado,
     PlantillaCertificado as _PlantillaCertificado,
 )
-from core.recompensas import CanjeRecompensa as _CanjeRecompensa, Recompensa as _Recompensa
+from core.gamificacion.recompensas import CanjeRecompensa as _CanjeRecompensa, Recompensa as _Recompensa
 
 
 class Examen(_Examen):

@@ -2158,7 +2158,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             )
             from core.gamificacion import PerfilGamificacion, BadgeEstudiante, TransaccionPuntos
             from core.models_extras import EnvioProgramado, PQRS, InvitacionGrupo, GrupoEstudiantes
-            from core.recompensas import CanjeRecompensa
+            from core.gamificacion.recompensas import CanjeRecompensa
             
             # Limpiar relaciones vinculadas al teléfono
             if obj.telefono:
