@@ -14,7 +14,7 @@ from django.db import transaction
 from django.utils.dateparse import parse_date
 
 from core.models import Cliente, ProductoComercial
-from core.precios_excel import excel_a_payload_json, leer_filas_excel
+from core.campanas.precios_excel import excel_a_payload_json, leer_filas_excel
 
 
 @dataclass

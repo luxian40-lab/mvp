@@ -8,7 +8,7 @@ import openpyxl
 from django.core.management import call_command
 from django.test import TestCase
 
-from core.precios_excel import (
+from core.campanas.precios_excel import (
     detect_header_row,
     excel_a_payload_json,
     leer_filas_excel,

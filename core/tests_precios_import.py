@@ -10,7 +10,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from core.models import Cliente, ProductoComercial
-from core.precios_import import importar_precios_desde_archivo
+from core.campanas.precios_import import importar_precios_desde_archivo
 
 
 def _xlsx_con_filas(filas: list[list], path: Path) -> None:

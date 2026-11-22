@@ -11,7 +11,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from core.precios_import import importar_precios_desde_archivo
+from core.campanas.precios_import import importar_precios_desde_archivo
 
 
 class Command(BaseCommand):

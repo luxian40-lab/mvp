@@ -24,7 +24,7 @@ from pathlib import Path
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from core.precios_excel import (
+from core.campanas.precios_excel import (
     excel_a_payload_json,
     leer_filas_excel,
     resolver_ruta_excel_desde_documento_rag,

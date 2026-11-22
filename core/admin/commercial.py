@@ -637,7 +637,7 @@ class ProductoComercialAdmin(admin.ModelAdmin):
 
         from django.core.exceptions import PermissionDenied
 
-        from core.precios_import import importar_precios_desde_archivo
+        from core.campanas.precios_import import importar_precios_desde_archivo
 
         if not self.has_add_permission(request):
             raise PermissionDenied
@@ -1046,7 +1046,7 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
     @admin.action(description='📥 Importar precios a catálogo (Excel → Postgres)')
     def importar_precios_a_catalogo(self, request, queryset):
-        from core.precios_import import importar_precios_desde_documento_rag
+        from core.campanas.precios_import import importar_precios_desde_documento_rag
 
         ok = err = 0
         for doc in queryset:
