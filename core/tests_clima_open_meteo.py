@@ -6,7 +6,7 @@ from unittest import mock
 
 from django.test import SimpleTestCase, override_settings
 
-from core.clima_open_meteo import (
+from core.analitica.clima_open_meteo import (
     consulta_necesita_clima,
     formatear_bloque_clima,
     obtener_bloque_clima_para_nat,
@@ -80,8 +80,8 @@ class ObtenerBloqueClimaTests(SimpleTestCase):
         self.assertIn('departamento', out.lower())
         self.assertIn('vereda', out.lower())
 
-    @mock.patch('core.clima_open_meteo.forecast_open_meteo')
-    @mock.patch('core.clima_open_meteo.geocode_open_meteo')
+    @mock.patch('core.analitica.clima_open_meteo.forecast_open_meteo')
+    @mock.patch('core.analitica.clima_open_meteo.geocode_open_meteo')
     def test_flujo_ok(self, mock_geo, mock_fc):
         mock_geo.return_value = {
             'name': 'Ibagué',
@@ -106,8 +106,8 @@ class ObtenerBloqueClimaTests(SimpleTestCase):
         mock_geo.assert_called_once()
         mock_fc.assert_called_once()
 
-    @mock.patch('core.clima_open_meteo.forecast_open_meteo')
-    @mock.patch('core.clima_open_meteo.geocode_open_meteo')
+    @mock.patch('core.analitica.clima_open_meteo.forecast_open_meteo')
+    @mock.patch('core.analitica.clima_open_meteo.geocode_open_meteo')
     def test_bogota_live_query_shape(self, mock_geo, mock_fc):
         mock_geo.return_value = {
             'name': 'Bogotá',

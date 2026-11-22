@@ -361,7 +361,7 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
         return None
 
     try:
-        from core.clima_open_meteo import consulta_necesita_clima
+        from core.analitica.clima_open_meteo import consulta_necesita_clima
 
         if consulta_necesita_clima(mensaje):
             meta_prev = _get_meta(ctx)

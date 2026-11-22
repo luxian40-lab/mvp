@@ -589,7 +589,7 @@ def _bot_comercial_respuesta_catalogo(
             if bloque_agro else ''
         )
         try:
-            from core.clima_open_meteo import obtener_bloque_clima_para_nat
+            from core.analitica.clima_open_meteo import obtener_bloque_clima_para_nat
 
             bloque_clima = obtener_bloque_clima_para_nat(
                 pregunta=pregunta,
