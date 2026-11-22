@@ -4,7 +4,7 @@ Management command para cargar plantillas de ejercicios financieros
 
 from django.core.management.base import BaseCommand
 from core.models import Curso, Modulo, ObjetivoCurso, RubricaEvaluacion, EjercicioPractico
-from core.plantillas_ejercicios import (
+from core.curso.plantillas_ejercicios import (
     EJERCICIOS_FINANCIEROS,
     RUBRICAS_FINANCIERAS,
     crear_ejercicio_desde_plantilla
