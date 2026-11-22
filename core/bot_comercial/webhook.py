@@ -1254,7 +1254,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
 
                 agrosavia_meta = {}
                 try:
-                    from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+                    from core.analitica.agrosavia_connector import enriquecer_contexto_con_agrosavia
 
                     contexto_rag, agrosavia_meta = enriquecer_contexto_con_agrosavia(
                         consulta,

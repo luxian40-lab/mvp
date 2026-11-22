@@ -82,7 +82,7 @@ class FacilitadorPerfilTests(TestCase):
         self.assertIn('CHECKPOINT DEL CURSO', system)
 
     @patch(
-        'core.agrosavia_connector.enriquecer_contexto_con_agrosavia',
+        'core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia',
         return_value=('FUENTE AGROSAVIA: manejo de varroa en apiarios', {'agrosavia_usada': True}),
     )
     @patch('core.tutor_ia_modulo._get_client')
@@ -109,7 +109,7 @@ class FacilitadorPerfilTests(TestCase):
         user_msg = kwargs['messages'][1]['content']
         self.assertIn('FUENTE AGROSAVIA', user_msg)
 
-    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia')
+    @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia')
     @patch('core.tutor_ia_modulo._get_client')
     def test_claudia_no_consulta_agrosavia(self, mock_client, mock_agro):
         m = Modulo.objects.create(

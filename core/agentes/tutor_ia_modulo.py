@@ -539,7 +539,7 @@ def generar_reto_facilitador(
     # Perfil tecnicoagro: repositorio AGROSAVIA en vivo cuando el curso no tiene RAG propio.
     if es_perfil_tecnicoagro(curso or (modulos_cubiertos[0].curso if modulos_cubiertos else None)):
         try:
-            from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+            from core.analitica.agrosavia_connector import enriquecer_contexto_con_agrosavia
 
             consulta_agro = f"{curso_nombre} {titulos_linea}".strip()
             contexto_rag, meta_agro = enriquecer_contexto_con_agrosavia(
@@ -805,7 +805,7 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
 
     if es_perfil_tecnicoagro(curso):
         try:
-            from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+            from core.analitica.agrosavia_connector import enriquecer_contexto_con_agrosavia
 
             consulta = f"{getattr(curso, 'nombre', '')} {pregunta_estudiante}".strip()
             contexto_rag, meta_agro = enriquecer_contexto_con_agrosavia(

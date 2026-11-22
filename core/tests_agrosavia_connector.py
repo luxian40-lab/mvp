@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.test import override_settings
 
-from core.agrosavia_connector import (
+from core.analitica.agrosavia_connector import (
     debe_consultar_agrosavia,
     enriquecer_contexto_con_agrosavia,
     formatear_contexto_agrosavia,
@@ -75,7 +75,7 @@ def test_enriquecer_concatena_y_meta():
             'handle': '1',
         }
     ]
-    with patch('core.agrosavia_connector.buscar_agrosavia', return_value=fake_items) as mock_buscar:
+    with patch('core.analitica.agrosavia_connector.buscar_agrosavia', return_value=fake_items) as mock_buscar:
         ctx, meta = enriquecer_contexto_con_agrosavia(
             'Roya en café del Huila',
             contexto_rag='Info eki breve.',
@@ -91,7 +91,7 @@ def test_enriquecer_concatena_y_meta():
 
 @override_settings(BOT_COMERCIAL_AGROSAVIA_ENABLED=True, BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS=100)
 def test_enriquecer_omite_si_no_debe():
-    with patch('core.agrosavia_connector.buscar_agrosavia') as mock_buscar:
+    with patch('core.analitica.agrosavia_connector.buscar_agrosavia') as mock_buscar:
         ctx, meta = enriquecer_contexto_con_agrosavia(
             'xx',  # query muy corta
             contexto_rag='x' * 500,

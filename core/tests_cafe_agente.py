@@ -16,7 +16,7 @@ class CafeFuentesTests(SimpleTestCase):
 
     @patch('core.fao_connector.buscar_fao')
     @patch('core.nati.buscar_en_web_colombia')
-    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia')
+    @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia')
     def test_agrosavia_corta_el_resto(self, agro, web, fao):
         agro.return_value = (
             'FUENTE INSTITUCIONAL AGROSAVIA\nbroca',
@@ -31,7 +31,7 @@ class CafeFuentesTests(SimpleTestCase):
 
     @patch('core.fao_connector.buscar_fao')
     @patch('core.nati.buscar_en_web_colombia', return_value='Según Cenicafé, recoja frutos brocados.')
-    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
+    @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_web_si_agrosavia_no_responde(self, _agro, web, fao):
         ctx, meta = enriquecer_contexto_cafe('broca')
         self.assertEqual(meta['fuente'], 'web')
@@ -43,7 +43,7 @@ class CafeFuentesTests(SimpleTestCase):
     @patch('core.fao_connector.formatear_contexto_fao', return_value='FUENTE INSTITUCIONAL FAO\ncoffee')
     @patch('core.fao_connector.buscar_fao', return_value=[{'titulo': 'Coffee'}])
     @patch('core.nati.buscar_en_web_colombia', return_value='')
-    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
+    @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_fao_solo_si_agrosavia_y_web_vacias(self, _agro, _web, fao, _fmt):
         ctx, meta = enriquecer_contexto_cafe('broca')
         self.assertEqual(meta['fuente'], 'fao')
@@ -53,7 +53,7 @@ class CafeFuentesTests(SimpleTestCase):
     @patch('core.fao_connector.formatear_contexto_fao', return_value='')
     @patch('core.fao_connector.buscar_fao', return_value=[])
     @patch('core.nati.buscar_en_web_colombia', return_value='')
-    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
+    @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_sin_fuente_no_arma_bloque(self, _agro, _web, _fao, _fmt):
         ctx, meta = enriquecer_contexto_cafe('broca', 'conocimiento previo')
         self.assertEqual(meta['fuente'], '')

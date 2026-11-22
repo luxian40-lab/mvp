@@ -267,7 +267,7 @@ class AsistenteDominioCursoTests(TestCase):
         with patch(
             'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
         ), patch(
-            'core.agrosavia_connector.enriquecer_contexto_con_agrosavia',
+            'core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia',
             return_value=('FUENTE AGROSAVIA: varroa en colmenas', {'agrosavia_usada': True}),
         ) as mock_agro:
             out = generar_respuesta_asistente(

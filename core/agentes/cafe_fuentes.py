@@ -33,7 +33,7 @@ def enriquecer_contexto_cafe(
     q = consulta_cafe(consulta)
 
     try:
-        from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+        from core.analitica.agrosavia_connector import enriquecer_contexto_con_agrosavia
 
         ctx, agro = enriquecer_contexto_con_agrosavia(q, base)
     except Exception:
