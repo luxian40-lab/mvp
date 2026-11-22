@@ -36,7 +36,7 @@ from core.views_analytics import api_grupos_por_empresa, gei_panel_view
 from core.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
 from core.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.views_reportes import descargar_reporte_xlsx
-from core.views_admin_home import admin_inicio_actualizar, admin_inicio_lineas
+from core.admin_vistas.views_admin_home import admin_inicio_actualizar, admin_inicio_lineas
 from core.views_cobertura_admin import (
     cobertura_admin_api,
     cobertura_admin_municipios_geojson,
