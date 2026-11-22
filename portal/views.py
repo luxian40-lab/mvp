@@ -1635,7 +1635,7 @@ def portal_gamificacion(request):
 @requiere_modulo('cursos')
 def portal_conversaciones(request):
     """Historial WhatsApp de los participantes de la organización."""
-    from core.conversaciones_service import construir_contexto_inbox
+    from core.analitica.conversaciones_service import construir_contexto_inbox
     from django.contrib import messages
 
     org = _portal_org(request)

@@ -1249,7 +1249,7 @@ def calendario_campanas_view(request):
 @staff_member_required
 def conversaciones_view(request):
     """Vista de conversaciones estilo WhatsApp Web (pantalla completa)."""
-    from core.conversaciones_service import construir_contexto_inbox
+    from core.analitica.conversaciones_service import construir_contexto_inbox
 
     cliente_filtro_raw = (request.GET.get("cliente") or "").strip()
     cliente_filtro_id = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None

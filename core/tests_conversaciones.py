@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.utils import timezone
 
-from core.conversaciones_service import construir_contexto_inbox
+from core.analitica.conversaciones_service import construir_contexto_inbox
 from core.models import Cliente, Estudiante, WhatsappLog
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
