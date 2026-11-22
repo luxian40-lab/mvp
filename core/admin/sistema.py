@@ -463,7 +463,7 @@ class AlertaTerritorialAdmin(admin.ModelAdmin):
 
     @admin.action(description='Validar (detectada → validada)')
     def accion_validar(self, request, queryset):
-        from core.alerta_territorial_ops import transicionar_alerta
+        from core.analitica.alerta_territorial_ops import transicionar_alerta
 
         ok = 0
         for a in queryset.filter(estado=AlertaTerritorial.ESTADO_DETECTADA):
@@ -481,7 +481,7 @@ class AlertaTerritorialAdmin(admin.ModelAdmin):
 
     @admin.action(description='Cerrar alertas seleccionadas')
     def accion_cerrar(self, request, queryset):
-        from core.alerta_territorial_ops import transicionar_alerta
+        from core.analitica.alerta_territorial_ops import transicionar_alerta
 
         ok = 0
         for a in queryset.exclude(estado=AlertaTerritorial.ESTADO_CERRADA):

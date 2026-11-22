@@ -6,7 +6,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.alerta_territorial_ops import (
+from core.analitica.alerta_territorial_ops import (
     RUNBOOK_PASOS,
     build_territorio_alertas_snapshot,
     etiqueta_territory_id,

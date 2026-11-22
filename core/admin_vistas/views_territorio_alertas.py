@@ -8,7 +8,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from core.alerta_territorial_ops import (
+from core.analitica.alerta_territorial_ops import (
     build_territorio_alertas_snapshot,
     min_k_default,
     transicionar_alerta,
