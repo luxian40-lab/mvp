@@ -13,7 +13,7 @@ from core.models import (
     ProgresoEstudiante,
     WhatsappLog,
 )
-from core.views_admin_panel import build_panel_snapshot
+from core.admin_vistas.views_admin_panel import build_panel_snapshot
 from core.certificados.models_certificados import Certificado
 
 

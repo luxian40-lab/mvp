@@ -3,7 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
-from core.views_admin_panel import _build_ecosistema, _pct_delta, build_panel_snapshot
+from core.admin_vistas.views_admin_panel import _build_ecosistema, _pct_delta, build_panel_snapshot
 
 
 class PanelSnapshotHelpersTests(SimpleTestCase):
@@ -136,7 +136,7 @@ class PanelViewTests(TestCase):
         self.assertContains(mapa, "mapa-panel-inicio")
 
     def test_unfold_dashboard_callback_inyecta_snap(self):
-        from core.views_admin_panel import unfold_dashboard_callback
+        from core.admin_vistas.views_admin_panel import unfold_dashboard_callback
 
         ctx = unfold_dashboard_callback(None, {})
         self.assertIn("inicio", ctx)

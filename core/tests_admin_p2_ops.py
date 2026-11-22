@@ -18,7 +18,7 @@ from core.modulo_publicacion import (
     snapshot_modulo_publicacion,
     validar_modulo_qa,
 )
-from core.views_admin_panel import _avg_avance_pct
+from core.admin_vistas.views_admin_panel import _avg_avance_pct
 
 
 User = get_user_model()

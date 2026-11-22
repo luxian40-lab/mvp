@@ -109,7 +109,7 @@ UNFOLD = {
     # Pestañas de organizaciones y de plantillas Meta. Cada callback devuelve [] fuera de su listado.
     "TABS": "core.admin.unfold_tabs.tabs_admin",
     "ENVIRONMENT": "mvp_project.unfold_admin.environment_callback",
-    "DASHBOARD_CALLBACK": "core.views_admin_panel.unfold_dashboard_callback",
+    "DASHBOARD_CALLBACK": "core.admin_vistas.views_admin_panel.unfold_dashboard_callback",
     "SITE_FAVICONS": [
         {
             "rel": "icon",
