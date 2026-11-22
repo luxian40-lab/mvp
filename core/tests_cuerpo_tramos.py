@@ -106,7 +106,7 @@ class IntercepcionesTests(_Base):
     def test_acuse_de_campana_unica_responde_y_corta(self):
         est = self._est()
         with patch(
-            'core.campana_respuestas.intentar_registrar_respuesta_campana_unica',
+            'core.conversacion.estados.intercepciones.intentar_registrar_respuesta_campana_unica',
             return_value='✅ Gracias, registramos su respuesta.',
         ):
             cli = self._post('Sí', 'SM_tr_campana')

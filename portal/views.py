@@ -19,7 +19,7 @@ from core.models import (
     SolicitudSoporte,
 )
 from core.certificados.models_certificados import Certificado
-from core.campana_respuestas import destinatarios_efectivos_qs
+from core.campanas.campana_respuestas import destinatarios_efectivos_qs
 from core.models_extras import GrupoEstudiantes
 from core.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa

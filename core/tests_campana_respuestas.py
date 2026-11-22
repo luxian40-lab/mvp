@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from core.campana_respuestas import (
+from core.campanas.campana_respuestas import (
     clasificar_respuesta_campana,
     intentar_registrar_respuesta_campana_unica,
     recalcular_estadisticas_campana,

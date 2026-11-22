@@ -68,7 +68,7 @@ def _fold(s: str) -> str:
 
 def texto_desde_webhook_twilio(post_data: dict, msg_body: str = '') -> str:
     """Prefer Body; si viene vacío (quick reply), usa ButtonPayload/Text."""
-    from core.campana_respuestas import extraer_texto_respuesta
+    from core.campanas.campana_respuestas import extraer_texto_respuesta
 
     return extraer_texto_respuesta(post_data or {}, msg_body or '')
 

@@ -47,7 +47,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
     # Respuesta campaña única (Sí/No, Asistiré/No asistiré) — antes del flujo del curso
     try:
-        from core.campana_respuestas import intentar_registrar_respuesta_campana_unica
+        from core.campanas.campana_respuestas import intentar_registrar_respuesta_campana_unica
 
         _ack_campana = intentar_registrar_respuesta_campana_unica(
             telefono_limpio=telefono_limpio,
