@@ -5,7 +5,11 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from core.campana_meta_v2 import ejecutar_campana_meta_v2, marcar_enviando_viejos, reclamar
+from core.campanas.campana_meta_v2 import (
+    ejecutar_campana_meta_v2,
+    marcar_enviando_viejos,
+    reclamar,
+)
 from core.canal.meta_estados import aplicar_statuses
 from core.models import Estudiante, WhatsappLog
 from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
@@ -44,14 +48,14 @@ class CampanaMetaV2Tests(TestCase):
         est.save(update_fields=['wa_optin_fecha', 'wa_optin_origen'])
         return est
 
-    @patch('core.campana_meta_v2._post', return_value=_ok())
+    @patch('core.campanas.campana_meta_v2._post', return_value=_ok())
     def test_reejecutar_no_duplica(self, post):
         ejecutar_campana_meta_v2(self.campana)
         ejecutar_campana_meta_v2(self.campana)
         self.assertEqual(post.call_count, 1)
         self.assertEqual(EnvioCampanaMeta.objects.filter(campana=self.campana).count(), 1)
 
-    @patch('core.campana_meta_v2._post', return_value=_ok())
+    @patch('core.campanas.campana_meta_v2._post', return_value=_ok())
     def test_pide_token_con_la_linea_de_la_campana(self, _post):
         with patch('core.campana_meta_ritmo.pedir_token', return_value=(True, 0.0)) as pedir:
             ejecutar_campana_meta_v2(self.campana)
@@ -64,7 +68,7 @@ class CampanaMetaV2Tests(TestCase):
         self.assertIsNotNone(reclamar(envio.pk))
         self.assertIsNone(reclamar(envio.pk))
 
-    @patch('core.campana_meta_v2._post', return_value=(0, {'error': {'code': 'TIMEOUT', 'message': 'Timeout'}}))
+    @patch('core.campanas.campana_meta_v2._post', return_value=(0, {'error': {'code': 'TIMEOUT', 'message': 'Timeout'}}))
     def test_timeout_queda_incierto_y_no_se_reenvia(self, post):
         ejecutar_campana_meta_v2(self.campana)
         envio = EnvioCampanaMeta.objects.get(campana=self.campana)
@@ -85,12 +89,12 @@ class CampanaMetaV2Tests(TestCase):
     def test_sin_optin_no_hay_plantilla(self):
         self.ana.wa_optin_fecha = None
         self.ana.save(update_fields=['wa_optin_fecha'])
-        with patch('core.campana_meta_v2._post') as post:
+        with patch('core.campanas.campana_meta_v2._post') as post:
             ejecutar_campana_meta_v2(self.campana)
         post.assert_not_called()
         self.assertEqual(EnvioCampanaMeta.objects.get().omitido_motivo, 'sin_optin')
 
-    @patch('core.campana_meta_v2._post')
+    @patch('core.campanas.campana_meta_v2._post')
     def test_130429_no_corta_el_lote(self, post):
         luis = self._est('573009992002', 'Luis')
         self.campana.destinatarios.add(luis)
@@ -104,7 +108,7 @@ class CampanaMetaV2Tests(TestCase):
         self.assertIn('ERROR_REINTENTABLE', estados)
         self.assertIn('ENVIADO', estados)
 
-    @patch('core.campana_meta_v2._post')
+    @patch('core.campanas.campana_meta_v2._post')
     def test_190_detiene_el_resto(self, post):
         luis = self._est('573009992003', 'Luis')
         self.campana.destinatarios.add(luis)

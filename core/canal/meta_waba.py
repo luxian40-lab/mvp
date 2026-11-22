@@ -905,7 +905,7 @@ def _guardar_envio_v1(previo, campana, estudiante, estado, wamid, respuesta):
 
 def ejecutar_campana_meta(campana: CampanaMeta) -> dict:
     if getattr(settings, 'META_CAMPANAS_V2_ENABLED', False):
-        from core.campana_meta_v2 import ejecutar_campana_meta_v2
+        from core.campanas.campana_meta_v2 import ejecutar_campana_meta_v2
 
         return ejecutar_campana_meta_v2(campana)
     from core.canal.meta_token import token_invalido
