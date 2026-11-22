@@ -19,7 +19,7 @@ from core.plantilla_meta_editor import (
     valores_de_prueba,
     variables_para_formulario,
 )
-from core.plantilla_meta_reglas import bloqueo_envio, etiqueta_calidad
+from core.campanas.plantilla_meta_reglas import bloqueo_envio, etiqueta_calidad
 
 _ESTADO_LABEL = {
     'APPROVED': 'success',

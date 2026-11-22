@@ -12,7 +12,7 @@ from core.models_campana_meta import (
     sanitizar_nombre_meta,
     variables_en,
 )
-from core.plantilla_meta_reglas import errores_de_alta, numeros_de_variables
+from core.campanas.plantilla_meta_reglas import errores_de_alta, numeros_de_variables
 
 SOLO_LECTURA = frozenset({'APPROVED', 'PENDING', 'IN_APPEAL'})
 _ORIGENES = frozenset({

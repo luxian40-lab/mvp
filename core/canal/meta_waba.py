@@ -434,7 +434,7 @@ def _resumen_vacio() -> dict:
 
 
 def _aplicar_item_catalogo(item: dict, waba: str) -> dict:
-    from core.plantilla_meta_reglas import (
+    from core.campanas.plantilla_meta_reglas import (
         categoria_meta,
         cuerpo_desde_componentes,
         puntaje_calidad,
