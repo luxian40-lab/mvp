@@ -10,7 +10,7 @@ from PIL import Image
 from django.test import TestCase
 
 from core.certificados.certificado_diseno_eki import _cargar_fuentes, render_certificado_diseno_eki
-from core.certificado_service import resolver_plantilla_certificado
+from core.certificados.certificado_service import resolver_plantilla_certificado
 from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
 from core.models_certificados import Certificado, PlantillaCertificado
@@ -165,9 +165,9 @@ def test_generar_y_guardar_usa_diseno_eki(monkeypatch):
         certificado.emitido = True
         return True
 
-    monkeypatch.setattr('core.certificado_service._guardar_cert_s3', fake_guardar)
+    monkeypatch.setattr('core.certificados.certificado_service._guardar_cert_s3', fake_guardar)
 
-    from core.certificado_service import generar_y_guardar_certificado
+    from core.certificados.certificado_service import generar_y_guardar_certificado
 
     ok = generar_y_guardar_certificado(cert, plantilla=plantilla, force=True)
     assert ok is True

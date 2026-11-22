@@ -275,7 +275,7 @@ def _texto_certificado_modulo(estudiante, progreso, mensaje_respuesta) -> str:
     )
     msg_cert_img = ""
     try:
-        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        from core.certificados.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
         logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
         cert = crear_certificado_automatico(estudiante, progreso.curso)
         logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
@@ -296,7 +296,7 @@ def _texto_certificado_modulo(estudiante, progreso, mensaje_respuesta) -> str:
             logger.info(f"📄 Certificado PDF URL: {cert_url}")
         elif cert:
             logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-            from core.certificado_service import generar_y_guardar_certificado
+            from core.certificados.certificado_service import generar_y_guardar_certificado
             generar_y_guardar_certificado(cert, force=True)
             cert.refresh_from_db()
             if cert.archivo_imagen:

@@ -52,10 +52,10 @@ def _curso_listo():
     return est, curso, prog
 
 
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 @patch('core.tasks.generar_certificado_async.delay')
 def test_flag_apagado_pinta_en_el_turno(mock_delay, mock_gen):
-    from core.certificado_service import crear_certificado_automatico
+    from core.certificados.certificado_service import crear_certificado_automatico
 
     est, curso, _prog = _curso_listo()
     cert = crear_certificado_automatico(est, curso)
@@ -65,10 +65,10 @@ def test_flag_apagado_pinta_en_el_turno(mock_delay, mock_gen):
 
 
 @override_settings(EKI_CERTIFICADO_ASYNC=True, CELERY_TASK_ALWAYS_EAGER=False)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 @patch('core.tasks.generar_certificado_async.delay')
 def test_flag_prendido_no_pinta_en_el_turno(mock_delay, mock_gen):
-    from core.certificado_service import crear_certificado_automatico
+    from core.certificados.certificado_service import crear_certificado_automatico
 
     est, curso, _prog = _curso_listo()
     cert = crear_certificado_automatico(est, curso)
@@ -80,10 +80,10 @@ def test_flag_prendido_no_pinta_en_el_turno(mock_delay, mock_gen):
 
 
 @override_settings(EKI_CERTIFICADO_ASYNC=True, CELERY_TASK_ALWAYS_EAGER=False)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 @patch('core.tasks.generar_certificado_async.delay')
 def test_admin_encolar_false_sigue_pintando(mock_delay, mock_gen):
-    from core.certificado_service import crear_certificado_automatico
+    from core.certificados.certificado_service import crear_certificado_automatico
 
     est, curso, _prog = _curso_listo()
     cert = crear_certificado_automatico(est, curso, encolar=False)
@@ -93,10 +93,10 @@ def test_admin_encolar_false_sigue_pintando(mock_delay, mock_gen):
 
 
 @override_settings(EKI_CERTIFICADO_ASYNC=True, CELERY_TASK_ALWAYS_EAGER=False)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 @patch('core.tasks.generar_certificado_async.delay')
 def test_existente_sin_archivo_reencola(mock_delay, mock_gen):
-    from core.certificado_service import crear_certificado_automatico
+    from core.certificados.certificado_service import crear_certificado_automatico
 
     est, curso, _prog = _curso_listo()
     existente = Certificado.objects.create(
@@ -113,7 +113,7 @@ def test_existente_sin_archivo_reencola(mock_delay, mock_gen):
 
 
 @override_settings(EKI_CERTIFICADO_ASYNC=True, CELERY_TASK_ALWAYS_EAGER=False)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 @patch('core.tasks.generar_certificado_async.delay')
 def test_signal_con_flag_no_fuerza_sync(mock_delay, mock_gen):
     est, curso, prog = _curso_listo()
@@ -125,9 +125,9 @@ def test_signal_con_flag_no_fuerza_sync(mock_delay, mock_gen):
 
 
 @override_settings(EKI_CERTIFICADO_ASYNC=True)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 def test_turno_no_fuerza_regeneracion_si_async(mock_gen):
-    from core.certificado_service import completar_archivo_certificado_si_falta
+    from core.certificados.certificado_service import completar_archivo_certificado_si_falta
 
     est, curso, _prog = _curso_listo()
     cert = Certificado.objects.create(
@@ -141,9 +141,9 @@ def test_turno_no_fuerza_regeneracion_si_async(mock_gen):
     mock_gen.assert_not_called()
 
 
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 def test_turno_sigue_forzando_si_async_apagado(mock_gen):
-    from core.certificado_service import completar_archivo_certificado_si_falta
+    from core.certificados.certificado_service import completar_archivo_certificado_si_falta
 
     est, curso, _prog = _curso_listo()
     cert = Certificado.objects.create(
@@ -157,8 +157,8 @@ def test_turno_sigue_forzando_si_async_apagado(mock_gen):
     mock_gen.assert_called_once()
 
 
-@patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True)
-@patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+@patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True)
+@patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
 def test_tarea_genera_con_pipeline_hd_y_envia(mock_gen, mock_enviar):
     from core.tasks import generar_certificado_async
 

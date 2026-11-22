@@ -453,7 +453,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         if change:  # Solo al editar (no al crear)
             # Buscar certificados que usen esta plantilla y regenerarlos
             from core.models_certificados import Certificado
-            from core.certificado_service import generar_y_guardar_certificado
+            from core.certificados.certificado_service import generar_y_guardar_certificado
             import logging
             logger = logging.getLogger(__name__)
             
@@ -712,7 +712,7 @@ class CertificadoAdmin(admin.ModelAdmin):
     @admin.action(description='📄 Generar certificados PDF')
     def generar_certificados(self, request, queryset):
         """Genera los PDFs de los certificados seleccionados"""
-        from core.certificado_service import generar_y_guardar_certificado
+        from core.certificados.certificado_service import generar_y_guardar_certificado
         from django.utils import timezone
         
         generados = 0
@@ -748,7 +748,7 @@ class CertificadoAdmin(admin.ModelAdmin):
     @admin.action(description='📲 Enviar certificados por WhatsApp')
     def enviar_por_whatsapp(self, request, queryset):
         """Envía los certificados por WhatsApp"""
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
         
         # Filtrar emitidos con PDF o imagen
         queryset = queryset.filter(emitido=True).filter(
@@ -793,7 +793,7 @@ class CertificadoAdmin(admin.ModelAdmin):
     @admin.action(description='🔄 Regenerar certificados PDF')
     def regenerar_certificados(self, request, queryset):
         """Regenera los PDFs (útil si cambió el diseño)"""
-        from core.certificado_service import generar_y_guardar_certificado
+        from core.certificados.certificado_service import generar_y_guardar_certificado
         
         regenerados = 0
         errores = 0

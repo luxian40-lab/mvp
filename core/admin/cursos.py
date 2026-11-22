@@ -3249,7 +3249,7 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
     @admin.action(description='🏆 Generar certificados pendientes')
     def generar_certificados_pendientes(self, request, queryset):
         """Genera certificados para cursos completados que no los tienen"""
-        from core.certificado_service import generar_y_guardar_certificado, crear_certificado_automatico, enviar_certificado_whatsapp
+        from core.certificados.certificado_service import generar_y_guardar_certificado, crear_certificado_automatico, enviar_certificado_whatsapp
         
         generados = 0
         errores = 0

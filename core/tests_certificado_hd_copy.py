@@ -7,7 +7,7 @@ import pytest
 from django.test import Client, override_settings
 from django.utils import timezone
 
-from core.certificado_service import enviar_certificado_whatsapp, texto_descarga_alta_calidad
+from core.certificados.certificado_service import enviar_certificado_whatsapp, texto_descarga_alta_calidad
 from core.models import Cliente, Curso, Estudiante
 from core.models_certificados import Certificado
 
@@ -72,7 +72,7 @@ def test_ficha_publica_ofrece_alta_calidad():
         codigo_verificacion='eki-TEST-HDCOPY-02',
         hash_sha256='a' * 64,
     )
-    with patch('core.certificado_service.asegurar_pdf_certificado', return_value=False):
+    with patch('core.certificados.certificado_service.asegurar_pdf_certificado', return_value=False):
         r = Client().get('/verificar-certificado/eki-TEST-HDCOPY-02/')
     assert r.status_code == 200
     body = r.content.decode('utf-8')
@@ -81,9 +81,9 @@ def test_ficha_publica_ofrece_alta_calidad():
 
 
 @pytest.mark.django_db
-@patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+@patch('core.certificados.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
 @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value=None)
-@patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+@patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
 def test_caption_whatsapp_pide_alta_calidad(imagen, _plantilla, _url):
     _, curso, est = _org_curso_est()
     cert = Certificado.objects.create(

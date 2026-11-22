@@ -298,7 +298,7 @@ def _generar_completado_final(estudiante, curso_id):
     # Certificado
     msg_cert_img = ""
     try:
-        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        from core.certificados.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
         cert = crear_certificado_automatico(estudiante, curso)
         if cert and cert.archivo_imagen:
             cert_url = obtener_url_certificado_twilio(cert)

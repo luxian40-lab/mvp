@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.certificado_presencial_service import cerrar_curso_si_tramo_final
-from core.certificado_service import calcular_calificacion_curso, evaluar_elegibilidad_certificado
+from core.certificados.certificado_service import calcular_calificacion_curso, evaluar_elegibilidad_certificado
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
 from core.gamificacion_modo import MODO_CALIFICACION

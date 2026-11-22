@@ -86,7 +86,7 @@ def emitir_diploma_si_cumple(progreso):
         )
         return None
 
-    from core.certificado_service import crear_certificado_automatico, generar_y_guardar_certificado
+    from core.certificados.certificado_service import crear_certificado_automatico, generar_y_guardar_certificado
     from core.models_certificados import Certificado
 
     estudiante = progreso.estudiante

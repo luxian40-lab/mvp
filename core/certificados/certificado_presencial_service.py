@@ -7,7 +7,7 @@ from datetime import date
 from django.db import transaction
 from django.utils import timezone
 
-from core.certificado_service import (
+from core.certificados.certificado_service import (
     enviar_certificado_whatsapp,
     generar_y_guardar_certificado,
     plantillas_selectables_para_curso,

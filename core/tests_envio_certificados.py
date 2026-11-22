@@ -84,10 +84,10 @@ class EnvioCertificadosServiceTests(TestCase):
         mock_previo.assert_called_once()
         mock_cert_wa.assert_not_called()
 
-    @patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+    @patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
     @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
     def test_imagen_diploma_tras_plantilla_previo(self, _mock_gen, mock_intento):
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
         from django.utils import timezone
 
         hoy = timezone.now().date()
@@ -106,9 +106,9 @@ class EnvioCertificadosServiceTests(TestCase):
         _, kwargs = mock_intento.call_args
         self.assertTrue(kwargs.get('pausa_inicial') >= 0)
 
-    @patch('core.certificado_service._enviar_plantilla_media_twilio', return_value={'success': True, 'mensaje_id': 'MMmedia'})
+    @patch('core.certificados.certificado_service._enviar_plantilla_media_twilio', return_value={'success': True, 'mensaje_id': 'MMmedia'})
     def test_plantilla_media_entrega_imagen_en_un_mensaje(self, mock_tpl):
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
         from core.models_certificados import Certificado
         from django.utils import timezone
 
@@ -149,11 +149,11 @@ class EnvioCertificadosServiceTests(TestCase):
             archivo_imagen='certificados/generados/test.png',
         )
 
-    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.certificados.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
     @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value={'success': True, 'mensaje_id': 'wamid.T'})
-    @patch('core.certificado_service._intentar_enviar_imagen_diploma')
+    @patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma')
     def test_plantilla_meta_no_manda_imagen_de_sesion(self, imagen, plantilla, _url):
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
 
         cert = self._cert_imagen()
         self.assertTrue(enviar_certificado_whatsapp(cert))
@@ -162,22 +162,22 @@ class EnvioCertificadosServiceTests(TestCase):
         cert.refresh_from_db()
         self.assertTrue(cert.enviado_whatsapp)
 
-    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.certificados.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
     @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value={'success': False, 'response': '132001'})
-    @patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+    @patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
     def test_si_plantilla_meta_falla_cae_a_imagen(self, imagen, plantilla, _url):
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
 
         cert = self._cert_imagen()
         self.assertTrue(enviar_certificado_whatsapp(cert))
         plantilla.assert_called_once()
         imagen.assert_called_once()
 
-    @patch('core.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
+    @patch('core.certificados.certificado_service._media_url_certificado', return_value='https://eki-produccion.s3.amazonaws.com/cert.png')
     @patch('core.views.diploma_meta.enviar_diploma_plantilla_meta', return_value=None)
-    @patch('core.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
+    @patch('core.certificados.certificado_service._intentar_enviar_imagen_diploma', return_value=({'success': True}, 'imagen'))
     def test_sin_plantilla_meta_sigue_la_imagen(self, imagen, plantilla, _url):
-        from core.certificado_service import enviar_certificado_whatsapp
+        from core.certificados.certificado_service import enviar_certificado_whatsapp
 
         cert = self._cert_imagen()
         self.assertTrue(enviar_certificado_whatsapp(cert))
@@ -210,7 +210,7 @@ class EnvioCertificadosServiceTests(TestCase):
         for val in ('listo', 'continuar', 'menú', '', 'listo✅'):
             self.assertFalse(_es_ack_certificado(val), val)
 
-    @patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True)
     def test_webhook_libera_certificado_con_cualquier_respuesta(self, mock_envia):
         from django.utils import timezone
 
@@ -232,7 +232,7 @@ class EnvioCertificadosServiceTests(TestCase):
         )
         mock_envia.assert_called_once()
 
-    @patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True)
     def test_webhook_libera_certificado_con_ok_en_habeas(self, mock_envia):
         """OK con cert pendiente no debe confundirse con Habeas (estado_chat nuevo)."""
         from django.utils import timezone
@@ -257,7 +257,7 @@ class EnvioCertificadosServiceTests(TestCase):
         )
         mock_envia.assert_called_once()
 
-    @patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True)
     def test_webhook_libera_certificado_con_ok(self, mock_envia):
         from django.utils import timezone
 
@@ -330,7 +330,7 @@ class CerrarCursoAlDiplomaTests(TestCase):
         }
         self.est.save(update_fields=['contexto_temporal'])
 
-        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+        with patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True):
             self.assertTrue(
                 _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono),
             )
@@ -365,7 +365,7 @@ class CerrarCursoAlDiplomaTests(TestCase):
         }
         self.est.save(update_fields=['contexto_temporal'])
 
-        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+        with patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True):
             _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono)
 
         prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
@@ -389,7 +389,7 @@ class CerrarCursoAlDiplomaTests(TestCase):
         }
         self.est.save(update_fields=['contexto_temporal'])
 
-        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+        with patch('core.certificados.certificado_service.enviar_certificado_whatsapp', return_value=True):
             _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono)
 
         prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)

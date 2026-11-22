@@ -297,7 +297,7 @@ class AislamientoPortalTests(TestCase):
 
     def test_verificacion_publica_enmascara_documento(self):
         http = Client()
-        with patch('core.certificado_service.asegurar_pdf_certificado', return_value=False):
+        with patch('core.certificados.certificado_service.asegurar_pdf_certificado', return_value=False):
             resp = http.get('/verificar-certificado/eki-ISO-B-0001/')
         cuerpo = _texto(resp)
         self.assertEqual(resp.status_code, 200)

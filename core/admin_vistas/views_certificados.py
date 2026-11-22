@@ -8,7 +8,7 @@ from django.http import HttpResponse, Http404, FileResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from core.models_certificados import Certificado
-from core.certificado_service import (
+from core.certificados.certificado_service import (
     asegurar_pdf_certificado,
     generar_y_guardar_certificado,
     obtener_url_certificado_twilio,

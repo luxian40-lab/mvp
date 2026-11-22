@@ -124,7 +124,7 @@ def _texto_certificado_abierta(estudiante, curso_obj, feedback_final, puntos_msg
     msg_cert_img = ""
     if curso_obj:
         try:
-            from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+            from core.certificados.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
             cert = crear_certificado_automatico(estudiante, curso_obj)
             if cert and cert.archivo_imagen:
                 cert_url = obtener_url_certificado_twilio(cert)

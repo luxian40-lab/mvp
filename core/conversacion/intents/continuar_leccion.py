@@ -429,7 +429,7 @@ def _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_
 
     msg_cert_img = ""
     try:
-        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        from core.certificados.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
         cert = crear_certificado_automatico(estudiante, progreso.curso)
         if cert and cert.archivo_imagen:
             cert_url = obtener_url_certificado_twilio(cert)
@@ -1803,7 +1803,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 def _certificado_directo(estudiante, mensaje, progreso) -> str:
     msg_cert_img = ""
     try:
-        from core.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        from core.certificados.certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
         cert = crear_certificado_automatico(estudiante, progreso.curso)
         if cert and cert.archivo_imagen:
             cert_url = obtener_url_certificado_twilio(cert)

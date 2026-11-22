@@ -72,7 +72,7 @@ def _fixtures(nombre_curso='C3', con_pregunta=True):
 class ExpedienteDiplomaFlagOffTests(TestCase):
     """Flag apagado: cierre de hoy sigue generando diploma."""
 
-    @patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
     def test_cierre_con_fecha_crea_certificado(self, _gen):
         _cli, _curso, _mod, _est, progreso, _pregunta = _fixtures('Off')
         n = Certificado.objects.count()
@@ -84,7 +84,7 @@ class ExpedienteDiplomaFlagOffTests(TestCase):
 class ExpedienteDiplomaFlagOnTests(TestCase):
     """Flag prendido: llegar a la pregunta abierta final no crea Certificado."""
 
-    @patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
     def test_abrir_pregunta_abierta_no_crea_certificado(self, _gen):
         import logging
 
@@ -110,14 +110,14 @@ class ExpedienteDiplomaFlagOnTests(TestCase):
         self.assertEqual(est.estado_onboarding, 'esperando_respuesta_pregunta_abierta_final')
         self.assertEqual(Certificado.objects.count(), n)
 
-    @patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
     def test_sin_pregunta_y_modulos_hechos_si_emite(self, _gen):
         _cli, _curso, _mod, _est, progreso, _pregunta = _fixtures('OnOk', con_pregunta=False)
         n = Certificado.objects.count()
         marcar_progreso_curso_completado(progreso)
         self.assertEqual(Certificado.objects.count(), n + 1)
 
-    @patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
     def test_tras_responder_pregunta_cumple_reglas(self, _gen):
         from core.certificados.diploma_reglas import cumple_reglas_diploma, emitir_diploma_si_cumple
 

@@ -9,7 +9,7 @@ from django.test import Client, override_settings
 from django.utils import timezone
 from PIL import Image
 
-from core.certificado_service import (
+from core.certificados.certificado_service import (
     hash_sha256_buffer,
     organizacion_emisora_de,
     png_buffer_a_pdf,
@@ -108,7 +108,7 @@ def test_verificar_publico_metadatos_y_anulado():
         organizacion_emisora='Org Cert',
         hash_sha256='a' * 64,
     )
-    with patch('core.certificado_service.asegurar_pdf_certificado', return_value=False):
+    with patch('core.certificados.certificado_service.asegurar_pdf_certificado', return_value=False):
         data = verificar_certificado_publico('eki-TEST-META-0001')
     assert data['valido'] is True
     assert data['organizacion'] == 'Org Cert'
@@ -167,7 +167,7 @@ def test_pagina_verificar_muestra_org_y_descarga():
         organizacion_emisora='Sponsor Verde',
         hash_sha256='b' * 64,
     )
-    with patch('core.certificado_service.asegurar_pdf_certificado', return_value=False):
+    with patch('core.certificados.certificado_service.asegurar_pdf_certificado', return_value=False):
         http = Client()
         r = http.get('/verificar-certificado/eki-TEST-PAGE-0002/')
     assert r.status_code == 200

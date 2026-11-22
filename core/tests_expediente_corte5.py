@@ -11,7 +11,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from core.certificado_service import calcular_calificacion_curso, crear_certificado_automatico
+from core.certificados.certificado_service import calcular_calificacion_curso, crear_certificado_automatico
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_certificados import Certificado
@@ -48,7 +48,7 @@ class ExpedienteNotaFlagOnTests(TestCase):
         _cli, curso, est, _prog = _curso_sin_preguntas('OnCalc')
         self.assertIsNone(calcular_calificacion_curso(est, curso))
 
-    @patch('core.certificado_service.generar_y_guardar_certificado', return_value=True)
+    @patch('core.certificados.certificado_service.generar_y_guardar_certificado', return_value=True)
     def test_certificado_nuevo_sin_100(self, _gen):
         _cli, curso, est, progreso = _curso_sin_preguntas('OnCert')
         marcar_progreso_curso_completado(progreso)

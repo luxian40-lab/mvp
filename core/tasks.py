@@ -446,7 +446,7 @@ def generar_certificado_async(self, certificado_id):
     """Pinta el diploma HD (PNG maestro + PDF A4 + copia WA) y lo envía."""
     try:
         from core.models_certificados import Certificado
-        from core.certificado_service import (
+        from core.certificados.certificado_service import (
             enviar_certificado_whatsapp,
             generar_y_guardar_certificado,
         )
