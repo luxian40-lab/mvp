@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from core.dashboard_avanzado import exportar_metricas_excel
-from core.dashboard_redirects import (
+from core.analitica.dashboard_redirects import (
     redirect_dashboard_analytics,
     redirect_dashboard_antiguo,
     redirect_dashboard_gerencial,
