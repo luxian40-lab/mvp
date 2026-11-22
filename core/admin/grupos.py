@@ -196,7 +196,7 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
         from django.contrib import messages
         from django.shortcuts import get_object_or_404, render
 
-        from core.grupos_miembros import (
+        from core.curso.grupos_miembros import (
             agregar_miembros_por_identificadores,
             leer_identificadores_desde_excel,
             parsear_lineas_identificadores,
