@@ -229,9 +229,9 @@ UNFOLD = {
         },
     },
     "COMMAND": {
-        "search_callback": "core.admin_command_search.eki_command_search_callback",
+        "search_callback": "core.admin_vistas.admin_command_search.eki_command_search_callback",
         # Lista acotada (callback): True escaneaba todo el admin y podía 500 en Aprende.
-        "search_models": "core.admin_command_search.eki_searchable_models",
+        "search_models": "core.admin_vistas.admin_command_search.eki_searchable_models",
         "show_history": True,
     },
     "SIDEBAR": {

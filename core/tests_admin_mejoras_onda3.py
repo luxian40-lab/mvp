@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.admin_command_search import eki_command_search_callback
+from core.admin_vistas.admin_command_search import eki_command_search_callback
 from core.models import (
     Cliente,
     Curso,
