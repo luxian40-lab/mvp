@@ -195,7 +195,7 @@
   "core.tutor_ia_modulo",
   "core.twilio_media",
   "core.twilio_puerta",
-  "core.utils",
+  "core.canal.envios",
   "core.video_links",
   "core.views",
   "core.views.admin_panel",

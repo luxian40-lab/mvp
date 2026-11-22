@@ -230,7 +230,7 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa():
             patch.object(entrada, '_procesar_twilio_webhook', return_value=None) as mock_proc, \
             patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False), \
             patch('core.canal.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'), \
-            patch('core.utils.enviar_whatsapp_twilio', side_effect=AssertionError('no debe llamar a Twilio')):
+            patch('core.canal.envios.enviar_whatsapp_twilio', side_effect=AssertionError('no debe llamar a Twilio')):
         mock_encolar.side_effect = ConnectionError('redis')
         resp = client.post('/webhook/whatsapp/', data=data, secure=True, HTTP_HOST='testserver')
         assert resp.status_code == 500

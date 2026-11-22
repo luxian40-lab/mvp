@@ -155,7 +155,7 @@ class TwilioSender:
         correlacion: str = '',
     ) -> dict:
         from core.models.outbox_envio import ejecutar
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         return ejecutar(
             correlacion=correlacion,

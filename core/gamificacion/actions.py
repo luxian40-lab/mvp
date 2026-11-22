@@ -511,7 +511,7 @@ def notificar_logro_academico(estudiante, tipo_logro, detalles, via='whatsapp'):
         # Enviar notificación
         if via == 'whatsapp':
             try:
-                from core.utils import enviar_whatsapp, enviar_whatsapp_twilio
+                from core.canal.envios import enviar_whatsapp, enviar_whatsapp_twilio
                 telefono = estudiante.telefono
                 
                 # Intentar con proveedor configurado

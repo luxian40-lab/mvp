@@ -38,7 +38,7 @@ django.setup()
 from core.models import Curso, Modulo
 from core.course_engine.video_pilot_generator import VideoPilotGenerator, FOCO_PILOTO_ERROR1
 from core.twilio_media import evaluar_mp4_listo_whatsapp, _descargar_bytes
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 BRIEF_B64 = "$briefB64"
 brief = base64.b64decode(BRIEF_B64).decode("utf-8")

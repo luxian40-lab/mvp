@@ -101,7 +101,7 @@ if not url:
     sys.exit(0)
 
 # Envio QA
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 tel = os.environ.get("TEL_QA", "573026480629")
 msg = (

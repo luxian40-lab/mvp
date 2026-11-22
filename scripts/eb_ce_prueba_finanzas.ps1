@@ -78,7 +78,7 @@ dur = subprocess.run(
 if dur.returncode == 0:
     print(f"Duracion: {float(dur.stdout.decode().strip()):.1f}s")
 
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 tel = os.environ.get("TEL_QA", "573026480629")
 msg = "[eki QA] Video gestion financiera y rentabilidad — contexto visual alineado. Responde OK si cuadra."
 r = enviar_whatsapp_twilio(tel, msg, media_url=url.strip())

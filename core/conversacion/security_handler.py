@@ -10,7 +10,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from core.conversacion.claves_contexto import contexto_limpio
 from core.models import Estudiante, SolicitudSoporte
-from core.utils import enviar_whatsapp
+from core.canal.envios import enviar_whatsapp
 import logging
 import re
 

@@ -127,7 +127,7 @@ class SandboxCanalMetaSendTests(TestCase):
     def test_enviar_sandbox_usa_graph_no_twilio(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_tw:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_tw:
             result = enviar_sandbox('573001234567', 'hola sandbox')
         self.assertTrue(result.get('success'))
         self.assertEqual(result.get('mensaje_id'), 'wamid.out')
@@ -266,7 +266,7 @@ class SandboxCanalMetaSendTests(TestCase):
 
         SandboxCanalSesion.objects.create(telefono='573001234590', habeas_aceptado=True)
         with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'x'}) as send:
-            with patch('core.utils.enviar_whatsapp_twilio') as mock_tw:
+            with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_tw:
                 out = dispatch_sandbox_menu({
                     'From': 'whatsapp:+573001234590',
                     'To': 'whatsapp:+573009998888',
@@ -535,7 +535,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
         est = self._est()
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio, \
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as envio, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('Si', 'wamid.si1'))
         est.refresh_from_db()

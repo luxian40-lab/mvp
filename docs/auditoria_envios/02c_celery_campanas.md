@@ -14,7 +14,7 @@ def reenganche_drip_content_diario():
     try:
         from datetime import timedelta
         from core.models import ProgresoEstudiante
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
         from core.whatsapp_service import enviar_template_twilio
 
         ahora = timezone.now()

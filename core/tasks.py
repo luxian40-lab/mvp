@@ -151,7 +151,7 @@ def _cortar_reentregas(task, datos, kwargs=None) -> bool:
 
 def _aviso_flood_texto(telefono):
     from core.antiflood import AVISO_FLOOD
-    from core.utils import enviar_whatsapp
+    from core.canal.envios import enviar_whatsapp
 
     enviar_whatsapp(telefono, AVISO_FLOOD)
 

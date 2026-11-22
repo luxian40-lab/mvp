@@ -295,7 +295,7 @@ def enviar_sandbox(
     """Envío sandbox: Meta Graph si SANDBOX_PROVEEDOR=meta; si no, Twilio legacy."""
     del from_number  # Meta usa SANDBOX_WHATSAPP_PHONE_ID / WHATSAPP_PHONE_ID
     if not _via_meta():
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         return enviar_whatsapp_twilio(
             telefono,

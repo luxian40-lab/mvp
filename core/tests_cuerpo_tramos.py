@@ -126,7 +126,7 @@ class IntercepcionesTests(_Base):
 
 class ArranqueTests(_Base):
     def _menu(self, est, sid):
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar:
             self._post('menu', sid)
         est.refresh_from_db()
         return enviar
@@ -160,13 +160,13 @@ class PrioridadGlobalTests(_Base):
         from core.correccion_datos import construir_menu_principal_texto
 
         est = self._est(cliente=None)
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar:
             self._post('menu', 'SM_tr_pg_menu')
         enviar.assert_called_once_with(f'+{TEL}', construir_menu_principal_texto(est))
 
     def test_hola_de_b2b_retoma_la_leccion(self):
         est = self._est()
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar, \
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar, \
                 patch('core.response_templates.get_response_for_intent', return_value='RETOMA') as intent:
             self._post('hola', 'SM_tr_pg_hola')
         intent.assert_called_once_with(
@@ -176,7 +176,7 @@ class PrioridadGlobalTests(_Base):
 
     def test_corregir_datos_abre_el_flujo_de_correccion(self):
         est = self._est()
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar:
             self._post('corregir datos', 'SM_tr_pg_corregir')
         est.refresh_from_db()
         self.assertEqual(est.contexto_temporal.get('tipo'), 'correccion_datos')
@@ -184,14 +184,14 @@ class PrioridadGlobalTests(_Base):
 
     def test_en_flujo_de_correccion_sigue_el_flujo(self):
         self._est(contexto_temporal={'tipo': 'correccion_datos', 'estado': 'esperando_opcion', 'campo': ''})
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar, \
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar, \
                 patch('core.correccion_datos.procesar_flujo_correccion', return_value='PASO_CORR'):
             self._post('1', 'SM_tr_pg_flujo')
         enviar.assert_called_once_with(f'+{TEL}', 'PASO_CORR')
 
     def test_formulario_activo_tiene_prioridad(self):
         self._est()
-        with patch('core.utils.enviar_whatsapp_twilio') as enviar, \
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar, \
                 patch('core.puentes.debe_usar_agente_formulario', return_value=True), \
                 patch('core.puentes.manejar_mensaje_formulario', return_value='FORM'):
             self._post('mi finca tiene 3 hectareas', 'SM_tr_pg_form')

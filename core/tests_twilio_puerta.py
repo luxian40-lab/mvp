@@ -32,7 +32,7 @@ class PuertaTwilioTests(TestCase):
     def test_aula_activo_manda_codigo_y_no_entra_al_curso(self):
         from core.views.entrada import _procesar_twilio_reclamado
 
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as send:
             with patch('core.views.entrada._procesar_twilio_webhook') as curso:
                 r = _procesar_twilio_reclamado(self._post(), ['SMpuerta1'], lambda _d: False)
         self.assertIsNone(r)
@@ -44,7 +44,7 @@ class PuertaTwilioTests(TestCase):
     def test_listo_no_avanza_el_curso(self):
         from core.views.entrada import _procesar_twilio_reclamado
 
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as send:
             with patch('core.views.entrada._procesar_twilio_webhook') as curso:
                 _procesar_twilio_reclamado(self._post('listo'), ['SMpuerta2'], lambda _d: False)
         curso.assert_not_called()
@@ -55,7 +55,7 @@ class PuertaTwilioTests(TestCase):
         from core.views.entrada import _procesar_twilio_reclamado
 
         data = self._post('', MessageStatus='delivered', SmsStatus='delivered')
-        with patch('core.utils.enviar_whatsapp_twilio') as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as send:
             with patch('core.views.entrada._procesar_twilio_webhook', return_value=None) as curso:
                 _procesar_twilio_reclamado(data, ['SMpuerta3'], lambda _d: False)
         send.assert_not_called()
@@ -64,7 +64,7 @@ class PuertaTwilioTests(TestCase):
     def test_aula_en_meta_sale_por_meta(self):
         data = self._post(_eki_proveedor='meta')
         with patch('core.sandbox_canal.enviar_meta', return_value={'success': True}) as meta:
-            with patch('core.utils.enviar_whatsapp_twilio') as twilio:
+            with patch('core.canal.envios.enviar_whatsapp_twilio') as twilio:
                 ok = responder_aula_meta(data)
         self.assertTrue(ok)
         meta.assert_called_once()
@@ -73,5 +73,5 @@ class PuertaTwilioTests(TestCase):
         self.assertRegex(meta.call_args.args[1], r'\*\d{6}\*')
 
     def test_aplicar_puerta_aula_no_es_seguir(self):
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}):
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}):
             self.assertEqual(aplicar_puerta_twilio(self._post()), 'aula')

@@ -1508,7 +1508,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         Envía el mismo mensaje a múltiples estudiantes usando template aprobado de Twilio.
         Ideal para: PQRS, anuncios de clases, notificaciones importantes.
         """
-        from core.utils import enviar_whatsapp_twilio_content_template
+        from core.canal.envios import enviar_whatsapp_twilio_content_template
         
         if 'aplicar' in request.POST:
             mensaje = request.POST.get('mensaje', '').strip()
@@ -1694,7 +1694,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             
             for estudiante in queryset:
                 try:
-                    from core.utils import enviar_whatsapp_twilio_content_template
+                    from core.canal.envios import enviar_whatsapp_twilio_content_template
                     
                     # Verificar que el template esté configurado
                     content_sid = settings.TWILIO_TEMPLATE_INVITACION_GRUPO

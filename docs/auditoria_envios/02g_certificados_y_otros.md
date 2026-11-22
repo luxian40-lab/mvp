@@ -367,7 +367,7 @@ def enviar_balance_gei_whatsapp(ficha, estudiante=None) -> bool:
         texto = generar_mensaje_resultado_whatsapp(ficha)
         if not tel.startswith("+"):
             tel = f"+{tel}"
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         enviar_whatsapp_twilio(tel, texto)
         return True
@@ -480,7 +480,7 @@ def enviar_previo_whatsapp(
 ) -> dict:
     """Aviso previo al diploma. Fuera de ventana 24 h use twilio_content_sid (plantilla aprobada)."""
     from core.enviar_plantillas import enviar_plantilla_twilio
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     sid = (twilio_content_sid or '').strip()
     if sid:

@@ -38,7 +38,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
     def test_flujo_programas_fallback(self):
         from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
             ok = intentar_flujo_prospecto_carrusel(
                 telefono='573009990002',
@@ -52,7 +52,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
     def test_flujo_desc_riendas(self):
         from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
             ok = intentar_flujo_prospecto_carrusel(
                 telefono='573009990003',
@@ -67,7 +67,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
     def test_solo_botones_no_roba_programas(self):
         from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
             ok = intentar_flujo_prospecto_carrusel(
                 telefono='573009990004',
@@ -82,7 +82,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
     def test_solo_botones_si_payload(self):
         from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
             ok = intentar_flujo_prospecto_carrusel(
                 telefono='573009990005',
@@ -97,7 +97,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
     def test_in_riendas_sin_curso_sigue_cta(self):
         from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
-        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
             ok = intentar_flujo_prospecto_carrusel(
                 telefono='573009990010',
@@ -128,7 +128,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
             activo=True,
         )
         with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
-            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+            with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_txt, patch(
                 'core.canal.whatsapp_service.enviar_habeas_data'
             ) as mock_hab:
                 mock_txt.return_value = {'success': True}
@@ -183,7 +183,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
             activo=True,
         )
         with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
-            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+            with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_txt, patch(
                 'core.canal.whatsapp_service.enviar_habeas_data'
             ) as mock_hab:
                 mock_txt.return_value = {'success': True}
@@ -246,7 +246,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
             EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id),
             EKI_DEMO_RIENDAS_ORIGEN_ID='999999',  # sync no-op
         ):
-            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+            with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_txt, patch(
                 'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
                 return_value={'ok': False},
             ):

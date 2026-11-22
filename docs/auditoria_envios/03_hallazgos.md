@@ -140,7 +140,7 @@ Evidencia por archivo:línea. Los volcados literales están en `02a*` … `02g*`
 | Área | Archivo | Qué mockea |
 |---|---|---|
 | Firma Twilio | `core/tests_twilio_webhook_security.py` | Request HTTP, settings de token de prueba |
-| Reclamo de id | `core/tests_webhook_idempotencia.py` | `patch('core.utils.enviar_whatsapp_twilio')` en `:230` |
+| Reclamo de id | `core/tests_webhook_idempotencia.py` | `patch('core.canal.envios.enviar_whatsapp_twilio')` en `:230` |
 | Graph sandbox | `core/tests_sandbox_canal_meta.py` | `core.sandbox_canal.requests.post`, `_post_graph`, `enviar_whatsapp_twilio` |
 | Menú sandbox | `core/tests_planes_linea.py`, `core/tests_sandbox_menu_event_engine.py` | `_post_graph`, `requests.post`, `enviar_sandbox_habeas` |
 | From vacío | `core/tests_twilio_from_fallback.py` | settings |

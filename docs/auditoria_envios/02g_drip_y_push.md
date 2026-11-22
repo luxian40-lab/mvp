@@ -718,7 +718,7 @@ def resolver_audiencia(mensaje: MensajePush, grupo: GrupoEstudiantes | None = No
 def enviar_mensaje_push_a_estudiante(mensaje: MensajePush, estudiante: Estudiante) -> dict:
     """Envía un push; no altera onboarding ni reinicia curso."""
     from core.enviar_plantillas import enviar_plantilla_twilio
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     if not estudiante.telefono:
         return {'success': False, 'error': 'Sin teléfono'}

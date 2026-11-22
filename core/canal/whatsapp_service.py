@@ -199,7 +199,7 @@ def enviar_lista_cursos(telefono, estudiante):
     cantidad = len(cursos_list)
     
     if cantidad == 0:
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
         return enviar_whatsapp_twilio(
             telefono,
             "📚 No hay cursos disponibles en este momento. Escribe *menú* para volver."
@@ -239,7 +239,7 @@ def enviar_lista_cursos(telefono, estudiante):
     msg += "     Ejemplo: *tomar 1* o simplemente *1*\n\n"
     msg += "👉 Escribe *menú* para volver"
     
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
     return enviar_whatsapp_twilio(telefono, msg)
 
 
@@ -265,7 +265,7 @@ def enviar_mensaje_ventas(telefono):
         "👉 Escribe el *número* de tu opción (1, 2, 3 o 4)"
     )
     
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
     return enviar_whatsapp_twilio(telefono, msg)
 
 
@@ -309,7 +309,7 @@ def enviar_gamificacion_visual(telefono, estudiante):
     msg += "¡Sigue así! 💪\n\n"
     msg += "Escribe *menú* para volver"
     
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
     return enviar_whatsapp_twilio(telefono, msg)
 
 

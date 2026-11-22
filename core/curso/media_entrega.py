@@ -166,7 +166,7 @@ def reintentar_media_desde_log(log, error_code: str = '') -> bool:
     marcar_reintento_en_log(log, n, error_code)
 
     try:
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         url = normalizar_media_url_s3(media_url) or media_url
         try:

@@ -54,7 +54,7 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     except Exception:
         logger.exception('aula_twilio_emit_fail')
         return False
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     enviar_whatsapp_twilio(post_data.get('From', ''), texto, agente_evento='aula_twilio')
     return True

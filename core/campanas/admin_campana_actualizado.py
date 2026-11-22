@@ -78,7 +78,7 @@ class CampanaUnicaAdmin(admin.ModelAdmin):
 
     def enviar_campana_unica(self, request, queryset):
         """Enviar campaña única usando Twilio Content Template"""
-        from core.utils import enviar_whatsapp_twilio_content_template
+        from core.canal.envios import enviar_whatsapp_twilio_content_template
         import json
         
         total_ok = 0

@@ -19,7 +19,7 @@ import subprocess
 import django
 django.setup()
 from core.twilio_media import evaluar_mp4_listo_whatsapp, _descargar_bytes
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 url = "$VideoUrl"
 tel = "$TelQa"

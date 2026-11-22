@@ -2981,7 +2981,7 @@ class ModuloAdmin(admin.ModelAdmin):
     
     def enviar_archivos_multimedia(self, request, queryset):
         """Envía los archivos multimedia de los módulos seleccionados a estudiantes inscritos"""
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
         import json
         
         enviados = 0

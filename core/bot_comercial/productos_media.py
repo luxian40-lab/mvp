@@ -8,7 +8,7 @@ from typing import Sequence
 
 from django.db.models import Q
 
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 logger = logging.getLogger(__name__)
 

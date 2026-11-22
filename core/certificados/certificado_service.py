@@ -670,7 +670,7 @@ def _enviar_whatsapp_con_reintentos(
     pausa_inicial: float = 0.0,
 ) -> dict:
     """Reintenta envío de sesión (p. ej. imagen del diploma tras plantilla HSM)."""
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     if pausa_inicial > 0:
         time.sleep(pausa_inicial)

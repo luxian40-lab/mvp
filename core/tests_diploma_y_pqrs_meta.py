@@ -24,7 +24,7 @@ class DiplomaSalePorMetaTests(SimpleTestCase):
     @patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.DIP'})
     @patch('twilio.rest.Client')
     def test_diploma_no_llama_a_twilio(self, client_cls, meta):
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         r = enviar_whatsapp_twilio(
             '573001112233',
@@ -43,10 +43,10 @@ class DiplomaSalePorMetaTests(SimpleTestCase):
         TWILIO_WHATSAPP_NUMBER='whatsapp:+14155238886',
     )
     @patch('core.sandbox_canal.enviar_meta')
-    @patch('core.utils.WhatsappLog')
+    @patch('core.canal.envios.WhatsappLog')
     @patch('twilio.rest.Client')
     def test_video_de_aula_sigue_en_twilio(self, client_cls, _log, meta):
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         msg = MagicMock()
         msg.sid = 'SMaula'

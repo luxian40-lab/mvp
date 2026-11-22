@@ -76,7 +76,7 @@ class TwilioSenderTests(TestCase):
         self.assertIsInstance(sender_de_linea(''), TwilioSender)
 
     def test_texto_delega_en_enviar_whatsapp_twilio(self):
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as envio:
             TwilioSender('whatsapp:+14155238886').texto('+573001112233', 'Hola', agente='prueba')
         envio.assert_called_once_with(
             '+573001112233',
@@ -87,7 +87,7 @@ class TwilioSenderTests(TestCase):
         )
 
     def test_botones_salen_como_texto(self):
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as envio:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as envio:
             TwilioSender().botones('+573001112233', 'Elija', [('si', 'Sí'), ('no', 'No')])
         self.assertEqual(envio.call_args.args[1], 'Elija\n\n• Sí\n• No')
 

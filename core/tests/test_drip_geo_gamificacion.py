@@ -382,7 +382,7 @@ class DripGeoGamificacionTests(TestCase):
 		with patch('core.sandbox_canal.enviar_meta') as meta, \
 			patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla, \
 			patch('core.canal.whatsapp_service.enviar_template_twilio') as twilio, \
-			patch('core.utils.enviar_whatsapp_twilio') as texto:
+			patch('core.canal.envios.enviar_whatsapp_twilio') as texto:
 			resultado = reenganche_drip_content_diario()
 		self.assertFalse(resultado.get('habilitado'))
 		self.assertEqual(resultado.get('enviados'), 0)

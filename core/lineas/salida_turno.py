@@ -34,7 +34,7 @@ def enviar_respuesta_turno(
             media_url=media_url,
             agente=agente or 'curso',
         )
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     return enviar_whatsapp_twilio(
         telefono,

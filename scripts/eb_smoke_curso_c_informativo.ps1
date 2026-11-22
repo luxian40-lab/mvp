@@ -19,7 +19,7 @@ django.setup()
 
 from core.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Curso, Estudiante, Modulo
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 tel = '$digits'
 enviar = $sendWa

@@ -11,10 +11,10 @@ class TwilioFromFallbackTests(SimpleTestCase):
         TWILIO_PHONE_NUMBER=None,
         TWILIO_WHATSAPP_NUMBER='whatsapp:+14155238886',
     )
-    @patch('core.utils.WhatsappLog')
+    @patch('core.canal.envios.WhatsappLog')
     @patch('twilio.rest.Client')
     def test_usa_whatsapp_number_si_phone_es_none(self, client_cls, _log):
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         msg = MagicMock()
         msg.sid = 'SMtest'
@@ -32,10 +32,10 @@ class TwilioFromFallbackTests(SimpleTestCase):
         TWILIO_PHONE_NUMBER=None,
         TWILIO_WHATSAPP_NUMBER=None,
     )
-    @patch('core.utils.WhatsappLog')
+    @patch('core.canal.envios.WhatsappLog')
     @patch('twilio.rest.Client')
     def test_fallback_prod_si_ambos_vacios(self, client_cls, _log):
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         msg = MagicMock()
         msg.sid = 'SMtest2'

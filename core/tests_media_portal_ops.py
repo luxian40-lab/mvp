@@ -56,7 +56,7 @@ def test_callback_63019_reintenta_media_una_vez():
         tipo='SENT',
         estado='SENT',
     )
-    with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
+    with patch('core.canal.envios.enviar_whatsapp_twilio') as send_mock:
         send_mock.return_value = {'success': True, 'mensaje_id': 'MMretry2'}
         with patch('core.media_entrega.preparar_url_media_whatsapp', create=True):
             with patch('core.canal.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
@@ -88,7 +88,7 @@ def test_reintento_respeta_maximo():
         estado='FAILED',
         error_detalle='63019 | RETRY:2',
     )
-    with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
+    with patch('core.canal.envios.enviar_whatsapp_twilio') as send_mock:
         ok = reintentar_media_desde_log(log, '63019')
         assert ok is False
         send_mock.assert_not_called()

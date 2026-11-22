@@ -355,7 +355,7 @@ class TwilioMediaCallbackFallbackTests(TestCase):
             tipo='SENT',
             estado='SENT',
         )
-        with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as send_mock:
             send_mock.return_value = {'success': True, 'mensaje_id': 'MMnew'}
             with patch('core.canal.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
                 _registrar_estado_twilio_callback({

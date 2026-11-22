@@ -370,7 +370,7 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     from core.inscripcion_curso import primer_modulo_curso
     from core.models_extras import ArchivoModulo
     from core.response_templates import dividir_contenido_seguro
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
     from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp
 
     m1 = primer_modulo_curso(curso)
@@ -415,7 +415,7 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
     pueden entrar a Riendas. Un estudiante de otro cliente B2B no se reinscribe
     ni se le resetea el avance.
     """
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
     from core.canal.whatsapp_service import enviar_habeas_data
 
     dest = dest_wa or telefono
@@ -557,7 +557,7 @@ def respuesta_por_texto(texto: str) -> str | None:
 def enviar_carrusel_demo(telefono: str) -> dict[str, Any]:
     """Envía plantilla carousel si hay Content SID; si no, lista en texto."""
     from core.canal.whatsapp_service import enviar_template_twilio
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     sid = content_sid_carrusel()
     if sid.startswith('HX'):
@@ -603,7 +603,7 @@ def intentar_flujo_prospecto_carrusel(
         )
 
     if es_payload_carrusel(payload):
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
         enviar_whatsapp_twilio(msg_from or telefono, respuesta_por_payload(payload))
         return True
 
@@ -617,7 +617,7 @@ def intentar_flujo_prospecto_carrusel(
 
     texto_card = respuesta_por_texto(msg_body)
     if texto_card:
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
         enviar_whatsapp_twilio(msg_from or telefono, texto_card)
         return True
 

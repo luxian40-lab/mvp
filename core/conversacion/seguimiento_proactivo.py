@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from core.models import Estudiante, ProgresoEstudiante, WhatsappLog
 from core.agentes_ia import AgenteMotivador
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 import logging
 
 logger = logging.getLogger(__name__)

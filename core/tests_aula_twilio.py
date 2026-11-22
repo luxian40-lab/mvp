@@ -33,7 +33,7 @@ class AulaTwilioWrapTests(TestCase):
         return data
 
     def test_emite_si_espera_habeas(self):
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as send:
             ok = _intentar_aula_twilio_fuera_de_activo(self._post())
         self.assertTrue(ok)
         texto = send.call_args.args[1]
@@ -43,12 +43,12 @@ class AulaTwilioWrapTests(TestCase):
     def test_no_emite_si_activo_para_no_duplicar_el_cuerpo(self):
         self.est.estado_chat = 'ACTIVO'
         self.est.save(update_fields=['estado_chat'])
-        with patch('core.utils.enviar_whatsapp_twilio') as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as send:
             self.assertFalse(_intentar_aula_twilio_fuera_de_activo(self._post()))
         send.assert_not_called()
 
     def test_meta_no_usa_este_wrap(self):
-        with patch('core.utils.enviar_whatsapp_twilio') as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio') as send:
             ok = _intentar_aula_twilio_fuera_de_activo(self._post(**{
                 '_eki_proveedor': 'meta',
             }))
@@ -56,7 +56,7 @@ class AulaTwilioWrapTests(TestCase):
         send.assert_not_called()
 
     def test_webhook_twilio_corta_antes_del_cuerpo(self):
-        with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}) as send:
+        with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}) as send:
             with patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
                 r = _procesar_twilio_webhook(self._post())
         self.assertIsNone(r)

@@ -36,7 +36,7 @@ def _enviar_twilio(post_data, texto: str, agente: str) -> None:
     destino = (post_data.get('From') or '').strip()
     if not destino or not texto:
         return
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     enviar_whatsapp_twilio(destino, texto, agente_evento=agente)
 

@@ -18,7 +18,7 @@ import django
 django.setup()
 
 from core.models import Estudiante, PasoModulo, WhatsappLog
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 TEL = "573026480629"
 SAMPLES = [

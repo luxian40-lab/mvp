@@ -48,7 +48,7 @@ def _call_with_timeout(func, timeout_sec: int, label: str = 'op'):
 
 
 from core.models import Cliente, WhatsappLog
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 
 def _registrar_estado_twilio_callback(post_data):

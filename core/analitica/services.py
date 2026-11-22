@@ -5,7 +5,7 @@ import threading
 from django.conf import settings
 
 from core.models import EnvioLog
-from core.utils import enviar_whatsapp_twilio
+from core.canal.envios import enviar_whatsapp_twilio
 
 logger = logging.getLogger(__name__)
 

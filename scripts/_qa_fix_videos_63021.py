@@ -99,7 +99,7 @@ def main() -> int:
         ready = preparar_url_media_whatsapp(url)
         print('  preparar_url', ready)
         if args.reenviar and to:
-            from core.utils import enviar_whatsapp_twilio
+            from core.canal.envios import enviar_whatsapp_twilio
 
             res = enviar_whatsapp_twilio(
                 telefono=to,

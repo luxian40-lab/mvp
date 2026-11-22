@@ -732,7 +732,7 @@ def test_generar_mensaje_whatsapp_incluye_balance():
     assert "módulo 6" in msg.lower() or "modulo 6" in msg.lower()
 
 
-@mock.patch("core.utils.enviar_whatsapp_twilio")
+@mock.patch("core.canal.envios.enviar_whatsapp_twilio")
 def test_modulo5_no_whatsapp_si_hay_formulario_balance(mock_send):
     """Con formulario bloque balance en M5, el envío se difiere al cerrar la sesión."""
     from formulario.gei_flujos import PASOS_BALANCE
@@ -755,7 +755,7 @@ def test_modulo5_no_whatsapp_si_hay_formulario_balance(mock_send):
     mock_send.assert_not_called()
 
 
-@mock.patch("core.utils.enviar_whatsapp_twilio")
+@mock.patch("core.canal.envios.enviar_whatsapp_twilio")
 def test_cerrar_formulario_balance_envia_whatsapp(mock_send):
     from formulario.agent import _cerrar_sesion, iniciar_sesion_formulario
     from formulario.gei_flujos import PASOS_BALANCE
@@ -795,7 +795,7 @@ def test_cerrar_formulario_balance_envia_whatsapp(mock_send):
     assert ficha.pk == sesion.ficha_id
 
 
-@mock.patch("core.utils.enviar_whatsapp_twilio")
+@mock.patch("core.canal.envios.enviar_whatsapp_twilio")
 def test_iniciar_formulario_balance_reusa_ficha(mock_send):
     from formulario.agent import iniciar_sesion_formulario
     from formulario.gei_flujos import PASOS_BALANCE
@@ -812,7 +812,7 @@ def test_iniciar_formulario_balance_reusa_ficha(mock_send):
     assert sesion.ficha_id == ficha1.id
 
 
-@mock.patch("core.utils.enviar_whatsapp_twilio")
+@mock.patch("core.canal.envios.enviar_whatsapp_twilio")
 def test_modulo5_dispara_whatsapp_si_gei_activo(mock_send):
     cliente = ClienteFactory()
     cur, _m4, m5 = _bootstrap_curso_modulos()
@@ -840,7 +840,7 @@ def test_modulo5_dispara_whatsapp_si_gei_activo(mock_send):
     assert "Balance GEI" in body
 
 
-@mock.patch("core.utils.enviar_whatsapp_twilio")
+@mock.patch("core.canal.envios.enviar_whatsapp_twilio")
 def test_modulo5_no_whatsapp_si_curso_sin_gei(mock_send):
     cliente = ClienteFactory()
     cur, _m4, m5 = _bootstrap_curso_modulos()

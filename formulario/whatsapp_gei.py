@@ -29,7 +29,7 @@ def enviar_balance_gei_whatsapp(ficha, estudiante=None) -> bool:
         texto = generar_mensaje_resultado_whatsapp(ficha)
         if not tel.startswith("+"):
             tel = f"+{tel}"
-        from core.utils import enviar_whatsapp_twilio
+        from core.canal.envios import enviar_whatsapp_twilio
 
         enviar_whatsapp_twilio(tel, texto)
         return True

@@ -85,7 +85,7 @@ def cortar_habeas_meta(post_data) -> bool:
         logger.exception('habeas_meta_corte')
         resultado = {'accion': 'reenviar_plantilla', 'texto': None}
     from core.sandbox_canal import enviar_sandbox_habeas
-    from core.utils import enviar_whatsapp_twilio
+    from core.canal.envios import enviar_whatsapp_twilio
 
     destino = post_data.get('From', '') or est.telefono
     if resultado.get('accion') == 'reenviar_plantilla':

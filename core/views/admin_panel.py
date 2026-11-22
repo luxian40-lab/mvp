@@ -1167,7 +1167,7 @@ def probar_twilio_view(request):
                 # Si es mensaje con imagen/video, generar URL firmada y agregar media_url
                 if tipo_mensaje == 'imagen' and url_imagen:
                     # Revisar si la URL es de S3 y necesita firma
-                    from core.utils import generar_url_firmada_s3_v4
+                    from core.canal.envios import generar_url_firmada_s3_v4
                     import re
                     s3_pattern = r'https://([\w\-]+)\.s3[\w\-\.]*\.amazonaws\.com/(.+)'
                     match = re.match(s3_pattern, url_imagen)
