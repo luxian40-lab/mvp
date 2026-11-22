@@ -617,7 +617,7 @@ def module_builder_view(request, modulo_id: int):
         ),
     }
     if ctx['mb_ui_v2']:
-        from core.module_builder_lectura import avisos_antes_de_publicar, recepcion_secciones
+        from core.curso.module_builder_lectura import avisos_antes_de_publicar, recepcion_secciones
 
         ctx.update(_contexto_drip_solo_lectura(modulo))
         from core.media_upload_servicio import topes_bytes
@@ -633,7 +633,7 @@ def module_builder_view(request, modulo_id: int):
 def module_builder_probar_persona(request, modulo_id: int):
     """Busca una persona y dice si el calendario la deja entrar. No escribe."""
     from core.models import Estudiante
-    from core.module_builder_lectura import buscar_personas, veredicto_persona
+    from core.curso.module_builder_lectura import buscar_personas, veredicto_persona
 
     modulo = get_object_or_404(
         Modulo.objects.select_related('curso'),
