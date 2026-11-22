@@ -99,7 +99,7 @@ from core.analitica.models_notas import NotaEstudiante
 
 # ========== AUDITORÍA ==========
 # Importar modelos de auditoría desde archivo separado
-from core.models_audit import AuditLog
+from core.analitica.models_audit import AuditLog
 
 # ========== NUEVAS FUNCIONALIDADES ==========
 # Importar modelos adicionales

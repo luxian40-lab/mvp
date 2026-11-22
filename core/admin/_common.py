@@ -62,7 +62,7 @@ from ..models_extras import (
     EnlaceFormularioExterno, RegistroFormularioExterno,
     GrupoWhatsApp, InvitacionGrupo  # 📦 NUEVOS MODELOS
 )
-from ..models_audit import AuditLog  # 🔐 Auditoría
+from core.analitica.models_audit import AuditLog  # 🔐 Auditoría
 from ..gamificacion.recompensas import Recompensa, CanjeRecompensa
 from ..canal.envios import enviar_whatsapp_twilio, enviar_whatsapp  # Asegurar que tenemos la función
 from core.admin_vistas.widgets import ColorPickerWidget  # 🎨 Color picker para certificados

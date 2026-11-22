@@ -178,7 +178,7 @@ class CertificadoAccessMiddleware(MiddlewareMixin):
         
         # Registrar en audit log
         try:
-            from core.models_audit import AuditLog
+            from core.analitica.models_audit import AuditLog
             AuditLog.registrar(
                 accion='VERIFICAR',
                 certificado=codigo,  # Pasar el código, el método lo procesa

@@ -8,7 +8,7 @@ from core.models import (
     RespuestaAbiertaFinal as _RespuestaAbiertaFinal,
     ResultadoExamen as _ResultadoExamen,
 )
-from core.models_audit import AuditLog as _AuditLog
+from core.analitica.models_audit import AuditLog as _AuditLog
 from core.models_extras import PQRS as _PQRS
 from core.gamificacion import (
     Badge as _Badge,
