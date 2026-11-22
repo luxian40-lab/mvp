@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 from django.db.models import Max
 
-from core.bloques_modulo import crear_secciones_desde_titulos, parse_titulos_bloques_rapidos
+from core.curso.bloques_modulo import crear_secciones_desde_titulos, parse_titulos_bloques_rapidos
 from core.models import Curso, Modulo, SeccionModulo
 from core.models_extras import ArchivoModulo
 from core.module_steps import validar_contenido_modulo
