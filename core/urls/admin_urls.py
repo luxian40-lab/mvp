@@ -43,7 +43,7 @@ from core.views_cobertura_admin import (
     cobertura_admin_view,
 )
 from core.admin_vistas.views_avance_reset import ajustar_avance_view
-from core.views_campana_meta_dia import campana_meta_dia_view
+from core.admin_vistas.views_campana_meta_dia import campana_meta_dia_view
 from core.views_gamificacion_ajuste import gamificacion_ajuste_view
 from core.views_certificados_presenciales import certificados_presenciales_view
 from core.views_envio_certificados import envio_certificados_view
