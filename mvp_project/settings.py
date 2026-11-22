@@ -1428,7 +1428,7 @@ CAMPANA_PAUSA_TASA_FALLO = float(os.environ.get('CAMPANA_PAUSA_TASA_FALLO', '0.1
 EKI_INFRA_HEALTH_TOKEN = os.environ.get('EKI_INFRA_HEALTH_TOKEN', '')
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 try:
-    from core.sentry_eki import iniciar_sentry
+    from core.analitica.sentry_eki import iniciar_sentry
 
     iniciar_sentry()
 except Exception:

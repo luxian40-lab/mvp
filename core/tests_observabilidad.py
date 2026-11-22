@@ -2,7 +2,7 @@
 from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
-from core.sentry_eki import limpiar_evento
+from core.analitica.sentry_eki import limpiar_evento
 
 
 class ScrubTests(SimpleTestCase):
