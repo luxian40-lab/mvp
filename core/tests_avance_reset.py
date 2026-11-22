@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from core.avance_reset_service import (
+from core.curso.avance_reset_service import (
     ajustar_avance_hasta_modulo,
     ajustar_avance_estudiantes,
     reiniciar_avance_curso,
@@ -132,7 +132,7 @@ class AvanceResetServiceTests(TestCase):
         self.assertEqual(self.progreso.paso_actual_modulo, 2)
         self.assertFalse(self.progreso.esperando_respuesta_evaluacion_paso)
         self.assertEqual(resultado['paso_actual_modulo'], 2)
-        from core.avance_reset_service import etiqueta_paso_actual
+        from core.curso.avance_reset_service import etiqueta_paso_actual
         label = etiqueta_paso_actual(self.progreso)
         self.assertIn('Sec.2', label)
         self.assertIn('Micro B', label)

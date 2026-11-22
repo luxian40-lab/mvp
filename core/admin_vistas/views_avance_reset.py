@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect, render
 
-from core.avance_reset_service import (
+from core.curso.avance_reset_service import (
     ajustar_avance_estudiantes,
     filas_avance_curso,
     modulos_curso_ordenados,
