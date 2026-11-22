@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 from django.templatetags.static import static
 
-from core.client_logos import logo_estatico_para_nombre
+from core.analitica.client_logos import logo_estatico_para_nombre
 from core.models import Cliente, Curso
 
 

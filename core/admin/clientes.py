@@ -401,7 +401,7 @@ class ClienteAdmin(admin.ModelAdmin):
         """Foto/logo de la organización en el listado. Fallback: mapa estático o inicial."""
         from django.templatetags.static import static
 
-        from core.client_logos import logo_estatico_para_nombre
+        from core.analitica.client_logos import logo_estatico_para_nombre
 
         url = (getattr(obj, 'logo_url', None) or '').strip() if obj else ''
         if not url and obj:

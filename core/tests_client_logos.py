@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from core.client_logos import logo_estatico_para_nombre
+from core.analitica.client_logos import logo_estatico_para_nombre
 
 
 class ClientLogosTests(SimpleTestCase):

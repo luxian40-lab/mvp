@@ -753,7 +753,7 @@ class ClienteAdminV2(ClienteAdmin):
     def columna_organizacion(self, obj):
         from django.templatetags.static import static
 
-        from core.client_logos import logo_estatico_para_nombre
+        from core.analitica.client_logos import logo_estatico_para_nombre
 
         url = (obj.logo_url or '').strip()
         if not url:
