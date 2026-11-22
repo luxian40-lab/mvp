@@ -151,7 +151,7 @@ def estudiante_login(request):
     if modo == 'correo' or request.GET.get('from') == 'correo':
         from urllib.parse import quote
 
-        from core.host_isolation import absolute_path
+        from core.analitica.host_isolation import absolute_path
 
         next_url = next_aprende_seguro(request.GET.get('next'))
         studio_next = quote(f'/studio/ir-a-aprende/?next={next_url}')
@@ -204,7 +204,7 @@ def estudiante_login(request):
             else:
                 error = msg
 
-    from core.host_isolation import absolute_path
+    from core.analitica.host_isolation import absolute_path
 
     return render(request, 'aprende/estudiante_login.html', {
         'error': error,

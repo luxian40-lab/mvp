@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.contrib.staticfiles.storage import staticfiles_storage
 
-from core.host_isolation import absolute_path
+from core.analitica.host_isolation import absolute_path
 
 _CRAWLER_UA = (
     'whatsapp',

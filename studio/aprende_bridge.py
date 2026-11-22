@@ -9,7 +9,7 @@ from django.core import signing
 from django.urls import reverse
 
 from aprende.session_auth import VIA_STUDIO
-from core.host_isolation import absolute_path
+from core.analitica.host_isolation import absolute_path
 
 HANDOFF_SALT = 'eki-aprende-handoff-v1'
 HANDOFF_MAX_AGE = 300  # 5 minutos

@@ -106,7 +106,7 @@ def emitir_acceso_desde_whatsapp(estudiante) -> str:
     from django.core.cache import cache
 
     from aprende.models import CodigoAccesoAprende
-    from core.host_isolation import absolute_path
+    from core.analitica.host_isolation import absolute_path
 
     emit_key = f'aprende_otp_emit:{int(estudiante.pk)}'
     emit_n = int(cache.get(emit_key, 0) or 0)

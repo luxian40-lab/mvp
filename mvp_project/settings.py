@@ -106,7 +106,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos en producción
     'core.middleware.RequestContextMiddleware',  # request_id y latencia básica
-    'core.host_isolation.HostIsolationMiddleware',  # admin/portal/studio/aprende por host
+    'core.analitica.host_isolation.HostIsolationMiddleware',  # admin/portal/studio/aprende por host
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
