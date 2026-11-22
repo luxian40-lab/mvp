@@ -64,7 +64,7 @@ class NoRegistradoTests(_Base):
         return self._post(body, sid, tel=TEL_PROSPECTO)
 
     def test_numero_nuevo_crea_prospecto_y_manda_ventas(self):
-        with patch('core.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False), \
+        with patch('core.curso.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False), \
                 patch('core.canal.whatsapp_service.enviar_mensaje_ventas') as ventas:
             self._post_p('hola', 'SM_tr_p_nuevo')
         p = ProspectoB2B.objects.get(telefono=TEL_PROSPECTO)
@@ -73,7 +73,7 @@ class NoRegistradoTests(_Base):
 
     def test_prospecto_que_elige_empresa_queda_esperando_correo(self):
         ProspectoB2B.objects.create(telefono=TEL_PROSPECTO, mensaje_original='hola', origen='whatsapp_bot')
-        with patch('core.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False):
+        with patch('core.curso.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False):
             cli = self._post_p('1', 'SM_tr_p_empresa')
         self.assertTrue(ProspectoB2B.objects.get(telefono=TEL_PROSPECTO).esperando_email)
         self.assertEqual(len(self._cuerpos(cli)), 1)
@@ -83,7 +83,7 @@ class NoRegistradoTests(_Base):
         ProspectoB2B.objects.create(
             telefono=TEL_PROSPECTO, mensaje_original='hola', origen='whatsapp_bot', esperando_email=True,
         )
-        with patch('core.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False), \
+        with patch('core.curso.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False), \
                 patch('django.core.mail.send_mail') as correo:
             cli = self._post_p('mi correo es juan@empresa.com', 'SM_tr_p_correo')
         p = ProspectoB2B.objects.get(telefono=TEL_PROSPECTO)
@@ -95,7 +95,7 @@ class NoRegistradoTests(_Base):
         ProspectoB2B.objects.create(
             telefono=TEL_PROSPECTO, mensaje_original='hola', origen='whatsapp_bot', esperando_email=True,
         )
-        with patch('core.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False):
+        with patch('core.curso.catalogo_demo_carousel.intentar_flujo_prospecto_carrusel', return_value=False):
             cli = self._post_p('no tengo', 'SM_tr_p_invalido')
         self.assertEqual(
             self._cuerpos(cli), ['📧 Por favor envía un correo electrónico válido (ej: nombre@empresa.com)'],

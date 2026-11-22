@@ -17,7 +17,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     telefono_limpio = contexto.telefono_limpio
     # Verificar si ya es un prospecto B2B existente
     from core.models import ProspectoB2B
-    from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+    from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
     prospecto = None
     try:

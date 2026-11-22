@@ -3,7 +3,7 @@
 from django.test import TestCase, override_settings
 from unittest.mock import patch
 
-from core.catalogo_demo_carousel import (
+from core.curso.catalogo_demo_carousel import (
     DESC_RIENDAS,
     TEXTO_CTA_RIENDAS,
     TEXTO_INFO_VITRINA,
@@ -36,7 +36,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True, EKI_DEMO_CAROUSEL_CONTENT_SID='')
     def test_flujo_programas_fallback(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
@@ -50,7 +50,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_flujo_desc_riendas(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
@@ -65,7 +65,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_solo_botones_no_roba_programas(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
@@ -80,7 +80,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_solo_botones_si_payload(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
@@ -95,7 +95,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_in_riendas_sin_curso_sigue_cta(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_send:
             mock_send.return_value = {'success': True}
@@ -110,7 +110,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_in_riendas_crea_estudiante_y_habeas(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
         from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 
         cli = Cliente.objects.create(
@@ -150,7 +150,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_in_riendas_no_roba_estudiante_otro_cliente(self):
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
         from core.models import Cliente, Curso, Estudiante
 
         otro = Cliente.objects.create(
@@ -202,7 +202,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
     def test_sandbox_no_pisa_estudiante_otro_cliente(self):
-        from core.catalogo_demo_carousel import arrancar_demo_riendas
+        from core.curso.catalogo_demo_carousel import arrancar_demo_riendas
         from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 
         otro = Cliente.objects.create(
@@ -247,7 +247,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
             EKI_DEMO_RIENDAS_ORIGEN_ID='999999',  # sync no-op
         ):
             with patch('core.canal.envios.enviar_whatsapp_twilio') as mock_txt, patch(
-                'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
+                'core.curso.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
                 return_value={'ok': False},
             ):
                 mock_txt.return_value = {'success': True}

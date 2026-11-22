@@ -293,7 +293,7 @@ class SandboxMenuTests(TestCase):
             EKI_DEMO_RIENDAS_ORIGEN_ID='999999',
         ):
             with patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True}), patch(
-                'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
+                'core.curso.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
                 return_value={'ok': False},
             ), patch(
                 'core.canal.sandbox_canal.enviar_sandbox', return_value={'success': True}

@@ -27,7 +27,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     # Carrusel demo: taps Content (desc_*/info_*/in_*) también si ya es Estudiante
     # (p. ej. smoke en 3026480629). No intercepta listo ni menú LMS.
     try:
-        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.curso.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
 
         _btn_demo = (
             post_data.get('ButtonPayload')

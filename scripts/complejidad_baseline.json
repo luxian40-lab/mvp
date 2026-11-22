@@ -70,7 +70,7 @@
   "core.canal.twilio_media",
   "core.canal.twilio_puerta",
   "core.canal.whatsapp_service",
-  "core.catalogo_demo_carousel",
+  "core.curso.catalogo_demo_carousel",
   "core.certificado_presencial_service",
   "core.certificado_service",
   "core.certificados.certificado_presencial_service",
