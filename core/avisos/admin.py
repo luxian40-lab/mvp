@@ -185,7 +185,8 @@ class RecordatorioCursoForm(AvisoModuloForm):
         model = RecordatorioCurso
         fields = (
             'cliente', 'curso', 'grupo', 'phone_number_id', 'plantilla',
-            'dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora', 'activo',
+            'dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora',
+            'activo_hasta', 'activo',
         )
 
     def clean(self):
@@ -210,15 +211,16 @@ class RecordatorioCursoAdmin(ModelAdmin):
     fieldsets = (
         ('Estado', {'fields': ('col_estado', 'col_hoy')}),
         ('A quién', {'fields': ('cliente', 'curso', 'grupo')}),
-        ('Cuándo', {'fields': ('dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora')}),
+        ('Cuándo', {'fields': ('dias_sin_avanzar', 'repetir_cada_dias', 'maximo_envios', 'hora', 'activo_hasta')}),
         ('Envío', {'fields': ('phone_number_id', 'plantilla', 'activo')}),
     )
 
     @display(description='Regla')
     def col_regla(self, obj):
+        hasta = f' · hasta {obj.activo_hasta:%d/%m/%Y}' if obj.activo_hasta else ''
         return (
             f'A los {obj.dias_sin_avanzar} días, luego cada {obj.repetir_cada_dias} '
-            f'(máx. {obj.maximo_envios}) · {obj.hora:02d}:00'
+            f'(máx. {obj.maximo_envios}) · {obj.hora:02d}:00{hasta}'
         )
 
     @display(description='Plantilla')
@@ -231,9 +233,11 @@ class RecordatorioCursoAdmin(ModelAdmin):
 
     @display(description='Funcionamiento')
     def col_estado(self, obj):
-        if recordatorio_curso.recordatorio_habilitado():
-            return 'Encendido. Sale una vez al día, a la hora elegida.'
-        return 'Apagado en el servidor. Guardar la configuración no envía nada todavía.'
+        if not recordatorio_curso.recordatorio_habilitado():
+            return 'Apagado en el servidor. Guardar la configuración no envía nada todavía.'
+        if obj.pk and not recordatorio_curso.recordatorio_vigente(obj):
+            return 'Fuera de vigencia (activo hasta ya pasó). No sale.'
+        return 'Encendido. Sale una vez al día, a la hora elegida.'
 
     @display(description='Lo recibirían si saliera ahora')
     def col_hoy(self, obj):

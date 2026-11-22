@@ -17,7 +17,8 @@ from core.avisos.modulo_disponible import _pausa, motivo_plantilla as _motivo_av
 
 logger = logging.getLogger(__name__)
 
-MAX_VARIABLES = 2
+MAX_VARIABLES = 3
+TEXTO_VARIABLES = '{{1}} nombre, {{2}} curso, {{3}} módulo (opcional)'
 
 
 def recordatorio_habilitado() -> bool:
@@ -25,17 +26,72 @@ def recordatorio_habilitado() -> bool:
 
 
 def motivo_plantilla(plantilla, phone_id: str) -> str:
+    """Texto o imagen (con media_url). Hasta 3 variables de cuerpo."""
+    if plantilla is not None and plantilla.tipo == 'IMAGEN':
+        if not (plantilla.media_url or '').strip():
+            return 'La plantilla de imagen necesita URL de muestra.'
+        from core.lineas.campana import plantilla_sirve_en_linea
+        from core.models_campana_meta import variables_en
+
+        if not plantilla.activa or plantilla.estado != 'APPROVED':
+            return 'La plantilla no está aprobada en Meta.'
+        if variables_en(plantilla.header_texto):
+            return 'El header no puede llevar variables.'
+        for url in (plantilla.boton_1_url, plantilla.boton_2_url):
+            if '{{' in (url or ''):
+                return 'Los botones no pueden llevar variables.'
+        if len(set(variables_en(plantilla.cuerpo))) > MAX_VARIABLES:
+            return f'El cuerpo admite hasta {MAX_VARIABLES} variables: {TEXTO_VARIABLES}.'
+        return plantilla_sirve_en_linea(plantilla, phone_id)
     return _motivo_aviso(
-        plantilla, phone_id, max_variables=MAX_VARIABLES, texto_variables='{{1}} nombre, {{2}} curso',
+        plantilla, phone_id, max_variables=MAX_VARIABLES, texto_variables=TEXTO_VARIABLES,
     )
 
 
-def variables_recordatorio(plantilla, nombre: str, curso_nombre: str) -> dict:
+def _enviar_plantilla(sender, plantilla, telefono: str, variables: dict, *, agente: str) -> dict:
+    if plantilla.tipo == 'IMAGEN':
+        media = (plantilla.media_url or '').strip()
+        enviar = getattr(sender, 'plantilla_imagen', None)
+        if not callable(enviar) or not media:
+            return {'success': False, 'mensaje_id': None, 'response': 'sin_plantilla_imagen'}
+        return enviar(telefono, plantilla.meta_name, media, variables, agente=agente)
+    return sender.plantilla(telefono, plantilla.meta_name, variables, agente=agente)
+
+
+def recordatorio_vigente(recordatorio, ahora: datetime | None = None) -> bool:
+    """False si está apagado o ya pasó activo_hasta (Bogotá)."""
+    if not recordatorio.activo:
+        return False
+    hasta = getattr(recordatorio, 'activo_hasta', None)
+    if hasta is None:
+        return True
+    ahora = ahora or timezone.now()
+    return timezone.localdate(ahora) <= hasta
+
+
+def variables_recordatorio(
+    plantilla, nombre: str, curso_nombre: str, modulo_titulo: str = '',
+) -> dict:
     from core.models_campana_meta import variables_en
 
-    valores = {'1': (nombre or '').strip() or 'Estudiante', '2': (curso_nombre or '').strip()}
+    valores = {
+        '1': (nombre or '').strip() or 'Estudiante',
+        '2': (curso_nombre or '').strip(),
+        '3': (modulo_titulo or '').strip() or 'su módulo',
+    }
     numeros = sorted(set(variables_en(plantilla.cuerpo)))
     return {str(n): valores[str(n)] for n in numeros if str(n) in valores}
+
+
+def _modulo_titulo(progreso) -> str:
+    modulo = getattr(progreso, 'modulo_actual', None)
+    if modulo is None:
+        return ''
+    titulo = (getattr(modulo, 'titulo', None) or '').strip()
+    numero = getattr(modulo, 'numero', None)
+    if titulo and numero is not None:
+        return f'Módulo {numero}: {titulo}'
+    return titulo or (f'Módulo {numero}' if numero is not None else '')
 
 
 def disponible_desde(progreso, ahora: datetime):
@@ -132,9 +188,14 @@ def _enviar_uno(recordatorio, sender, progreso, ahora: datetime) -> str:
             )
     except IntegrityError:
         return 'repetido'
-    variables = variables_recordatorio(recordatorio.plantilla, estudiante.nombre, recordatorio.curso.nombre)
-    resultado = sender.plantilla(
-        estudiante.telefono, recordatorio.plantilla.meta_name, variables, agente='recordatorio_curso',
+    variables = variables_recordatorio(
+        recordatorio.plantilla,
+        estudiante.nombre,
+        recordatorio.curso.nombre,
+        _modulo_titulo(progreso),
+    )
+    resultado = _enviar_plantilla(
+        sender, recordatorio.plantilla, estudiante.telefono, variables, agente='recordatorio_curso',
     )
     ok = bool(resultado.get('success'))
     envio.estado = 'ENVIADO' if ok else 'FALLIDO'
@@ -172,6 +233,8 @@ def ejecutar(ahora: datetime | None = None) -> dict:
     hora = timezone.localtime(ahora).hour
     pausa = _pausa()
     for recordatorio in RecordatorioCurso.objects.select_related('curso', 'plantilla').filter(activo=True, hora=hora):
+        if not recordatorio_vigente(recordatorio, ahora):
+            continue
         motivo = motivo_plantilla(recordatorio.plantilla, recordatorio.phone_number_id)
         if motivo:
             resumen['invalidos'] += 1
@@ -197,6 +260,8 @@ def ejecutar(ahora: datetime | None = None) -> dict:
 def vista_previa(recordatorio, ahora: datetime | None = None) -> dict:
     """Cuántos lo recibirían si saliera ahora. No envía."""
     ahora = ahora or timezone.now()
+    if not recordatorio_vigente(recordatorio, ahora):
+        return {'personas': 0}
     return {'personas': len(candidatos(recordatorio, ahora))}
 
 
@@ -205,6 +270,10 @@ def enviar_prueba(recordatorio, telefono: str) -> dict:
     from core.lineas.sender import sender_de_linea
 
     variables = variables_recordatorio(recordatorio.plantilla, 'Prueba', recordatorio.curso.nombre)
-    return sender_de_linea(recordatorio.phone_number_id).plantilla(
-        telefono, recordatorio.plantilla.meta_name, variables, agente='recordatorio_curso_prueba',
+    return _enviar_plantilla(
+        sender_de_linea(recordatorio.phone_number_id),
+        recordatorio.plantilla,
+        telefono,
+        variables,
+        agente='recordatorio_curso_prueba',
     )

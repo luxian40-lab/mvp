@@ -42,7 +42,9 @@ AJUSTES = dict(
 
 def _sender_ok():
     sender = MagicMock()
-    sender.plantilla.return_value = {'success': True, 'mensaje_id': 'wamid.X', 'response': '{}'}
+    ok = {'success': True, 'mensaje_id': 'wamid.X', 'response': '{}'}
+    sender.plantilla.return_value = ok
+    sender.plantilla_imagen.return_value = ok
     return sender
 
 

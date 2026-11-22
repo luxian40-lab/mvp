@@ -204,12 +204,26 @@ class RecordatorioCursoTests(TestCase):
         self.assertFalse(resultado['habilitado'])
         sender.plantilla.assert_not_called()
 
-    def test_plantilla_con_tres_variables_no_sirve(self):
+    def test_plantilla_con_cuatro_variables_no_sirve(self):
         from core.avisos.recordatorio_curso import motivo_plantilla
 
-        self.plantilla.cuerpo = 'Hola {{1}} {{2}} {{3}}'
+        self.plantilla.cuerpo = 'Hola {{1}} {{2}} {{3}} {{4}}'
         self.plantilla.save()
-        self.assertIn('2 variables', motivo_plantilla(self.plantilla, LINEA_2))
+        self.assertIn('3 variables', motivo_plantilla(self.plantilla, LINEA_2))
+
+    def test_plantilla_imagen_tres_variables_incluye_modulo(self):
+        self.plantilla.tipo = 'IMAGEN'
+        self.plantilla.media_url = 'https://eki.example/recuerda.jpg'
+        self.plantilla.cuerpo = 'Hola {{1}}, curso {{2}}, contenido {{3}}. Toque Continuar.'
+        self.plantilla.save()
+        ana = self._estudiante('573001120021')
+        resultado, sender = self._ejecutar()
+        self.assertEqual(resultado['enviados'], 1)
+        self.assertEqual(
+            sender.plantilla_imagen.call_args.args[3],
+            {'1': 'Ana', '2': 'Crea y Vende', '3': 'Módulo 1: Su idea'},
+        )
+        self.assertEqual(sender.plantilla_imagen.call_args.args[0], ana.telefono)
 
     def test_tarea_y_beat(self):
         from django.conf import settings
@@ -244,3 +258,45 @@ class RecordatorioCursoTests(TestCase):
         sender.plantilla.assert_called_once()
         self.assertEqual(sender.plantilla.call_args.args[2], {'1': 'Prueba', '2': 'Crea y Vende'})
         self.assertFalse(RecordatorioCursoEnviado.objects.exists())
+
+    def test_plantilla_imagen_usa_media_url(self):
+        from core.avisos.recordatorio_curso import motivo_plantilla
+
+        self.plantilla.tipo = 'IMAGEN'
+        self.plantilla.media_url = 'https://eki.example/recuerda.jpg'
+        self.plantilla.save()
+        self.assertEqual(motivo_plantilla(self.plantilla, LINEA_2), '')
+        ana = self._estudiante('573001120018')
+        resultado, sender = self._ejecutar()
+        self.assertEqual(resultado['enviados'], 1)
+        sender.plantilla.assert_not_called()
+        sender.plantilla_imagen.assert_called_once()
+        args = sender.plantilla_imagen.call_args.args
+        self.assertEqual(args[0], ana.telefono)
+        self.assertEqual(args[1], 'recordatorio_curso')
+        self.assertEqual(args[2], 'https://eki.example/recuerda.jpg')
+        self.assertEqual(args[3], {'1': 'Ana', '2': 'Crea y Vende'})
+
+    def test_imagen_sin_media_url_no_sirve(self):
+        from core.avisos.recordatorio_curso import motivo_plantilla
+
+        self.plantilla.tipo = 'IMAGEN'
+        self.plantilla.media_url = ''
+        self.plantilla.save()
+        self.assertIn('URL', motivo_plantilla(self.plantilla, LINEA_2))
+
+    def test_activo_hasta_pasado_no_envia(self):
+        self._estudiante('573001120019')
+        self.recordatorio.activo_hasta = timezone.localdate(self.ahora) - timedelta(days=1)
+        self.recordatorio.save(update_fields=['activo_hasta'])
+        resultado, sender = self._ejecutar()
+        sender.plantilla.assert_not_called()
+        self.assertEqual(resultado['enviados'], 0)
+
+    def test_activo_hasta_hoy_si_envia(self):
+        self._estudiante('573001120020')
+        self.recordatorio.activo_hasta = timezone.localdate(self.ahora)
+        self.recordatorio.save(update_fields=['activo_hasta'])
+        resultado, sender = self._ejecutar()
+        self.assertEqual(resultado['enviados'], 1)
+        sender.plantilla.assert_called_once()

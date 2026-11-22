@@ -112,7 +112,10 @@ class RecordatorioCurso(models.Model):
         on_delete=models.PROTECT,
         related_name='recordatorios_curso',
         verbose_name='Plantilla Meta',
-        help_text='Aprobada y de la cuenta de esa línea. Variables: {{1}} nombre, {{2}} curso.',
+        help_text=(
+            'Aprobada y de la cuenta de esa línea (Texto o Imagen con URL). '
+            'Variables: {{1}} nombre, {{2}} curso, {{3}} módulo (si la plantilla lo pide).'
+        ),
     )
     dias_sin_avanzar = models.PositiveSmallIntegerField(
         default=2,
@@ -130,6 +133,12 @@ class RecordatorioCurso(models.Model):
         help_text='Tope de recordatorios enviados desde la última señal (mensaje o aviso). Si escribe de nuevo, la cuenta vuelve a cero.',
     )
     hora = models.PositiveSmallIntegerField(default=9, choices=HORAS, verbose_name='Hora (Bogotá)')
+    activo_hasta = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Activo hasta',
+        help_text='Vacío = sin fecha fin. Con fecha, deja de salir el día siguiente.',
+    )
     activo = models.BooleanField(default=True, verbose_name='Activo')
     creado_en = models.DateTimeField(auto_now_add=True)
 
