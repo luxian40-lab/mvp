@@ -23,7 +23,7 @@ class CoreConfig(AppConfig):
         import core.signals_conocimientos  # Actualiza conocimientos cuando se modifican cursos
 
         # Telemetría Centro de Éxito (eventos de aprendizaje)
-        import core.signals_telemetria
+        import core.analitica.signals_telemetria
 
         import core.curso.signals_publicacion_wa  # Slack borrador en curso activo
 
