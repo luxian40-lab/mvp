@@ -57,7 +57,7 @@ class CampanaMetaV2Tests(TestCase):
 
     @patch('core.campanas.campana_meta_v2._post', return_value=_ok())
     def test_pide_token_con_la_linea_de_la_campana(self, _post):
-        with patch('core.campana_meta_ritmo.pedir_token', return_value=(True, 0.0)) as pedir:
+        with patch('core.campanas.campana_meta_ritmo.pedir_token', return_value=(True, 0.0)) as pedir:
             ejecutar_campana_meta_v2(self.campana)
         pedir.assert_called_once_with(PHONE)
 

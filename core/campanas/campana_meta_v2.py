@@ -128,7 +128,7 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
             continue
         if campana.pausada:
             break
-        from core.campana_meta_ritmo import (
+        from core.campanas.campana_meta_ritmo import (
             anotar_resultado,
             bajo_tope_contactos,
             hueco_destino,

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from core.campana_meta_ritmo import anotar_resultado, paso_bucket, pedir_token, resumen_preflight
+from core.campanas.campana_meta_ritmo import anotar_resultado, paso_bucket, pedir_token, resumen_preflight
 from core.models import Estudiante
 from core.models_campana_meta import CampanaMeta, PlantillaMeta
 from core.tests_support.graph_fake import cuerpo_graph
@@ -42,7 +42,7 @@ class _RedisBucket:
 class BucketPorLineaTests(TestCase):
     def _pedir(self, *phone_ids):
         falso = _RedisBucket()
-        with patch('core.campana_meta_ritmo._redis', return_value=falso):
+        with patch('core.campanas.campana_meta_ritmo._redis', return_value=falso):
             for phone_id in phone_ids:
                 self.assertEqual(pedir_token(phone_id), (True, 0.0))
         return falso.llamadas
@@ -89,7 +89,7 @@ class RitmoTests(TestCase):
         falso = _Redis()
         falso.valores[f'eki:campana:{campana.pk}:n'] = 99
         falso.valores[f'eki:campana:{campana.pk}:fallos'] = 16
-        with patch('core.campana_meta_ritmo._redis', return_value=falso):
+        with patch('core.campanas.campana_meta_ritmo._redis', return_value=falso):
             self.assertTrue(anotar_resultado(campana, fallo=True, nuevo=True))
         campana.refresh_from_db()
         self.assertTrue(campana.pausada)

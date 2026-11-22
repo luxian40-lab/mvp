@@ -796,7 +796,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
 
     @admin.action(description='Reanudar campañas Meta')
     def reanudar_campanas(self, request, queryset):
-        from core.campana_meta_ritmo import reanudar
+        from core.campanas.campana_meta_ritmo import reanudar
 
         for campana in queryset:
             reanudar(campana)

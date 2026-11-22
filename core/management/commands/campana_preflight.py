@@ -1,7 +1,7 @@
 """Chequeo antes de lanzar una campaña Meta. No imprime teléfonos."""
 from django.core.management.base import BaseCommand, CommandError
 
-from core.campana_meta_ritmo import resumen_preflight
+from core.campanas.campana_meta_ritmo import resumen_preflight
 from core.models_campana_meta import CampanaMeta
 
 

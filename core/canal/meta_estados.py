@@ -91,7 +91,7 @@ def _aplicar_status_envio(item: dict, mid: str) -> bool:
             return False
         envio.estado_entrega = 'failed'
         envio.error_codigo = code
-        from core.campana_meta_ritmo import anotar_resultado
+        from core.campanas.campana_meta_ritmo import anotar_resultado
 
         anotar_resultado(envio.campana, fallo=True, nuevo=False)
     elif nuevo in _ENTREGA and _ENTREGA[nuevo] > _ENTREGA.get(actual, 0):
