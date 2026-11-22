@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from core.excel_celdas import celda_excel_a_texto
+from core.analitica.excel_celdas import celda_excel_a_texto
 from core.canal.utils_telefono import normalizar_telefono
 
 

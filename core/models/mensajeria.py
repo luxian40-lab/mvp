@@ -499,7 +499,7 @@ def procesar_excel_campana(sender, instance, created, **kwargs):
     # Si hay un archivo y no hay destinatarios, intentamos cargarlo
     if instance.archivo_excel and instance.destinatarios.count() == 0:
         try:
-            from core.excel_celdas import celda_excel_a_texto
+            from core.analitica.excel_celdas import celda_excel_a_texto
             from core.canal.telefono import validar_telefono_whatsapp
 
             file_path = instance.archivo_excel.path
