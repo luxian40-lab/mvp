@@ -95,7 +95,7 @@ from core.gamificacion import (
 # ========== CERTIFICADOS ==========
 # Importar modelos de certificados desde archivo separado
 from core.certificados.models_certificados import Certificado, PlantillaCertificado
-from core.models_notas import NotaEstudiante
+from core.analitica.models_notas import NotaEstudiante
 
 # ========== AUDITORÍA ==========
 # Importar modelos de auditoría desde archivo separado
