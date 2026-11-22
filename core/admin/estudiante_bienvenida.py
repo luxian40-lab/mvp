@@ -5,7 +5,7 @@ se intenta una vez más en la misma petición. El estudiante ya está guardado.
 """
 from __future__ import annotations
 
-from core.plantilla_meta_editor import es_bienvenida, sugerir_mapeo
+from core.campanas.plantilla_meta_editor import es_bienvenida, sugerir_mapeo
 
 
 def plantillas_bienvenida_aprobadas():

@@ -37,7 +37,7 @@ from core.campana_audiencia import (
     vista_previa,
 )
 from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
-from core.plantilla_meta_editor import lineas_disponibles
+from core.campanas.plantilla_meta_editor import lineas_disponibles
 
 
 class ConfirmarEnvioForm(BaseDialogForm):

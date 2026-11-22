@@ -91,7 +91,7 @@ def badge_nav(user, clave: str) -> str:
 def estado_lineas() -> list[dict]:
     """Estado y calidad en Meta. Nunca lanza. Cache 10 min por línea."""
     try:
-        from core.plantilla_meta_editor import lineas_disponibles
+        from core.campanas.plantilla_meta_editor import lineas_disponibles
     except Exception:
         logger.info('lineas de whatsapp no disponibles', exc_info=True)
         return []
@@ -357,7 +357,7 @@ def _armar(user, ahora, saludo: str, fecha: str) -> dict:
 
 def _lineas_locales(*, mensajes_hoy, sin_respuesta_24, puede_log: bool, puede_wh: bool) -> list[dict]:
     try:
-        from core.plantilla_meta_editor import lineas_disponibles
+        from core.campanas.plantilla_meta_editor import lineas_disponibles
 
         configuradas = list(lineas_disponibles())
     except Exception:

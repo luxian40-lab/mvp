@@ -467,7 +467,7 @@ def vista_previa(campana, estudiante=None) -> dict:
 
 
 def nombre_linea(campana) -> str:
-    from core.plantilla_meta_editor import lineas_disponibles
+    from core.campanas.plantilla_meta_editor import lineas_disponibles
 
     actual = (campana.phone_number_id or '').strip()
     for valor, etiqueta in lineas_disponibles():

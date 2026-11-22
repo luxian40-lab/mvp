@@ -13,7 +13,7 @@ from core.avisos.modulo_disponible import aviso_habilitado, enviar_prueba, motiv
 from core.campana_audiencia import numero_de_prueba_permitido, numeros_de_prueba
 from core.models.avisos import AvisoModuloDisponible, AvisoModuloEnviado, RecordatorioCurso, RecordatorioCursoEnviado
 from core.models_campana_meta import PlantillaMeta
-from core.plantilla_meta_editor import lineas_disponibles
+from core.campanas.plantilla_meta_editor import lineas_disponibles
 
 
 class AvisoModuloForm(forms.ModelForm):

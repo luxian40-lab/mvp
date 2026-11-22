@@ -9,7 +9,7 @@ from unfold.decorators import action, display
 from unfold.forms import BaseDialogForm
 
 from core.models_campana_meta import CampanaMeta, PlantillaMeta, TIPOS_PLANTILLA, TarjetaPlantillaMeta, variables_en
-from core.plantilla_meta_editor import (
+from core.campanas.plantilla_meta_editor import (
     SOLO_LECTURA,
     app_id_listo,
     guardar_asistente,

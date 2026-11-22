@@ -81,7 +81,7 @@ class CampanaLineaWabaTests(TestCase):
         self.assertIn('plantilla', form.errors)
 
     def test_la_etiqueta_de_linea_dice_modo_twilio(self):
-        from core.plantilla_meta_editor import lineas_disponibles
+        from core.campanas.plantilla_meta_editor import lineas_disponibles
 
         etiquetas = ' '.join(nombre for _, nombre in lineas_disponibles())
         self.assertIn('modo Twilio', etiquetas)
