@@ -505,7 +505,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         posted = request.POST if request.method == 'POST' and errores else None
         from django.templatetags.static import static
 
-        from core.plantilla_builder import armar_inicial
+        from core.campanas.plantilla_builder import armar_inicial
 
         tipo_inicial = (request.POST.get('tipo') if request.method == 'POST' else None) or self._tipo_inicial(request, plantilla)
         inicial = armar_inicial(
