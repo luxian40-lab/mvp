@@ -875,7 +875,7 @@ def estudiante_detalle(request, estudiante_id):
     try:
         from core.gamificacion_modo import gamificacion_activa
         if gamificacion_activa(org):
-            from core.gamificacion_actions import obtener_estadisticas_estudiante
+            from core.gamificacion.actions import obtener_estadisticas_estudiante
             gamificacion = obtener_estadisticas_estudiante(estudiante)
     except Exception:
         pass

@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 
 from core.gamificacion import PerfilGamificacion
-from core.gamificacion_actions import obtener_posicion_estudiante
+from core.gamificacion.actions import obtener_posicion_estudiante
 from core.gamificacion_modo import (
     MODO_GAMIFICACION_CHOICES,
     get_modo_gamificacion,

@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
 from core.gamificacion import EvaluacionNotaGamificacion, PerfilGamificacion, TransaccionPuntos
-from core.gamificacion_ajuste_service import (
+from core.gamificacion.ajuste_service import (
     ajustar_puntos_estudiantes,
     registrar_nota_manual_estudiante,
 )
