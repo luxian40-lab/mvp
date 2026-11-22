@@ -51,7 +51,7 @@ from core.admin_vistas.views_drip_estudiantes import drip_estudiantes_view
 from core.admin_vistas.views_push_estudiantes import push_estudiantes_view
 from core.admin_vistas.views_retencion_admin import retencion_admin_agente, retencion_admin_view
 from core.puentes import aula_web_admin_view
-from core.views_infra_admin import infra_monitor_api, infra_monitor_view
+from core.admin_vistas.views_infra_admin import infra_monitor_api, infra_monitor_view
 from core.views_lineas_admin import lineas_admin_view
 from core.views_laboratorio import laboratorio_view
 from core.views_territorio_alertas import territorio_alertas_view
