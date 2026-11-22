@@ -316,6 +316,26 @@ class RespetaVentanaTests(SimpleTestCase):
         self.assertEqual(textos, ['Quedó en Suelos.', 'CLASE'])
         marca.assert_called_once_with(ficha, 5)
 
+    def test_listo_ventana_cerrada_no_vuelca_leccion(self):
+        ficha = _Ficha()
+        ficha.contexto_temporal = {'curso_activo_id': 5}
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.reenganche_meta.ventana_abierta', return_value=False,
+        ), patch(
+            'core.lineas.registro_cursos._reintentar_primera_si_falta', return_value=False,
+        ), patch(
+            'core.conversacion.intents.continuar_leccion.responder', return_value='PARTE',
+        ), patch(
+            'core.conversacion.response_templates.soltar_turno_entrega_actual',
+        ) as soltar, patch(
+            'core.lineas.registro_abrir._avisar',
+        ) as aviso:
+            atender_cursos('573001112233', 'listo', 7)
+        aviso.assert_not_called()
+        soltar.assert_called_once()
+
     def test_continuar_reintenta_saludo_si_quedo_pendiente(self):
         ficha = _Ficha()
         ficha.contexto_temporal = {

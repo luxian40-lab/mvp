@@ -124,12 +124,15 @@ def mandar_bienvenida(telefono: str, cliente_id: int) -> bool:
     from core.lineas.envio import enviar_meta_botones
 
     try:
-        resultado = enviar_meta_botones(
-            telefono,
-            TEXTO_BIENVENIDA,
-            [(f'{BOTON_ID_PREFIJO}{int(cliente_id)}', CTA_BIENVENIDA)],
-            agente_evento='registro_agricapital',
-        )
+        from core.lineas.registro_abrir import envio_desde_linea_registro
+
+        with envio_desde_linea_registro(forzar=True):
+            resultado = enviar_meta_botones(
+                telefono,
+                TEXTO_BIENVENIDA,
+                [(f'{BOTON_ID_PREFIJO}{int(cliente_id)}', CTA_BIENVENIDA)],
+                agente_evento='registro_agricapital',
+            )
     except (DatabaseError, RequestException, OSError, TypeError, ValueError):
         logger.exception('registro_agricapital_bienvenida')
         return False

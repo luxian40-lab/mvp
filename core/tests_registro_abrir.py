@@ -260,6 +260,25 @@ class PublicarRegistroTests(SimpleTestCase):
         self.assertEqual(nombres, {'habeas', 'nombre', 'cedula', 'municipio'})
 
 
+@override_settings(**AJUSTES)
+class SalidaRegistroForzadaTests(SimpleTestCase):
+    def test_avisar_usa_phone_id_l3_aunque_el_turno_sea_principal(self):
+        from core.lineas.registro_abrir import _avisar
+        from core.sandbox_canal import phone_id_de_salida
+
+        visto = []
+
+        def _spy(*a, **k):
+            visto.append(phone_id_de_salida())
+            return {'success': True}
+
+        with salida_por_phone_id(PRINCIPAL), patch(
+            'core.sandbox_menu.enviar_texto_sandbox', side_effect=_spy,
+        ):
+            _avisar('573001112233', 'hola')
+        self.assertEqual(visto, [PHONE])
+
+
 class LineaRegistroEnElRegistroTests(SimpleTestCase):
     @override_settings(**AJUSTES)
     def test_entra_como_tercera_linea_de_registro(self):

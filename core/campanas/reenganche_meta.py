@@ -23,7 +23,7 @@ def _digitos(telefono: str) -> str:
     return ''.join(ch for ch in str(telefono or '') if ch.isdigit())
 
 
-def ultimo_entrante(estudiante):
+def ultimo_entrante(estudiante, phone_id: str | None = None):
     from core.models import WhatsappLog
 
     digitos = _digitos(getattr(estudiante, 'telefono', ''))
@@ -37,12 +37,19 @@ def ultimo_entrante(estudiante):
         consulta |= Q(telefono__in=formas)
     if not consulta:
         return None
-    return (
+    qs = (
         WhatsappLog.objects.filter(tipo='INCOMING', canal='meta')
         .filter(consulta)
         .order_by('-fecha')
-        .first()
     )
+    pnid = (phone_id or '').strip()
+    if pnid:
+        # Prefer exact line; fall back to untagged legacy INCOMING only.
+        exacto = qs.filter(phone_id=pnid).first()
+        if exacto is not None:
+            return exacto
+        return qs.filter(phone_id='').first()
+    return qs.first()
 
 
 # Reacciones y Twilio hacia la línea Meta no abren la ventana del cliente.
@@ -51,8 +58,14 @@ _EVENTOS_SIN_VENTANA = ('ignorado', 'ignorado_twilio')
 _PREFIJO_WAMID_META = 'wamid.'
 
 
-def ultimo_evento_meta(estudiante):
-    """Hora del último entrante autenticado de Meta, aunque no haya pasado por el curso."""
+def ultimo_evento_meta(estudiante, phone_id: str | None = None):
+    """Hora del último entrante autenticado de Meta, aunque no haya pasado por el curso.
+
+    phone_id se acepta por firma (ventana por línea); MetaWebhookEvento aún no
+    guarda línea, así que el evento sigue contando para no cerrar Continuemos
+    tras un Flow. El filtro por línea aplica en ultimo_entrante (WhatsappLog).
+    """
+    del phone_id  # API estable; sin columna de línea en el evento todavía
     from core.canal.models_meta_webhook import MetaWebhookEvento
     from core.canal.utils_telefono import normalizar_e164_co
 
@@ -68,14 +81,23 @@ def ultimo_evento_meta(estudiante):
     )
 
 
-def ventana_abierta(estudiante, ahora: datetime | None = None) -> bool:
+def ventana_abierta(
+    estudiante,
+    ahora: datetime | None = None,
+    phone_id: str | None = None,
+) -> bool:
     ahora = ahora or timezone.now()
     try:
         horas = int(getattr(settings, 'WA_VENTANA_HORAS', 23) or 23)
     except (TypeError, ValueError):
         horas = 23
-    log = ultimo_entrante(estudiante)
-    fechas = [f for f in (getattr(log, 'fecha', None), ultimo_evento_meta(estudiante)) if f]
+    log = ultimo_entrante(estudiante, phone_id=phone_id)
+    fechas = [
+        f for f in (
+            getattr(log, 'fecha', None),
+            ultimo_evento_meta(estudiante, phone_id=phone_id),
+        ) if f
+    ]
     if not fechas:
         return False
     return max(fechas) >= ahora - timedelta(hours=horas)

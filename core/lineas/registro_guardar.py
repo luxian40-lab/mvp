@@ -157,7 +157,11 @@ def responder_registro(telefono: str, body: str) -> str | None:
             sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
     except DatabaseError:
         logger.exception('registro_flow_sesion')
-    enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
+    from core.lineas.registro_abrir import envio_desde_linea_registro
+
+    # Tras Flow la persona acaba de escribir: siempre salir por L3 (no omitir).
+    with envio_desde_linea_registro(forzar=True):
+        enviar_texto_sandbox(telefono, sandbox_number(), texto, agente='registro_flow')
     if texto.startswith('Listo'):
         from core.lineas.registro_agricapital import es_cliente_agricapital
         from core.canal.utils_telefono import estudiante_por_telefono
@@ -183,9 +187,12 @@ def _ofrecer_menu_tras_registro(telefono: str) -> None:
     )
 
     try:
+        from core.lineas.registro_abrir import envio_desde_linea_registro
+
         sesion = _get_or_create_sesion(telefono)
         _set_modo(sesion, MODO_MENU)
-        enviar_menu_sandbox(telefono, sandbox_number())
+        with envio_desde_linea_registro(forzar=True):
+            enviar_menu_sandbox(telefono, sandbox_number())
     except (DatabaseError, RequestException, OSError, TypeError, ValueError):
         logger.exception('registro_menu_tras_flow')
 

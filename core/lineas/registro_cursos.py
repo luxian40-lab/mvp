@@ -180,12 +180,13 @@ def _tarjeta(curso) -> dict:
 
 def _enviar_carrusel(telefono: str, tarjetas: list[dict]) -> None:
     from core.lineas.envio import enviar_meta_carrusel
-    from core.lineas.registro_abrir import _avisar
+    from core.lineas.registro_abrir import _avisar, envio_desde_linea_registro
 
     try:
-        resultado = enviar_meta_carrusel(
-            telefono, CUERPO_OFERTA, tarjetas, agente_evento='registro_cursos',
-        )
+        with envio_desde_linea_registro(forzar=True):
+            resultado = enviar_meta_carrusel(
+                telefono, CUERPO_OFERTA, tarjetas, agente_evento='registro_cursos',
+            )
     except OSError:
         logger.exception('registro_carrusel')
         resultado = {'success': False}
@@ -195,15 +196,16 @@ def _enviar_carrusel(telefono: str, tarjetas: list[dict]) -> None:
 
 def _enviar_boton(telefono: str, curso) -> None:
     from core.lineas.envio import enviar_meta_botones
-    from core.lineas.registro_abrir import _avisar
+    from core.lineas.registro_abrir import _avisar, envio_desde_linea_registro
 
     try:
-        resultado = enviar_meta_botones(
-            telefono,
-            f'{CUERPO_OFERTA}\n{curso.nombre}',
-            [(f'ver_curso_{curso.id}', 'Ver curso')],
-            agente_evento='registro_cursos',
-        )
+        with envio_desde_linea_registro(forzar=True):
+            resultado = enviar_meta_botones(
+                telefono,
+                f'{CUERPO_OFERTA}\n{curso.nombre}',
+                [(f'ver_curso_{curso.id}', 'Ver curso')],
+                agente_evento='registro_cursos',
+            )
     except OSError:
         logger.exception('registro_boton_curso')
         resultado = {'success': False}
@@ -213,13 +215,14 @@ def _enviar_boton(telefono: str, curso) -> None:
 
 def _enviar_lista(telefono: str, cursos) -> None:
     from core.lineas.envio import enviar_meta_lista
-    from core.lineas.registro_abrir import _avisar
+    from core.lineas.registro_abrir import _avisar, envio_desde_linea_registro
 
     filas = [(f'ver_curso_{curso.id}', (curso.nombre or 'Curso')[:24], '') for curso in cursos]
     try:
-        resultado = enviar_meta_lista(
-            telefono, CUERPO_OFERTA, 'Ver cursos', filas, agente_evento='registro_cursos',
-        )
+        with envio_desde_linea_registro(forzar=True):
+            resultado = enviar_meta_lista(
+                telefono, CUERPO_OFERTA, 'Ver cursos', filas, agente_evento='registro_cursos',
+            )
     except OSError:
         logger.exception('registro_lista_cursos')
         resultado = {'success': False}
@@ -245,7 +248,7 @@ def _respeta_ventana() -> bool:
         return bool(ConfiguracionGlobal.get_solo().registro_respeta_ventana)
     except Exception:
         logger.exception('registro_ventana_flag')
-        return False
+        return True
 
 
 def _ventana_ok(ficha) -> bool:
@@ -253,8 +256,14 @@ def _ventana_ok(ficha) -> bool:
     if not _respeta_ventana():
         return True
     from core.reenganche_meta import ventana_abierta
+    from core.sandbox_canal import phone_id_de_salida
 
-    return ventana_abierta(ficha)
+    return ventana_abierta(ficha, phone_id=phone_id_de_salida())
+
+
+def _omitir_envio_libre(ficha) -> bool:
+    """True si el flag de ventana está on y no hay ventana en la línea de salida."""
+    return bool(ficha is not None and _respeta_ventana() and not _ventana_ok(ficha))
 
 
 def _inscribir(telefono: str, curso_id: int, cliente_id: int | None) -> None:
@@ -413,5 +422,8 @@ def _avanzar(telefono: str, body: str) -> bool:
         except DatabaseError:
             logger.exception('registro_soltar_turno')
     if texto and texto != LECCION_EN_CURSO:
-        _avisar(telefono, texto, agente='registro_cursos')
+        if _omitir_envio_libre(ficha):
+            logger.info('registro_ventana_cerrada_omitido motivo=listo_avance')
+        else:
+            _avisar(telefono, texto, agente='registro_cursos')
     return True

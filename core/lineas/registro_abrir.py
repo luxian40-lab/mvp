@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+from contextlib import contextmanager
 
 from core.lineas.perfil import USO_REGISTRO
 from core.lineas.registro_agricapital import (
@@ -59,6 +60,38 @@ def es_turno_registro() -> bool:
     from core.lineas.variante import perfil_de
 
     return perfil_de().uso == USO_REGISTRO
+
+
+def phone_id_linea_registro() -> str:
+    """Phone number id de la línea 3 (env o lineas_producto)."""
+    from django.conf import settings
+
+    fijo = (getattr(settings, 'EKI_LINEA_REGISTRO_PHONE_ID', '') or '').strip()
+    if fijo:
+        return fijo
+    try:
+        from core.lineas.meta import lineas_producto
+
+        for linea in lineas_producto():
+            if getattr(linea, 'uso', '') == USO_REGISTRO:
+                return (getattr(linea, 'phone_id', '') or '').strip()
+    except Exception:
+        logger.exception('registro_phone_id_linea')
+    return ''
+
+
+@contextmanager
+def envio_desde_linea_registro(*, forzar: bool = False):
+    """Graph/sandbox de registro salen por L3 aunque el ContextVar del turno esté vacío."""
+    from core.sandbox_canal import salida_por_phone_id
+
+    pid = phone_id_linea_registro()
+    usar = bool(pid) and (forzar or es_turno_registro())
+    if usar:
+        with salida_por_phone_id(pid):
+            yield
+    else:
+        yield
 
 
 def flow_id_registro() -> str:
@@ -226,17 +259,18 @@ def _enviar_flow(
         return
     from core.lineas.envio import enviar_meta_flow
 
-    resultado = enviar_meta_flow(
-        telefono,
-        (texto or TEXTO_FLOW).strip() or TEXTO_FLOW,
-        flow_id,
-        pantalla=PANTALLA,
-        flow_token=token_de_cliente(cliente_id),
-        cta=(cta or CTA),
-        agente_evento='registro_flow',
-        modo='published',
-        con_datos=False,
-    )
+    with envio_desde_linea_registro(forzar=True):
+        resultado = enviar_meta_flow(
+            telefono,
+            (texto or TEXTO_FLOW).strip() or TEXTO_FLOW,
+            flow_id,
+            pantalla=PANTALLA,
+            flow_token=token_de_cliente(cliente_id),
+            cta=(cta or CTA),
+            agente_evento='registro_flow',
+            modo='published',
+            con_datos=False,
+        )
     if not resultado.get('success'):
         _avisar(telefono, TEXTO_REINTENTO)
 
@@ -314,9 +348,10 @@ def _avisar(telefono: str, texto: str, *, agente: str = 'registro_flow') -> dict
     from requests import RequestException
 
     try:
-        return enviar_texto_sandbox(
-            telefono, sandbox_number(), texto, agente=agente,
-        ) or {'success': False}
+        with envio_desde_linea_registro(forzar=True):
+            return enviar_texto_sandbox(
+                telefono, sandbox_number(), texto, agente=agente,
+            ) or {'success': False}
     except (DatabaseError, RequestException, OSError):
         logger.exception('registro_flow_aviso')
         return {'success': False}
