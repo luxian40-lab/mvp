@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from core.admin_mixins import register_core_proxy_admin
+from core.admin_vistas.admin_mixins import register_core_proxy_admin
 from core.admin import (
     CampanaB2BAdmin,
     ContextoAgroSessionAdmin,
