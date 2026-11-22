@@ -43,7 +43,7 @@ def health_check(request):
 
 
 def health_deep_view(request):
-    from core.health_deep import health_deep
+    from core.analitica.health_deep import health_deep
 
     return health_deep(request)
 

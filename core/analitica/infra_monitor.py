@@ -878,7 +878,7 @@ def _playbook_fallos_meta() -> dict[str, Any]:
 
 def _observabilidad_segura() -> dict:
     try:
-        from core.health_deep import resumen_para_infra
+        from core.analitica.health_deep import resumen_para_infra
 
         return resumen_para_infra()
     except Exception:
