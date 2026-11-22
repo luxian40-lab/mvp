@@ -45,7 +45,7 @@ def enviar_template_twilio(telefono, content_sid, variables=None):
         dict: {'success': bool, 'mensaje_id': str|None, 'response': str}
     """
     try:
-        from core.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
+        from core.canal.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
 
         if sandbox_meta_activo():
             return enviar_sandbox_template_fallback(telefono, content_sid, variables)
@@ -140,7 +140,7 @@ def enviar_habeas_data(telefono, cliente=None):
             `content_sid_habeas_data_twilio` se prioriza sobre la plantilla global.
     """
     try:
-        from core.sandbox_canal import enviar_sandbox_habeas, sandbox_meta_activo
+        from core.canal.sandbox_canal import enviar_sandbox_habeas, sandbox_meta_activo
 
         if sandbox_meta_activo():
             return enviar_sandbox_habeas(telefono)
@@ -351,7 +351,7 @@ def enviar_archivo_modulo_whatsapp(telefono, archivo_modulo, texto_extra=None):
         descripcion = f"{descripcion}\n{texto_extra}"
 
     try:
-        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+        from core.canal.sandbox_canal import sandbox_meta_activo, enviar_meta
 
         if sandbox_meta_activo():
             return enviar_meta(telefono, descripcion, media_url=url_envio, canal_evento='whatsapp_sandbox', agente_evento='sandbox_cursos')

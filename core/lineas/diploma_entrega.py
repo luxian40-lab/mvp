@@ -75,7 +75,7 @@ def enviar_diploma_plantilla_meta(
             agente='diploma_meta',
         )
 
-    from core.sandbox_canal import enviar_meta_plantilla_imagen
+    from core.canal.sandbox_canal import enviar_meta_plantilla_imagen
 
     return enviar_meta_plantilla_imagen(
         telefono,
@@ -138,7 +138,7 @@ def _enviar_sesion(telefono: str, texto: str, media_url: str | None, *, agente: 
     if getattr(sender, 'canal', '') == 'meta':
         return sender.texto(telefono, texto, media_url=media_url, agente=agente)
 
-    from core.sandbox_canal import enviar_meta
+    from core.canal.sandbox_canal import enviar_meta
 
     return enviar_meta(
         telefono,

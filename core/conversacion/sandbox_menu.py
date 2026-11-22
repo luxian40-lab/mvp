@@ -203,7 +203,7 @@ def sandbox_number() -> str:
 
 
 def es_destino_sandbox(to_or_payload: Any) -> bool:
-    from core.sandbox_canal import (
+    from core.canal.sandbox_canal import (
         es_inbound_twilio_http,
         inbound_es_meta,
         phone_id_es_sandbox,
@@ -281,7 +281,7 @@ def _body_o_audio_transcrito(payload: Any, body: str) -> str:
         return body
     try:
         from core.conversacion.transcripcion_turno import del_turno
-        from core.sandbox_canal import inbound_es_meta, transcribir_audio_meta
+        from core.canal.sandbox_canal import inbound_es_meta, transcribir_audio_meta
 
         if inbound_es_meta(payload) or not media_url.startswith(('http://', 'https://')):
             texto = (del_turno(
@@ -798,7 +798,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
 
 def enviar_texto_sandbox(telefono_usuario: str, from_number: str, texto: str, *, agente: str = 'sandbox_menu') -> dict:
-    from core.sandbox_canal import enviar_sandbox
+    from core.canal.sandbox_canal import enviar_sandbox
 
     return enviar_sandbox(
         telefono_usuario,
@@ -835,7 +835,7 @@ def _despachar_curso_directo(decision: SandboxRouteDecision, from_n: str) -> str
             logger.exception('sandbox_linea_twilio_fail tel=%s', decision.telefono_usuario)
         return 'handled'
     from core.lineas.cursos_linea import fijar_curso_de_la_linea
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
     from core.canal.utils_telefono import estudiante_por_telefono
 
     fijar_curso_de_la_linea(phone_id_de_salida(), lambda: estudiante_por_telefono(decision.telefono_usuario))

@@ -165,7 +165,7 @@ def publicar_flow(tipo) -> str:
     import requests
     from django.conf import settings
 
-    from core.sandbox_canal import _graph_headers
+    from core.canal.sandbox_canal import _graph_headers
 
     waba = (getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID', '') or '').strip()
     headers = _graph_headers()
@@ -205,7 +205,7 @@ def publicar_flow(tipo) -> str:
 
 
 def intentar_enviar_flow(estudiante, tipo, sesion) -> bool:
-    from core.sandbox_canal import enviar_meta_flow, sandbox_meta_activo
+    from core.canal.sandbox_canal import enviar_meta_flow, sandbox_meta_activo
 
     if not sandbox_meta_activo():
         return False

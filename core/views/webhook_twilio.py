@@ -29,7 +29,7 @@ from core.conversacion.contexto import Contexto
 
 def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""
-    from core.sandbox_canal import inbound_es_meta
+    from core.canal.sandbox_canal import inbound_es_meta
 
     if inbound_es_meta(post_data):
         return False
@@ -101,7 +101,7 @@ def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
     from core.conversacion.medicion import medir_turno
     from core.conversacion.turno import turno_activo
-    from core.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
+    from core.canal.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
     from core.canal.wa_canal import CANAL_META, CANAL_TWILIO, canal_webhook
 
     canal = CANAL_META if inbound_es_meta(post_data) else CANAL_TWILIO

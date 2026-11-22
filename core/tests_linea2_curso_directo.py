@@ -16,7 +16,7 @@ from core.models import (
     ProgresoEstudiante,
     SandboxCanalSesion,
 )
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 from core.sandbox_menu import _responder_confirmacion
 
 PRINCIPAL = '100000000000001'

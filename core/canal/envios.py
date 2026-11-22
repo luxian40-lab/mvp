@@ -93,7 +93,7 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
     log = None
 
     try:
-        from core.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
+        from core.canal.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
 
         if sandbox_meta_activo():
             return enviar_sandbox_template_fallback(telefono, content_sid, variables)
@@ -217,7 +217,7 @@ def enviar_whatsapp_twilio(
         logger.exception('diploma_meta_intercept_fail')
 
     try:
-        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+        from core.canal.sandbox_canal import sandbox_meta_activo, enviar_meta
 
         if sandbox_meta_activo():
             return enviar_meta(
@@ -440,7 +440,7 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
     )
 
     if MARCADOR_BOTON_CONTINUEMOS in str(texto or ''):
-        from core.sandbox_canal import enviar_meta_botones
+        from core.canal.sandbox_canal import enviar_meta_botones
 
         cuerpo, _ = separar_boton_continuemos(texto)
         return enviar_meta_botones(

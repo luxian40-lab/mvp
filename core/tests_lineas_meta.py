@@ -2,7 +2,7 @@
 from django.test import SimpleTestCase, override_settings
 
 from core.lineas.meta import lineas_producto, numeros_e164, phone_ids
-from core.sandbox_canal import e164_lineas_meta, phone_ids_meta
+from core.canal.sandbox_canal import e164_lineas_meta, phone_ids_meta
 
 
 @override_settings(

@@ -247,7 +247,7 @@ class RetoTests(ConCursoTestCase):
         self.est.estado_onboarding = 'esperando_respuesta_reto'
         self.est.save()
         with patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
-                patch('core.sandbox_canal.poner_reaccion_espera'), \
+                patch('core.canal.sandbox_canal.poner_reaccion_espera'), \
                 patch('core.certificado_service.crear_certificado_automatico', return_value=None), \
                 patch('core.conversacion.estados.reto._radar_msg_si_aplica', return_value=''):
             reto.manejar(Contexto(self.est, 'regué la huerta', self.est.telefono, self.est.telefono))
@@ -292,7 +292,7 @@ class PreguntaAbiertaFinalTests(ConCursoTestCase):
         self.est.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
         self.est.save()
         with patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
-                patch('core.sandbox_canal.poner_reaccion_espera'), \
+                patch('core.canal.sandbox_canal.poner_reaccion_espera'), \
                 patch('core.certificado_service.crear_certificado_automatico', return_value=None), \
                 patch('core.conversacion.estados.pregunta_abierta_final._radar_msg_si_aplica', return_value=''):
             pregunta_abierta_final.manejar(Contexto(self.est, 'mediría la humedad', self.est.telefono, self.est.telefono))

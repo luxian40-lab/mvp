@@ -41,7 +41,7 @@ class MetaSenderTests(TestCase):
         self.assertEqual(urls, ['PN_UNO', 'PN_DOS', 'PN_UNO'])
 
     def test_no_deja_el_phone_id_puesto_al_salir(self):
-        from core.sandbox_canal import phone_id_de_salida, salida_por_phone_id
+        from core.canal.sandbox_canal import phone_id_de_salida, salida_por_phone_id
 
         with salida_por_phone_id('PN_UNO'):
             with patch('core.lineas.envio.requests.post', return_value=_respuesta_graph()):
@@ -64,7 +64,7 @@ class MetaSenderTests(TestCase):
         self.assertEqual((dos.canal, dos.phone_id, dos.waba_id), ('meta', 'PN_DOS', 'WABA_DOS'))
 
     def test_sender_de_linea_sin_phone_id_usa_el_del_turno(self):
-        from core.sandbox_canal import salida_por_phone_id
+        from core.canal.sandbox_canal import salida_por_phone_id
 
         with salida_por_phone_id('PN_DOS'):
             self.assertEqual(sender_de_linea().phone_id, 'PN_DOS')

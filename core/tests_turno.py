@@ -6,7 +6,7 @@ from django.test import SimpleTestCase
 
 from core.conversacion.turno import Turno, turno_activo, turno_actual
 from core.lineas.perfil import PERFIL_COMPLETA, PERFIL_SOLO_CURSOS
-from core.sandbox_canal import PROVEEDOR_META
+from core.canal.sandbox_canal import PROVEEDOR_META
 from core.tests_support.contrato_linea import LINEA_2, LINEA_PRINCIPAL, ContratoLineaTestCase
 
 WRAPPER = 'core.views.webhook_twilio'

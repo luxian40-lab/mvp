@@ -15,7 +15,7 @@ _SI_CONFIRMA_DATOS = {
 
 def cortar_certificado_meta(post_data) -> bool:
     """Si hay un diploma pendiente, se entrega aquí. El curso no elige el canal."""
-    from core.sandbox_canal import inbound_es_meta
+    from core.canal.sandbox_canal import inbound_es_meta
 
     if not inbound_es_meta(post_data):
         return False
@@ -43,7 +43,7 @@ def cortar_certificado_meta(post_data) -> bool:
 
 def cortar_habeas_meta(post_data) -> bool:
     """En Meta, sin autorización no se entra al curso. Botones Acepto / No acepto."""
-    from core.sandbox_canal import inbound_es_meta
+    from core.canal.sandbox_canal import inbound_es_meta
 
     if not inbound_es_meta(post_data):
         return False
@@ -84,7 +84,7 @@ def cortar_habeas_meta(post_data) -> bool:
     except Exception:
         logger.exception('habeas_meta_corte')
         resultado = {'accion': 'reenviar_plantilla', 'texto': None}
-    from core.sandbox_canal import enviar_sandbox_habeas
+    from core.canal.sandbox_canal import enviar_sandbox_habeas
     from core.canal.envios import enviar_whatsapp_twilio
 
     destino = post_data.get('From', '') or est.telefono
@@ -99,7 +99,7 @@ def cortar_habeas_meta(post_data) -> bool:
 
 def menu_tras_confirmar_datos_meta(post_data) -> bool:
     """En Meta, el sí de la cédula abre el menú (o, en la línea de curso lineal, el curso sin empezar)."""
-    from core.sandbox_canal import inbound_es_meta
+    from core.canal.sandbox_canal import inbound_es_meta
 
     if not inbound_es_meta(post_data):
         return False

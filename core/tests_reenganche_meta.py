@@ -49,8 +49,8 @@ class ReengancheMetaTests(TestCase):
             estudiante=estudiante,
             fecha=timezone.now(),
         )
-        with patch('core.sandbox_canal.enviar_meta', return_value={'success': True}) as texto, \
-                patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla:
+        with patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True}) as texto, \
+                patch('core.canal.sandbox_canal.enviar_meta_plantilla') as plantilla:
             resultado = reenganche_drip_content_diario()
         self.assertEqual(resultado['enviados'], 1)
         texto.assert_called_once()
@@ -59,8 +59,8 @@ class ReengancheMetaTests(TestCase):
     @override_settings(META_TEMPLATE_DRIP_REENGANCHE='drip_reenganche')
     def test_ventana_cerrada_manda_plantilla(self):
         _par('573001110002')
-        with patch('core.sandbox_canal.enviar_meta') as texto, \
-                patch('core.sandbox_canal.enviar_meta_plantilla', return_value={'success': True}) as plantilla:
+        with patch('core.canal.sandbox_canal.enviar_meta') as texto, \
+                patch('core.canal.sandbox_canal.enviar_meta_plantilla', return_value={'success': True}) as plantilla:
             resultado = reenganche_drip_content_diario()
         self.assertEqual(resultado['enviados'], 1)
         self.assertEqual(resultado['omitidos_sin_ventana'], 0)
@@ -78,8 +78,8 @@ class ReengancheMetaTests(TestCase):
             estudiante=estudiante,
             fecha=timezone.now(),
         )
-        with patch('core.sandbox_canal.enviar_meta') as texto, \
-                patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla:
+        with patch('core.canal.sandbox_canal.enviar_meta') as texto, \
+                patch('core.canal.sandbox_canal.enviar_meta_plantilla') as plantilla:
             resultado = reenganche_drip_content_diario()
         self.assertEqual(resultado['omitidos_sin_ventana'], 1)
         texto.assert_not_called()
@@ -87,8 +87,8 @@ class ReengancheMetaTests(TestCase):
 
     def test_ventana_cerrada_sin_plantilla_no_envia(self):
         _par('573001110003')
-        with patch('core.sandbox_canal.enviar_meta') as texto, \
-                patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla:
+        with patch('core.canal.sandbox_canal.enviar_meta') as texto, \
+                patch('core.canal.sandbox_canal.enviar_meta_plantilla') as plantilla:
             resultado = reenganche_drip_content_diario()
         self.assertEqual(resultado['enviados'], 0)
         self.assertEqual(resultado['omitidos_sin_ventana'], 1)
@@ -98,7 +98,7 @@ class ReengancheMetaTests(TestCase):
     def test_dry_run_no_envia_y_enmascara(self):
         _par('573001110099')
         salida = StringIO()
-        with patch('core.sandbox_canal.enviar_meta') as texto:
+        with patch('core.canal.sandbox_canal.enviar_meta') as texto:
             call_command('reenganche_dry_run', '--dias', '1', stdout=salida)
         texto.assert_not_called()
         texto_salida = salida.getvalue()

@@ -670,7 +670,7 @@ def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
     from contextlib import nullcontext
 
     from core.lineas.sesion import sesion_de
-    from core.sandbox_canal import salida_por_phone_id
+    from core.canal.sandbox_canal import salida_por_phone_id
     from core.sandbox_menu import MODO_MENU
     from core.canal.utils_telefono import normalizar_e164_co
 
@@ -690,7 +690,7 @@ def poner_en_inicio_de_flujo(estudiante, phone_id: str = '') -> None:
     if not getattr(estudiante, 'pk', None):
         return
     from core.conversacion.estado_linea import en_linea
-    from core.sandbox_canal import sandbox_phone_id
+    from core.canal.sandbox_canal import sandbox_phone_id
 
     with en_linea(
         linea or sandbox_phone_id(), lambda: estudiante,

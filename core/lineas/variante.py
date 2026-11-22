@@ -24,7 +24,7 @@ TEXTO_LINEA_SOLO_CURSOS = TEXTO_LINEA_MODO_TWILIO
 def es_solo_cursos(phone_id: str | None = None) -> bool:
     """True = línea 2 / modo Twilio (curso lineal)."""
     if phone_id is None:
-        from core.sandbox_canal import phone_id_de_salida
+        from core.canal.sandbox_canal import phone_id_de_salida
 
         phone_id = phone_id_de_salida()
     buscado = str(phone_id or '').strip()
@@ -42,7 +42,7 @@ def perfil_de(phone_id: str | None = None) -> PerfilLinea:
     Línea que no está en el registro = perfil principal, como `es_solo_cursos`.
     """
     if phone_id is None:
-        from core.sandbox_canal import phone_id_de_salida
+        from core.canal.sandbox_canal import phone_id_de_salida
 
         phone_id = phone_id_de_salida()
     buscado = str(phone_id or '').strip()

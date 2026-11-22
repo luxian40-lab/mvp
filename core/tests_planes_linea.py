@@ -440,7 +440,7 @@ class ContadorAsesorTests(TestCase):
     def test_memoria_del_agente_guarda_pregunta_y_respuesta(self):
         from core.sandbox_agentes import _historial_sandbox
 
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
@@ -465,7 +465,7 @@ class ContadorAsesorTests(TestCase):
         from django.core.cache import cache
 
         cache.clear()
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
@@ -478,7 +478,7 @@ class ContadorAsesorTests(TestCase):
         self.assertEqual(self._posts(post)[0]['reaction']['message_id'], 'wamid.PREG1')
 
     def test_menu_no_lleva_reaccion(self):
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(dict(_payload(self.tel, 'hola'), MessageSid='wamid.HOLA'))
@@ -486,7 +486,7 @@ class ContadorAsesorTests(TestCase):
 
     @override_settings(SANDBOX_REACCION_ESPERA='')
     def test_reaccion_desactivable(self):
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
@@ -497,10 +497,10 @@ class ContadorAsesorTests(TestCase):
     def test_nat_deja_reaccion_para_quitar_con_su_respuesta(self):
         from django.core.cache import cache
 
-        from core.sandbox_canal import enviar_meta
+        from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'nat'))
@@ -517,11 +517,11 @@ class ContadorAsesorTests(TestCase):
     def test_listo_de_curso_pasa_de_reloj_a_chulo_cuando_llega_el_modulo(self):
         from django.core.cache import cache
 
-        from core.sandbox_canal import enviar_meta
+        from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='cursos')
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             self._meta_ok(post)
             ruta = dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L1'))
             self.assertEqual(ruta, 'cursos')
@@ -536,11 +536,11 @@ class ContadorAsesorTests(TestCase):
         from django.core.cache import cache
 
         from core.response_templates import TEXTO_MODULO_CARGANDO
-        from core.sandbox_canal import enviar_meta
+        from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='cursos')
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             self._meta_ok(post)
             dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L1'))
             dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L2'))
@@ -555,16 +555,16 @@ class ContadorAsesorTests(TestCase):
         from django.core.cache import cache
 
         from core.response_templates import TEXTO_MODULO_CARGANDO
-        from core.sandbox_canal import enviar_meta
+        from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             self._meta_ok(post)
             enviar_meta(self.tel, TEXTO_MODULO_CARGANDO)
         self.assertEqual(self._posts(post)[0]['text']['body'], TEXTO_MODULO_CARGANDO)
 
     def test_asesoria_muestra_la_lista_de_agentes(self):
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             self._meta_ok(post)
             dispatch_sandbox_menu(_payload(self.tel, 'asesoria'))
             lista = self._posts(post)[-1]
@@ -588,17 +588,17 @@ class ContadorAsesorTests(TestCase):
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'coach')
 
     def test_asesoria_pregunta_libre_va_al_agente(self):
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             self._meta_ok(post)
             dispatch_sandbox_menu(_payload(self.tel, 'asesoria'))
             dispatch_sandbox_menu(_payload(self.tel, 'cómo subo el precio a mis clientes'))
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'ventas')
 
     def test_envio_segmentado_por_meta_devuelve_sid_como_twilio(self):
-        from core.sandbox_canal import canal_sandbox_meta
+        from core.canal.sandbox_canal import canal_sandbox_meta
         from core.views import _enviar_mensaje_twilio_segmentado
 
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'wamid.OUT1'}]}
             with canal_sandbox_meta():
@@ -615,9 +615,9 @@ class ContadorAsesorTests(TestCase):
         )
 
     def test_mensajes_de_curso_no_gastan_preguntas(self):
-        from core.sandbox_canal import enviar_meta
+        from core.canal.sandbox_canal import enviar_meta
 
-        with patch('core.sandbox_canal.requests.post') as post:
+        with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             for _ in range(5):
@@ -734,7 +734,7 @@ class RachaEnMensajeTests(TestCase):
 
     def test_sin_habeas_no_registra_actividad(self):
         tel = '573005550041'
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value=OK):
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value=OK):
             dispatch_sandbox_menu(_payload(tel, 'hola'))
         self.assertIsNone(SandboxCanalSesion.objects.get(telefono=tel).racha_ultimo_dia)
 
@@ -747,7 +747,7 @@ class AccesoAulaMetaTests(TestCase):
         Estudiante.objects.create(
             nombre='Ana Ruiz', cedula='A777', telefono=tel, cliente=org, acepto_terminos=False,
         )
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value=OK) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value=OK) as habeas:
             ruta = dispatch_sandbox_menu(_payload(tel, 'aula'))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()

@@ -8,12 +8,12 @@ from django.utils import timezone
 class SegmentadoDiplomaInterceptTests(SimpleTestCase):
     """El camino envio_comun → segmentado no puede saltarse el diploma."""
 
-    @patch('core.sandbox_canal.sandbox_meta_activo', return_value=True)
+    @patch('core.canal.sandbox_canal.sandbox_meta_activo', return_value=True)
     @patch(
         'core.views.diploma_meta.entregar_si_es_diploma',
         return_value={'success': True, 'mensaje_id': 'wamid.DIP'},
     )
-    @patch('core.sandbox_canal.enviar_meta')
+    @patch('core.canal.sandbox_canal.enviar_meta')
     def test_diploma_en_segmentado_no_llama_enviar_meta_crudo(self, meta, entregar, _activo):
         from core.views.twilio_transporte import _enviar_mensaje_twilio_segmentado
 
@@ -29,10 +29,10 @@ class SegmentadoDiplomaInterceptTests(SimpleTestCase):
         entregar.assert_called_once()
         meta.assert_not_called()
 
-    @patch('core.sandbox_canal.sandbox_meta_activo', return_value=True)
+    @patch('core.canal.sandbox_canal.sandbox_meta_activo', return_value=True)
     @patch('core.views.diploma_meta.entregar_si_es_diploma', return_value=None)
     @patch(
-        'core.sandbox_canal.enviar_meta',
+        'core.canal.sandbox_canal.enviar_meta',
         return_value={'success': True, 'mensaje_id': 'wamid.CLASE'},
     )
     def test_video_de_clase_sigue_por_enviar_meta(self, meta, entregar, _activo):
@@ -97,7 +97,7 @@ class DiplomaEntregaPlantillaYFlagTests(TestCase):
         'core.lineas.diploma_entrega.enviar_diploma_plantilla_meta',
         return_value={'success': True, 'mensaje_id': 'wamid.TPL'},
     )
-    @patch('core.sandbox_canal.enviar_meta')
+    @patch('core.canal.sandbox_canal.enviar_meta')
     def test_con_plantilla_no_usa_imagen_de_sesion(self, meta, tpl):
         from core.lineas.diploma_entrega import entregar_si_corresponde
 

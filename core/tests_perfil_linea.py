@@ -67,7 +67,7 @@ class PerfilDeLineaTests(SimpleTestCase):
         self.assertIs(perfil_de(''), PERFIL_COMPLETA)
 
     def test_sin_phone_id_usa_el_del_turno(self):
-        from core.sandbox_canal import salida_por_phone_id
+        from core.canal.sandbox_canal import salida_por_phone_id
 
         with salida_por_phone_id('PN_DOS'):
             self.assertIs(perfil_de(), PERFIL_SOLO_CURSOS)

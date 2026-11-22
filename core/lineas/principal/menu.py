@@ -19,7 +19,7 @@ def _menu():
 
 
 def _linea() -> str:
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     return phone_id_de_salida()
 
@@ -62,7 +62,7 @@ def _preguntar_curso(telefono: str, from_number: str, clave: str) -> None:
     from core.lineas.principal.confirmar_curso import BOTON_OTRO, BOTON_SI, ID_OTRO, recordar, texto_pregunta
     from core.lineas.variante import perfil_de
     from core.canal.planes_linea import resolver_plan
-    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     visto = evaluar_catalogo(telefono, clave)
     if not visto.get('ok'):
@@ -122,7 +122,7 @@ def _interceptar_confirmacion(telefono: str, from_number: str, dato: dict) -> bo
 
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
     from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO, perfil_de
-    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     _olvidar_eleccion(telefono_usuario)
 
@@ -170,7 +170,7 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
         paginas_lista,
         tarjetas_catalogo,
     )
-    from core.sandbox_canal import (
+    from core.canal.sandbox_canal import (
         enviar_meta_botones,
         enviar_meta_carrusel,
         enviar_meta_lista,
@@ -260,7 +260,7 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         return
     if dato.get('accion') == 'info':
         from core.cursos_generales import _url_de_curso
-        from core.sandbox_canal import enviar_meta_url, sandbox_via_meta
+        from core.canal.sandbox_canal import enviar_meta_url, sandbox_via_meta
 
         destino = str(item.get('url') or '') or _url_de_curso(item.get('nombre') or '')
         if sandbox_via_meta() and destino.startswith('https://'):

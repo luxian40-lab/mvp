@@ -140,7 +140,7 @@ def guardar_plan_persona(estudiante, clave: str, telefono_anterior: str = '') ->
         return
     actualizadas = SandboxCanalSesion.objects.filter(telefono=nuevo).update(plan=clave)
     if not actualizadas:
-        from core.sandbox_canal import sandbox_phone_id
+        from core.canal.sandbox_canal import sandbox_phone_id
 
         SandboxCanalSesion.objects.create(
             telefono=nuevo,

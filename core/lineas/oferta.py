@@ -48,7 +48,7 @@ def _claves(texto: str) -> set[str]:
 def cliente_de_la_linea(phone_id: str | None = None):
     """La empresa dueña del phone number id de este turno. None si nadie lo reclamó."""
     if phone_id is None:
-        from core.sandbox_canal import phone_id_de_salida
+        from core.canal.sandbox_canal import phone_id_de_salida
 
         phone_id = phone_id_de_salida()
     buscado = str(phone_id or '').strip()

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from core.sandbox_canal import (
+from core.canal.sandbox_canal import (
     _graph_messages_url,
     phone_id_de_salida,
     phone_id_es_sandbox,

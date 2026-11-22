@@ -98,7 +98,7 @@ def responder_aula_meta(post_data) -> bool:
     except Exception:
         logger.exception('aula_meta_emit_fail')
         return False
-    from core.sandbox_canal import enviar_meta
+    from core.canal.sandbox_canal import enviar_meta
 
     enviar_meta(
         data.get('From', ''),

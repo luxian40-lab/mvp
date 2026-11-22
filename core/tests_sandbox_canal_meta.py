@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 
-from core.sandbox_canal import (
+from core.canal.sandbox_canal import (
     enviar_sandbox,
     es_inbound_twilio_http,
     inbound_desde_meta_message,
@@ -123,7 +123,7 @@ class SandboxCanalMetaAdapterTests(TestCase):
     LINEA_META_SOLO_REGISTRADOS=False,
 )
 class SandboxCanalMetaSendTests(TestCase):
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_enviar_sandbox_usa_graph_no_twilio(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
@@ -139,7 +139,7 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(body.get('to'), '573001234567')
         self.assertEqual(body.get('type'), 'text')
 
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_marcador_continuemos_sale_como_boton(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {'messages': [{'id': 'wamid.btn'}]}
@@ -152,9 +152,9 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(botones[0]['reply']['title'], 'Continuar')
         self.assertNotIn('listo', (body['interactive']['body']['text'] or '').lower())
 
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_confirmacion_de_cedula_sale_con_botones(self, mock_post):
-        from core.sandbox_canal import enviar_sandbox_template_fallback
+        from core.canal.sandbox_canal import enviar_sandbox_template_fallback
         from core.canal.whatsapp_service import TWILIO_CONTENT_SIDS
 
         mock_post.return_value.status_code = 200
@@ -184,7 +184,7 @@ class SandboxCanalMetaSendTests(TestCase):
 
     def test_habeas_en_meta_sale_con_botones_aunque_el_sid_sea_otro(self):
         from core.models import Cliente, ConfiguracionGlobal
-        from core.sandbox_canal import canal_sandbox_meta
+        from core.canal.sandbox_canal import canal_sandbox_meta
         from core.canal.whatsapp_service import enviar_habeas_data
 
         cliente = Cliente.objects.create(
@@ -210,7 +210,7 @@ class SandboxCanalMetaSendTests(TestCase):
 
     def test_habeas_ventana_cerrada_omite_sin_llamar_graph(self):
         from core.models import ConfiguracionGlobal
-        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+        from core.canal.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
 
         cfg = ConfiguracionGlobal.get_solo()
         cfg.habeas_respeta_ventana = True
@@ -229,7 +229,7 @@ class SandboxCanalMetaSendTests(TestCase):
 
     def test_habeas_ventana_abierta_manda_botones(self):
         from core.models import ConfiguracionGlobal
-        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+        from core.canal.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
 
         cfg = ConfiguracionGlobal.get_solo()
         cfg.habeas_respeta_ventana = True
@@ -246,7 +246,7 @@ class SandboxCanalMetaSendTests(TestCase):
     @override_settings(EKI_HABEAS_META_PLANTILLA='habeas_eki_meta')
     def test_habeas_ventana_cerrada_con_plantilla_usa_template(self):
         from core.models import ConfiguracionGlobal
-        from core.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
+        from core.canal.sandbox_canal import canal_sandbox_meta, enviar_sandbox_habeas
 
         cfg = ConfiguracionGlobal.get_solo()
         cfg.habeas_respeta_ventana = True
@@ -525,7 +525,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
         self._est()
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('Listo', 'wamid.listo1'))
         botones.assert_called_once()
@@ -575,7 +575,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         )
         curso = Curso.objects.create(nombre='Tome las riendas de su dinero', activo=True)
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('continuemos', 'wamid.cont1'))
         botones.assert_called_once()
@@ -588,7 +588,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         from core.views.webhook_twilio import _procesar_twilio_webhook
 
         self._est()
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('continuemos', 'wamid.cont2'))
         botones.assert_called_once()
@@ -605,7 +605,7 @@ class HabeasMetaAntesDelCursoTests(TestCase):
         SandboxCanalSesion.objects.create(
             telefono=est.telefono, habeas_aceptado=True, modo='cursos',
         )
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as botones, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             _procesar_twilio_webhook(self._post('continuemos', 'wamid.ced1'))
         botones.assert_not_called()

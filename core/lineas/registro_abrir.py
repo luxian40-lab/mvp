@@ -83,7 +83,7 @@ def phone_id_linea_registro() -> str:
 @contextmanager
 def envio_desde_linea_registro(*, forzar: bool = False):
     """Graph/sandbox de registro salen por L3 aunque el ContextVar del turno esté vacío."""
-    from core.sandbox_canal import salida_por_phone_id
+    from core.canal.sandbox_canal import salida_por_phone_id
 
     pid = phone_id_linea_registro()
     usar = bool(pid) and (forzar or es_turno_registro())

@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 
 from core.inscripcion_curso import inscribir_estudiante_en_curso
 from core.lineas.cursos_linea import cursos_de_linea, fijar_curso_de_la_linea, solo_de_la_linea
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 from core.lineas.perfil import USO_SOLO_CURSOS
 from core.models import Cliente, Estudiante, LineaWhatsapp, ProgresoEstudiante
 from core.canal.planes_linea import PLAN_CURSO_ASESOR

@@ -97,9 +97,9 @@ class CanalesRealesTests(SimpleTestCase):
         self.addCleanup(patcher.stop)
 
     def _por_meta(self):
-        from core.sandbox_canal import canal_sandbox_meta
+        from core.canal.sandbox_canal import canal_sandbox_meta
 
-        with patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.x'}) as meta:
+        with patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.x'}) as meta:
             with canal_sandbox_meta():
                 from twilio.rest import Client
 

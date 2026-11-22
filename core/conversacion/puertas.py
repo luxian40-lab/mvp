@@ -148,7 +148,7 @@ def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
 
 def _enviar_confirma_numero(telefono: str, from_number: str, est) -> None:
     from core.habeas_respuestas import texto_confirma_numero
-    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     texto = texto_confirma_numero(est, telefono)
     if sandbox_via_meta():
@@ -247,7 +247,7 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     t = (body or '').strip().lower()
     est = estudiante_por_telefono(telefono)
     if t in ('continuemos', 'continuar') and est is not None and not est.acepto_terminos:
-        from core.sandbox_canal import enviar_sandbox_habeas
+        from core.canal.sandbox_canal import enviar_sandbox_habeas
 
         enviar_sandbox_habeas(telefono)
         return 'handled'
@@ -272,7 +272,7 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
             agente='sandbox_menu',
         )
         return 'handled'
-    from core.sandbox_canal import enviar_sandbox_habeas
+    from core.canal.sandbox_canal import enviar_sandbox_habeas
 
     enviar_sandbox_habeas(telefono)
     return 'handled'

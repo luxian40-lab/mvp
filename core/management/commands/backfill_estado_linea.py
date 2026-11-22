@@ -22,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from core.conversacion.estado_linea import CAMPOS, EstadoLinea
         from core.models import SandboxCanalSesion
-        from core.sandbox_canal import sandbox_phone_id
+        from core.canal.sandbox_canal import sandbox_phone_id
         from core.canal.utils_telefono import estudiante_por_telefono
 
         aplicar = options['aplicar']

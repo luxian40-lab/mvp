@@ -34,7 +34,7 @@ def numeros_destino_comercial(*, incluir_orgs: bool = True) -> set[str]:
         out.add(global_n)
     sandbox = _sandbox_number()
     if sandbox:
-        from core.sandbox_canal import sandbox_via_meta
+        from core.canal.sandbox_canal import sandbox_via_meta
 
         if not sandbox_via_meta():
             out.add(sandbox)

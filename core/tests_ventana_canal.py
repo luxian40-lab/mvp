@@ -81,7 +81,7 @@ class VentanaCanalWebhookTests(TestCase):
         with patch(
             'core.views.webhook_twilio._intentar_responder_envio_certificado',
             return_value=True,
-        ), patch('core.sandbox_canal.poner_reaccion_espera'):
+        ), patch('core.canal.sandbox_canal.poner_reaccion_espera'):
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data=raw,

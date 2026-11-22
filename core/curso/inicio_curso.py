@@ -75,7 +75,7 @@ def primera_entrega_al_confirmar(estudiante) -> str | None:
     """
     from core.lineas.cursos_linea import solo_de_la_linea
     from core.models import ProgresoEstudiante
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     abiertos = list(
         solo_de_la_linea(ProgresoEstudiante.objects.filter(

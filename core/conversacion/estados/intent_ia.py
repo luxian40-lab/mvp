@@ -58,7 +58,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         )
         logger.info(f"✅ Respuesta desde template: {texto_respuesta[:50]}...")
         if texto_respuesta == LECCION_EN_CURSO:
-            from core.sandbox_canal import descartar_reaccion_espera
+            from core.canal.sandbox_canal import descartar_reaccion_espera
 
             descartar_reaccion_espera(telefono_limpio)
             return CORTAR
@@ -80,7 +80,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             )
         else:
             try:
-                from core.sandbox_canal import poner_reaccion_espera
+                from core.canal.sandbox_canal import poner_reaccion_espera
                 from core.ai_assistant import responder_con_ia
 
                 poner_reaccion_espera(telefono_limpio, msg_sid)

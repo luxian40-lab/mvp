@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, override_settings
 
 from core.lineas.registro_abrir import abrir_registro
 from core.lineas.registro_cursos import atender_cursos, modo_de_oferta
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 
 class _Ficha:
     def __init__(self):

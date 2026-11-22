@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, Estudiante, SandboxCanalSesion, WhatsappLog
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 from core.sandbox_menu import _get_or_create_sesion
 
 PHONE = '495439026995771'

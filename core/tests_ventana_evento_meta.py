@@ -116,7 +116,7 @@ class VentanaMenuMetaWebhookTests(TestCase):
             cedula='CC1234594', nombre='Ana', telefono=TEL, acepto_terminos=True, estado_chat='ACTIVO',
         )
         raw = json.dumps(_meta_texto('menu')).encode()
-        with patch('core.sandbox_canal.poner_reaccion_espera'):
+        with patch('core.canal.sandbox_canal.poner_reaccion_espera'):
             resp = self.client.post(
                 '/webhook/whatsapp/',
                 data=raw,

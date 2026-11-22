@@ -42,7 +42,7 @@ def _respuesta(code, tipo='OAuthException', message='expired'):
 )
 class MetaTokenTests(TestCase):
     def test_190_activa_bandera_y_el_reenganche_no_envia(self):
-        from core.sandbox_canal import _post_graph
+        from core.canal.sandbox_canal import _post_graph
 
         redis = _Redis()
         curso = Curso.objects.create(nombre='C', descripcion='d', dias_espera_entre_modulos=2)
@@ -58,9 +58,9 @@ class MetaTokenTests(TestCase):
             fecha_ultimo_avance=timezone.now() - timedelta(days=2),
         )
         with patch('core.locks._cliente_redis', return_value=redis), \
-                patch('core.sandbox_canal.requests.post', return_value=_respuesta(190)), \
+                patch('core.canal.sandbox_canal.requests.post', return_value=_respuesta(190)), \
                 self.assertLogs('core.canal.meta_token', level='CRITICAL') as logs, \
-                patch('core.sandbox_canal.enviar_meta') as envio:
+                patch('core.canal.sandbox_canal.enviar_meta') as envio:
             _post_graph({
                 'messaging_product': 'whatsapp',
                 'to': '573001110190',
@@ -81,11 +81,11 @@ class MetaTokenTests(TestCase):
         self.assertIn('meta_token_invalido', capturado)
 
     def test_otro_codigo_no_activa_la_bandera(self):
-        from core.sandbox_canal import _post_graph
+        from core.canal.sandbox_canal import _post_graph
 
         redis = _Redis()
         with patch('core.locks._cliente_redis', return_value=redis), \
-                patch('core.sandbox_canal.requests.post', return_value=_respuesta(131026, 'GraphMethodException', 'undeliverable')):
+                patch('core.canal.sandbox_canal.requests.post', return_value=_respuesta(131026, 'GraphMethodException', 'undeliverable')):
             _post_graph({
                 'messaging_product': 'whatsapp',
                 'to': '573001110191',

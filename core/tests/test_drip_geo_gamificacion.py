@@ -379,8 +379,8 @@ class DripGeoGamificacionTests(TestCase):
 			modulo_actual=modulo_1,
 			fecha_ultimo_avance=timezone.now() - timedelta(days=2),
 		)
-		with patch('core.sandbox_canal.enviar_meta') as meta, \
-			patch('core.sandbox_canal.enviar_meta_plantilla') as plantilla, \
+		with patch('core.canal.sandbox_canal.enviar_meta') as meta, \
+			patch('core.canal.sandbox_canal.enviar_meta_plantilla') as plantilla, \
 			patch('core.canal.whatsapp_service.enviar_template_twilio') as twilio, \
 			patch('core.canal.envios.enviar_whatsapp_twilio') as texto:
 			resultado = reenganche_drip_content_diario()

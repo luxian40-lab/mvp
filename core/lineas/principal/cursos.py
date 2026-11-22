@@ -19,7 +19,7 @@ def _menu():
 def _abiertos_del_mes(telefono: str):
     from core.lineas.cursos_linea import solo_de_la_linea
     from core.canal.planes_linea import cursos_iniciados_en_el_mes
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     return list(
         solo_de_la_linea(cursos_iniciados_en_el_mes(telefono).filter(completado=False), phone_id_de_salida())
@@ -50,7 +50,7 @@ def _entrar_en_progreso(telefono: str, from_number: str, progreso) -> None:
 
 
 def _preguntar_cual_curso(telefono: str, from_number: str, abiertos) -> None:
-    from core.sandbox_canal import enviar_meta_lista, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_lista, sandbox_via_meta
 
     _menu()._set_modo(_menu()._get_or_create_sesion(telefono), _menu().MODO_FORMACION)
     lineas = [f"{i}. {p.curso.nombre}" for i, p in enumerate(abiertos, start=1)]
@@ -93,7 +93,7 @@ def _tiene_curso_abierto(telefono: str) -> bool:
 def _progresos_del_telefono(telefono: str):
     from core.lineas.cursos_linea import solo_de_la_linea
     from core.models import Estudiante, ProgresoEstudiante
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     tel = _menu().normalizar_telefono_whatsapp(telefono)
     est = Estudiante.objects.filter(telefono=tel).first()
@@ -109,7 +109,7 @@ def _progresos_del_telefono(telefono: str):
 
 def entrar_cursos_inscrito(telefono_usuario: str, from_number: str) -> bool:
     """Continúa cursos ya inscritos. No abre demo Riendas ni crea estudiantes."""
-    from core.sandbox_canal import canal_sandbox_si_meta
+    from core.canal.sandbox_canal import canal_sandbox_si_meta
 
     est, progresos = _progresos_del_telefono(telefono_usuario)
     abiertos = [p for p in progresos if not p.completado]

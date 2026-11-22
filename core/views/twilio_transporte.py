@@ -217,7 +217,7 @@ def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
 def turno_sale_por_meta() -> bool:
     """True si este turno es de la línea Meta. El aula Twilio no lo es."""
     try:
-        from core.sandbox_canal import sandbox_meta_activo
+        from core.canal.sandbox_canal import sandbox_meta_activo
 
         if sandbox_meta_activo():
             return True
@@ -233,7 +233,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
     meta = False
     try:
-        from core.sandbox_canal import _MetaSid, enviar_meta
+        from core.canal.sandbox_canal import _MetaSid, enviar_meta
 
         meta = turno_sale_por_meta()
         if meta:

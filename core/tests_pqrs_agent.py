@@ -203,7 +203,7 @@ class TestPQRSRespuestaWhatsApp(TestCase):
         self.est = _estudiante()
 
     @patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True, 'mensaje_id': 'SM1'})
-    @patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.PQRS'})
+    @patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.PQRS'})
     def test_aplicar_respuesta_envia_por_meta_y_resuelve(self, mock_meta, mock_twilio):
         from core.pqrs_respuesta import aplicar_respuesta_pqrs
 

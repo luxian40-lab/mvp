@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from core.models import Cliente, Curso, Estudiante, SandboxCanalSesion
 from core.canal.planes_linea import PLAN_CURSO_ASESOR
 from core.models_extras import GrupoEstudiantes
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 
 LINEA = '555666777'
 
@@ -119,8 +119,8 @@ class OfertaLineaTests(TestCase):
             nombre='A', cedula='OF4', telefono='573001110080', cliente=self.empresa,
             acepto_terminos=True,
         )
-        with patch('core.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista, \
-                patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel:
+        with patch('core.canal.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista, \
+                patch('core.canal.sandbox_canal.enviar_meta_carrusel') as carrusel:
             enviar_catalogo_formacion('573001110080', 'whatsapp:+100')
         self.assertEqual(lista.call_count, 2)
         carrusel.assert_not_called()
@@ -140,8 +140,8 @@ class OfertaLineaTests(TestCase):
             acepto_terminos=True,
         )
         self.assertEqual([fila[0] for fila in filas_agentes(est.telefono)], ['nat', 'coach', 'profe'])
-        with patch('core.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista, \
-                patch('core.sandbox_canal.enviar_meta_botones') as botones:
+        with patch('core.canal.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista, \
+                patch('core.canal.sandbox_canal.enviar_meta_botones') as botones:
             enviar_menu_agentes(est.telefono, 'whatsapp:+100')
         lista.assert_called_once()
         botones.assert_not_called()

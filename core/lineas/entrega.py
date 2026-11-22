@@ -111,7 +111,7 @@ def enviar_marcado(
 
         phone_id = ''
         if sale_meta:
-            from core.sandbox_canal import phone_id_de_salida
+            from core.canal.sandbox_canal import phone_id_de_salida
 
             phone_id = phone_id_de_salida()
         resultado = recorrer_partes(

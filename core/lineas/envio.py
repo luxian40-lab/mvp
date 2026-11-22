@@ -11,17 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 def _salida_phone_id() -> str:
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
     return phone_id_de_salida()
 
 
 def _via_meta() -> bool:
-    from core.sandbox_canal import sandbox_via_meta
+    from core.canal.sandbox_canal import sandbox_via_meta
     return sandbox_via_meta()
 
 
 def _texto_habeas() -> str:
-    from core.sandbox_canal import _TEXTO_HABEAS_SANDBOX
+    from core.canal.sandbox_canal import _TEXTO_HABEAS_SANDBOX
     return _TEXTO_HABEAS_SANDBOX
 
 
@@ -1010,7 +1010,7 @@ def enviar_respuesta_linea(
     función y no abre el cuerpo del webhook ni el cliente de Twilio.
     Sin phone id del turno (tests, Twilio), sigue enviando por Graph directo.
     """
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     pnid = phone_id_de_salida()
     if not pnid:

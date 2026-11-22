@@ -120,7 +120,7 @@ def resolver_plan(telefono: str) -> PlanLinea:
     """
     from core.models import SandboxCanalSesion
     from core.nati import normalizar_telefono_whatsapp
-    from core.sandbox_canal import sandbox_via_meta
+    from core.canal.sandbox_canal import sandbox_via_meta
 
     tel = normalizar_telefono_whatsapp(telefono or '')
     if not tel:
@@ -252,7 +252,7 @@ TEXTO_PLAN_SIN_CURSOS = (
 def explicar_plan(telefono: str) -> dict:
     """De dónde sale el plan. No cambia la resolución del menú."""
     from core.nati import normalizar_telefono_whatsapp
-    from core.sandbox_canal import sandbox_via_meta
+    from core.canal.sandbox_canal import sandbox_via_meta
 
     tel = normalizar_telefono_whatsapp(telefono or '')
     vacio = {

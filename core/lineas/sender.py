@@ -39,7 +39,7 @@ class MetaSender:
     canal: ClassVar[str] = 'meta'
 
     def _salida(self):
-        from core.sandbox_canal import salida_por_phone_id
+        from core.canal.sandbox_canal import salida_por_phone_id
 
         return salida_por_phone_id(self.phone_id)
 
@@ -199,7 +199,7 @@ class TwilioSender:
 def sender_de_linea(phone_id: str | None = None) -> Sender:
     """Sender de la línea de ese phone id. Sin phone id usa el de salida del turno."""
     if phone_id is None:
-        from core.sandbox_canal import phone_id_de_salida
+        from core.canal.sandbox_canal import phone_id_de_salida
 
         phone_id = phone_id_de_salida()
     pnid = str(phone_id or '').strip()

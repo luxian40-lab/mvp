@@ -583,7 +583,7 @@ def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx
                     )
 
                 if kwargs.get('meta'):
-                    from core.sandbox_canal import canal_sandbox_meta, salida_por_phone_id
+                    from core.canal.sandbox_canal import canal_sandbox_meta, salida_por_phone_id
 
                     with salida_por_phone_id(kwargs.get('phone_id') or ''), canal_sandbox_meta():
                         return _seguir()

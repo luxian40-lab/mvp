@@ -200,7 +200,7 @@ def ejecutar(ahora: datetime | None = None) -> dict:
             'omitidos_sin_ventana': 0,
             'omitidos_token': plan['candidatos'],
         }
-    from core.sandbox_canal import enviar_meta, enviar_meta_plantilla
+    from core.canal.sandbox_canal import enviar_meta, enviar_meta_plantilla
 
     plan = plan_del_dia(timezone.localdate(ahora), ahora)
     enviados = 0

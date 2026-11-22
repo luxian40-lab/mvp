@@ -77,7 +77,7 @@ def _responder_identidad(decision: SandboxRouteDecision, payload: Any, body: str
     """Habeas, cédula o confirmación pedidos desde el menú."""
     if decision.action == 'pedir_habeas':
         try:
-            from core.sandbox_canal import enviar_sandbox_habeas
+            from core.canal.sandbox_canal import enviar_sandbox_habeas
 
             enviar_sandbox_habeas(decision.telefono_usuario)
         except Exception:

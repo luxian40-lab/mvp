@@ -21,7 +21,7 @@ class EsDiplomaTests(SimpleTestCase):
 
 
 class DiplomaSalePorMetaTests(SimpleTestCase):
-    @patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.DIP'})
+    @patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.DIP'})
     @patch('twilio.rest.Client')
     def test_diploma_no_llama_a_twilio(self, client_cls, meta):
         from core.canal.envios import enviar_whatsapp_twilio
@@ -42,7 +42,7 @@ class DiplomaSalePorMetaTests(SimpleTestCase):
         TWILIO_AUTH_TOKEN='token',
         TWILIO_WHATSAPP_NUMBER='whatsapp:+14155238886',
     )
-    @patch('core.sandbox_canal.enviar_meta')
+    @patch('core.canal.sandbox_canal.enviar_meta')
     @patch('core.canal.envios.WhatsappLog')
     @patch('twilio.rest.Client')
     def test_video_de_aula_sigue_en_twilio(self, client_cls, _log, meta):
@@ -90,7 +90,7 @@ class PqrsMetaTests(TestCase):
             mensaje_original='No abre el video',
             estado='pendiente',
         )
-        with patch('core.sandbox_canal.enviar_meta', return_value={'success': False, 'response': '131047'}):
+        with patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': False, 'response': '131047'}):
             ok, err = aplicar_respuesta_pqrs(solicitud, 'Ya quedó el video.', user=None)
         self.assertFalse(ok)
         self.assertIn('131047', err)

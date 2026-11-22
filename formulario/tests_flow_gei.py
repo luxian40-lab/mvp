@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import Cliente, Curso, Estudiante, Modulo
-from core.sandbox_canal import canal_sandbox_meta, inbound_desde_meta_message
+from core.canal.sandbox_canal import canal_sandbox_meta, inbound_desde_meta_message
 from formulario.agent import iniciar_sesion_formulario, manejar_mensaje_formulario
 from formulario.flow_gei import MARCA_FLOW, aplicar_respuestas_flow, flow_json
 from formulario.models import FichaGEI, FlujoPregunta, SesionFormulario, TipoFormulario

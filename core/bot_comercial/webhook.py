@@ -643,7 +643,7 @@ def _bot_comercial_respuesta_catalogo(
             max_out = 420
         max_out = max(280, min(max_out, 700))
         try:
-            from core.sandbox_canal import sandbox_meta_activo
+            from core.canal.sandbox_canal import sandbox_meta_activo
             from core.sandbox_agentes import max_tokens_linea_meta
 
             if sandbox_meta_activo():
@@ -843,7 +843,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     from contextlib import nullcontext
 
     from core.sandbox_agentes import identidad_agronomo_eki
-    from core.sandbox_canal import activar_sandbox_meta_si_inbound
+    from core.canal.sandbox_canal import activar_sandbox_meta_si_inbound
 
     identidad = identidad_agronomo_eki() if forzar_canal else nullcontext()
     token = _NAT_RESPUESTA.set('')

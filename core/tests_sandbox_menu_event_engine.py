@@ -296,7 +296,7 @@ class SandboxMenuTests(TestCase):
                 'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
                 return_value={'ok': False},
             ), patch(
-                'core.sandbox_canal.enviar_sandbox', return_value={'success': True}
+                'core.canal.sandbox_canal.enviar_sandbox', return_value={'success': True}
             ), patch(
                 'core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}
             ):
@@ -472,7 +472,7 @@ class SandboxMenuTests(TestCase):
         self.assertTrue(d4.saludo_entrada)
 
     def test_habeas_antes_del_menu(self):
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             out = dispatch_sandbox_menu({
                 'From': 'whatsapp:+573001234592',
                 'To': 'whatsapp:+14155238886',

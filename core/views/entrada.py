@@ -92,7 +92,7 @@ def _payload_un_mensaje(payload, message_id: str) -> dict:
 
 def _procesar_meta_por_mensaje(payload):
     """Cada mensaje se encola o se procesa solo. Un fallo no suelta los anteriores."""
-    from core.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
+    from core.canal.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
     from core.sandbox_menu import es_destino_sandbox
 
     inbounds = list(iter_mensajes_inbound_meta(payload))

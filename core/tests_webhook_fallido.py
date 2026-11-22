@@ -205,7 +205,7 @@ def test_reprocesar_encola_nat_con_forzar_canal():
 
 def test_external_id_de_las_tres_tareas():
     """Twilio y Nat usan MessageSid. Meta copia el wamid (message.id) a MessageSid."""
-    from core.sandbox_canal import inbound_desde_meta_message
+    from core.canal.sandbox_canal import inbound_desde_meta_message
     from core.canal.webhook_evento import external_id_de_payload
 
     twilio = {'MessageSid': 'SMtwilio', 'From': 'whatsapp:+573001112233', 'Body': 'listo'}

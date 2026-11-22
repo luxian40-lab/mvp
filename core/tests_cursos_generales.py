@@ -158,7 +158,7 @@ class CatalogoFormacionTests(TestCase):
 
     def _confirmar(self, body, nombre):
         curso = Curso.objects.get(nombre=nombre, catalogo_menu=True)
-        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
+        with patch('core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
             self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': body}), 'handled')
         self.assertFalse(ProgresoEstudiante.objects.filter(curso=curso).exists())
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
@@ -167,7 +167,7 @@ class CatalogoFormacionTests(TestCase):
 
     def test_formacion_envia_carrusel_con_foto_y_enlace(self):
         with patch(
-            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
         ) as carrusel:
             out = dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         self.assertEqual(out, 'handled')
@@ -194,7 +194,7 @@ class CatalogoFormacionTests(TestCase):
         )
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
         with patch(
-            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
         ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         self.assertEqual(carrusel.call_count, 1)
@@ -210,8 +210,8 @@ class CatalogoFormacionTests(TestCase):
             estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
         )
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo=MODO_CURSOS)
-        with patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
-            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True}
+        with patch('core.canal.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
+            'core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True}
         ) as botones, patch(
             'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
         ) as texto:
@@ -235,9 +235,9 @@ class CatalogoFormacionTests(TestCase):
         )
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo=MODO_CURSOS)
         with patch(
-            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True}
         ), patch(
-            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_lista', return_value={'success': True}
         ) as lista, patch(
             'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
         ) as texto:
@@ -257,7 +257,7 @@ class CatalogoFormacionTests(TestCase):
         for curso in cursos:
             ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
         with patch(
-            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
         ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         self.assertEqual(carrusel.call_count, 1)
@@ -308,9 +308,9 @@ class CatalogoFormacionTests(TestCase):
         paginas = paginas_carrusel(tarjetas_catalogo())
         self.assertEqual([len(p) for p in paginas], [10, 2])
         with patch(
-            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_lista', return_value={'success': True}
         ) as lista, patch(
-            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
+            'core.canal.sandbox_canal.enviar_meta_carrusel', return_value={'success': True}
         ) as carrusel:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         carrusel.assert_not_called()
@@ -319,7 +319,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(len(lista.call_args_list[1].args[3]), 2)
 
     def test_carrusel_dos_botones_de_respuesta(self):
-        from core.sandbox_canal import enviar_meta_carrusel
+        from core.canal.sandbox_canal import enviar_meta_carrusel
 
         with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
             out = enviar_meta_carrusel(
@@ -352,7 +352,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(cards[1]['action']['buttons'][0]['quick_reply']['id'], 'ver_tiempo')
 
     def test_mas_informacion_abre_la_pagina_en_el_carrusel(self):
-        from core.sandbox_canal import enviar_meta_carrusel
+        from core.canal.sandbox_canal import enviar_meta_carrusel
 
         with patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': '1'}) as post:
             out = enviar_meta_carrusel(
@@ -529,7 +529,7 @@ class CatalogoFormacionTests(TestCase):
             estado_onboarding='nuevo',
         )
         riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             out = dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'})
         self.assertEqual(out, 'handled')
         habeas.assert_called_once()
@@ -537,7 +537,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertFalse(est.acepto_terminos)
         self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
         self.assertFalse(ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists())
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             ruta = dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'})
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()
@@ -545,13 +545,13 @@ class CatalogoFormacionTests(TestCase):
     def test_flujo_ver_curso_inscribe_y_asesoria_abre_agente(self):
         riendas = Curso.objects.get(nombre=NOMBRE_RIENDAS, catalogo_menu=True)
         with patch(
-            'core.sandbox_canal.enviar_meta_carrusel', return_value={'success': True},
+            'core.canal.sandbox_canal.enviar_meta_carrusel', return_value={'success': True},
         ) as carrusel:
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': 'formacion'}), 'handled',
             )
         self.assertEqual(carrusel.call_count, 1)
-        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
+        with patch('core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True}):
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': f'ver_curso_{riendas.id}'}),
                 'handled',
@@ -566,17 +566,17 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(
             ProgresoEstudiante.objects.filter(estudiante=est, curso=riendas).exists()
         )
-        with patch('core.sandbox_canal.enviar_sandbox_habeas') as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas') as habeas:
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': 'continuemos'}), 'cursos',
             )
             habeas.assert_not_called()
         with patch(
-            'core.sandbox_canal.enviar_meta_botones', return_value={'success': True},
+            'core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True},
         ):
             self.assertEqual(dispatch_sandbox_menu({**self.base, 'Body': 'menu'}), 'handled')
         with patch(
-            'core.sandbox_canal.enviar_meta_lista', return_value={'success': True},
+            'core.canal.sandbox_canal.enviar_meta_lista', return_value={'success': True},
         ) as lista:
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': 'asesoria'}), 'handled',
@@ -584,7 +584,7 @@ class CatalogoFormacionTests(TestCase):
         self.assertEqual(lista.call_count, 1)
         with patch(
             'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True},
-        ), patch('core.sandbox_canal.enviar_sandbox_habeas') as habeas:
+        ), patch('core.canal.sandbox_canal.enviar_sandbox_habeas') as habeas:
             self.assertEqual(
                 dispatch_sandbox_menu({**self.base, 'Body': 'ventas'}), 'handled',
             )

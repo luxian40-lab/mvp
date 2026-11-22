@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 
 from core.models import Cliente, Estudiante, SandboxCanalSesion
 from core.canal.planes_linea import PLAN_CURSO_ASESOR, resolver_plan
-from core.sandbox_canal import _TEXTO_HABEAS_SANDBOX
+from core.canal.sandbox_canal import _TEXTO_HABEAS_SANDBOX
 from core.sandbox_menu import dispatch_sandbox_menu, es_destino_sandbox
 
 SANDBOX = '573009998888'
@@ -53,7 +53,7 @@ class MetaFunnelTests(TestCase):
 
     def test_numero_nuevo_recibe_habeas_aunque_el_flag_pida_solo_registrados(self):
         tel = '573009991001'
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             with patch('core.openai_compat.completar_chat') as chat:
                 ruta = dispatch_sandbox_menu(_payload(tel, 'hola'))
         self.assertEqual(ruta, 'handled')
@@ -97,7 +97,7 @@ class MetaFunnelTests(TestCase):
     def test_iniciar_sin_habeas_pide_botones_aunque_el_modo_sea_formacion(self):
         tel = '573009991010'
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=False, modo='formacion')
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             ruta = dispatch_sandbox_menu(_payload(tel, 'Iniciar'))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()
@@ -105,7 +105,7 @@ class MetaFunnelTests(TestCase):
     def test_iniciar_citando_la_plantilla_pide_habeas(self):
         tel = '573009991011'
         citado = 'Bienvenida al curso.\nToque el botón para empezar.\nIniciar'
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             ruta = dispatch_sandbox_menu(_payload(tel, citado))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()
@@ -193,7 +193,7 @@ class MetaFunnelTests(TestCase):
         )
         ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='formacion')
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas, \
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas, \
                 patch('core.views.webhook_twilio._procesar_twilio_webhook_cuerpo') as cuerpo:
             resp = _aplicar_sandbox_menu(_payload(tel, 'continuemos', MessageSid='wamid.cont3'))
         self.assertEqual(resp.status_code, 200)
@@ -218,7 +218,7 @@ class MetaFunnelTests(TestCase):
         )
         SandboxCanalSesion.objects.create(telefono=tel, habeas_aceptado=True, modo='cafe')
         poner_en_inicio_de_flujo(est)
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             ruta = dispatch_sandbox_menu(_payload(tel, 'Listo'))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()
@@ -232,7 +232,7 @@ class MetaFunnelTests(TestCase):
         est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'ESPERANDO_CEDULA')
 
-        with patch('core.sandbox_canal.enviar_meta_botones', return_value={'success': True}) as botones:
+        with patch('core.canal.sandbox_canal.enviar_meta_botones', return_value={'success': True}) as botones:
             dispatch_sandbox_menu(_payload(tel, '1020'))
         est.refresh_from_db()
         self.assertEqual(est.estado_chat, 'CONFIRMANDO_DATOS')
@@ -263,7 +263,7 @@ class MetaFunnelTests(TestCase):
             acepto_terminos=False, estado_chat='ACTIVO', estado_onboarding='nuevo',
         )
         poner_en_inicio_de_flujo(est)
-        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+        with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
             ruta = dispatch_sandbox_menu(_payload(tel, 'Comenzar'))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()

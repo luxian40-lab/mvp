@@ -44,7 +44,7 @@ def texto_lista_agentes(tope: int) -> str:
 
 def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
     from core.sandbox_agentes import _tope_asesor_mes
-    from core.sandbox_canal import enviar_meta_lista, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_lista, sandbox_via_meta
 
     if not sandbox_via_meta():
         return _menu().enviar_texto_sandbox(telefono_usuario, from_number, _menu().TEXTO_AGENTES, agente='sandbox_agentes')
@@ -123,7 +123,7 @@ def preguntar_ficha_si_toca(telefono_usuario: str, from_number: str) -> None:
     if getattr(settings, 'EKI_ASESORIA_ENTRADA', False):
         return
     from core.lineas.principal.ficha_negocio import AGENTE_FICHA, marcar_preguntada, siguiente_pregunta
-    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+    from core.canal.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     try:
         pregunta = siguiente_pregunta(telefono_usuario)
@@ -260,7 +260,7 @@ def finalizar_turno_asesor_llm(
 
 def _reaccion_espera(telefono: str, message_id: str) -> None:
     try:
-        from core.sandbox_canal import poner_reaccion_espera
+        from core.canal.sandbox_canal import poner_reaccion_espera
 
         poner_reaccion_espera(telefono, message_id)
     except Exception:

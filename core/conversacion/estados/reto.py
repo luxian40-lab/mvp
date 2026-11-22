@@ -154,7 +154,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
     if resultado_foto is not None:
         puntaje, feedback = resultado_foto
     else:
-        from core.sandbox_canal import poner_reaccion_espera
+        from core.canal.sandbox_canal import poner_reaccion_espera
 
         poner_reaccion_espera(telefono_limpio, msg_sid)
         puntaje, feedback = evaluar_reto_facilitador(

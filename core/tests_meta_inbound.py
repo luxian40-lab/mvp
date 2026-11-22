@@ -98,7 +98,7 @@ class MetaInboundEventoTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertFalse(MetaWebhookEvento.objects.filter(wamid='wamid.mala').exists())
 
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_cada_tipo_deja_evento_con_resultado(self, post):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
@@ -112,7 +112,7 @@ class MetaInboundEventoTests(TestCase):
             ('sticker', {'sticker': {'id': 'stk1'}}, 'wamid.stk'),
             ('unsupported', {}, 'wamid.uns'),
         ]
-        with patch('core.sandbox_canal.transcribir_audio_meta', return_value='hola'):
+        with patch('core.canal.sandbox_canal.transcribir_audio_meta', return_value='hola'):
             for tipo, extra, wamid in casos:
                 resp = self._post(_mensaje(tipo, extra, wamid))
                 self.assertEqual(resp.status_code, 200, wamid)
@@ -120,19 +120,19 @@ class MetaInboundEventoTests(TestCase):
                 self.assertTrue(evento.resultado, wamid)
                 self.assertNotEqual(evento.resultado, 'recibido', wamid)
 
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_audio_se_transcribe_una_vez_por_turno(self, post):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {'messages': [{'id': 'wamid.out'}]}
         self.est.acepto_terminos = True
         self.est.estado_chat = 'ACTIVO'
         self.est.save(update_fields=['acepto_terminos', 'estado_chat'])
-        with patch('core.sandbox_canal.transcribir_audio_meta', return_value='menu') as transcribir:
+        with patch('core.canal.sandbox_canal.transcribir_audio_meta', return_value='menu') as transcribir:
             resp = self._post(_mensaje('audio', {'audio': {'id': 'media9', 'mime_type': 'audio/ogg'}}, 'wamid.audio9'))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(transcribir.call_count, 1)
 
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_audio_que_llega_al_curso_se_transcribe_una_vez(self, post):
         from core.models import SandboxCanalSesion
 
@@ -147,7 +147,7 @@ class MetaInboundEventoTests(TestCase):
         from core.views import webhook_meta
 
         with patch(
-            'core.sandbox_canal.transcribir_audio_meta', return_value='ya termine la tarea',
+            'core.canal.sandbox_canal.transcribir_audio_meta', return_value='ya termine la tarea',
         ) as transcribir, patch(
             'core.views.webhook_meta._procesar_twilio_webhook',
             wraps=webhook_meta._procesar_twilio_webhook,
@@ -158,7 +158,7 @@ class MetaInboundEventoTests(TestCase):
         self.assertEqual(transcribir.call_count, 1)
 
     @patch('core.sandbox_menu.dispatch_sandbox_menu', side_effect=RuntimeError('boom'))
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_excepcion_responde_fallback_y_guarda_error(self, post, _dispatch):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {'messages': [{'id': 'wamid.fb'}]}
@@ -202,9 +202,9 @@ class DiagnosticarTelefonoTests(TestCase):
 
 class GraphReintentoTests(TestCase):
     @override_settings(WHATSAPP_TOKEN='test-token', WHATSAPP_PHONE_ID='111222333')
-    @patch('core.sandbox_canal.requests.post')
+    @patch('core.canal.sandbox_canal.requests.post')
     def test_130429_reintenta_una_vez_y_131026_no(self, post):
-        from core.sandbox_canal import _post_graph
+        from core.canal.sandbox_canal import _post_graph
 
         class Resp:
             def __init__(self, status, code):

@@ -284,7 +284,7 @@ class RespaldoTests(_Base):
         from core.response_templates import LECCION_EN_CURSO
 
         self._est()
-        with patch('core.sandbox_canal.descartar_reaccion_espera') as descartar:
+        with patch('core.canal.sandbox_canal.descartar_reaccion_espera') as descartar:
             cli = self._listo('SM_tr_rs_leccion', texto=LECCION_EN_CURSO)
         cli.messages.create.assert_not_called()
         descartar.assert_called_once_with(TEL)
@@ -306,7 +306,7 @@ class RespaldoTests(_Base):
     def test_sin_intent_responde_la_ia_y_descuenta_una_pregunta(self):
         est = self._est(preguntas_ia_restantes=2)
         with patch('core.ai_assistant.responder_con_ia', return_value='IA_RESP') as ia, \
-                patch('core.sandbox_canal.poner_reaccion_espera'):
+                patch('core.canal.sandbox_canal.poner_reaccion_espera'):
             cli = self._listo('SM_tr_rs_ia', intent='desconocido')
         ia.assert_called_once_with('listo', TEL)
         self.assertEqual(self._cuerpos(cli), ['IA_RESP'])

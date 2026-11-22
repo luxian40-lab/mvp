@@ -47,7 +47,7 @@ class CortesLineaTests(SimpleTestCase):
     def test_enviar_meta_vive_en_lineas(self):
         from core.lineas import enviar_meta as en_paquete
         from core.lineas.envio import enviar_meta as en_envio
-        from core.sandbox_canal import enviar_meta as en_canal
+        from core.canal.sandbox_canal import enviar_meta as en_canal
 
         self.assertIs(en_envio, en_canal)
         self.assertIs(en_envio, en_paquete)
@@ -156,7 +156,7 @@ class EntregaMarcadaTests(TestCase):
         with canal_webhook(CANAL_META), \
                 patch('twilio.rest.Client', return_value=cliente), \
                 patch(
-                    'core.sandbox_canal.enviar_meta',
+                    'core.canal.sandbox_canal.enviar_meta',
                     return_value={'success': True, 'mensaje_id': 'wamid.video'},
                 ) as meta:
             enviar_marcado(
@@ -176,7 +176,7 @@ class EntregaMarcadaTests(TestCase):
         cliente = MagicMock()
         with canal_webhook(CANAL_META), \
                 patch('twilio.rest.Client', return_value=cliente), \
-                patch('core.sandbox_canal.enviar_meta', side_effect=RuntimeError('graph')):
+                patch('core.canal.sandbox_canal.enviar_meta', side_effect=RuntimeError('graph')):
             enviar_marcado(
                 'whatsapp:+573001110001',
                 '573001110001',
@@ -192,7 +192,7 @@ class EntregaMarcadaTests(TestCase):
 
         with canal_webhook(CANAL_META), \
                 patch(
-                    'core.sandbox_canal.enviar_meta',
+                    'core.canal.sandbox_canal.enviar_meta',
                     return_value={'success': True, 'mensaje_id': 'wamid.1'},
                 ), \
                 patch('celery.current_app.send_task') as tarea:
@@ -214,7 +214,7 @@ class EntregaMarcadaTests(TestCase):
 
         with canal_webhook(CANAL_META), \
                 patch(
-                    'core.sandbox_canal.enviar_meta',
+                    'core.canal.sandbox_canal.enviar_meta',
                     return_value={'success': True, 'mensaje_id': 'wamid.1'},
                 ), \
                 patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:
@@ -249,7 +249,7 @@ LINEAS = 'PN_UNO|+573000000001|Principal;PN_DOS|+573000000002|Segunda|cursos'
     WHATSAPP_BUSINESS_ACCOUNT_ID_2='WABA_DOS',
 )
 class CursoPorSenderTests(TestCase):
-    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.canal.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
     @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
     def test_con_phone_id_sale_por_el_sender(self, meta, _pn):
         from core.lineas.envio import enviar_respuesta_linea
@@ -259,7 +259,7 @@ class CursoPorSenderTests(TestCase):
         meta.assert_called_once()
         self.assertEqual(meta.call_args.kwargs['agente_evento'], 'curso')
 
-    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.canal.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
     @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
     def test_flag_apagado_no_escribe_outbox(self, _meta, _pn):
         from core.lineas.envio import enviar_respuesta_linea
@@ -269,7 +269,7 @@ class CursoPorSenderTests(TestCase):
         self.assertEqual(OutboxEnvio.objects.count(), 0)
 
     @override_settings(EKI_OUTBOX_ENVIO=True)
-    @patch('core.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
+    @patch('core.canal.sandbox_canal.phone_id_de_salida', return_value='PN_DOS')
     @patch('core.lineas.envio.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.curso'})
     def test_turno_meta_pasa_por_sender_y_outbox(self, _meta, _pn):
         from core.lineas.salida_turno import enviar_respuesta_turno

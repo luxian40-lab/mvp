@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 def phone_id_sesion() -> str:
-    from core.sandbox_canal import phone_id_de_salida
+    from core.canal.sandbox_canal import phone_id_de_salida
 
     return (phone_id_de_salida() or '').strip()
 
@@ -11,7 +11,7 @@ def phone_id_sesion() -> str:
 def sesion_de(telefono: str, **defaults):
     """Fila de esta línea. Si solo hay la histórica sin phone_id, la adopta la principal."""
     from core.models import SandboxCanalSesion
-    from core.sandbox_canal import sandbox_phone_id
+    from core.canal.sandbox_canal import sandbox_phone_id
 
     tel = (telefono or '').strip()
     if not tel:

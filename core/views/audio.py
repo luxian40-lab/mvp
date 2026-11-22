@@ -39,7 +39,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     """
     if media_url and not str(media_url).startswith(('http://', 'https://')):
         from core.conversacion.transcripcion_turno import del_turno
-        from core.sandbox_canal import transcribir_audio_meta
+        from core.canal.sandbox_canal import transcribir_audio_meta
 
         return del_turno(media_url, lambda: transcribir_audio_meta(media_url, media_type))
     try:

@@ -20,7 +20,7 @@ from core.lineas.registro_agricapital import (
     TEXTO_BIENVENIDA,
 )
 from core.lineas.registro_flow import PANTALLA, flow_registro
-from core.sandbox_canal import salida_por_phone_id
+from core.canal.sandbox_canal import salida_por_phone_id
 
 PHONE = '1477762615411333'
 WABA = '1560693046090506'
@@ -264,7 +264,7 @@ class PublicarRegistroTests(SimpleTestCase):
 class SalidaRegistroForzadaTests(SimpleTestCase):
     def test_avisar_usa_phone_id_l3_aunque_el_turno_sea_principal(self):
         from core.lineas.registro_abrir import _avisar
-        from core.sandbox_canal import phone_id_de_salida
+        from core.canal.sandbox_canal import phone_id_de_salida
 
         visto = []
 

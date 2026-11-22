@@ -51,7 +51,7 @@ def _aplicar_sandbox_menu(data):
     """
     from core.conversacion.transcripcion_turno import un_turno
     from core.canal.meta_inbound import traza_inbound
-    from core.sandbox_canal import phone_ids_meta, salida_por_phone_id
+    from core.canal.sandbox_canal import phone_ids_meta, salida_por_phone_id
 
     pnid = ''
     if isinstance(data, dict):
@@ -68,7 +68,7 @@ def _estado_de_la_linea(data):
     """El estado que deje este turno queda también en la fila de la línea que lo recibió."""
     from core.conversacion.estado_linea import en_linea
     from core.nati import normalizar_telefono_whatsapp
-    from core.sandbox_canal import inbound_es_meta, phone_id_de_salida
+    from core.canal.sandbox_canal import inbound_es_meta, phone_id_de_salida
     from core.canal.utils_telefono import estudiante_por_telefono
 
     es_meta = isinstance(data, dict) and inbound_es_meta(data)
@@ -79,7 +79,7 @@ def _estado_de_la_linea(data):
 
 def _aplicar_sandbox_menu_cuerpo(data):
     from core.canal.meta_inbound import TEXTO_TIPO_NO_SOPORTADO, marcar_resultado
-    from core.sandbox_canal import (
+    from core.canal.sandbox_canal import (
         canal_sandbox_si_meta,
         es_inbound_twilio_http,
         inbound_es_meta,

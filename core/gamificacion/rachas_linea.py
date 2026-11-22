@@ -45,7 +45,7 @@ def _texto_proxima_insignia(dias: int) -> str:
 def agregar_aviso(telefono: str, linea: str) -> None:
     """Suma una línea al aviso pendiente (sin crear sesión si no existe)."""
     from core.models import SandboxCanalSesion
-    from core.sandbox_canal import sandbox_via_meta
+    from core.canal.sandbox_canal import sandbox_via_meta
 
     linea = (linea or '').strip()
     if not telefono or not linea or not sandbox_via_meta():

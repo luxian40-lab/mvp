@@ -103,7 +103,7 @@ class EvalAbiertaMetaListoTests(TestCase):
             return {'success': True, 'mensaje_id': 'wamid.out', 'response': 'ok'}
 
         with patch('core.lineas.envio.enviar_meta', side_effect=_captura), \
-                patch('core.sandbox_canal.poner_reaccion_espera'):
+                patch('core.canal.sandbox_canal.poner_reaccion_espera'):
             resp = Client().post(
                 '/webhook/whatsapp/',
                 data=raw,

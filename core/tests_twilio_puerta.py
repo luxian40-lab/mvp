@@ -63,7 +63,7 @@ class PuertaTwilioTests(TestCase):
 
     def test_aula_en_meta_sale_por_meta(self):
         data = self._post(_eki_proveedor='meta')
-        with patch('core.sandbox_canal.enviar_meta', return_value={'success': True}) as meta:
+        with patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True}) as meta:
             with patch('core.canal.envios.enviar_whatsapp_twilio') as twilio:
                 ok = responder_aula_meta(data)
         self.assertTrue(ok)
