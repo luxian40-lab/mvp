@@ -167,7 +167,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         import logging
 
         from django.http import HttpResponse
-        from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
+        from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
         from core.models import Estudiante
 
         if request.method != 'POST':
@@ -210,7 +210,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
     def prueba_descarga_view(self, request):
         """Misma generación que preview, pero como descarga (Generar prueba)."""
         from django.http import HttpResponse
-        from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
+        from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
         from core.models import Estudiante
 
         if request.method != 'POST':

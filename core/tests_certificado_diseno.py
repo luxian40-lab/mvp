@@ -11,7 +11,7 @@ from django.test import TestCase
 
 from core.certificado_diseno_eki import _cargar_fuentes, render_certificado_diseno_eki
 from core.certificado_service import resolver_plantilla_certificado
-from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
+from core.certificados.certificado_preview import generar_preview_certificado, plantilla_desde_request
 from core.models import Cliente, Curso, Estudiante
 from core.models_certificados import Certificado, PlantillaCertificado
 
@@ -199,7 +199,7 @@ def test_preview_diseno_eki_usa_nombre_del_curso():
     from types import SimpleNamespace
 
     from core.certificado_diseno_eki import CURSO_DEMO
-    from core.certificado_preview import _curso_nombre_para_preview
+    from core.certificados.certificado_preview import _curso_nombre_para_preview
 
     plantilla = SimpleNamespace(
         curso=SimpleNamespace(nombre='Comercialización y ventas'),
@@ -380,7 +380,7 @@ def test_reemplazo_archivo_actualiza_url_segunda_vez():
     """QA: segunda subida debe dejar de apuntar a la key de la primera."""
     from django.core.files.uploadedfile import SimpleUploadedFile
 
-    from core.certificado_preview import _resolver_fuente_imagen
+    from core.certificados.certificado_preview import _resolver_fuente_imagen
 
     p = PlantillaCertificado(
         nombre='Replace twice',
