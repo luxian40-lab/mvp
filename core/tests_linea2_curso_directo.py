@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from core.inicio_curso import inicio_ya_entregado
+from core.curso.inicio_curso import inicio_ya_entregado
 from core.inscripcion_curso import inscribir_estudiante_en_curso
 from core.lineas.variante import TEXTO_LINEA_MODO_TWILIO
 from core.models import (

@@ -639,7 +639,7 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
     ctx = dict(est.contexto_temporal or {})
     ctx['curso_activo_id'] = curso.id
     if creado:
-        from core.inicio_curso import marcar_inicio_pendiente
+        from core.curso.inicio_curso import marcar_inicio_pendiente
 
         marcar_inicio_pendiente(ctx, curso.id)
     est.contexto_temporal = ctx

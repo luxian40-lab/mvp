@@ -115,7 +115,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
 
 def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, partir_sep, obtener_video_url, parte_mensaje_con_media):
-    from core.inicio_curso import marcar_inicio_entregado
+    from core.curso.inicio_curso import marcar_inicio_entregado
     marcar_inicio_entregado(estudiante, curso.id)
     # Get agent names: Cliente > Curso > defaults
     cliente_obj = estudiante.cliente

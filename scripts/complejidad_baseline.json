@@ -144,7 +144,7 @@
   "core.gamificacion.rachas_linea",
   "core.gamificacion_modo",
   "core.helpers_examenes",
-  "core.inicio_curso",
+  "core.curso.inicio_curso",
   "core.lineas.campana",
   "core.lineas.entrega",
   "core.lineas.envio",

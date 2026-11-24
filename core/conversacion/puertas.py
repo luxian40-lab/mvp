@@ -201,7 +201,7 @@ def abrir_tras_confirmar(est, telefono: str, from_number: str) -> None:
     sesion.habeas_aceptado = True
     sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
     if perfil_de().curso_directo:
-        from core.inicio_curso import primera_entrega_al_confirmar
+        from core.curso.inicio_curso import primera_entrega_al_confirmar
 
         texto = primera_entrega_al_confirmar(est)
         if texto:
