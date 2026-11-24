@@ -15,6 +15,34 @@ from core.lineas.entrega_delays import recorrer_partes
 logger = logging.getLogger(__name__)
 
 
+def _registrar_log_entrega(
+    telefono_limpio: str,
+    mensaje: str,
+    *,
+    mensaje_id: str | None = None,
+    sale_meta: bool = False,
+    forzar_sent: bool = False,
+) -> None:
+    """Registra el envío sin duplicar el log que _post_graph ya guardó en Meta."""
+    from core.models import WhatsappLog
+
+    mid = (mensaje_id or '').strip() or None
+    if sale_meta and mid and WhatsappLog.objects.filter(
+        mensaje_id=mid, tipo='SENT', canal='meta',
+    ).exists():
+        return
+    datos = {
+        'telefono': telefono_limpio,
+        'mensaje': mensaje,
+        'tipo': 'SENT',
+    }
+    if mid:
+        datos['mensaje_id'] = mid
+    if sale_meta or forzar_sent:
+        datos['estado'] = 'SENT'
+    WhatsappLog.objects.create(**datos)
+
+
 def enviar_marcado(
     msg_from: str,
     telefono_limpio: str,
@@ -70,14 +98,14 @@ def enviar_marcado(
                 from core.canal.twilio_media import mensaje_log_con_media
 
                 for seg_i, (msg_sent, texto_env) in enumerate(enviados, start=1):
-                    WhatsappLog.objects.create(
-                        telefono=telefono_limpio,
-                        mensaje=mensaje_log_con_media(
+                    _registrar_log_entrega(
+                        telefono_limpio,
+                        mensaje_log_con_media(
                             texto_env or parte_texto,
                             parte_media if seg_i == 1 else None,
                         )[:1500],
                         mensaje_id=getattr(msg_sent, 'sid', None),
-                        tipo='SENT',
+                        sale_meta=sale_meta,
                     )
             return True
 
@@ -100,8 +128,11 @@ def enviar_marcado(
             },
         )
         if registro == 'cierre' and resultado == 'done':
-            WhatsappLog.objects.create(
-                telefono=telefono_limpio, mensaje=original[:500], tipo='SENT',
+            _registrar_log_entrega(
+                telefono_limpio,
+                original[:500],
+                sale_meta=sale_meta,
+                forzar_sent=True,
             )
         return
 
@@ -117,8 +148,11 @@ def enviar_marcado(
             body=parte_texto,
             media_url=parte_media,
         )
-        WhatsappLog.objects.create(
-            telefono=telefono_limpio, mensaje=original[:500], tipo='SENT',
+        _registrar_log_entrega(
+            telefono_limpio,
+            original[:500],
+            sale_meta=sale_meta,
+            forzar_sent=True,
         )
         return
 
@@ -130,11 +164,11 @@ def enviar_marcado(
             body=original,
         )
         for msg_sent, texto_env in enviados:
-            WhatsappLog.objects.create(
-                telefono=telefono_limpio,
-                mensaje=(texto_env or original)[:1500],
+            _registrar_log_entrega(
+                telefono_limpio,
+                (texto_env or original)[:1500],
                 mensaje_id=getattr(msg_sent, 'sid', None),
-                tipo='SENT',
+                sale_meta=True,
             )
         return
 
