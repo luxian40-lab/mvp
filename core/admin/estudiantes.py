@@ -1178,7 +1178,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                     normalizar_tipo_documento,
                 )
                 from core.analitica.excel_celdas import celda_excel_a_texto
-                from core.import_estudiantes_excel import (
+                from core.analitica.import_estudiantes_excel import (
                     extraer_fila_estudiante,
                     mapear_columnas_estudiante,
                 )

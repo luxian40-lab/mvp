@@ -1,7 +1,7 @@
 """Tests mapeo Excel estudiantes (swap Nombre/Teléfono)."""
 from __future__ import annotations
 
-from core.import_estudiantes_excel import (
+from core.analitica.import_estudiantes_excel import (
     extraer_fila_estudiante,
     mapear_columnas_estudiante,
     parece_nombre_persona,
