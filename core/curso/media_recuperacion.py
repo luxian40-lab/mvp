@@ -84,7 +84,7 @@ def intentar_reenvio_media_curso(estudiante, mensaje: str) -> str | None:
     out = texto_reenviar_modulo(estudiante)
     if out:
         try:
-            from core.media_entrega import marcar_paquete_recuperado_por_telefono
+            from core.curso.media_entrega import marcar_paquete_recuperado_por_telefono
             marcar_paquete_recuperado_por_telefono(estudiante.telefono or '')
         except Exception:
             pass

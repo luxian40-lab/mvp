@@ -11,7 +11,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 
-from core.media_entrega import (
+from core.curso.media_entrega import (
     avisos_formato_3g,
     contar_reintentos_en_log,
     metricas_media_cliente,
@@ -58,7 +58,7 @@ def test_callback_63019_reintenta_media_una_vez():
     )
     with patch('core.canal.envios.enviar_whatsapp_twilio') as send_mock:
         send_mock.return_value = {'success': True, 'mensaje_id': 'MMretry2'}
-        with patch('core.media_entrega.preparar_url_media_whatsapp', create=True):
+        with patch('core.curso.media_entrega.preparar_url_media_whatsapp', create=True):
             with patch('core.canal.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
                 _registrar_estado_twilio_callback({
                     'MessageSid': log.mensaje_id,

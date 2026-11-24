@@ -106,7 +106,7 @@ class MediaAgriCapitalTests(SimpleTestCase):
             'core.pqrs_acciones.texto_reenviar_modulo',
             return_value='[MEDIA:https://ejemplo.test/a.jpg]',
         ), patch(
-            'core.media_entrega.marcar_paquete_recuperado_por_telefono',
+            'core.curso.media_entrega.marcar_paquete_recuperado_por_telefono',
         ):
             out = intentar_reenvio_media_curso(est, 'No puedo ver la imagen')
         self.assertIn('[MEDIA:', out or '')

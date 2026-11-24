@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from core.media_entrega import notificar_fallo_media_ops
+from core.curso.media_entrega import notificar_fallo_media_ops
 from core.models import WhatsappLog
 
 

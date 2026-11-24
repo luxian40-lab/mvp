@@ -1832,7 +1832,7 @@ def portal_suscripcion(request):
     )
     media_ops = None
     try:
-        from core.media_entrega import metricas_media_cliente
+        from core.curso.media_entrega import metricas_media_cliente
         media_ops = metricas_media_cliente(org, dias=30)
     except Exception:
         media_ops = None

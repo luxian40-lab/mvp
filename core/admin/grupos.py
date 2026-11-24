@@ -535,7 +535,7 @@ class ArchivoModuloAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         try:
-            from core.media_entrega import avisos_formato_3g
+            from core.curso.media_entrega import avisos_formato_3g
 
             size = None
             name = ''

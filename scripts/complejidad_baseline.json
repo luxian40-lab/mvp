@@ -160,7 +160,7 @@
   "core.lineas.sesion",
   "core.lineas.variante",
   "core.media_encode_async",
-  "core.media_entrega",
+  "core.curso.media_entrega",
   "core.media_pasos_listos",
   "core.curso.media_recuperacion",
   "core.mensajes_push",
