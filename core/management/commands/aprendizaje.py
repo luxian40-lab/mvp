@@ -3,7 +3,7 @@ Comando para ver reporte de aprendizaje continuo de la IA
 """
 
 from django.core.management.base import BaseCommand
-from core.learning_system import SistemaAprendizaje
+from core.agentes.learning_system import SistemaAprendizaje
 
 
 class Command(BaseCommand):
