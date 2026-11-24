@@ -179,7 +179,7 @@ def cmd_status(args) -> int:
 
 
 def cmd_send_qa(args) -> int:
-    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.campanas.enviar_plantillas import enviar_plantilla_twilio
     from core.canal.twilio_content_preview import fetch_content_preview
 
     tel = ''.join(c for c in TEL_QA if c.isdigit())
@@ -316,7 +316,7 @@ def cmd_rollback_tres(args) -> int:
 
 
 def cmd_send_tres(args) -> int:
-    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.campanas.enviar_plantillas import enviar_plantilla_twilio
     from core.models import Estudiante
 
     hx = (args.content_sid or os.environ.get(ENV_SID) or CONTENT_SID_DEFAULT).strip()

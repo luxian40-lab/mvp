@@ -742,7 +742,7 @@ def _variables_plantilla_media_certificado(
 
 def _enviar_plantilla_media_twilio(telefono: str, content_sid: str, variables: dict) -> dict:
     """Wrapper testeable para plantilla con imagen (header media)."""
-    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.campanas.enviar_plantillas import enviar_plantilla_twilio
 
     return enviar_plantilla_twilio(telefono, content_sid, variables=variables)
 
@@ -815,7 +815,7 @@ def enviar_certificado_whatsapp(
             )
             modo_envio = 'plantilla_imagen'
         elif sid:
-            from core.enviar_plantillas import enviar_plantilla_twilio
+            from core.campanas.enviar_plantillas import enviar_plantilla_twilio
 
             tpl_res = enviar_plantilla_twilio(
                 estudiante.telefono,

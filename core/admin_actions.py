@@ -3,7 +3,7 @@ Admin actions para enviar campañas con plantillas aprobadas
 """
 from django.contrib import admin
 from django.contrib import messages
-from .enviar_plantillas import enviar_campana_con_plantilla
+from core.campanas.enviar_plantillas import enviar_campana_con_plantilla
 
 
 @admin.action(description='Ejecutar campaña (envío directo)')

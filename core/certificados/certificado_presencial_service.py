@@ -82,7 +82,7 @@ def enviar_previo_whatsapp(
     twilio_content_sid: str | None = None,
 ) -> dict:
     """Aviso previo al diploma. Fuera de ventana 24 h use twilio_content_sid (plantilla aprobada)."""
-    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.campanas.enviar_plantillas import enviar_plantilla_twilio
     from core.canal.envios import enviar_whatsapp_twilio
 
     sid = (twilio_content_sid or '').strip()
@@ -467,7 +467,7 @@ def info_plantilla_curso(cliente: Cliente, curso: Curso, plantilla_id: int | Non
 
 def _enviar_plantilla_twilio_cert(telefono: str, content_sid: str, variables: dict) -> dict:
     """Wrapper testeable para enviar plantilla inicial (import perezoso de Twilio)."""
-    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.campanas.enviar_plantillas import enviar_plantilla_twilio
 
     return enviar_plantilla_twilio(telefono, content_sid, variables=variables)
 

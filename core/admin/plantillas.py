@@ -90,7 +90,7 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     @admin.action(description='🔧 Crear Template en Twilio')
     def crear_template_en_twilio(self, request, queryset):
         """Crea automáticamente un Content Template en Twilio para las plantillas seleccionadas"""
-        from core.enviar_plantillas import crear_template_twilio
+        from core.campanas.enviar_plantillas import crear_template_twilio
         
         creados = 0
         errores = []
@@ -140,7 +140,7 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     @admin.action(description='🔄 Sincronizar con Twilio')
     def sincronizar_templates_twilio(self, request, queryset):
         """Obtiene la lista de templates de Twilio y actualiza el estado de aprobación"""
-        from core.enviar_plantillas import listar_templates_twilio
+        from core.campanas.enviar_plantillas import listar_templates_twilio
         
         # Obtener templates de Twilio
         templates_twilio = listar_templates_twilio()

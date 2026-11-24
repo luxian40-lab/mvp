@@ -18,7 +18,7 @@ import django
 
 django.setup()
 
-from core.enviar_plantillas import enviar_plantilla_twilio
+from core.campanas.enviar_plantillas import enviar_plantilla_twilio
 from core.models import Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
 
 CONTENT_SID = os.environ.get(
