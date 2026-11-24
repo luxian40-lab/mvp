@@ -3,7 +3,7 @@
 from django.core.files.base import ContentFile
 from django.test import TestCase
 
-from core.copiar_conocimiento_nati import (
+from core.agentes.copiar_conocimiento_nati import (
     FuenteConocimientoNoEncontrada,
     copiar_conocimiento_a_cliente,
 )

@@ -721,7 +721,7 @@ class ClienteAdmin(admin.ModelAdmin):
         Seleccione el/los clientes DESTINO. Copia biblioteca + RAG comercial
         desde Agronexo y documentos generales (cliente vacío), sin re-subir archivos.
         """
-        from core.copiar_conocimiento_nati import (
+        from core.agentes.copiar_conocimiento_nati import (
             FuenteConocimientoNoEncontrada,
             copiar_conocimiento_a_cliente,
         )
