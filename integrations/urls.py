@@ -6,7 +6,7 @@ Angular / LXP consumen estas URLs bajo el mismo host de eki.
 
 from django.urls import path
 
-from core.views_form_externo import webhook_formulario_externo
+from core.admin_vistas.views_form_externo import webhook_formulario_externo
 
 from core.admin_vistas.api import (
     api_empleabilidad_claim,
