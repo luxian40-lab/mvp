@@ -6,6 +6,8 @@ No es un plan de producto en AWS. No sube la clase de la instancia, no abre una 
 
 Se trabaja un corte a la vez. Cada corte cierra con el informe de gate y espera «continúa».
 
+**Estado vivo (2026-11-23):** bloque 2 **código VERDE** en `origin/main` (gate `main-bloque-2-gate-20261119-141312`). Ops: muestra W2 en pico laborable pendiente; no bloquea cierre de código. Ver `docs/INFORME_GATE_BLOQUE_2.md` y `docs/INFORME_W1_DUENOS.md`.
+
 ## De dónde sale
 
 | Plan | Qué ya decidió | Qué no dice |

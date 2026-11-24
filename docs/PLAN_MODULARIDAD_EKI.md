@@ -122,7 +122,7 @@ Thermos y git, no un número de lápiz.
 
 E1–E3 siguen ON en producción (espejo en `Estudiante` a propósito). **E4, G4, G5 y G6 están en `origin/main` y en las dos cajas**, con flags de comportamiento apagados (LLM diferido, transiciones G, etc.). Listado CRM lee `EstadoLinea` con `EKI_ESTADO_LINEA_SIN_ESPEJO` apagado (`f11153aa`). **G3 del integrar no se porta:** el outbox y los dueños de cola del bloque 2 lo superseden. MULTI_MSG→`enviar_marcado` va con el mismo corte E4–G6 en main.
 
-Bloque 2 (outbox, sleeps vía `delays_por_celery`, Redis fail-closed, dueños W1) ya desplegado; W3 cerrado como no-crecer (`docs/INFORME_W3_DECISION.md`). W2: muestra noche 19 nov con LLEN 0; falta evidencia de pico en día laborable. RAG: setenv falló por límite 4096; prod con `EKI_ROLE=web` no indexa.
+**Bloque 2 código VERDE en `origin/main` (2026-11-23):** outbox, cero `time.sleep` en conversación/líneas/avisos, `delays_por_celery`, Redis fail-closed, dueños W1 desplegados. W3 cerrado como no-crecer (`docs/INFORME_W3_DECISION.md`). W2: muestra noche 19 nov con LLEN 0; falta evidencia de pico en día laborable (ops). RAG: setenv falló por límite 4096; prod con `EKI_ROLE=web` no indexa; precondición H4 / bloque 6 cumplida a nivel código.
 
 Expediente (origen de cierre, calificación nullable, flags de diploma apagados) mergeado y desplegado antes de este corte.
 
