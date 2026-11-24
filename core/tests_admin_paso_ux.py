@@ -185,7 +185,7 @@ class PasoModuloAdminUxTests(TestCase):
         from django.db import transaction
         from django.forms import inlineformset_factory
         from core.admin.cursos import PasoModuloForm, PasoModuloInlineFormSet
-        from core.orden_bloques import preparar_ordenes_temporales, renumerar_orden_1_based
+        from core.curso.orden_bloques import preparar_ordenes_temporales, renumerar_orden_1_based
 
         PasoModulo.objects.create(
             modulo=self.mod, seccion=self.sec, orden=2, titulo='p2',
@@ -305,7 +305,7 @@ class SeccionModuloAdminUxTests(TestCase):
         from django.db import transaction
         from django.forms import inlineformset_factory
         from core.admin.cursos import SeccionModuloForm, SeccionModuloInlineFormSet
-        from core.orden_bloques import preparar_ordenes_temporales, renumerar_orden_1_based
+        from core.curso.orden_bloques import preparar_ordenes_temporales, renumerar_orden_1_based
 
         p = 'secciones'
         data = {

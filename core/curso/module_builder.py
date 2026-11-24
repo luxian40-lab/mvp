@@ -291,7 +291,7 @@ def agregar_micro(
 
 
 def mover_micro(paso: PasoModulo, direction: str) -> bool:
-    from core.orden_bloques import intercambiar_orden
+    from core.curso.orden_bloques import intercambiar_orden
 
     ok = intercambiar_orden(paso, direction)
     if not ok:

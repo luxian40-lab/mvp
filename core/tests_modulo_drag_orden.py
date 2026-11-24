@@ -17,7 +17,7 @@ from core.admin.cursos import (
     sembrar_plantilla_modulo,
 )
 from core.models import Cliente, Curso, Modulo, PasoModulo, SeccionModulo
-from core.orden_bloques import (
+from core.curso.orden_bloques import (
     preparar_ordenes_temporales,
     renumerar_orden_1_based,
 )

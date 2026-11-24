@@ -4,7 +4,7 @@ from core.admin.forms_course_engine import (
     autofill_voice_label,
     configure_course_engine_voice_field,
 )
-from core.orden_bloques import (
+from core.curso.orden_bloques import (
     intercambiar_orden,
     preparar_ordenes_temporales,
     renumerar_orden_1_based,

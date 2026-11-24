@@ -4,7 +4,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import ArchivoModulo, Cliente, Curso, Modulo, PasoModulo, SeccionModulo
-from core.orden_bloques import intercambiar_orden
+from core.curso.orden_bloques import intercambiar_orden
 
 
 User = get_user_model()
