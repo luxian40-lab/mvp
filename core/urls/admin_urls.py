@@ -32,7 +32,7 @@ from core.admin_vistas.views_admin_analytics import (
     api_modulos_curso_json,
     api_guardar_metas_empresa,
 )
-from core.views_analytics import api_grupos_por_empresa, gei_panel_view
+from core.admin_vistas.views_analytics import api_grupos_por_empresa, gei_panel_view
 from core.admin_vistas.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
 from core.admin_vistas.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.admin_vistas.views_reportes import descargar_reporte_xlsx
