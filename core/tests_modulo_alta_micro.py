@@ -122,7 +122,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
 
     @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='*')
     def test_response_change_redirige_a_builder(self):
-        from core.modulo_authoring_mode import MODO_BUILDER, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_BUILDER, set_modulo_modo
 
         mod = Modulo.objects.create(
             curso=self.curso,
@@ -139,7 +139,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
 
     @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='*')
     def test_response_change_clase_no_fuerza_builder(self):
-        from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
         mod = Modulo.objects.create(
             curso=self.curso,
@@ -174,7 +174,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         self.assertEqual(resp.url, reverse('admin:core_modulo_change', args=[mod.pk]))
 
     def test_modo_clase_oculta_inlines(self):
-        from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
         mod = Modulo.objects.create(
             curso=self.curso,
@@ -231,7 +231,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
 
     def test_fieldsets_clase_colapsa_avanzado_sin_quitar_drip(self):
         """Anti-wipe: Clase abierta; CE/más opciones collapse (siguen en el POST)."""
-        from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
         mod = Modulo.objects.create(
             curso=self.curso,
@@ -431,7 +431,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         self.assertNotIn('module-builder', resp.url)
 
     def test_break_modo_basura_normaliza_a_clase(self):
-        from core.modulo_authoring_mode import normalizar_modo
+        from core.curso.modulo_authoring_mode import normalizar_modo
 
         self.assertEqual(normalizar_modo('???'), 'clase')
         self.assertEqual(normalizar_modo(''), 'clase')
@@ -480,7 +480,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
 
     def test_break_avanzado_rompe_modo_clase_y_muestra_inlines(self):
         """?avanzado=1 gana sobre modo clase (escape hatch legacy)."""
-        from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
         mod = Modulo.objects.create(
             curso=self.curso,

@@ -2338,7 +2338,7 @@ class ModuloAdmin(admin.ModelAdmin):
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
-        from core.modulo_authoring_mode import (
+        from core.curso.modulo_authoring_mode import (
             MODO_BUILDER,
             MODO_CLASE,
             resolver_modo_desde_request,
@@ -2508,7 +2508,7 @@ class ModuloAdmin(admin.ModelAdmin):
 
     def get_inline_instances(self, request, obj=None):
         """Alta y modo clase: sin Estructura/Materiales. ?avanzado=1 las muestra."""
-        from core.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
+        from core.curso.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
 
         avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
         modo = resolver_modo_desde_request(
@@ -2528,7 +2528,7 @@ class ModuloAdmin(admin.ModelAdmin):
         return instances
 
     def get_fieldsets(self, request, obj=None):
-        from core.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
+        from core.curso.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
 
         if obj is None:
             # Alta: un solo bloque visible. El resto usa defaults del modelo (no POST vacío).
@@ -2615,7 +2615,7 @@ class ModuloAdmin(admin.ModelAdmin):
         if not (obj.descripcion or '').strip():
             obj.descripcion = (obj.titulo or 'Módulo').strip() or 'Módulo'
         super().save_model(request, obj, form, change)
-        from core.modulo_authoring_mode import resolver_modo_desde_request, set_modulo_modo
+        from core.curso.modulo_authoring_mode import resolver_modo_desde_request, set_modulo_modo
 
         modo = resolver_modo_desde_request(request, obj.pk, default='clase')
         set_modulo_modo(request, obj.pk, modo)
@@ -2705,7 +2705,7 @@ class ModuloAdmin(admin.ModelAdmin):
         from django.shortcuts import redirect
 
         from core.models import Curso
-        from core.modulo_authoring_mode import MODO_BUILDER, set_modulo_modo
+        from core.curso.modulo_authoring_mode import MODO_BUILDER, set_modulo_modo
 
         curso_id = (request.POST.get('curso') or '').strip()
         titulo = (request.POST.get('titulo') or '').strip()
@@ -2759,7 +2759,7 @@ class ModuloAdmin(admin.ModelAdmin):
         return self._redirigir_tras_guardar_modulo(request, obj, creado=False)
 
     def _redirigir_tras_guardar_modulo(self, request, obj, *, creado: bool):
-        from core.modulo_authoring_mode import (
+        from core.curso.modulo_authoring_mode import (
             MODO_BUILDER,
             MODO_CLASE,
             resolver_modo_desde_request,

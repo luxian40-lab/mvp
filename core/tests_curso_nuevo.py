@@ -5,7 +5,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Curso
-from core.modulo_authoring_mode import MODO_CLASE, SESSION_KEY
+from core.curso.modulo_authoring_mode import MODO_CLASE, SESSION_KEY
 from mvp_project.unfold_admin import UNFOLD
 
 

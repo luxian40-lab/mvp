@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 
 from core.admin.cursos import sembrar_plantilla_modulo
 from core.models import Cliente, Curso, Modulo
-from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+from core.curso.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
 
 @staff_member_required
