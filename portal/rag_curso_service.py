@@ -12,7 +12,7 @@ from core.models import Curso, DocumentoRAG
 
 logger = logging.getLogger(__name__)
 
-# Debe coincidir con lo que extrae `core.extractores_documento` y el accept del Studio.
+# Debe coincidir con lo que extrae `core.analitica.extractores_documento` y el accept del Studio.
 EXTENSIONES_VALIDAS = frozenset({'.pdf', '.docx', '.txt', '.xlsx', '.xlsm'})
 EXTENSIONES_UI_HINT = 'PDF, DOCX, TXT o Excel (.xlsx/.xlsm)'
 

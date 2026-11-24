@@ -142,7 +142,7 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
             ext = os.path.splitext(ruta)[1].lower()
             try:
                 if ext in EXTENSIONES_TEXTO_RAG:
-                    from core.extractores_documento import extraer_texto_archivo
+                    from core.analitica.extractores_documento import extraer_texto_archivo
 
                     texto_archivo, metodo_archivo = extraer_texto_archivo(ruta)
                     n_chunks = rag_comercial_manager.procesar_documento(
@@ -154,7 +154,7 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
                             'pero Chroma no generó fragmentos.',
                         )
                     elif n_chunks == 0:
-                        from core.extractores_documento import diagnostico_pdf
+                        from core.analitica.extractores_documento import diagnostico_pdf
 
                         diag = diagnostico_pdf(ruta)
                         ocr_ok = 'sí' if diag.get('ocr_disponible') else 'no'

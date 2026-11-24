@@ -14,7 +14,7 @@ class Command(BaseCommand):
         parser.add_argument('--reindexar-errores', action='store_true', help='Encolar reindexación de errores')
 
     def handle(self, *args, **options):
-        from core.extractores_documento import _ocr_disponible
+        from core.analitica.extractores_documento import _ocr_disponible
         from core.rag_comercial_manager import rag_comercial_manager
 
         cliente_id = options['cliente_id']

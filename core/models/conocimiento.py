@@ -330,7 +330,7 @@ class DocumentoRAGComercial(models.Model):
             )
 
             if n_chunks == 0:
-                from core.extractores_documento import extraer_texto_archivo
+                from core.analitica.extractores_documento import extraer_texto_archivo
 
                 texto_arch, metodo = extraer_texto_archivo(ruta)
                 fallback = f"# {self.nombre}\n\n{(self.descripcion or '').strip()}"
@@ -352,7 +352,7 @@ class DocumentoRAGComercial(models.Model):
                 self.error_indexacion = ''
             else:
                 self.estado = 'error'
-                from core.extractores_documento import diagnostico_pdf
+                from core.analitica.extractores_documento import diagnostico_pdf
                 ext = os.path.splitext(ruta)[1].lower()
                 if ext == '.pdf':
                     diag = diagnostico_pdf(ruta)

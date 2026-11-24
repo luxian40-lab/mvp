@@ -160,7 +160,7 @@ class RAGClienteCurso:
 
     def _extraer_texto(self, ruta: str) -> str:
         """Extrae texto de PDF, DOCX, TXT o Excel (XLSX/XLSM; p. ej. listas de precios)."""
-        from core.extractores_documento import extraer_texto_archivo
+        from core.analitica.extractores_documento import extraer_texto_archivo
 
         texto, metodo = extraer_texto_archivo(ruta)
         if texto:
@@ -171,7 +171,7 @@ class RAGClienteCurso:
 
     @staticmethod
     def _extraer_pdf(ruta: str) -> str:
-        from core.extractores_documento import extraer_texto_pdf
+        from core.analitica.extractores_documento import extraer_texto_pdf
 
         texto, _ = extraer_texto_pdf(ruta)
         return texto
