@@ -8,7 +8,7 @@ from core.analitica.clasificador_senales import (
 )
 from core.event_engine import correlacionar_clusters
 from core.models import AlertaTerritorial, Cliente, Estudiante, SenalTerritorial
-from core.senal_shadow import procesar_senal_shadow_nat
+from core.analitica.senal_shadow import procesar_senal_shadow_nat
 from core.taxonomia_senales import EJEMPLOS_ETIQUETADOS
 
 

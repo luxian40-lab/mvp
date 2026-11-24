@@ -1349,7 +1349,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     # Fase B — señal territorial en sombra (plagas/empleo). No altera la respuesta.
     if not es_saludo and msg_normalizado not in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']:
         try:
-            from core.senal_shadow import procesar_senal_shadow_nat
+            from core.analitica.senal_shadow import procesar_senal_shadow_nat
             from core.canal.utils_telefono import resolver_estudiante_por_telefono
 
             est_shadow = resolver_estudiante_por_telefono(telefono_limpio)
