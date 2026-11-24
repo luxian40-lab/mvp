@@ -4,7 +4,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase, override_settings
 
-from core.media_upload_servicio import validar_archivo
+from core.curso.media_upload_servicio import validar_archivo
 
 
 class MediaUploadServicioTests(SimpleTestCase):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.db.models import Q
 from django.utils import timezone
 
-from core.media_upload_servicio import topes_bytes
+from core.curso.media_upload_servicio import topes_bytes
 
 
 def texto_topes() -> str:

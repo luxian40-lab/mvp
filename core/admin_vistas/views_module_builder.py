@@ -620,7 +620,7 @@ def module_builder_view(request, modulo_id: int):
         from core.curso.module_builder_lectura import avisos_antes_de_publicar, recepcion_secciones
 
         ctx.update(_contexto_drip_solo_lectura(modulo))
-        from core.media_upload_servicio import topes_bytes
+        from core.curso.media_upload_servicio import topes_bytes
 
         ctx['avisos_publicar'] = avisos_antes_de_publicar(modulo, arbol)
         ctx['recepcion'] = recepcion_secciones(arbol)
