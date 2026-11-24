@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import SandboxCanalSesion, WhatsappLog
-from core.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
+from core.agentes.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
 from core.views.webhook_meta import _aplicar_sandbox_menu
 
 

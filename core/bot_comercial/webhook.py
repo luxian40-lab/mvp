@@ -1075,7 +1075,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
         texto_respuesta = armar_saludo_menu(cliente_nati)
     else:
         try:
-            from core.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
+            from core.agentes.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
 
             cuota_excedida, cuota_usados, cuota_max = evaluar_cuota_nat(telefono_limpio)
         except Exception:
