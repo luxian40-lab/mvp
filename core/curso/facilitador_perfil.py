@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 
-from core.prompts_tecnicoagro import (
+from core.agentes.prompts_tecnicoagro import (
     NOMBRE_DEFAULT_TECNICOAGRO,
     PERFIL_CLAUDIA,
     PERFIL_TECNICOAGRO,

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from core.models import Cliente, Curso, Modulo
-from core.prompts_tecnicoagro import (
+from core.agentes.prompts_tecnicoagro import (
     ANEXO_EVALUACION_NOTAS,
     ANEXO_EVALUACION_PUNTOS,
     ANEXO_RETO_CHECKPOINT_WA,

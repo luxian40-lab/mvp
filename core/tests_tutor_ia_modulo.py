@@ -236,7 +236,7 @@ class AsistenteDominioCursoTests(TestCase):
 
     @patch('core.tutor_ia_modulo._get_client')
     def test_pregunta_de_abejas_usa_el_curso_aunque_el_modulo_sea_bienvenida(self, mock_client):
-        from core.prompts_tecnicoagro import PERFIL_TECNICOAGRO
+        from core.agentes.prompts_tecnicoagro import PERFIL_TECNICOAGRO
         from core.tutor_ia_modulo import generar_respuesta_asistente
 
         cli = Cliente.objects.create(
