@@ -2208,7 +2208,7 @@ class ModuloAdmin(admin.ModelAdmin):
     course_engine_voz_preview.short_description = 'Prueba QA'
 
     def publicar_modulo_confirmar_view(self, request, modulo_id):
-        from core.views_publicar_confirmar import publicar_confirmar_view
+        from core.admin_vistas.views_publicar_confirmar import publicar_confirmar_view
 
         return publicar_confirmar_view(
             request, modulo_id, self.admin_site.each_context(request),
