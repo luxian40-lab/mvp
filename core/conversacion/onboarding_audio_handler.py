@@ -247,7 +247,7 @@ def procesar_respuesta_audio_ejercicio(
     logger.info(f"✅ Audio transcrito: {texto_transcrito}")
     
     # 2. Evaluar según tipo de ejercicio
-    from core.evaluacion_ia import evaluar_ejercicio_numerico, evaluar_respuesta_abierta
+    from core.agentes.evaluacion_ia import evaluar_ejercicio_numerico, evaluar_respuesta_abierta
     from decimal import Decimal, InvalidOperation
     
     if ejercicio.tipo == 'numerico':

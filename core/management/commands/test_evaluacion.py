@@ -11,7 +11,7 @@ from core.models import (
     ObjetivoCurso, RubricaEvaluacion, EjercicioPractico, 
     RespuestaEjercicio, InteraccionLog
 )
-from core.evaluacion_ia import (
+from core.agentes.evaluacion_ia import (
     evaluar_ejercicio_numerico,
     evaluar_respuesta_abierta,
     generar_reto_hipotetico,
