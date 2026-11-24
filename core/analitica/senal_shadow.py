@@ -35,7 +35,7 @@ def procesar_senal_shadow_nat(
     try:
         from core.analitica.clasificador_senales import clasificar_consulta_territorial
         from core.event_engine import registrar_senal_territorial
-        from core.territorio import obtener_territory_id_estudiante, resolver_territorio
+        from core.analitica.territorio import obtener_territory_id_estudiante, resolver_territorio
 
         ctx = {}
         if ctx_agro is not None:

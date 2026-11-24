@@ -63,7 +63,7 @@ def registrar_evento(
 
             if getattr(_settings, 'EVENT_ENGINE_EMIT_TELEMETRIA', True):
                 from core.event_engine import publicar_evento
-                from core.territorio import obtener_territory_id_estudiante
+                from core.analitica.territorio import obtener_territory_id_estudiante
 
                 tid = obtener_territory_id_estudiante(estudiante, persistir=True)
                 org_pk = getattr(cli, 'pk', None) if cli is not None else None

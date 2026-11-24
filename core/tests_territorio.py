@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from core.models import Cliente, Estudiante
-from core.territorio import aplicar_territorio_estudiante, resolver_territorio
+from core.analitica.territorio import aplicar_territorio_estudiante, resolver_territorio
 from portal.geo_catalogo import _divipola_por_clave, resolver_ubicacion
 
 
