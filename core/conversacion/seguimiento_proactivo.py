@@ -6,7 +6,7 @@ Detecta estudiantes inactivos y envía mensajes de motivación
 from django.utils import timezone
 from datetime import timedelta
 from core.models import Estudiante, ProgresoEstudiante, WhatsappLog
-from core.agentes_ia import AgenteMotivador
+from core.agentes.agentes_ia import AgenteMotivador
 from core.canal.envios import enviar_whatsapp_twilio
 import logging
 
