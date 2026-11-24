@@ -37,7 +37,7 @@ from core.admin_vistas.views_eventos_ia import ai_ops_eventos_view, ai_ops_repla
 from core.admin_vistas.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.admin_vistas.views_reportes import descargar_reporte_xlsx
 from core.admin_vistas.views_admin_home import admin_inicio_actualizar, admin_inicio_lineas
-from core.views_cobertura_admin import (
+from core.admin_vistas.views_cobertura_admin import (
     cobertura_admin_api,
     cobertura_admin_municipios_geojson,
     cobertura_admin_view,

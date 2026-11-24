@@ -12,7 +12,7 @@ from django.utils.timesince import timesince
 
 from core.infra_monitor import header_health_strip
 from core.models import Campana, Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.views_cobertura_admin import get_cobertura_global
+from core.admin_vistas.views_cobertura_admin import get_cobertura_global
 
 
 def _pct_delta(hoy: int, ayer: int) -> int | None:
