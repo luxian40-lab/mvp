@@ -221,7 +221,7 @@ def _sheet_commercial(wb, context):
 
 
 def _sheet_learning_empresa(wb, context):
-    from core.metricas_empresa import calcular_metricas_empresa
+    from core.analitica.metricas_empresa import calcular_metricas_empresa
 
     cid = context.get('cliente_filtro')
     curso_id = context.get('curso_filtro')

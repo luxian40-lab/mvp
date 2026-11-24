@@ -398,7 +398,7 @@ def api_metricas_json(request):
         })
     
     elif tipo_metrica == 'metricas_empresa':
-        from core.metricas_empresa import calcular_metricas_empresa
+        from core.analitica.metricas_empresa import calcular_metricas_empresa
 
         cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
         curso_id = request.GET.get('curso_id') or request.GET.get('curso')
@@ -439,7 +439,7 @@ def api_metricas_json(request):
         return JsonResponse(payload)
 
     elif tipo_metrica == 'metricas_nati':
-        from core.metricas_empresa import calcular_metricas_nati
+        from core.analitica.metricas_empresa import calcular_metricas_nati
 
         cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
         desde = request.GET.get('desde') or request.GET.get('fecha_inicio')

@@ -3,7 +3,7 @@ import pytest
 from django.utils import timezone
 from datetime import timedelta
 
-from core.metricas_empresa import calcular_metricas_empresa
+from core.analitica.metricas_empresa import calcular_metricas_empresa
 from core.models import (
     Cliente,
     Curso,

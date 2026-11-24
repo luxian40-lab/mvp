@@ -2,7 +2,7 @@
 
 from django.db.models import Q
 
-from core.metricas_empresa import (
+from core.analitica.metricas_empresa import (
     calcular_metricas_empresa,
     calcular_metricas_nati,
     calcular_semaforo,

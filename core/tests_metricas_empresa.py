@@ -2,7 +2,7 @@
 import pytest
 from decimal import Decimal
 
-from core.metricas_empresa import (
+from core.analitica.metricas_empresa import (
     calcular_semaforo,
     calcular_metricas_empresa,
     resolver_metas_educativa,

@@ -7,7 +7,7 @@ Registro de bounded contexts — mapa Parte 0 de la hoja de ruta CTO.
 | learning             | Cursos, módulos, progreso, checkpoints, certificados | core.curso.helpers_examenes, drip, tutor   |
 | agents_edu           | Darío, Claudia, facilitadora, tutor módulo           | core.agentes.agentes_ia, core.tutor_ia_modulo|
 | agents_commercial    | Nat, RAG comercial, prospectos                       | core.nati, core.rag_comercial_*      |
-| analytics            | KPIs, semáforos, reportes B2B, métricas empresa/Nat  | core.metricas_empresa, dashboard   |
+| analytics            | KPIs, semáforos, reportes B2B, métricas empresa/Nat  | core.analitica.metricas_empresa, dashboard   |
 | integrations         | Twilio, WhatsApp logs, Celery externos               | core.tasks, webhooks                 |
 | formulario           | GEI, encuestas dinámicas                             | formulario.*                         |
 """

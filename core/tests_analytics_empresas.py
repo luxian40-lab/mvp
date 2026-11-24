@@ -4,7 +4,7 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
-from core.metricas_empresa import calcular_metricas_empresa
+from core.analitica.metricas_empresa import calcular_metricas_empresa
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 from core.models_extras import GrupoEstudiantes
 from formulario.factories import ClienteFactory
