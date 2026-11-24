@@ -5,7 +5,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from core.taxonomia_senales import (
+from core.analitica.taxonomia_senales import (
     EJEMPLOS_ETIQUETADOS,
     TAXONOMIA_V0,
     TIPOS_BLOQUEADOS_V0,
