@@ -54,7 +54,7 @@ def datos_registro(body: str) -> dict | None:
 def guardar_registro(telefono: str, datos: dict) -> str:
     """Crea o actualiza la ficha. Devuelve el texto que hay que responder."""
     from core.consentimiento_wa import registrar_optin
-    from core.documento_identidad import normalizar_numero_documento
+    from core.analitica.documento_identidad import normalizar_numero_documento
     from core.models import Cliente, Estudiante
     from core.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono

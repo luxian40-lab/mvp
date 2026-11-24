@@ -7,7 +7,7 @@ from typing import Optional
 from django.db.models import Q
 
 from aprende.models import CredencialAprendeEstudiante
-from core.documento_identidad import normalizar_numero_documento
+from core.analitica.documento_identidad import normalizar_numero_documento
 from core.models import Estudiante
 
 SESSION_PENDING_CLAVE = 'aprende_pending_clave_eid'

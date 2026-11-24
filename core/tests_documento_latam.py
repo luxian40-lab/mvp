@@ -2,7 +2,7 @@
 
 from django.test import TestCase
 
-from core.documento_identidad import (
+from core.analitica.documento_identidad import (
     normalizar_numero_documento,
     normalizar_tipo_documento,
 )

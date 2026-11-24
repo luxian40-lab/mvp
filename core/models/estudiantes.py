@@ -4,7 +4,7 @@ Movidos tal cual desde core/models/__init__.py, que los reexporta:
 importar desde core.models sigue igual.
 """
 from django.db import models
-from core.documento_identidad import TIPO_DOCUMENTO_CHOICES
+from core.analitica.documento_identidad import TIPO_DOCUMENTO_CHOICES
 from core.models.clientes import Cliente
 
 
@@ -241,7 +241,7 @@ class Estudiante(models.Model):
         self.cliente = value
 
     def clean(self):
-        from core.documento_identidad import (
+        from core.analitica.documento_identidad import (
             normalizar_numero_documento,
             normalizar_tipo_documento,
         )

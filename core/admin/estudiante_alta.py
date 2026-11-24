@@ -402,7 +402,7 @@ def contexto_alta(organizacion, grupo, seleccion=None) -> dict:
 
 
 def buscar_documento(numero: str, excluir_id=None) -> dict:
-    from core.documento_identidad import normalizar_numero_documento
+    from core.analitica.documento_identidad import normalizar_numero_documento
 
     limpio = normalizar_numero_documento(numero)
     if not limpio:

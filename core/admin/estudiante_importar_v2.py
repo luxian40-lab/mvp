@@ -17,7 +17,7 @@ from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
-from core.documento_identidad import normalizar_numero_documento, normalizar_tipo_documento
+from core.analitica.documento_identidad import normalizar_numero_documento, normalizar_tipo_documento
 from core.import_estudiantes_excel import extraer_fila_estudiante, mapear_columnas_estudiante
 from core.canal.utils_telefono import normalizar_telefono, validar_telefono_whatsapp
 

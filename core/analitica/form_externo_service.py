@@ -7,7 +7,7 @@ import unicodedata
 
 from django.db import transaction
 
-from core.documento_identidad import normalizar_numero_documento
+from core.analitica.documento_identidad import normalizar_numero_documento
 from core.models import Estudiante, HabilitacionModuloEstudiante, Modulo
 from core.models_extras import EnlaceFormularioExterno, RegistroFormularioExterno
 
