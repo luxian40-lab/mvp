@@ -65,7 +65,7 @@ from ..models_extras import (
 from ..models_audit import AuditLog  # 🔐 Auditoría
 from ..gamificacion.recompensas import Recompensa, CanjeRecompensa
 from ..canal.envios import enviar_whatsapp_twilio, enviar_whatsapp  # Asegurar que tenemos la función
-from ..widgets import ColorPickerWidget  # 🎨 Color picker para certificados
+from core.admin_vistas.widgets import ColorPickerWidget  # 🎨 Color picker para certificados
 from core.puentes import PortalUsuario
 from django.utils import timezone  # Para timestamps
 import logging
