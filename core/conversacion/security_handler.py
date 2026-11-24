@@ -556,7 +556,7 @@ def interceptar_mensaje(estudiante, mensaje_texto):
     
     # 1.5 Si ya pasó por IA empática y ahora pide soporte explícitamente
     if estudiante.contexto_temporal and estudiante.contexto_temporal.get('tipo') == 'post_ia_empatica':
-        from core.ia_empatica import debe_escalar_a_soporte
+        from core.agentes.ia_empatica import debe_escalar_a_soporte
         if debe_escalar_a_soporte(mensaje_texto):
             logger.info(f"🆘 Usuario persiste después de IA empática → Escalando a soporte")
             es_soporte, keyword = verificar_keyword_soporte(mensaje_texto)
@@ -574,7 +574,7 @@ def interceptar_mensaje(estudiante, mensaje_texto):
     es_soporte, keyword = verificar_keyword_soporte(mensaje_texto)
     if es_soporte:
         # NUEVO: Primero intentar con IA empática
-        from core.ia_empatica import responder_con_empatia, generar_respuesta_empatica_fallback, debe_escalar_a_soporte
+        from core.agentes.ia_empatica import responder_con_empatia, generar_respuesta_empatica_fallback, debe_escalar_a_soporte
         
         # Si explícitamente pide soporte humano, escalar directamente
         if debe_escalar_a_soporte(mensaje_texto):

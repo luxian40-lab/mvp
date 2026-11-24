@@ -183,7 +183,7 @@ class IaEmpaticaTests(ConCursoTestCase):
         from core.security_handler import interceptar_mensaje
 
         self._con_contexto(curso_activo_id=self.curso.id, tipo='reto_facilitador')
-        with patch('core.ia_empatica.responder_con_empatia', return_value='Tranquilo, vamos paso a paso.'):
+        with patch('core.agentes.ia_empatica.responder_con_empatia', return_value='Tranquilo, vamos paso a paso.'):
             interceptar_mensaje(self.est, 'necesito ayuda con el módulo')
         ctx = self._contexto()
         self.assertEqual(ctx['tipo'], 'post_ia_empatica')
