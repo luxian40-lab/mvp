@@ -25,7 +25,7 @@ class NotificarFalloMediaOpsTests(TestCase):
         EMAIL_SOPORTE='ops@eki.test',
         DEFAULT_FROM_EMAIL='eki@eki.test',
     )
-    @patch('core.ops_slack.notify_slack_ops', return_value=True)
+    @patch('core.curso.media_entrega.notify_slack_ops', return_value=True)
     @patch('django.core.mail.send_mail')
     def test_notifica_una_vez(self, mock_mail, mock_slack):
         notificar_fallo_media_ops(self.log, error_code='63021', intentos=2)

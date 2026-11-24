@@ -95,7 +95,7 @@ def notificar_fallo_media_ops(log, error_code: str = '', intentos: int = 0) -> N
     )
 
     try:
-        from core.ops_slack import notify_slack_ops
+        from core.analitica.ops_slack import notify_slack_ops
 
         notify_slack_ops(cuerpo, title=titulo)
     except Exception as exc:

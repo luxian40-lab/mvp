@@ -188,7 +188,7 @@ class ModuloPublicacionHelpersTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False, EKI_SLACK_OPS_WEBHOOK='https://hooks.example/test')
 class SlackBorradorTests(TestCase):
-    @patch('core.ops_slack.notify_slack_ops')
+    @patch('core.curso.modulo_publicacion.notify_slack_ops')
     def test_signal_nuevo_modulo_curso_con_inscritos(self, mock_slack):
         from core.models import Estudiante
 

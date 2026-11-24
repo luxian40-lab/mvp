@@ -767,7 +767,7 @@ def notificar_borrador_curso_activo(modulo: Modulo) -> None:
     from django.core.cache import cache
 
     from core.models import ProgresoEstudiante
-    from core.ops_slack import notify_slack_ops
+    from core.analitica.ops_slack import notify_slack_ops
 
     curso = getattr(modulo, 'curso', None)
     if curso is None or modulo.publicado_wa or curso.es_modo_clases():
