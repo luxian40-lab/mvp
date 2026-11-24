@@ -4,7 +4,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from core.infra_monitor import snapshot_infra
+from core.analitica.infra_monitor import snapshot_infra
 
 
 @staff_member_required

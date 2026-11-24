@@ -229,7 +229,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
 
     infra = []
     try:
-        from core.infra_monitor import header_health_strip
+        from core.analitica.infra_monitor import header_health_strip
 
         infra = header_health_strip()
     except Exception:

@@ -150,7 +150,7 @@ def eki_copiloto_chat(context):
 @register.inclusion_tag("admin/partials/eki_health_strip.html", takes_context=True)
 def eki_health_strip(context):
     """Chips de salud en la barra superior Unfold."""
-    from core.infra_monitor import header_health_strip
+    from core.analitica.infra_monitor import header_health_strip
 
     chips = []
     try:

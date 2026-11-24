@@ -14,7 +14,7 @@ def revisar_infra_advisor():
     Snapshot force + notificación email si overall pasa a ACTUAR.
     No envía WhatsApp. Máx. 1 mail cada 6h (cooldown en cache).
     """
-    from core.infra_monitor import maybe_notify_infra_act, snapshot_infra
+    from core.analitica.infra_monitor import maybe_notify_infra_act, snapshot_infra
 
     snap = snapshot_infra(force=True)
     notify = maybe_notify_infra_act(snap)

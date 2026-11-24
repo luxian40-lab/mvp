@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
-from core.infra_monitor import _human_bytes, snapshot_infra
+from core.analitica.infra_monitor import _human_bytes, snapshot_infra
 
 
 class InfraMonitorHelpersTests(SimpleTestCase):
@@ -60,7 +60,7 @@ class InfraMonitorAdminTests(TestCase):
                 self.assertIn('specs', a)
 
     def test_alerta_si_conversacion_o_masivo_tienen_mensajes(self):
-        from core.infra_monitor import _playbook_colas
+        from core.analitica.infra_monitor import _playbook_colas
 
         vacias = _playbook_colas({
             'ok': True,
@@ -79,7 +79,7 @@ class InfraMonitorAdminTests(TestCase):
         self.assertIn('conversacion=4', llenas['verdict']['reasons'])
 
     def test_advisor_recomienda_si_redis_cae(self):
-        from core.infra_monitor import build_infra_advisor
+        from core.analitica.infra_monitor import build_infra_advisor
 
         playbooks = [{
             'id': 'redis',
@@ -96,7 +96,7 @@ class InfraMonitorAdminTests(TestCase):
         self.assertEqual(adv['items'][0]['next']['action_type'], 'REINICIAR_LOCAL')
 
     def test_header_health_strip_tiene_chips(self):
-        from core.infra_monitor import header_health_strip
+        from core.analitica.infra_monitor import header_health_strip
 
         chips = header_health_strip(force=True)
         labels = [c['label'] for c in chips]

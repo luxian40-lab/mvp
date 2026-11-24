@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand
 
-from core.infra_monitor import BASELINE, CAPACITY_LIMITS
+from core.analitica.infra_monitor import BASELINE, CAPACITY_LIMITS
 
 
 class Command(BaseCommand):

@@ -10,7 +10,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.timesince import timesince
 
-from core.infra_monitor import header_health_strip
+from core.analitica.infra_monitor import header_health_strip
 from core.models import Campana, Cliente, Curso, Estudiante, ProgresoEstudiante
 from core.admin_vistas.views_cobertura_admin import get_cobertura_global
 
@@ -485,7 +485,7 @@ def _build_alertas_ops(
         pass
 
     try:
-        from core.infra_monitor import header_health_strip
+        from core.analitica.infra_monitor import header_health_strip
 
         strip = header_health_strip(force=False)
         bad = [s for s in strip if (s.get('tone') or '') in ('warn', 'fail', 'red', 'yellow')]
