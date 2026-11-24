@@ -2,7 +2,7 @@
 
 from django.core.management.base import BaseCommand, CommandError
 
-from core.empleabilidad_prueba import (
+from core.analitica.empleabilidad_prueba import (
     completar_mision_con_codigo,
     setup_prueba_empleabilidad,
     simular_ubicacion_whatsapp,

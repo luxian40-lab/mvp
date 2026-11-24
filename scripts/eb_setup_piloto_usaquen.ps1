@@ -14,7 +14,7 @@ import os, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 from django.utils import timezone
-from core.empleabilidad_prueba import configurar_cliente_empleabilidad, preparar_estudiante_prueba, simular_ubicacion_whatsapp
+from core.analitica.empleabilidad_prueba import configurar_cliente_empleabilidad, preparar_estudiante_prueba, simular_ubicacion_whatsapp
 from core.models import AliadoEmpleabilidad, Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 
 LAT, LNG, CODIGO = 4.7171843, -74.0312394, 'EKI-USQ-01'

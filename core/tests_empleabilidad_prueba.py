@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from django.test import Client as HttpClient
 from django.test import TestCase, override_settings
 
-from core.empleabilidad_prueba import (
+from core.analitica.empleabilidad_prueba import (
     completar_mision_con_codigo,
     configurar_cliente_empleabilidad,
     crear_aliados_demo,

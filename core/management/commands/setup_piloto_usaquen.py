@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from core.empleabilidad_prueba import (
+from core.analitica.empleabilidad_prueba import (
     configurar_cliente_empleabilidad,
     preparar_estudiante_prueba,
     simular_ubicacion_whatsapp,
