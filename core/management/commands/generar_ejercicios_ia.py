@@ -4,7 +4,7 @@ Management command para generar ejercicios automáticamente con IA
 
 from django.core.management.base import BaseCommand
 from core.models import Curso, Modulo, ObjetivoCurso
-from core.generador_ejercicios_ia import generar_y_guardar_ejercicios
+from core.agentes.generador_ejercicios_ia import generar_y_guardar_ejercicios
 
 
 class Command(BaseCommand):
