@@ -1840,7 +1840,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
 
-        from core.export_estudiantes import limpiar_telefono
+        from core.analitica.export_estudiantes import limpiar_telefono
         
         # Crear workbook
         wb = Workbook()

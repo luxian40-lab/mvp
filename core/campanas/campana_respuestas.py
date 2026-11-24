@@ -70,7 +70,7 @@ def clasificar_respuesta_campana(texto: str) -> Optional[str]:
 
 
 def normalizar_telefono(telefono: str) -> str:
-    from core.export_estudiantes import limpiar_telefono
+    from core.analitica.export_estudiantes import limpiar_telefono
 
     t = limpiar_telefono(telefono)
     if len(t) == 10:

@@ -6,7 +6,7 @@ from io import BytesIO
 from django.test import TestCase
 from openpyxl import load_workbook
 
-from core.export_estudiantes import limpiar_telefono
+from core.analitica.export_estudiantes import limpiar_telefono
 from core.models import Cliente, Estudiante, ProgresoEstudiante, Curso
 
 
