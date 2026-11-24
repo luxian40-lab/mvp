@@ -28,7 +28,7 @@ from core.curso.modulo_publicacion import (
     total_modulos_publicados_wa,
 )
 from core.response_templates import get_response_for_intent
-from core.services import ejecutar_campana_servicio
+from core.analitica.services import ejecutar_campana_servicio
 
 QA_PHONE = '573026480629'
 QA_CEDULA = 'QA3026480629'

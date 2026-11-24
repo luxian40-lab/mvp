@@ -129,7 +129,7 @@ def portal_eki_ops_campanas(request):
     """Listar / crear / lanzar campañas WhatsApp (curso) multi-org."""
     from core.models import Campana, Curso, Plantilla
     from core.models_extras import GrupoEstudiantes
-    from core.services import encolar_ejecutar_campana
+    from core.analitica.services import encolar_ejecutar_campana
 
     org_id, orgs = _org_filtro(request)
 

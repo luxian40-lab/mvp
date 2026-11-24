@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from core.models import Campana, Cliente, Estudiante, Plantilla
-from core.services import ejecutar_campana_servicio
+from core.analitica.services import ejecutar_campana_servicio
 
 
 class CampanaSinDestinatariosTests(TestCase):
@@ -34,7 +34,7 @@ class CampanaSinDestinatariosTests(TestCase):
             plantilla=self.plantilla,
             tipo_audiencia='individual',
         )
-        with patch('core.services.enviar_whatsapp_twilio') as send:
+        with patch('core.analitica.services.enviar_whatsapp_twilio') as send:
             res = ejecutar_campana_servicio(campana)
             send.assert_not_called()
         self.assertEqual(res['total'], 0)

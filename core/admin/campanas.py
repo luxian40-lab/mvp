@@ -307,7 +307,7 @@ class CampanaAdmin(admin.ModelAdmin):
     @admin.action(description='🚀 Ejecutar Campaña (Enviar Mensajes)')
     def enviar_campana_accion(self, request, queryset):
         """Encola el envío masivo en segundo plano (evita 504 con +90 destinatarios)."""
-        from core.services import encolar_ejecutar_campana
+        from core.analitica.services import encolar_ejecutar_campana
         
         for campana in queryset:
             # Permitir re-envío de campañas ya ejecutadas
