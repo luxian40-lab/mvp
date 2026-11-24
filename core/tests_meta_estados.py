@@ -63,6 +63,16 @@ class OrdenEstadosTests(TestCase):
         log.refresh_from_db()
         self.assertEqual(log.estado, 'failed')
 
+    def test_actualiza_todos_los_logs_con_mismo_wamid(self):
+        primero = _log('wamid.par', estado='SENT')
+        segundo = _log('wamid.par', estado='PENDING')
+        n = aplicar_statuses([{'id': 'wamid.par', 'status': 'delivered', 'timestamp': '6'}])
+        self.assertEqual(n, 2)
+        primero.refresh_from_db()
+        segundo.refresh_from_db()
+        self.assertEqual(primero.estado, 'delivered')
+        self.assertEqual(segundo.estado, 'delivered')
+
 
 def _payload_statuses():
     return {

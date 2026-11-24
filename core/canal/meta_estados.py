@@ -135,39 +135,45 @@ def aplicar_statuses(statuses) -> int:
         toco_envio = _aplicar_status_envio(item, mid)
         if toco_envio:
             actualizados += 1
-        log = (
+        logs = list(
             WhatsappLog.objects.filter(mensaje_id=mid, tipo='SENT')
             .order_by('-id')
-            .first()
         )
-        if log is None:
+        if not logs:
             if not toco_envio:
                 logger.debug('meta_status_desconocido id=%s', mid[:32])
             continue
         nuevo = str(item.get('status') or '').strip().lower()
-        if not _puede_avanzar(log.estado, nuevo):
-            continue
-        campos = ['estado']
-        log.estado = nuevo
         errores = item.get('errors') or []
-        if errores and isinstance(errores[0], dict):
-            code = str(errores[0].get('code') or '')[:16]
-            title = str(errores[0].get('title') or '')[:500]
-            accion = str(acciones.get(code) or '')
-            log.error_codigo = code or None
-            log.error_detalle = ' '.join(p for p in (accion, code, title) if p)[:2000]
-            campos.extend(['error_codigo', 'error_detalle'])
-            if accion == 'token_invalido' or code == '190':
-                from core.canal.meta_token import marcar_token_invalido
+        alguno_actualizado = False
+        efecto_error_aplicado = False
+        for log in logs:
+            if not _puede_avanzar(log.estado, nuevo):
+                continue
+            campos = ['estado']
+            log.estado = nuevo
+            if errores and isinstance(errores[0], dict):
+                code = str(errores[0].get('code') or '')[:16]
+                title = str(errores[0].get('title') or '')[:500]
+                accion = str(acciones.get(code) or '')
+                log.error_codigo = code or None
+                log.error_detalle = ' '.join(p for p in (accion, code, title) if p)[:2000]
+                campos.extend(['error_codigo', 'error_detalle'])
+                if not efecto_error_aplicado:
+                    efecto_error_aplicado = True
+                    if accion == 'token_invalido' or code == '190':
+                        from core.canal.meta_token import marcar_token_invalido
 
-                marcar_token_invalido()
-            elif accion == 'reintentar':
-                logger.info('meta_error_reintentable code=%s', code)
-        opaco = str(item.get('biz_opaque_callback_data') or '')[:120]
-        if opaco:
-            logger.debug('meta_status_opaque id=%s', mid[:32])
-        log.save(update_fields=campos)
-        actualizados += 1
+                        marcar_token_invalido()
+                    elif accion == 'reintentar':
+                        logger.info('meta_error_reintentable code=%s', code)
+            log.save(update_fields=campos)
+            actualizados += 1
+            alguno_actualizado = True
+        if alguno_actualizado:
+            opaco = str(item.get('biz_opaque_callback_data') or '')[:120]
+            if opaco:
+                logger.debug('meta_status_opaque id=%s', mid[:32])
     return actualizados
 
 
