@@ -65,6 +65,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                         telefono=telefono_limpio,
                         mensaje=mensaje_log_con_media((_resp_reenvio or '')[:500], None),
                         tipo='SENT',
+                        estado='SENT',
                         agente_usado='REENVIAR_MEDIA',
                     )
                     return CORTAR

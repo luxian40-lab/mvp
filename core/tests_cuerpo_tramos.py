@@ -247,7 +247,9 @@ class PuertaListoTests(_Base):
             ],
             [('Aquí va el video', None), (None, ['https://cdn.example.com/v.mp4'])],
         )
-        self.assertTrue(WhatsappLog.objects.filter(telefono=TEL, agente_usado='REENVIAR_MEDIA').exists())
+        self.assertTrue(
+            WhatsappLog.objects.filter(telefono=TEL, agente_usado='REENVIAR_MEDIA', estado='SENT').exists()
+        )
 
 
 class MenuLegadoTests(_Base):
