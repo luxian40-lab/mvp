@@ -451,7 +451,7 @@ def _build_alertas_ops(
         )
 
     try:
-        from core.media_wa_audit import contar_media_en_riesgo
+        from core.curso.media_wa_audit import contar_media_en_riesgo
 
         media = contar_media_en_riesgo(solo_activos=True)
         total = int(media.get('total') or 0)

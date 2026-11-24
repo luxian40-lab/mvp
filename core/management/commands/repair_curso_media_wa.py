@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils import timezone
 
-from core.media_wa_audit import _head_url_ok
+from core.curso.media_wa_audit import _head_url_ok
 from core.models import Curso, Estudiante, PasoModulo, WhatsappLog
 from core.module_steps import pasos_activos_qs
 from core.canal.twilio_media import (

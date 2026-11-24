@@ -21,7 +21,7 @@ from datetime import timedelta
 
 from core.models import Curso, Estudiante, PasoModulo, WhatsappLog
 from core.module_steps import pasos_activos_qs
-from core.media_wa_audit import _head_url_ok
+from core.curso.media_wa_audit import _head_url_ok
 from core.twilio_media import (
     _descargar_bytes,
     _subir_bytes_s3,

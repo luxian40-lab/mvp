@@ -294,7 +294,7 @@ class RepararCursoYAdminTests(_Base):
 
 class AuditVideoInactivoTests(_Base):
     def test_audit_warn_si_video_listo_inactivo(self):
-        from core.media_wa_audit import auditar_media_cursos
+        from core.curso.media_wa_audit import auditar_media_cursos
 
         PasoModulo.objects.create(
             modulo=self.mod,

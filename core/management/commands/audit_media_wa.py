@@ -4,7 +4,7 @@ import json
 
 from django.core.management.base import BaseCommand
 
-from core.media_wa_audit import auditar_media_cursos, filas_a_dict
+from core.curso.media_wa_audit import auditar_media_cursos, filas_a_dict
 
 
 class Command(BaseCommand):
