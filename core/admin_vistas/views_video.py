@@ -8,7 +8,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
-from core.models_video import VideoEnlace
+from core.curso.models_video import VideoEnlace
 from core.video_links import (
     HITOS,
     es_prefetch,

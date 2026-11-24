@@ -111,7 +111,7 @@ from core.models_extras import (
 from core.models_media_entrega import MediaPaqueteEntrega
 from core.campanas.models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
 from core.canal.models_meta_webhook import MetaWebhookEvento
-from core.models_video import VideoEnlace, VideoView
+from core.curso.models_video import VideoEnlace, VideoView
 from core.models_agentes import ConocimientoAgente, PruebaAgente
 from core.models_uso_llm import UsoLLM
 from core.lineas.modelo import LineaWhatsapp

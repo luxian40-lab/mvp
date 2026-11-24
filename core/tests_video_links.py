@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, Curso, Estudiante, Modulo, PasoModulo, ProgresoEstudiante, SeccionModulo
-from core.models_video import VideoEnlace, VideoView
+from core.curso.models_video import VideoEnlace, VideoView
 from core.module_steps import entregar_paso_indice, reset_progreso_pasos_modulo
 from core.video_links import reescribir_videos_en_mensaje, reporte_aperturas_video
 

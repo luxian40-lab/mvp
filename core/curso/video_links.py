@@ -73,7 +73,7 @@ def _es_youtube_o_vimeo(url: str) -> bool:
 
 def clasificar_destino(url: str) -> tuple[str, str]:
     """(destino_tipo, destino_ref). destino_ref nunca es una URL firmada."""
-    from core.models_video import VideoEnlace
+    from core.curso.models_video import VideoEnlace
     from core.canal.twilio_media import _s3_key_desde_url
 
     limpia = (url or '').strip()
@@ -146,7 +146,7 @@ def url_publica(enlace) -> str:
 
 
 def obtener_o_crear_enlace(*, estudiante, curso, modulo, url: str):
-    from core.models_video import VideoEnlace
+    from core.curso.models_video import VideoEnlace
 
     video_id, tipo, ref, etiqueta = identificar_video(modulo, url)
     existente = (
@@ -231,7 +231,7 @@ def reescribir_videos_en_mensaje(mensaje: str, *, estudiante, curso, modulo) -> 
 
 
 def registrar_apertura(enlace, user_agent: str):
-    from core.models_video import VideoView
+    from core.curso.models_video import VideoView
 
     return VideoView.objects.create(
         enlace=enlace,
@@ -246,7 +246,7 @@ def registrar_apertura(enlace, user_agent: str):
 
 def registrar_progreso(enlace, hito: int, user_agent: str):
     """Primer cruce de cada umbral por enlace. Reintentos no suman otra fila."""
-    from core.models_video import VideoView
+    from core.curso.models_video import VideoView
 
     evento = HITOS[int(hito)]
     previo = VideoView.objects.filter(enlace=enlace, evento=evento).order_by('id').first()
@@ -301,7 +301,7 @@ def url_firmada_s3(key: str, expires_in: int = 3600) -> str:
 
 
 def url_de_reproduccion(enlace) -> str:
-    from core.models_video import VideoEnlace
+    from core.curso.models_video import VideoEnlace
 
     if enlace.destino_tipo == VideoEnlace.DESTINO_S3:
         return url_firmada_s3(enlace.destino_ref)
@@ -329,7 +329,7 @@ def reporte_aperturas_video(
     fecha_fin: date | None = None,
 ) -> dict:
     """Agregados para Analítica. Apertura ≠ reproducción. Progreso solo en reproductor propio."""
-    from core.models_video import VideoView
+    from core.curso.models_video import VideoView
 
     qs = VideoView.objects.all()
     if curso_id:
