@@ -1,7 +1,7 @@
 """Lista inscripciones que no cumplen la regla de cursos. No escribe."""
 from django.core.management.base import BaseCommand
 
-from core.cursos_permitidos import inscripcion_fuera_de_regla
+from core.curso.cursos_permitidos import inscripcion_fuera_de_regla
 from core.models import ProgresoEstudiante
 
 

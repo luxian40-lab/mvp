@@ -19,7 +19,7 @@ from core.admin.estudiante_alta import (
 )
 from core.admin.estudiantes import EstudianteAdmin, EstudianteAdminForm
 from core.admin.clientes import HabilitacionModuloEstudianteInline
-from core.cursos_permitidos import cursos_permitidos, parece_nombre_de_prueba
+from core.curso.cursos_permitidos import cursos_permitidos, parece_nombre_de_prueba
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante, SandboxCanalSesion
 from core.models_extras import GrupoEstudiantes
 from core.nati import normalizar_telefono_whatsapp

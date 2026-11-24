@@ -9,7 +9,7 @@ from django.utils.safestring import mark_safe
 
 from core.admin.estudiantes import EstudianteAdminForm
 from core.admin.estudiantes_crm import iniciales
-from core.cursos_permitidos import (
+from core.curso.cursos_permitidos import (
     curso_esta_permitido,
     cursos_agrupados,
     cursos_permitidos,

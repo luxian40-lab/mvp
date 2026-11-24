@@ -1,7 +1,7 @@
 """Lista cursos cuyo nombre parece de prueba. No cambia activo ni nada más."""
 from django.core.management.base import BaseCommand
 
-from core.cursos_permitidos import parece_nombre_de_prueba
+from core.curso.cursos_permitidos import parece_nombre_de_prueba
 from core.models import Curso
 
 
