@@ -669,7 +669,7 @@ def responder_agente_sandbox(
             logger.exception('sandbox_fao_fail agente=%s', agente)
     if agente == 'cafe':
         try:
-            from core.cafe_fuentes import enriquecer_contexto_cafe
+            from core.agentes.cafe_fuentes import enriquecer_contexto_cafe
 
             extra, _meta_cafe = enriquecer_contexto_cafe(q, extra)
         except Exception:
