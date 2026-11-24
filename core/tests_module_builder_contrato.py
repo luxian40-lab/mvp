@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
-from core.module_builder import agregar_micro, agregar_seccion
+from core.curso.module_builder import agregar_micro, agregar_seccion
 from core.module_structure import detectar_secciones_intercaladas
 
 

@@ -7,7 +7,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 
 from core.models import Curso, Modulo
-from core.module_builder import agregar_micro, agregar_seccion
+from core.curso.module_builder import agregar_micro, agregar_seccion
 
 
 class CertificarModuloMediaTests(TestCase):

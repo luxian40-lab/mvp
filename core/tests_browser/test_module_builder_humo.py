@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.test import LiveServerTestCase, override_settings
 
 from core.models import Curso, Modulo
-from core.module_builder import agregar_micro, agregar_seccion
+from core.curso.module_builder import agregar_micro, agregar_seccion
 
 User = get_user_model()
 

@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
-from core.module_builder import (
+from core.curso.module_builder import (
     agregar_micro,
     agregar_seccion,
     arbol_modulo,
@@ -400,7 +400,7 @@ class ModuleBuilderViewTests(TestCase):
     def test_post_update_micro_guarda_texto_inicial(self):
         self.client.force_login(self.staff)
         from core.admin.cursos import sembrar_plantilla_modulo
-        from core.module_builder import actualizar_micro
+        from core.curso.module_builder import actualizar_micro
 
         sembrar_plantilla_modulo(self.mod)
         paso = PasoModulo.objects.filter(modulo=self.mod).order_by('orden').first()
@@ -1340,7 +1340,7 @@ class ModuleBuilderSeccionTituloTests(TestCase):
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_delete_media_ajax_limpia_url(self):
-        from core.module_builder import agregar_micro, agregar_seccion
+        from core.curso.module_builder import agregar_micro, agregar_seccion
 
         curso = Curso.objects.create(nombre='C')
         mod = Modulo.objects.create(
@@ -1375,7 +1375,7 @@ class ModuleBuilderSeccionTituloTests(TestCase):
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_delete_media_rechaza_paso_ajeno(self):
-        from core.module_builder import agregar_micro, agregar_seccion
+        from core.curso.module_builder import agregar_micro, agregar_seccion
 
         curso = Curso.objects.create(nombre='C')
         mod_a = Modulo.objects.create(
@@ -1409,7 +1409,7 @@ class ModuleBuilderSeccionTituloTests(TestCase):
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_builder_html_muestra_quitar_archivo(self):
-        from core.module_builder import agregar_micro, agregar_seccion
+        from core.curso.module_builder import agregar_micro, agregar_seccion
 
         curso = Curso.objects.create(nombre='C')
         mod = Modulo.objects.create(

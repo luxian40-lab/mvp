@@ -76,7 +76,7 @@ class ModuleStructureDbTests(TestCase):
 
 class AllowlistBuilderTests(SimpleTestCase):
     def test_asterisco_habilita_cualquier_curso(self):
-        from core.module_builder import curso_en_allowlist_builder
+        from core.curso.module_builder import curso_en_allowlist_builder
 
         curso = SimpleNamespace(id=99, nombre='Cualquiera')
         with self.settings(EKI_MODULE_BUILDER_CURSOS='*'):

@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from core.module_builder import (
+from core.curso.module_builder import (
     actualizar_micro,
     agregar_micro,
     agregar_seccion,

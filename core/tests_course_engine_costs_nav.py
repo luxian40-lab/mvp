@@ -56,7 +56,7 @@ class CourseEngineCostsBadgeTests(TestCase):
     def test_media_wa_safe_entra_al_costo(self):
         from core.course_engine.costs_nav import _compute
         from core.models import Curso, Modulo
-        from core.module_builder import agregar_micro, agregar_seccion
+        from core.curso.module_builder import agregar_micro, agregar_seccion
 
         curso = Curso.objects.create(nombre='CE')
         mod = Modulo.objects.create(

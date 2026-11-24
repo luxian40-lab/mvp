@@ -181,7 +181,7 @@ def aplicar_pasos_desde_post(
     solo_paso_id: int | None = None,
 ) -> int:
     """Persiste micros desde campos paso_<id>_*. Devuelve cantidad tocada."""
-    from core.module_builder import actualizar_micro
+    from core.curso.module_builder import actualizar_micro
     from core.models import PasoModulo
 
     guardados = 0

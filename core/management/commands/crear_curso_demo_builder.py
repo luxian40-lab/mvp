@@ -11,7 +11,7 @@ from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 
 from core.models import Cliente, Curso, Modulo
-from core.module_builder import agregar_micro, agregar_seccion
+from core.curso.module_builder import agregar_micro, agregar_seccion
 
 ORG = 'eki Demo'
 CURSO = 'ZZ · Demo del constructor'

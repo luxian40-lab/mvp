@@ -597,7 +597,7 @@ class CursoAdmin(admin.ModelAdmin):
             from django.urls import reverse
 
             from core.models import Campana, Curso, Estudiante, ProgresoEstudiante
-            from core.module_builder import module_builder_habilitado_para_curso
+            from core.curso.module_builder import module_builder_habilitado_para_curso
             from core.puentes import contexto_identidad_org
 
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
@@ -2344,7 +2344,7 @@ class ModuloAdmin(admin.ModelAdmin):
             resolver_modo_desde_request,
             set_modulo_modo,
         )
-        from core.module_builder import module_builder_habilitado_para_curso
+        from core.curso.module_builder import module_builder_habilitado_para_curso
 
         obj_preview = self.get_object(request, object_id)
         modo = resolver_modo_desde_request(request, object_id, default=MODO_CLASE)
@@ -2363,7 +2363,7 @@ class ModuloAdmin(admin.ModelAdmin):
         if obj:
             from django.urls import reverse
 
-            from core.module_builder import module_builder_habilitado_para_curso
+            from core.curso.module_builder import module_builder_habilitado_para_curso
             from core.puentes import contexto_identidad_org
 
             curso = getattr(obj, 'curso', None)
@@ -2437,7 +2437,7 @@ class ModuloAdmin(admin.ModelAdmin):
     )
     def abrir_module_builder(self, request, object_id):
         """Botón arriba del change form → canvas Module Builder."""
-        from core.module_builder import module_builder_habilitado_para_curso
+        from core.curso.module_builder import module_builder_habilitado_para_curso
 
         modulo = Modulo.objects.select_related('curso').filter(pk=object_id).first()
         curso = modulo.curso if modulo else None
@@ -2451,7 +2451,7 @@ class ModuloAdmin(admin.ModelAdmin):
         return redirect('admin_module_builder', modulo_id=int(object_id))
 
     def has_abrir_module_builder_permission(self, request, object_id=None):
-        from core.module_builder import (
+        from core.curso.module_builder import (
             module_builder_habilitado,
             module_builder_habilitado_para_curso,
         )
@@ -2465,7 +2465,7 @@ class ModuloAdmin(admin.ModelAdmin):
         return module_builder_habilitado(request)
 
     def module_builder_link(self, obj):
-        from core.module_builder import module_builder_habilitado_para_curso
+        from core.curso.module_builder import module_builder_habilitado_para_curso
 
         curso = getattr(obj, 'curso', None) if obj else None
         if not obj or not obj.pk or not module_builder_habilitado_para_curso(curso):
@@ -2765,7 +2765,7 @@ class ModuloAdmin(admin.ModelAdmin):
             resolver_modo_desde_request,
             set_modulo_modo,
         )
-        from core.module_builder import module_builder_habilitado_para_curso
+        from core.curso.module_builder import module_builder_habilitado_para_curso
 
         modo = resolver_modo_desde_request(request, obj.pk, default=MODO_CLASE)
         builder_ok = module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request)

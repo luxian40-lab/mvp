@@ -168,7 +168,7 @@
   "core.meta_inbound",
   "core.meta_templates",
   "core.meta_waba",
-  "core.module_builder",
+  "core.curso.module_builder",
   "core.curso.module_builder_config",
   "core.module_steps",
   "core.module_structure",
