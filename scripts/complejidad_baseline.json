@@ -169,7 +169,7 @@
   "core.meta_templates",
   "core.meta_waba",
   "core.module_builder",
-  "core.module_builder_config",
+  "core.curso.module_builder_config",
   "core.module_steps",
   "core.module_structure",
   "core.modulo_publicacion",

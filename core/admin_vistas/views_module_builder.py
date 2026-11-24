@@ -26,7 +26,7 @@ from core.module_builder import (
     reordenar_micros_en_seccion,
     reordenar_secciones,
 )
-from core.module_builder_config import (
+from core.curso.module_builder_config import (
     formato_habilitado_desde_input,
     partes_habilitado_desde_input,
     persistir_builder_desde_post,

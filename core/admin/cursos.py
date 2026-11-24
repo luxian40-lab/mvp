@@ -1589,7 +1589,7 @@ class ModuloAdminForm(forms.ModelForm):
         configure_course_engine_voice_field(self, heredar=True)
 
         if 'habilitado_desde' in self.fields:
-            from core.module_builder_config import formato_habilitado_desde_input
+            from core.curso.module_builder_config import formato_habilitado_desde_input
 
             self.fields['habilitado_desde'].widget = forms.DateTimeInput(
                 attrs={'type': 'datetime-local', 'class': 'vDateField'},
@@ -1607,7 +1607,7 @@ class ModuloAdminForm(forms.ModelForm):
                 )
 
     def clean_habilitado_desde(self):
-        from core.module_builder_config import parsear_habilitado_desde
+        from core.curso.module_builder_config import parsear_habilitado_desde
 
         val = self.cleaned_data.get('habilitado_desde')
         if val is None or val == '':
