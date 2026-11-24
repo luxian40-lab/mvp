@@ -57,7 +57,7 @@ from core.admin_vistas.views_laboratorio import laboratorio_view
 from core.admin_vistas.views_territorio_alertas import territorio_alertas_view
 from core.admin_vistas.views_copiar_curso import copiar_curso_cliente_view
 from core.admin_vistas.views_admin_panel import admin_panel_view
-from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
+from core.admin_vistas.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
 from core.admin_vistas.views_module_builder import module_builder_probar_persona, module_builder_view
 from core.admin_vistas.views_curso_nuevo import curso_nuevo_wizard
 from core.admin_vistas.views_course_engine_studio import course_engine_studio_view

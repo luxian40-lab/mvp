@@ -94,7 +94,7 @@ def eki_fecha_hoy() -> str:
 @register.simple_tag
 def eki_panel_snap():
     """Snapshot del Panel ejecutivo para Inicio (/admin/)."""
-    from core.views_admin_panel import build_panel_snapshot
+    from core.admin_vistas.views_admin_panel import build_panel_snapshot
 
     return build_panel_snapshot()
 
@@ -135,7 +135,7 @@ def eki_course_engine_costs_nav(context):
 @register.inclusion_tag("admin/partials/eki_copiloto_chat.html", takes_context=True)
 def eki_copiloto_chat(context):
     """Chat flotante del copiloto ops (header, no pestaña)."""
-    from core.views_copiloto_admin import SUGERIDAS, _historial
+    from core.admin_vistas.views_copiloto_admin import SUGERIDAS, _historial
 
     request = context.get("request")
     hist = []
