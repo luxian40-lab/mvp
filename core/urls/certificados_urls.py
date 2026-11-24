@@ -1,6 +1,6 @@
 from django.urls import path
 
-from core.views_certificados import (
+from core.admin_vistas.views_certificados import (
     descargar_certificado_view,
     verificar_certificado_json_view,
     verificar_certificado_query_view,
