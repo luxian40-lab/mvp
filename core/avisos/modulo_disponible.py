@@ -45,7 +45,7 @@ def motivo_plantilla(
 ) -> str:
     """Vacío si la plantilla sirve para el aviso en esa línea. Si no, el motivo."""
     from core.lineas.campana import plantilla_sirve_en_linea
-    from core.models_campana_meta import variables_en
+    from core.campanas.models_campana_meta import variables_en
 
     if plantilla is None:
         return 'Falta la plantilla.'
@@ -64,7 +64,7 @@ def motivo_plantilla(
 
 
 def variables_aviso(plantilla, nombre: str, modulo_titulo: str, curso_nombre: str) -> dict:
-    from core.models_campana_meta import variables_en
+    from core.campanas.models_campana_meta import variables_en
 
     valores = {
         '1': (nombre or '').strip() or 'Estudiante',

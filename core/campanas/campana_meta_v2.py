@@ -21,7 +21,7 @@ from core.meta_waba import (
     _version,
     campana_meta_habilitada,
 )
-from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta
+from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta
 
 logger = logging.getLogger(__name__)
 

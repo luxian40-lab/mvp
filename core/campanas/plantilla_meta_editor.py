@@ -4,7 +4,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
-from core.models_campana_meta import (
+from core.campanas.models_campana_meta import (
     TIPOS_PLANTILLA,
     PlantillaMeta,
     TarjetaPlantillaMeta,

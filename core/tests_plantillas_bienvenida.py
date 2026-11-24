@@ -10,7 +10,7 @@ from core.management.commands.cargar_plantillas_bienvenida import (
     cargar_borradores,
 )
 from core.meta_waba import armar_componentes_alta
-from core.models_campana_meta import PlantillaMeta
+from core.campanas.models_campana_meta import PlantillaMeta
 
 
 class CargarPlantillasBienvenidaTests(TestCase):

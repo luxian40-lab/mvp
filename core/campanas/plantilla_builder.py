@@ -6,7 +6,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
-from core.models_campana_meta import (
+from core.campanas.models_campana_meta import (
     TIPOS_ALTA_GRAPH,
     TIPOS_PLANTILLA,
     PlantillaMeta,

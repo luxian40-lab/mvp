@@ -22,7 +22,7 @@ def plantillas_aprobadas_de_linea(phone_id: str):
     """Solo plantillas de la WABA de esa línea. Vacío = no hay nada que ofrecer."""
     from core.lineas.variante import perfil_de
     from core.meta_waba import _waba
-    from core.models_campana_meta import PlantillaMeta
+    from core.campanas.models_campana_meta import PlantillaMeta
 
     qs = PlantillaMeta.objects.filter(activa=True, estado='APPROVED')
     principal = _waba()

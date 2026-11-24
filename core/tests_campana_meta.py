@@ -16,7 +16,7 @@ from core.meta_waba import (
     ejecutar_campana_meta,
     firma_meta_ok,
 )
-from core.models_campana_meta import (
+from core.campanas.models_campana_meta import (
     CampanaMeta,
     EnvioCampanaMeta,
     PlantillaMeta,
@@ -242,7 +242,7 @@ class CampanaMetaTests(TestCase):
         self.assertFalse(firma_meta_ok(raw, _firma(raw), ''))
 
     def test_tipo_incluye_formatos_de_meta(self):
-        from core.models_campana_meta import TIPOS_PLANTILLA
+        from core.campanas.models_campana_meta import TIPOS_PLANTILLA
 
         codigos = {codigo for codigo, _label in TIPOS_PLANTILLA}
         self.assertTrue({

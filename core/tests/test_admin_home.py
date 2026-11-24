@@ -15,7 +15,7 @@ from core.admin.home_data import (
     invalidar_home,
 )
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante, WhatsappLog
-from core.models_campana_meta import PlantillaMeta
+from core.campanas.models_campana_meta import PlantillaMeta
 from core.certificados.models_certificados import Certificado
 from core.canal.models_meta_webhook import MetaWebhookEvento
 

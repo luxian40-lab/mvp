@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
-from core.models_campana_meta import EnvioCampanaMeta, PlantillaMeta, variables_en
+from core.campanas.models_campana_meta import EnvioCampanaMeta, PlantillaMeta, variables_en
 
 ORIGENES = (
     ('nombre', 'Nombre'),
@@ -630,7 +630,7 @@ def marcar_para_reenvio(campana) -> int:
     El reintento de Celery no llama esto: quien ya quedó ENVIADO no se duplica
     si la tarea se cae a la mitad.
     """
-    from core.models_campana_meta import EnvioCampanaMeta
+    from core.campanas.models_campana_meta import EnvioCampanaMeta
 
     return EnvioCampanaMeta.objects.filter(campana=campana, estado='ENVIADO').update(
         estado='PENDIENTE',
@@ -708,7 +708,7 @@ def numero_de_prueba_permitido(telefono: str) -> bool:
 
 def marcar_programadas_sin_aprobacion(ahora=None) -> int:
     """Si la plantilla ya no está aprobada, la campaña queda en error y no se encola."""
-    from core.models_campana_meta import CampanaMeta
+    from core.campanas.models_campana_meta import CampanaMeta
 
     ahora = ahora or timezone.now()
     qs = (

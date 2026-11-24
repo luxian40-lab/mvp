@@ -1147,7 +1147,7 @@ def enviar_campanas_meta_programadas():
     from django.utils import timezone
 
     from core.meta_waba import encolar_campana_meta
-    from core.models_campana_meta import CampanaMeta
+    from core.campanas.models_campana_meta import CampanaMeta
 
     from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion
 
@@ -1166,7 +1166,7 @@ def enviar_campanas_meta_programadas():
 @shared_task(bind=True, max_retries=1, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
 def ejecutar_campana_meta_async(self, campana_id):
     from core.meta_waba import ejecutar_campana_meta
-    from core.models_campana_meta import CampanaMeta
+    from core.campanas.models_campana_meta import CampanaMeta
 
     try:
         campana = CampanaMeta.objects.select_related('plantilla', 'grupo').get(pk=campana_id)

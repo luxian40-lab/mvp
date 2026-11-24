@@ -10,7 +10,7 @@ from django.utils import timezone
 from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion, resumir_audiencia
 from core.meta_waba import ejecutar_campana_meta
 from core.models import Estudiante, SandboxCanalSesion
-from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 from core.models_extras import GrupoEstudiantes
 
 PHONE = '495439026995771'

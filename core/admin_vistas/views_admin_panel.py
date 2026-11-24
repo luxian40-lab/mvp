@@ -1041,7 +1041,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         meta_n = sum(int(v or 0) for v in meta_fallos_24h.values())
     cola = []
     try:
-        from core.models_campana_meta import CampanaMeta
+        from core.campanas.models_campana_meta import CampanaMeta
 
         for camp in (
             CampanaMeta.objects.filter(ejecutada=False, plantilla__estado='APPROVED')

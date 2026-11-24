@@ -31,7 +31,7 @@ def motivo_plantilla(plantilla, phone_id: str) -> str:
         if not (plantilla.media_url or '').strip():
             return 'La plantilla de imagen necesita URL de muestra.'
         from core.lineas.campana import plantilla_sirve_en_linea
-        from core.models_campana_meta import variables_en
+        from core.campanas.models_campana_meta import variables_en
 
         if not plantilla.activa or plantilla.estado != 'APPROVED':
             return 'La plantilla no está aprobada en Meta.'
@@ -72,7 +72,7 @@ def recordatorio_vigente(recordatorio, ahora: datetime | None = None) -> bool:
 def variables_recordatorio(
     plantilla, nombre: str, curso_nombre: str, modulo_titulo: str = '',
 ) -> dict:
-    from core.models_campana_meta import variables_en
+    from core.campanas.models_campana_meta import variables_en
 
     valores = {
         '1': (nombre or '').strip() or 'Estudiante',

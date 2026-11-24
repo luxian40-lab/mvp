@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 
 from core.meta_waba import enviar_prueba_meta, sincronizar_catalogo_meta
 from core.models import Cliente
-from core.models_campana_meta import CampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 
 WABA = '111222333'
 PHONE = '495439026995771'

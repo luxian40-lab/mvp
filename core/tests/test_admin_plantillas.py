@@ -12,7 +12,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.meta_waba import aplicar_eventos_plantilla, sincronizar_catalogo_meta
-from core.models_campana_meta import CampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 from core.campanas.plantilla_meta_reglas import errores_de_alta
 
 SECRET = 'meta-app-secret-test'

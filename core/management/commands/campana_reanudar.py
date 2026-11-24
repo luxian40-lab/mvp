@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from core.campanas.campana_meta_ritmo import reanudar
-from core.models_campana_meta import CampanaMeta
+from core.campanas.models_campana_meta import CampanaMeta
 
 
 class Command(BaseCommand):

@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.canal.firma_meta import firma_meta_ok
-from core.models_campana_meta import (
+from core.campanas.models_campana_meta import (
     CampanaMeta,
     EnvioCampanaMeta,
     PlantillaMeta,

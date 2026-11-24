@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.lineas.campana import plantilla_sirve_en_linea, plantillas_aprobadas_de_linea
-from core.models_campana_meta import CampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 
 PHONE = '495439026995771'
 LINEA_2 = '894379507087782'

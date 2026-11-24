@@ -235,7 +235,7 @@ class AltaEstudianteTests(TestCase):
         self.assertContains(sin, 'ekiDrip = "0"')
 
     def test_bienvenida_apagada_no_envia_y_el_fallo_no_borra(self):
-        from core.models_campana_meta import PlantillaMeta
+        from core.campanas.models_campana_meta import PlantillaMeta
         PlantillaMeta.objects.create(
             nombre_interno='Bienvenida curso',
             meta_name='eki_bienvenida_curso',

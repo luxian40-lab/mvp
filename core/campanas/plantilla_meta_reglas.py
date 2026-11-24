@@ -8,7 +8,7 @@ import re
 
 from django.core.exceptions import ValidationError
 
-from core.models_campana_meta import (
+from core.campanas.models_campana_meta import (
     CAMPOS_ORIGEN_VARIABLE,
     _NOMBRE_META_RE,
     ejemplos_lista,

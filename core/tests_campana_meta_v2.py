@@ -12,7 +12,7 @@ from core.campanas.campana_meta_v2 import (
 )
 from core.canal.meta_estados import aplicar_statuses
 from core.models import Estudiante, WhatsappLog
-from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 
 PHONE = '495439026995771'
 

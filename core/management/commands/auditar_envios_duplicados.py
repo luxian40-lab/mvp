@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 
-from core.models_campana_meta import EnvioCampanaMeta
+from core.campanas.models_campana_meta import EnvioCampanaMeta
 
 
 class Command(BaseCommand):

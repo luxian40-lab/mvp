@@ -1,7 +1,7 @@
 """Crea las plantillas de bienvenida como borrador. No llama a Meta."""
 from django.core.management.base import BaseCommand
 
-from core.models_campana_meta import PlantillaMeta
+from core.campanas.models_campana_meta import PlantillaMeta
 
 PIE = 'eki · Aprender y asesorar en el campo'
 BAJA = 'No recibir más'

@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
 
 from core.cursos_generales import CATALOGO
-from core.models_campana_meta import PlantillaMeta
+from core.campanas.models_campana_meta import PlantillaMeta
 from core.campanas.plantilla_builder import guardar_borrador_carrusel
 
 

@@ -247,7 +247,7 @@ def _armar(user, ahora, saludo: str, fecha: str) -> dict:
 
     plantillas = 0
     if puede_plantilla:
-        from core.models_campana_meta import PlantillaMeta
+        from core.campanas.models_campana_meta import PlantillaMeta
 
         plantillas = PlantillaMeta.objects.filter(estado='PENDING').count()
 

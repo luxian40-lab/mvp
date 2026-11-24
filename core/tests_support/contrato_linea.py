@@ -445,7 +445,7 @@ class ContratoLineaTestCase(TestCase):
     def lanzar_campana(self, estudiantes, *, linea: Linea = LINEA_PRINCIPAL, nombre: str = 'inicio') -> list[Envio]:
         """Campaña de inicio de flujo aprobada, por la WABA de esa línea."""
         from core.meta_waba import ejecutar_campana_meta
-        from core.models_campana_meta import CampanaMeta, PlantillaMeta
+        from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 
         waba = WABA_LINEA_2 if linea == LINEA_2 else WABA_PRINCIPAL
         plantilla = PlantillaMeta.objects.create(

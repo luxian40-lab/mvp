@@ -63,7 +63,7 @@ def _aplicar_status_envio(item: dict, mid: str) -> bool:
     """Actualiza el envío de campaña. No crea WhatsappLog."""
     from django.utils import timezone
 
-    from core.models_campana_meta import EnvioCampanaMeta
+    from core.campanas.models_campana_meta import EnvioCampanaMeta
 
     nuevo = str(item.get('status') or '').strip().lower()
     envio = EnvioCampanaMeta.objects.filter(wamid=mid).order_by('-id').first()

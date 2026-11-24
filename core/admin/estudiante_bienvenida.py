@@ -9,7 +9,7 @@ from core.campanas.plantilla_meta_editor import es_bienvenida, sugerir_mapeo
 
 
 def plantillas_bienvenida_aprobadas():
-    from core.models_campana_meta import PlantillaMeta
+    from core.campanas.models_campana_meta import PlantillaMeta
 
     filas = PlantillaMeta.objects.filter(estado='APPROVED', activa=True).order_by('id')
     return [fila for fila in filas if es_bienvenida(fila)]

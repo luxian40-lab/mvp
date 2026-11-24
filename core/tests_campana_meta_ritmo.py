@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from core.campanas.campana_meta_ritmo import anotar_resultado, paso_bucket, pedir_token, resumen_preflight
 from core.models import Estudiante
-from core.models_campana_meta import CampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 from core.tests_support.graph_fake import cuerpo_graph
 
 

@@ -36,7 +36,7 @@ from core.campanas.campana_audiencia import (
     texto_embudo,
     vista_previa,
 )
-from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
+from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 from core.campanas.plantilla_meta_editor import lineas_disponibles
 
 

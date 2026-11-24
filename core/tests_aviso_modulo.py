@@ -17,7 +17,7 @@ from core.models import (
     ModuloCompletado,
     ProgresoEstudiante,
 )
-from core.models_campana_meta import PlantillaMeta
+from core.campanas.models_campana_meta import PlantillaMeta
 from core.models_extras import GrupoEstudiantes
 
 PHONE = '495439026995771'

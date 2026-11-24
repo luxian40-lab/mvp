@@ -258,7 +258,7 @@ def ejecutar(ahora: datetime | None = None) -> dict:
 def campanas_pendientes() -> list[dict]:
     """Campañas no ejecutadas que todavía tienen destinatarios activos. No envía."""
     from core.models import Campana, Estudiante
-    from core.models_campana_meta import CampanaMeta
+    from core.campanas.models_campana_meta import CampanaMeta
 
     salida = []
     campanas = Campana.objects.filter(ejecutada=False).select_related('plantilla')
