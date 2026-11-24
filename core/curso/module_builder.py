@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Max
 
 from core.models import PasoModulo, SeccionModulo
-from core.module_structure import detectar_secciones_intercaladas, mensaje_error_intercalado
+from core.curso.module_structure import detectar_secciones_intercaladas, mensaje_error_intercalado
 
 
 def module_builder_habilitado(request=None) -> bool:

@@ -303,7 +303,7 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
                 'Falta contenido: agregá pasos activos, texto legacy, video o archivos multimedia.'
             )
 
-    from core.module_structure import modulo_tiene_secciones_intercaladas, mensaje_error_intercalado
+    from core.curso.module_structure import modulo_tiene_secciones_intercaladas, mensaje_error_intercalado
 
     hall = modulo_tiene_secciones_intercaladas(modulo)
     if hall:

@@ -1774,7 +1774,7 @@ class PasoModuloInlineFormSet(BaseInlineFormSet):
         if pasos_editados:
             from types import SimpleNamespace
 
-            from core.module_structure import (
+            from core.curso.module_structure import (
                 detectar_secciones_intercaladas,
                 mensaje_error_intercalado,
             )

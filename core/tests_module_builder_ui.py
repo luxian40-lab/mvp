@@ -19,7 +19,7 @@ from core.curso.module_builder import (
     reordenar_micros_en_seccion,
     reordenar_secciones,
 )
-from core.module_structure import detectar_secciones_intercaladas
+from core.curso.module_structure import detectar_secciones_intercaladas
 
 
 User = get_user_model()

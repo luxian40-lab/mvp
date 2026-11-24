@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
-from core.module_structure import (
+from core.curso.module_structure import (
     detectar_secciones_intercaladas,
     mensaje_error_intercalado,
     modulo_tiene_secciones_intercaladas,

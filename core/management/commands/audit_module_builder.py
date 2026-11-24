@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 
 from core.models import Curso, Modulo, PasoModulo
 from core.module_steps import pasos_activos_qs
-from core.module_structure import modulo_tiene_secciones_intercaladas
+from core.curso.module_structure import modulo_tiene_secciones_intercaladas
 
 
 class Command(BaseCommand):

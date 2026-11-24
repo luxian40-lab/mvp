@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 from core.curso.module_builder import agregar_micro, agregar_seccion
-from core.module_structure import detectar_secciones_intercaladas
+from core.curso.module_structure import detectar_secciones_intercaladas
 
 
 User = get_user_model()
