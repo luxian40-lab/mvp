@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from core.curso.models_video import VideoEnlace
-from core.video_links import (
+from core.curso.video_links import (
     HITOS,
     es_prefetch,
     redirect_externo_seguro,

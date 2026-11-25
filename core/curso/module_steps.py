@@ -747,7 +747,7 @@ def entregar_bloque_secciones_desde_paso(
     except Exception as exc:
         logger.warning('telemetria entregar_bloque: %s', exc)
 
-    from core.video_links import reescribir_videos_en_mensaje
+    from core.curso.video_links import reescribir_videos_en_mensaje
 
     return reescribir_videos_en_mensaje(
         unir_multimsg(partes),
@@ -812,7 +812,7 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
             paso.id,
             progreso.paso_actual_modulo,
         )
-    from core.video_links import reescribir_videos_en_mensaje
+    from core.curso.video_links import reescribir_videos_en_mensaje
 
     return reescribir_videos_en_mensaje(
         unir_multimsg(partes),
@@ -839,7 +839,7 @@ def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modul
             "Cuando puedas, responde según las opciones de arriba 👆 "
             "(letra o mensaje según el tipo de actividad)."
         )
-        from core.video_links import reescribir_videos_en_mensaje
+        from core.curso.video_links import reescribir_videos_en_mensaje
 
         return reescribir_videos_en_mensaje(
             unir_multimsg(partes),

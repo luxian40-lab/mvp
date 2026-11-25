@@ -698,7 +698,7 @@ def _adjuntar_learning_extra(
 
     context['video_reporte'] = None
     if learning_section == 'videos':
-        from core.video_links import reporte_aperturas_video
+        from core.curso.video_links import reporte_aperturas_video
 
         context['video_reporte'] = reporte_aperturas_video(
             curso_id=curso_id,

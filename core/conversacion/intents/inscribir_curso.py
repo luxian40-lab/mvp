@@ -220,7 +220,7 @@ Te inscribiste en: *{curso.nombre}*
             "los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
         )
 
-    from core.video_links import reescribir_videos_en_mensaje
+    from core.curso.video_links import reescribir_videos_en_mensaje
 
     return reescribir_videos_en_mensaje(
         "[MULTI_MSG]" + "[SEP]".join(partes_insc),

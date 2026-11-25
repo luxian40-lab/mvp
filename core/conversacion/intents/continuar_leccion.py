@@ -211,7 +211,7 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
         partes_c.append("[DELAY:5]")
     partes_c.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
 
-    from core.video_links import reescribir_videos_en_mensaje
+    from core.curso.video_links import reescribir_videos_en_mensaje
 
     if len(partes_c) > 1:
         return reescribir_videos_en_mensaje(
@@ -570,7 +570,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
     partes.append(
         resolver_cta_listo(estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
     )
-    from core.video_links import reescribir_videos_en_mensaje
+    from core.curso.video_links import reescribir_videos_en_mensaje
 
     return reescribir_videos_en_mensaje(
         "[MULTI_MSG]" + "[SEP]".join(partes),
@@ -1530,7 +1530,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             partes.append(
                 resolver_cta_listo(estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
             )
-            from core.video_links import reescribir_videos_en_mensaje
+            from core.curso.video_links import reescribir_videos_en_mensaje
 
             return reescribir_videos_en_mensaje(
                 "[MULTI_MSG]" + "[SEP]".join(partes),
@@ -1782,7 +1782,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             partes_c.append("[DELAY:5]")
         partes_c.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
 
-        from core.video_links import reescribir_videos_en_mensaje
+        from core.curso.video_links import reescribir_videos_en_mensaje
 
         if len(partes_c) > 1:
             return reescribir_videos_en_mensaje(

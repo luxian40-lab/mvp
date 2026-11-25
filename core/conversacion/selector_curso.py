@@ -365,7 +365,7 @@ Cuando termines, escribe: *"listo"*"""
             respuesta = '[MULTI_MSG]' + '[SEP]'.join(_pfx + [respuesta])
 
         _persist_curso_foco()
-        from core.video_links import reescribir_videos_en_mensaje
+        from core.curso.video_links import reescribir_videos_en_mensaje
 
         return reescribir_videos_en_mensaje(
             respuesta,

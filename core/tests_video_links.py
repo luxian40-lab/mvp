@@ -9,7 +9,7 @@ from django.urls import reverse
 from core.models import Cliente, Curso, Estudiante, Modulo, PasoModulo, ProgresoEstudiante, SeccionModulo
 from core.curso.models_video import VideoEnlace, VideoView
 from core.module_steps import entregar_paso_indice, reset_progreso_pasos_modulo
-from core.video_links import reescribir_videos_en_mensaje, reporte_aperturas_video
+from core.curso.video_links import reescribir_videos_en_mensaje, reporte_aperturas_video
 
 
 def _org():
@@ -212,7 +212,7 @@ class VideoLinkTests(TestCase):
         self.assertEqual(VideoView.objects.count(), 0)
         self.assertNotIn('evil.example', resp.content.decode())
 
-    @patch('core.video_links.url_firmada_s3', return_value='https://signed.example/clase.mp4?X-Amz-Signature=abc')
+    @patch('core.curso.video_links.url_firmada_s3', return_value='https://signed.example/clase.mp4?X-Amz-Signature=abc')
     def test_s3_muestra_reproductor_y_progreso_una_vez(self, _firmada):
         enlace = VideoEnlace.objects.create(
             token='s3TOKEN1234567890abcd',
