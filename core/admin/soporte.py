@@ -228,7 +228,7 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
             extra_context['envio_ok'] = True
 
         if request.method == 'POST' and '_enviar_whatsapp' in request.POST and object_id:
-            from core.pqrs_respuesta import aplicar_respuesta_pqrs
+            from core.agentes.pqrs_respuesta import aplicar_respuesta_pqrs
 
             obj = self.get_object(request, object_id)
             texto = (

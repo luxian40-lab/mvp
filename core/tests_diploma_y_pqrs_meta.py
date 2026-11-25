@@ -64,7 +64,7 @@ class DiplomaSalePorMetaTests(SimpleTestCase):
 class PqrsMetaTests(TestCase):
     def test_si_meta_falla_no_marca_resuelta(self):
         from core.models import Estudiante, SolicitudSoporte
-        from core.pqrs_respuesta import aplicar_respuesta_pqrs
+        from core.agentes.pqrs_respuesta import aplicar_respuesta_pqrs
 
         from core.models import Cliente
 

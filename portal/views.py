@@ -1940,7 +1940,7 @@ def pqrs_detalle(request, pqrs_id):
     if request.method == 'POST' and puede_responder and pqrs.estado not in ('resuelta', 'cerrada'):
         respuesta = request.POST.get('respuesta', '').strip()
         if respuesta:
-            from core.pqrs_respuesta import aplicar_respuesta_pqrs
+            from core.agentes.pqrs_respuesta import aplicar_respuesta_pqrs
 
             ok, error_envio = aplicar_respuesta_pqrs(
                 pqrs,

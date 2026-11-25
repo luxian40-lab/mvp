@@ -185,14 +185,14 @@ class TestAyudaWhatsAppFlujo(TestCase):
 
 class TestMensajeWhatsAppPQRS(TestCase):
     def test_sin_plantilla_robotica(self):
-        from core.pqrs_respuesta import mensaje_whatsapp_pqrs
+        from core.agentes.pqrs_respuesta import mensaje_whatsapp_pqrs
 
         msg = mensaje_whatsapp_pqrs('María López', 'Ya puedes ingresar con tu cédula.')
         self.assertEqual(msg, 'Hola María,\n\nYa puedes ingresar con tu cédula.')
         self.assertNotIn('respuesta a tu solicitud', msg.lower())
 
     def test_respeta_saludo_del_operador(self):
-        from core.pqrs_respuesta import mensaje_whatsapp_pqrs
+        from core.agentes.pqrs_respuesta import mensaje_whatsapp_pqrs
 
         texto = 'Hola, revisamos tu caso y quedó listo.'
         self.assertEqual(mensaje_whatsapp_pqrs('Pedro', texto), texto)
@@ -205,7 +205,7 @@ class TestPQRSRespuestaWhatsApp(TestCase):
     @patch('core.canal.envios.enviar_whatsapp_twilio', return_value={'success': True, 'mensaje_id': 'SM1'})
     @patch('core.canal.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'wamid.PQRS'})
     def test_aplicar_respuesta_envia_por_meta_y_resuelve(self, mock_meta, mock_twilio):
-        from core.pqrs_respuesta import aplicar_respuesta_pqrs
+        from core.agentes.pqrs_respuesta import aplicar_respuesta_pqrs
 
         solicitud = SolicitudSoporte.objects.create(
             estudiante=self.est,
