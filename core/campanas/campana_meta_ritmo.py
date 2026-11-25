@@ -139,7 +139,7 @@ def espera_backoff(intento: int) -> int:
 
 
 def resumen_preflight(campana) -> list[str]:
-    from core.consentimiento_wa import puede_recibir_plantilla
+    from core.conversacion.consentimiento_wa import puede_recibir_plantilla
     from core.canal.meta_token import token_invalido
     from core.meta_waba import _destinatarios, _phone_default
 

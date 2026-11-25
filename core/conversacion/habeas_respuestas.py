@@ -246,7 +246,7 @@ def aplicar_respuesta_habeas(estudiante, texto: str) -> dict[str, Any]:
                     'contexto_temporal',
                 ]
             )
-            from core.consentimiento_wa import registrar_optin
+            from core.conversacion.consentimiento_wa import registrar_optin
 
             registrar_optin(estudiante, 'habeas')
             return {'accion': 'acepto', 'texto': MSG_ACEPTO_CEDULA}
@@ -271,7 +271,7 @@ def aplicar_respuesta_habeas(estudiante, texto: str) -> dict[str, Any]:
                 'contexto_temporal',
             ]
         )
-        from core.consentimiento_wa import registrar_optin
+        from core.conversacion.consentimiento_wa import registrar_optin
 
         registrar_optin(estudiante, 'habeas')
         return {'accion': 'acepto', 'texto': MSG_ACEPTO_CEDULA}

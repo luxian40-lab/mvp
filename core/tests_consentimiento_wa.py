@@ -1,7 +1,7 @@
 """Sin opt-in no hay plantilla. Opt-out se respeta. El backfill no inventa fechas."""
 from django.test import TestCase
 
-from core.consentimiento_wa import es_optout, puede_recibir_plantilla, registrar_optin, registrar_optout
+from core.conversacion.consentimiento_wa import es_optout, puede_recibir_plantilla, registrar_optin, registrar_optout
 from core.models import Estudiante
 
 

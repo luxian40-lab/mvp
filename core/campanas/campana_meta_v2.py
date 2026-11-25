@@ -90,7 +90,7 @@ def _omitir(envio, motivo: str) -> None:
 
 
 def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
-    from core.consentimiento_wa import puede_recibir_plantilla
+    from core.conversacion.consentimiento_wa import puede_recibir_plantilla
     from core.canal.meta_token import marcar_token_invalido, token_invalido
 
     if not campana_meta_habilitada():

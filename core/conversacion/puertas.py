@@ -52,7 +52,7 @@ def correr_puertas(telefono: str, body: str) -> str | None:
 
 
 def _responder_optout(telefono: str, body: str) -> str | None:
-    from core.consentimiento_wa import es_optout, registrar_optout
+    from core.conversacion.consentimiento_wa import es_optout, registrar_optout
     from core.canal.utils_telefono import estudiante_por_telefono
 
     if es_optout(body):
@@ -102,7 +102,7 @@ def alinear_ficha_con_sesion_habeas(telefono: str) -> None:
         return
     campos = []
     if not est.acepto_terminos:
-        from core.consentimiento_wa import registrar_optin
+        from core.conversacion.consentimiento_wa import registrar_optin
 
         est.acepto_terminos = True
         est.fecha_aceptacion_terminos = timezone.now()
@@ -129,7 +129,7 @@ def _aceptar_habeas_y_abrir_menu(telefono: str, from_number: str, est) -> str:
 
 def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
     """Aceptó: pide la cédula. El menú sale cuando confirme los datos."""
-    from core.consentimiento_wa import registrar_optin
+    from core.conversacion.consentimiento_wa import registrar_optin
     from core.conversacion.estados.transiciones import aplicar
     from core.habeas_respuestas import MSG_ACEPTO_CEDULA
 
