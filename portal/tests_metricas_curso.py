@@ -233,6 +233,23 @@ class MetricasCursoTests(TestCase):
         nota = metricas_cursos(self.org)['nota_cierre']
         self.assertEqual(nota['n'], 4)
         self.assertEqual(nota['nps'], 25)
+        self.assertEqual(nota['promotores'], 2)
+        self.assertEqual(nota['pasivos'], 1)
+        self.assertEqual(nota['detractores'], 1)
+        finca_nps = next(c for c in metricas_cursos(self.org)['por_curso'] if c['nombre'] == 'Curso finca')['nps']
+        self.assertEqual(finca_nps['n'], 4)
+        self.assertEqual(finca_nps['nps'], 25)
+        self.assertEqual(finca_nps['promotores'], 2)
+
+    def test_nota_10_de_inactivo_sigue_en_nps(self):
+        quien = Estudiante.objects.get(telefono='573001300001', cliente=self.org)
+        NotaCierreCurso.objects.create(estudiante=quien, curso=self.finca, nota=10)
+        quien.activo = False
+        quien.save(update_fields=['activo'])
+        nota = metricas_cursos(self.org)['nota_cierre']
+        self.assertEqual(nota['n'], 1)
+        self.assertEqual(nota['promotores'], 1)
+        self.assertEqual(nota['nps'], 100)
 
     def test_agrupa_por_linea_sin_mostrar_lineas_de_otra_org(self):
         propia = LineaWhatsapp.objects.create(phone_id='pid-met-1', nombre='Línea finca', cliente=self.org)
@@ -291,11 +308,16 @@ class MetricasCursoTests(TestCase):
         self.assertIn('Sin línea asignada', html)
         self.assertIn('módulo inicial', html)
         self.assertNotIn('mc-pile', html)
-        self.assertIn('módulos cerrados', html)
-        self.assertIn('semaforo-', html)
+        self.assertIn('mc-bar', html)
+        self.assertIn('cerrados', html)
+        self.assertIn('>NPS<', html)
+        self.assertIn('mc-nps-bandas', html)
         nps = http.get('/portal/analitica/nps/')
         self.assertEqual(nps.status_code, 200)
         nps_html = nps.content.decode()
         self.assertIn('← Analítica', nps_html)
         self.assertIn('ana-nps-bandas', nps_html)
         self.assertIn('<th>Banda</th>', nps_html)
+        self.assertIn('Promotores', nps_html)
+        self.assertIn('Pasivos', nps_html)
+        self.assertIn('Detractores', nps_html)

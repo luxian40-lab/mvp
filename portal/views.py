@@ -1160,8 +1160,9 @@ def portal_analitica_nps(request):
         return redirect('/portal/login/')
     from core.models import NotaCierreCurso
 
+    # Incluye inactivos: un 10 al cerrar no debe desaparecer del listado.
     notas = (
-        NotaCierreCurso.objects.filter(estudiante__cliente=org, estudiante__activo=True)
+        NotaCierreCurso.objects.filter(estudiante__cliente=org)
         .select_related('estudiante', 'curso')
         .order_by('-fecha', 'estudiante__nombre')
     )

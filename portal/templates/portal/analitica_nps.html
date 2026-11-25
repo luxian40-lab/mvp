@@ -18,15 +18,27 @@
 </div>
 
 <article class="panel" style="padding:18px;margin-bottom:20px;">
-    <p class="muted" style="margin:0 0 12px;">
-        Promotores 9–10, pasivos 7–8, detractores 1–6.
-        Misma regla que el Pulso del admin.
+    <p class="muted" style="margin:0 0 14px;">
+        Tres bandas: promotores 9–10, pasivos 7–8, detractores 1–6.
+        Incluye notas de personas luego inactivas (un 10 al cerrar no desaparece).
     </p>
-    <p class="ana-nps-bandas" style="display:flex;gap:20px;flex-wrap:wrap;margin:0;font-size:15px;">
-        <span>Promotores <strong>{% if cursos_nota.n %}{{ cursos_nota.promotores }}{% else %}—{% endif %}</strong></span>
-        <span>Pasivos <strong>{% if cursos_nota.n %}{{ cursos_nota.pasivos }}{% else %}—{% endif %}</strong></span>
-        <span>Detractores <strong>{% if cursos_nota.n %}{{ cursos_nota.detractores }}{% else %}—{% endif %}</strong></span>
-    </p>
+    <div class="ana-nps-bandas" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+        <div style="border:1px solid var(--borde);border-radius:14px;padding:14px 12px;text-align:center;background:rgba(47,158,68,0.08);">
+            <div style="font-size:12px;color:var(--texto-muted);">Promotores</div>
+            <div style="font-size:1.6rem;font-weight:800;margin:4px 0;">{% if cursos_nota.n %}{{ cursos_nota.promotores }}{% else %}—{% endif %}</div>
+            <div style="font-size:12px;color:var(--texto-muted);">Nota 9–10</div>
+        </div>
+        <div style="border:1px solid var(--borde);border-radius:14px;padding:14px 12px;text-align:center;background:rgba(245,159,0,0.08);">
+            <div style="font-size:12px;color:var(--texto-muted);">Pasivos</div>
+            <div style="font-size:1.6rem;font-weight:800;margin:4px 0;">{% if cursos_nota.n %}{{ cursos_nota.pasivos }}{% else %}—{% endif %}</div>
+            <div style="font-size:12px;color:var(--texto-muted);">Nota 7–8</div>
+        </div>
+        <div style="border:1px solid var(--borde);border-radius:14px;padding:14px 12px;text-align:center;background:rgba(224,49,49,0.08);">
+            <div style="font-size:12px;color:var(--texto-muted);">Detractores</div>
+            <div style="font-size:1.6rem;font-weight:800;margin:4px 0;">{% if cursos_nota.n %}{{ cursos_nota.detractores }}{% else %}—{% endif %}</div>
+            <div style="font-size:12px;color:var(--texto-muted);">Nota 1–6</div>
+        </div>
+    </div>
 </article>
 
 <div class="panel" style="padding:8px 12px;overflow-x:auto;">
@@ -43,7 +55,7 @@
         <tbody>
             {% for n in notas %}
             <tr>
-                <td><a href="{% url 'portal_estudiante_detalle' n.estudiante_id %}">{{ n.estudiante.nombre }}</a></td>
+                <td><a href="{% url 'portal_estudiante_detalle' n.estudiante_id %}">{{ n.estudiante.nombre }}</a>{% if not n.estudiante.activo %} <span class="muted">(inactivo)</span>{% endif %}</td>
                 <td>{{ n.curso.nombre }}</td>
                 <td>{{ n.nota }}</td>
                 <td>

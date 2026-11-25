@@ -21,12 +21,51 @@
         border-bottom: 1px solid var(--borde);
         color: var(--texto);
         white-space: nowrap;
+        vertical-align: middle;
     }
     .mc-tabla th:first-child, .mc-tabla td:first-child { text-align: left; white-space: normal; }
     .mc-tabla th { color: var(--texto-muted); font-size: 12px; font-weight: 600; }
     .mc-tabla tr:last-child td { border-bottom: 0; }
     .mc-tabla small { display: block; color: var(--texto-muted); font-size: 11.5px; }
     .mc-nota { color: var(--texto-muted); font-size: 13px; line-height: 1.45; max-width: 52rem; }
+    .mc-avance {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        min-width: 140px;
+    }
+    .mc-bar {
+        width: 120px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(30, 27, 36, 0.08);
+        border: 1px solid var(--borde);
+        overflow: hidden;
+    }
+    .mc-bar__fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        max-width: 100%;
+    }
+    .mc-bar--verde .mc-bar__fill { background: #2f9e44; }
+    .mc-bar--amarillo .mc-bar__fill { background: #f59f00; }
+    .mc-bar--rojo .mc-bar__fill { background: #e03131; }
+    .mc-bar--gris .mc-bar__fill { background: #adb5bd; width: 0 !important; }
+    .mc-nps {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+    }
+    .mc-nps-bandas {
+        display: flex;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--texto-muted);
+    }
+    .mc-nps-bandas strong { color: var(--texto); font-weight: 700; }
 </style>
 {% endblock %}
 
@@ -34,7 +73,7 @@
 <div class="page-title">
     <div>
         <h1>Métricas por curso</h1>
-        <p class="muted">Inicio, culminación y avance de {{ org.nombre }}, por línea de WhatsApp.</p>
+        <p class="muted">Inicio, culminación, avance y NPS de {{ org.nombre }}, por línea de WhatsApp.</p>
     </div>
     <a class="btn btn-outline" href="{% url 'portal_analitica' %}">← Analítica</a>
 </div>
@@ -52,6 +91,7 @@
                     <th>Culminación sobre iniciadores</th>
                     <th>Culminación sobre aceptantes</th>
                     <th>Avance promedio</th>
+                    <th>NPS</th>
                 </tr>
             </thead>
             <tbody>
@@ -66,11 +106,28 @@
                         {% if c.avance_modulo is None %}
                         Sin dato
                         {% else %}
-                        Módulo {{ c.avance_modulo|stringformat:".1f" }}
-                        <small>
-                            {% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:".1f" }}% módulos cerrados{% else %}Sin %{% endif %}
-                            · <span class="semaforo-{{ c.avance_semaforo }}">{{ c.avance_semaforo }}</span>
-                        </small>
+                        <span class="mc-avance">
+                            <span>Módulo {{ c.avance_modulo|stringformat:".1f" }}</span>
+                            <span class="mc-bar mc-bar--{{ c.avance_semaforo }}" title="{% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:'.1f' }}% módulos cerrados ({{ c.avance_semaforo }}){% endif %}" role="img" aria-label="{% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:'.1f' }} por ciento módulos cerrados{% endif %}">
+                                <span class="mc-bar__fill" style="width:{% if c.avance_pct %}{{ c.avance_pct|floatformat:0 }}{% else %}0{% endif %}%;"></span>
+                            </span>
+                            <small>{% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:".1f" }}% cerrados{% else %}Sin %{% endif %}</small>
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not c.nps.n %}
+                        Sin dato
+                        {% else %}
+                        <span class="mc-nps">
+                            <span>{% if c.nps.nps > 0 %}+{% endif %}{{ c.nps.nps }}</span>
+                            <span class="mc-nps-bandas" title="Promotores · Pasivos · Detractores">
+                                <span>P <strong>{{ c.nps.promotores }}</strong></span>
+                                <span>Pas <strong>{{ c.nps.pasivos }}</strong></span>
+                                <span>D <strong>{{ c.nps.detractores }}</strong></span>
+                            </span>
+                            <small>{{ c.nps.n }} nota{{ c.nps.n|pluralize }}</small>
+                        </span>
                         {% endif %}
                     </td>
                 </tr>
@@ -88,7 +145,8 @@
 <p class="mc-nota">
     Aceptante: aceptó el curso. Inició: empezó el módulo inicial (fecha de avance, módulo cerrado o terminado;
     recibir el primer mensaje no basta).
-    Avance: módulo promedio alcanzado y % de módulos cerrados (verde ≥70 %, amarillo ≥35 %, rojo debajo).
+    Avance: módulo promedio y barra del % de módulos cerrados (verde ≥70 %, amarillo ≥35 %, rojo debajo).
+    NPS: promotores 9–10, pasivos 7–8, detractores 1–6 (incluye notas de personas luego inactivas).
     Un curso puede aparecer en más de una línea si ambas lo ofrecen.
 </p>
 {% endblock %}
