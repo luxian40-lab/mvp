@@ -1,7 +1,7 @@
 """Tests validación modelos IA en crear curso."""
 from django.test import TestCase, override_settings
 
-from core.utils_ia import validar_modelo_ia_disponible
+from core.agentes.utils_ia import validar_modelo_ia_disponible
 
 
 class ValidarModeloIATest(TestCase):
@@ -28,14 +28,14 @@ class ValidarModeloIATest(TestCase):
 
 class EstructuraCursoIATest(TestCase):
     def test_extrae_json_con_preambulo(self):
-        from core.utils_ia import _extraer_json_objeto
+        from core.agentes.utils_ia import _extraer_json_objeto
 
         data = _extraer_json_objeto('Aquí va:\n```json\n{"titulo": "Café"}\n```')
         self.assertEqual(data['titulo'], 'Café')
 
     def test_guardar_crea_pasos_y_no_publica_wa(self):
         from core.models import Cliente, Modulo, PasoModulo, PreguntaModulo
-        from core.utils_ia import guardar_curso_desde_estructura
+        from core.agentes.utils_ia import guardar_curso_desde_estructura
 
         org = Cliente.objects.create(
             nombre='Org IA',

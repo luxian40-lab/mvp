@@ -30,7 +30,7 @@ def test_acks_late_global_en_false_y_prefetch_1():
 
 def test_timeouts_de_llm_no_pasan_de_30():
     from core.openai_compat import LLM_HTTP_TIMEOUT_SEG
-    from core.utils_ia import GEMINI_HTTP_TIMEOUT_SEG
+    from core.agentes.utils_ia import GEMINI_HTTP_TIMEOUT_SEG
 
     assert LLM_HTTP_TIMEOUT_SEG <= 30
     assert GEMINI_HTTP_TIMEOUT_SEG <= 30

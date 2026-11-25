@@ -942,7 +942,7 @@ def _curso_ia_cache_key(job_id: str) -> str:
 def generar_curso_ia_async(self, job_id: str, texto: str, modelo: str):
     """Genera estructura de curso en Celery (evita 504 en nginx)."""
     from django.core.cache import cache
-    from core.utils_ia import generar_estructura_curso_con_ia, validar_estructura_curso
+    from core.agentes.utils_ia import generar_estructura_curso_con_ia, validar_estructura_curso
 
     key = _curso_ia_cache_key(job_id)
     try:
