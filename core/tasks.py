@@ -213,7 +213,7 @@ def _bajo_turno(canal, datos, telefono, aplicar):
 def _reintentar_si_lock(task, exc):
     from celery.exceptions import SoftTimeLimitExceeded
 
-    from core.salida_usuario import mensaje_ya_salio
+    from core.conversacion.salida_usuario import mensaje_ya_salio
 
     from core.conversacion.bandeja_entrada import FueraDeTurno
 
@@ -265,7 +265,7 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
     from core.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
 
-    from core.salida_usuario import reset_mensaje_salio
+    from core.conversacion.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, post_data, {'forzar_canal': forzar_canal}):
@@ -308,7 +308,7 @@ def procesar_sandbox_meta_async(self, inbound: dict):
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _aplicar_sandbox_menu
 
-    from core.salida_usuario import reset_mensaje_salio
+    from core.conversacion.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, inbound):
@@ -339,7 +339,7 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _procesar_twilio_webhook
 
-    from core.salida_usuario import reset_mensaje_salio
+    from core.conversacion.salida_usuario import reset_mensaje_salio
 
     reset_mensaje_salio()
     if _cortar_reentregas(self, post_data):

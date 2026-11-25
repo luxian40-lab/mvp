@@ -81,7 +81,7 @@ def test_on_failure_guarda_el_fallo_sin_reintentar_soft_timeout():
     pytest.importorskip('celery')
     from celery.exceptions import SoftTimeLimitExceeded
 
-    from core.salida_usuario import marcar_mensaje_salio, reset_mensaje_salio
+    from core.conversacion.salida_usuario import marcar_mensaje_salio, reset_mensaje_salio
     from core.tasks import _reintentar_si_lock, procesar_twilio_webhook_async
     from core.canal.webhook_evento import WebhookFallido
 

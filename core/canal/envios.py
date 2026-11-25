@@ -170,7 +170,7 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
         log.save()
         
         logger.info(f"Template enviado OK SID: {message.sid}")
-        from core.salida_usuario import marcar_mensaje_salio
+        from core.conversacion.salida_usuario import marcar_mensaje_salio
         marcar_mensaje_salio()
         return {'success': True, 'mensaje_id': message.sid, 'response': f'Sent: {message.status}'}
         
@@ -388,7 +388,7 @@ def enviar_whatsapp_twilio(
                 logger.warning(f"No se pudo actualizar log: {log_err}")
 
         logger.info(f"TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
-        from core.salida_usuario import marcar_mensaje_salio
+        from core.conversacion.salida_usuario import marcar_mensaje_salio
         marcar_mensaje_salio()
 
         try:
@@ -488,7 +488,7 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
             log.mensaje_id = mensaje_id
             log.estado = 'SENT'
             log.save()
-            from core.salida_usuario import marcar_mensaje_salio
+            from core.conversacion.salida_usuario import marcar_mensaje_salio
             marcar_mensaje_salio()
             return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
         else:
