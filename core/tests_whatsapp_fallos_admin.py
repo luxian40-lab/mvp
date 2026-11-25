@@ -6,7 +6,7 @@ from django.test import Client, RequestFactory, TestCase, override_settings
 
 from core.admin.campanas import CodigoTwilioWhatsappFilter, WhatsappLogAdmin
 from core.models import WhatsappLog
-from core.models_media_entrega import MediaPaqueteEntrega
+from core.curso.models_media_entrega import MediaPaqueteEntrega
 
 
 @override_settings(

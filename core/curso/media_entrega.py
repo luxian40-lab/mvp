@@ -212,7 +212,7 @@ def reintentar_media_desde_log(log, error_code: str = '') -> bool:
 
 
 def marcar_paquete_recuperado_por_telefono(telefono: str) -> int:
-    from core.models_media_entrega import MediaPaqueteEntrega
+    from core.curso.models_media_entrega import MediaPaqueteEntrega
 
     qs = list(
         MediaPaqueteEntrega.objects.filter(
@@ -229,7 +229,7 @@ def marcar_paquete_recuperado_por_telefono(telefono: str) -> int:
 
 
 def _upsert_paquete_desde_log(log, *, estado: str, error_code: str = '', intentos: int = 0):
-    from core.models_media_entrega import MediaPaqueteEntrega
+    from core.curso.models_media_entrega import MediaPaqueteEntrega
     from core.canal.twilio_media import extraer_media_url_de_mensaje
 
     media_url = extraer_media_url_de_mensaje(getattr(log, 'mensaje', '') or '') or ''

@@ -210,7 +210,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
 
     paq = {'fallidos_24h': 0}
     try:
-        from core.models_media_entrega import MediaPaqueteEntrega
+        from core.curso.models_media_entrega import MediaPaqueteEntrega
 
         paq['fallidos_24h'] = MediaPaqueteEntrega.objects.filter(
             estado=MediaPaqueteEntrega.ESTADO_FALLIDO,

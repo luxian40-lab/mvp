@@ -14,7 +14,7 @@ import django
 django.setup()
 from django.db.models import Q
 from core.models import Curso, Estudiante, EstudianteEventoAprendizaje, ProgresoEstudiante, WhatsappLog
-from core.models_media_entrega import MediaPaqueteEntrega
+from core.curso.models_media_entrega import MediaPaqueteEntrega
 from datetime import datetime
 
 def norm(t):

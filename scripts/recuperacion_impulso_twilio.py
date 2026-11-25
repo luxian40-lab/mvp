@@ -368,7 +368,7 @@ def cmd_list_afectados(args) -> int:
         ProgresoEstudiante,
         WhatsappLog,
     )
-    from core.models_media_entrega import MediaPaqueteEntrega
+    from core.curso.models_media_entrega import MediaPaqueteEntrega
 
     curso = _resolver_curso_impulso()
     if not curso:

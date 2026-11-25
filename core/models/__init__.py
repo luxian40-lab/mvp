@@ -108,7 +108,7 @@ from core.models_extras import (
     ArchivoModulo, GrupoWhatsApp, InvitacionGrupo,
     MensajePush, EnvioMensajePush,
 )
-from core.models_media_entrega import MediaPaqueteEntrega
+from core.curso.models_media_entrega import MediaPaqueteEntrega
 from core.campanas.models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
 from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.curso.models_video import VideoEnlace, VideoView
