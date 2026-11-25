@@ -43,7 +43,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
         'label': 'Agentes comerciales',
         'django_app': 'agents_commercial',
         'description': 'Nat, RAG comercial y bot de ventas.',
-        'modules': ['core.nati', 'core.rag_comercial_manager', 'core.knowledge_studio'],
+        'modules': ['core.nati', 'core.rag_comercial_manager', 'core.agentes.knowledge_studio'],
     },
     'analytics': {
         'label': 'Analytics',
