@@ -7,10 +7,10 @@ from django.test import SimpleTestCase, override_settings
 
 class TranscripcionBorraAudioTests(SimpleTestCase):
     def _procesador(self, media_root, openai):
-        from core.audio_processor import AudioProcessor
+        from core.agentes.audio_processor import AudioProcessor
 
         with override_settings(MEDIA_ROOT=media_root, OPENAI_API_KEY='sk-test'):
-            with patch('core.audio_processor.OpenAI', return_value=openai) as ctor:
+            with patch('core.agentes.audio_processor.OpenAI', return_value=openai) as ctor:
                 proc = AudioProcessor()
         ctor.assert_called_once_with(api_key='sk-test', timeout=30)
         return proc

@@ -989,7 +989,7 @@ def _descargar_bytes_meta(media_id: str) -> tuple[bytes, str]:
 
 def transcribir_audio_meta(media_id: str, media_type: str = 'audio/ogg') -> str | None:
     del media_type
-    from core.audio_processor import AudioProcessor
+    from core.agentes.audio_processor import AudioProcessor
 
     proc = AudioProcessor()
     result = proc.procesar_audio_completo(media_id, proveedor='meta') or {}

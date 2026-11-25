@@ -10,7 +10,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from core.models import Estudiante, InteraccionLog
-from core.audio_processor import AudioProcessor
+from core.agentes.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
 
