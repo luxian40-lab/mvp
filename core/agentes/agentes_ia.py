@@ -127,7 +127,7 @@ Al finalizar cada módulo, pide al estudiante un ejemplo práctico de cómo apli
             tiempo_respuesta = time.time() - inicio
             
             # Registrar uso para monitoreo
-            from core.monitoreo_agentes import registrar_uso_agente
+            from core.agentes.monitoreo_agentes import registrar_uso_agente
             registrar_uso_agente(
                 telefono=self.estudiante.telefono,
                 mensaje=mensaje,
@@ -241,7 +241,7 @@ Vamos a resolverlo juntos paso a paso.
             tiempo_respuesta = time.time() - inicio
             
             # Registrar uso
-            from core.monitoreo_agentes import registrar_uso_agente
+            from core.agentes.monitoreo_agentes import registrar_uso_agente
             registrar_uso_agente(
                 telefono=self.estudiante.telefono,
                 mensaje=mensaje,
@@ -333,7 +333,7 @@ Contexto: El estudiante necesita MOTIVACIÓN REAL para seguir adelante en su apr
             tiempo_respuesta = time.time() - inicio
             
             # Registrar uso
-            from core.monitoreo_agentes import registrar_uso_agente
+            from core.agentes.monitoreo_agentes import registrar_uso_agente
             registrar_uso_agente(
                 telefono=self.estudiante.telefono,
                 mensaje="[Mensaje motivacional]",

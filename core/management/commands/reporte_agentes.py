@@ -4,7 +4,7 @@ Uso: python manage.py reporte_agentes
 """
 
 from django.core.management.base import BaseCommand
-from core.monitoreo_agentes import generar_reporte_agentes, analizar_efectividad_agentes
+from core.agentes.monitoreo_agentes import generar_reporte_agentes, analizar_efectividad_agentes
 
 
 class Command(BaseCommand):
