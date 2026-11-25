@@ -603,7 +603,7 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
     """Inscribe sin borrar otros progresos. Cupo mensual según el plan de la persona."""
     from django.utils import timezone
 
-    from core.inscripcion_curso import inscribir_estudiante_en_curso
+    from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
     from core.models import Estudiante, ProgresoEstudiante
     from core.nati import normalizar_telefono_whatsapp
 

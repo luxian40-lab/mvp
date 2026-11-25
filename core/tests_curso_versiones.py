@@ -139,7 +139,7 @@ class VersionesServicioTests(TestCase):
         self.assertEqual(snap['modulos'][0]['numero'], 0)
 
     def test_inscribir_flag_off_sin_version(self):
-        from core.inscripcion_curso import inscribir_estudiante_en_curso
+        from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
         from core.models import Curso, Estudiante, Modulo
 
         curso = Curso.objects.create(nombre='Insc off', descripcion='d')
@@ -154,7 +154,7 @@ class VersionesServicioTests(TestCase):
 
     @override_settings(EKI_CURSO_VERSIONES=True)
     def test_inscribir_fija_version_publicada_sin_mover_viejos(self):
-        from core.inscripcion_curso import inscribir_estudiante_en_curso
+        from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
         from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 
         curso = Curso.objects.create(nombre='Insc on', descripcion='d')

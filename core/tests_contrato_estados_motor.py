@@ -8,7 +8,7 @@ por la línea 2, y manda *listo* o una pregunta libre.
 from dataclasses import dataclass
 from datetime import date
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Estudiante, ProgresoEstudiante, SandboxCanalSesion
 from core.tests_support.contrato_linea import LINEA_2, ContratoLineaTestCase, crear_curso
 

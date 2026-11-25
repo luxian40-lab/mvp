@@ -9,7 +9,7 @@ esa copia no se borra en D4.
 from datetime import date
 from unittest.mock import patch
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Estudiante, SandboxCanalSesion
 from core.tests_support.contrato_linea import LINEA_2, ContratoLineaTestCase, crear_curso
 

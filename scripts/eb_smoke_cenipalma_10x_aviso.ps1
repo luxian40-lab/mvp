@@ -20,7 +20,7 @@ import os, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Campana, Cliente, Curso, Estudiante
 from core.models_extras import GrupoEstudiantes
 from core.whatsapp_service import enviar_template_twilio

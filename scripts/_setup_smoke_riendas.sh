@@ -13,7 +13,7 @@ python <<'PY'
 import django
 django.setup()
 from django.db import connection
-from core.inscripcion_curso import inscribir_estudiante_en_curso, resolver_curso_por_nombre
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso, resolver_curso_por_nombre
 from core.models import Curso, Estudiante
 from core.utils_telefono import normalizar_telefono
 

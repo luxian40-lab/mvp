@@ -13,7 +13,7 @@ import os, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso, resolver_curso_por_nombre
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso, resolver_curso_por_nombre
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 
 dry = $dry

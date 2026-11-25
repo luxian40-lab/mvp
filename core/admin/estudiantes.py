@@ -568,7 +568,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         cursos = form.cleaned_data.get('cursos_a_inscribir')
         if not cursos:
             return
-        from core.inscripcion_curso import inscribir_estudiante_en_curso
+        from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 
         nuevos = 0
         for curso in cursos:
@@ -1313,7 +1313,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                         
                         if curso_nombre:
                             try:
-                                from core.inscripcion_curso import (
+                                from core.curso.inscripcion_curso import (
                                     inscribir_estudiante_en_curso,
                                     resolver_curso_por_nombre,
                                 )
@@ -2271,7 +2271,7 @@ class EstudianteAdmin(admin.ModelAdmin):
     @admin.action(description='📚 Inscribir en curso (masivo)')
     def inscribir_curso_masivo(self, request, queryset):
         """Inscribe estudiantes seleccionados en un curso (sin Excel)."""
-        from core.inscripcion_curso import inscribir_estudiante_en_curso
+        from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 
         if 'aplicar' in request.POST:
             curso_id = (request.POST.get('curso_id') or '').strip()

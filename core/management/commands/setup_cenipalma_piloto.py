@@ -10,7 +10,7 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Curso, Estudiante, Modulo
 from core.models_extras import GrupoEstudiantes
 

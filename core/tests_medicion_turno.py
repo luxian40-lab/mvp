@@ -5,7 +5,7 @@ from io import StringIO
 from django.core.management import call_command
 from django.test import override_settings
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Estudiante, SandboxCanalSesion
 from core.tests_support.contrato_linea import LINEA_2, ContratoLineaTestCase, crear_curso
 

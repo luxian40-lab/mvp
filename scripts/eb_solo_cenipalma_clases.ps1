@@ -50,7 +50,7 @@ for p in list(ProgresoEstudiante.objects.filter(estudiante=est).select_related('
         p.delete()
         removed += 1
 if kept == 0:
-    from core.inscripcion_curso import inscribir_estudiante_en_curso
+    from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
     prog, _ = inscribir_estudiante_en_curso(est, curso)
     print('inscrito progreso', prog.id)
     kept = 1

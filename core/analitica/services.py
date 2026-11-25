@@ -79,7 +79,7 @@ def ejecutar_campana_servicio(campana):
             curso_dest = getattr(campana, 'curso_destino', None)
             # Inscripción siempre que haya curso destino (10x aviso o WA clásico).
             if curso_dest is not None:
-                from core.inscripcion_curso import inscribir_estudiante_en_curso
+                from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 
                 inscribir_estudiante_en_curso(estudiante, curso_dest)
 

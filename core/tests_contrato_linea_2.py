@@ -5,7 +5,7 @@ Al confirmar datos recibe saludo y módulo 1 (fix/linea2-curso-directo).
 """
 from datetime import date
 
-from core.inscripcion_curso import inscribir_estudiante_en_curso
+from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Estudiante, PasoModulo, ProgresoEstudiante, SeccionModulo
 from core.curso.module_steps import entregar_paso_indice, reset_progreso_pasos_modulo
 from core.tests_support.contrato_linea import (

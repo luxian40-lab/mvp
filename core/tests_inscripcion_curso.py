@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.test import SimpleTestCase, TestCase
 
-from core.inscripcion_curso import (
+from core.curso.inscripcion_curso import (
     defaults_progreso_nuevo,
     inscribir_estudiante_en_curso,
     primer_modulo_curso,

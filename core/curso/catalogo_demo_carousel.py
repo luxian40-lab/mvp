@@ -342,7 +342,7 @@ def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict
 
 
 def _reset_progreso_demo(progreso, curso) -> None:
-    from core.inscripcion_curso import primer_modulo_curso
+    from core.curso.inscripcion_curso import primer_modulo_curso
     from core.models import ModuloCompletado
 
     m1 = primer_modulo_curso(curso)
@@ -367,7 +367,7 @@ def _reset_progreso_demo(progreso, curso) -> None:
 
 def _enviar_modulo1_demo(dest: str, curso) -> None:
     """Manda texto + multimedia del módulo 1 para que el usuario vea el curso al instante."""
-    from core.inscripcion_curso import primer_modulo_curso
+    from core.curso.inscripcion_curso import primer_modulo_curso
     from core.models_extras import ArchivoModulo
     from core.response_templates import dividir_contenido_seguro
     from core.canal.envios import enviar_whatsapp_twilio
@@ -430,7 +430,7 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
         enviar_whatsapp_twilio(dest, TEXTO_CTA_RIENDAS)
         return True
 
-    from core.inscripcion_curso import inscribir_estudiante_en_curso
+    from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
     from core.models import Estudiante, ProspectoB2B
 
     tel = _digitos_telefono(telefono) or _digitos_telefono(dest)
