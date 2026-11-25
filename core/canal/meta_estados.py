@@ -188,8 +188,7 @@ def _desmarcar_diploma_si_fallo(log) -> None:
     if len(tel) < 10:
         return
     try:
-        from core.models import Estudiante, WhatsappLog
-        from core.models_certificados import Certificado
+        from core.models import Certificado, Estudiante, WhatsappLog
 
         est_ids = list(
             Estudiante.objects.filter(telefono__endswith=tel[-10:]).values_list('id', flat=True)

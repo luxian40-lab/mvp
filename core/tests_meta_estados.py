@@ -66,8 +66,7 @@ class OrdenEstadosTests(TestCase):
     def test_failed_diploma_revierte_enviado_whatsapp(self):
         from django.utils import timezone
 
-        from core.models import Cliente, Curso, Estudiante
-        from core.models_certificados import Certificado
+        from core.models import Certificado, Cliente, Curso, Estudiante
 
         org = Cliente.objects.create(
             nombre='Org Dip Fail', contacto_principal='A', email='df@t.com',

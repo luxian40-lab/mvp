@@ -44,8 +44,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
 def _diploma_entregado_de_verdad(estudiante) -> bool:
     """True solo si hay envío diploma Meta no fallido (no basta el flag del admin)."""
-    from core.models import WhatsappLog
-    from core.models_certificados import Certificado
+    from core.models import Certificado, WhatsappLog
 
     if not Certificado.objects.filter(
         estudiante=estudiante, emitido=True, enviado_whatsapp=True,
