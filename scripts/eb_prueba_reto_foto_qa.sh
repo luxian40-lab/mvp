@@ -19,7 +19,7 @@ python manage.py shell <<'PY'
 import os
 
 from core.models import Curso, Estudiante, ProgresoEstudiante
-from core.facilitador_perfil import nombre_display_facilitador
+from core.curso.facilitador_perfil import nombre_display_facilitador
 from core.tutor_ia_modulo import bloque_reto_whatsapp, generar_reto_facilitador
 from core.canal.envios import enviar_whatsapp_twilio
 

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from core.facilitador_perfil import (
+from core.curso.facilitador_perfil import (
     es_perfil_tecnicoagro,
     nombre_display_facilitador,
     resolver_perfil_facilitador,
@@ -166,13 +166,13 @@ class ContextoParticipantesTests(TestCase):
         self.curso = Curso.objects.create(nombre='Crea y vende', cliente=self.cliente, activo=True)
 
     def test_sin_definir_es_mixto(self):
-        from core.facilitador_perfil import resolver_contexto_participantes
+        from core.curso.facilitador_perfil import resolver_contexto_participantes
 
         self.assertEqual(resolver_contexto_participantes(self.curso), 'mixto')
         self.assertEqual(resolver_contexto_participantes(None), 'mixto')
 
     def test_curso_hereda_del_cliente_y_puede_sobreescribirlo(self):
-        from core.facilitador_perfil import resolver_contexto_participantes
+        from core.curso.facilitador_perfil import resolver_contexto_participantes
 
         self.cliente.contexto_participantes = 'rural'
         self.cliente.save(update_fields=['contexto_participantes'])
@@ -182,13 +182,13 @@ class ContextoParticipantesTests(TestCase):
         self.assertEqual(resolver_contexto_participantes(self.curso), 'urbano')
 
     def test_flag_apagado_no_cambia_el_texto(self):
-        from core.facilitador_perfil import ajustar_prompt_contexto
+        from core.curso.facilitador_perfil import ajustar_prompt_contexto
 
         with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=False):
             self.assertEqual(ajustar_prompt_contexto(PROMPT_FACILITADOR_RETO, self.curso), PROMPT_FACILITADOR_RETO)
 
     def test_urbano_quita_lo_rural_fijo_y_dice_a_quien_va(self):
-        from core.facilitador_perfil import ajustar_prompt_contexto
+        from core.curso.facilitador_perfil import ajustar_prompt_contexto
 
         self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
         self.curso.save(update_fields=['contexto_participantes'])
@@ -200,7 +200,7 @@ class ContextoParticipantesTests(TestCase):
         self.assertIn('No hable de fincas', texto)
 
     def test_rural_pide_ejemplos_de_finca(self):
-        from core.facilitador_perfil import ajustar_prompt_contexto
+        from core.curso.facilitador_perfil import ajustar_prompt_contexto
 
         self.cliente.contexto_participantes = 'rural'
         self.cliente.save(update_fields=['contexto_participantes'])
@@ -209,7 +209,7 @@ class ContextoParticipantesTests(TestCase):
         self.assertIn('finca', texto.split('CONTEXTO DE LOS PARTICIPANTES')[1])
 
     def test_tecnicoagro_no_se_toca(self):
-        from core.facilitador_perfil import ajustar_prompt_contexto
+        from core.curso.facilitador_perfil import ajustar_prompt_contexto
 
         self.curso.perfil_facilitador = Curso.PERFIL_FACILITADOR_TECNICOAGRO
         self.curso.contexto_participantes = Curso.CONTEXTO_URBANO
@@ -222,7 +222,7 @@ class ContextoParticipantesTests(TestCase):
         import inspect
 
         import core.tutor_ia_modulo as tutor
-        from core.facilitador_perfil import _RURAL_FIJO
+        from core.curso.facilitador_perfil import _RURAL_FIJO
 
         fuente = inspect.getsource(tutor)
         for fijo, _ in _RURAL_FIJO:
@@ -233,7 +233,7 @@ class ContextoParticipantesTests(TestCase):
         self.curso.save(update_fields=['contexto_participantes'])
 
     def test_reto_y_evaluacion_llevan_el_contexto(self):
-        from core.facilitador_perfil import system_prompt_evaluacion_para_curso
+        from core.curso.facilitador_perfil import system_prompt_evaluacion_para_curso
 
         self._urbano()
         with self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):

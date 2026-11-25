@@ -47,7 +47,7 @@ def lanzar_reto_tras_companero(estudiante, ctx, contexto_limpio, *, progreso_si_
         if _cta_cert is not None:
             return _cta_cert
 
-        from core.facilitador_perfil import nombre_display_facilitador
+        from core.curso.facilitador_perfil import nombre_display_facilitador
 
         nombre_tutor = nombre_display_facilitador(progreso.curso)
         reto = generar_reto_facilitador(
@@ -69,7 +69,7 @@ def lanzar_reto_tras_companero(estudiante, ctx, contexto_limpio, *, progreso_si_
         estudiante.estado_onboarding = 'esperando_respuesta_reto'
         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
         try:
-            from core.facilitador_perfil import resolver_perfil_facilitador
+            from core.curso.facilitador_perfil import resolver_perfil_facilitador
             from core.telemetria import registrar_reto_planteado
 
             registrar_reto_planteado(

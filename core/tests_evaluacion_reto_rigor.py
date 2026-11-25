@@ -1,7 +1,7 @@
 """El calificador del reto debe citar evidencia y exigir cifras (perfil tecnicoagro)."""
 from django.test import TestCase
 
-from core.facilitador_perfil import system_prompt_evaluacion_para_curso
+from core.curso.facilitador_perfil import system_prompt_evaluacion_para_curso
 from core.models import Cliente, Curso
 from core.tutor_ia_modulo import limpiar_plantilla_evaluacion
 

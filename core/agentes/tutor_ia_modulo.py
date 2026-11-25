@@ -7,7 +7,7 @@ import logging
 import re
 from django.conf import settings
 
-from core.facilitador_perfil import (
+from core.curso.facilitador_perfil import (
     ajustar_prompt_contexto,
     es_perfil_tecnicoagro,
     sin_rural_fijo,
@@ -1163,7 +1163,7 @@ def generar_presentacion_agentes(
     Returns:
         tuple: (msg_facilitador: str, msg_asistente: str)
     """
-    from core.facilitador_perfil import (
+    from core.curso.facilitador_perfil import (
         es_perfil_tecnicoagro,
         etiqueta_rol_facilitador,
         nombre_display_facilitador,

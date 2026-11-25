@@ -166,7 +166,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
 
     _curso_reto = progreso.curso if progreso else None
     try:
-        from core.facilitador_perfil import resolver_perfil_facilitador
+        from core.curso.facilitador_perfil import resolver_perfil_facilitador
         from core.telemetria import registrar_reto_respondido
 
         registrar_reto_respondido(
@@ -184,7 +184,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
     except Exception:
         logger.debug('[reto] telemetría reto_respondido omitida', exc_info=True)
 
-    from core.facilitador_perfil import nombre_display_facilitador
+    from core.curso.facilitador_perfil import nombre_display_facilitador
 
     nombre_tutor = nombre_display_facilitador(
         progreso.curso if progreso is not None else _curso_reto
