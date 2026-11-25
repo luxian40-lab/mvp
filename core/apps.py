@@ -11,7 +11,7 @@ class CoreConfig(AppConfig):
         # Gamificación activada
         import core.gamificacion  # Crea perfil automáticamente
         import core.gamificacion.signals  # Otorga puntos/badges
-        import core.signals_eventos_ia  # Eventos IA observables
+        import core.agentes.signals_eventos_ia  # Eventos IA observables
         
         # Compresión automática de videos
         import core.curso.signals_videos
