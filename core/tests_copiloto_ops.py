@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from core.copiloto_ops import _mask_tel, responder_copiloto, snapshot_ops
+from core.analitica.copiloto_ops import _mask_tel, responder_copiloto, snapshot_ops
 from core.models import WhatsappLog
 from mvp_project.staticfiles_storage import EkiManifestStaticFilesStorage
 

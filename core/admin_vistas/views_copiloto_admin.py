@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 
-from core.copiloto_ops import responder_copiloto
+from core.analitica.copiloto_ops import responder_copiloto
 
 SESSION_KEY = 'eki_copiloto_chat'
 MAX_TURNS = 24
