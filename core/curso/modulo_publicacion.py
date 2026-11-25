@@ -365,7 +365,7 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
             else:
                 avisos.append(msg_sin_qa)
 
-    from core.media_pasos_listos import mensaje_videos_wa_listos_inactivos
+    from core.curso.media_pasos_listos import mensaje_videos_wa_listos_inactivos
 
     msg_inact = mensaje_videos_wa_listos_inactivos(modulo)
     if msg_inact:
@@ -383,7 +383,7 @@ def publicar_modulo_wa(
     snapshot_antes = snapshot_modulo_publicacion(modulo) if registrar_evento else {}
     from django.conf import settings as dj_settings
 
-    from core.media_pasos_listos import activar_pasos_video_wa_listos
+    from core.curso.media_pasos_listos import activar_pasos_video_wa_listos
 
     activar_pasos_video_wa_listos(modulo)
     head = bool(getattr(dj_settings, 'PUBLICAR_MODULO_HEAD_QA', False))

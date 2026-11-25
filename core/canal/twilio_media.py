@@ -1061,7 +1061,7 @@ def persistir_media_paso_whatsapp(paso) -> tuple[bool, str]:
         paso.media_url = prepared
         fields.append('media_url')
     paso.media_wa_apto = True
-    from core.media_pasos_listos import activar_paso_por_subida_staff
+    from core.curso.media_pasos_listos import activar_paso_por_subida_staff
 
     fields.extend(activar_paso_por_subida_staff(paso))
     paso.save(update_fields=list(dict.fromkeys(fields)))

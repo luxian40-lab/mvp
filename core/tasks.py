@@ -1000,7 +1000,7 @@ def encode_paso_modulo_media(
             prefix=prefix,
             validar_video=True,
         )
-        from core.media_pasos_listos import aplicar_resultado_encode_a_paso
+        from core.curso.media_pasos_listos import aplicar_resultado_encode_a_paso
 
         aplicar_resultado_encode_a_paso(paso, resultado)
         try:

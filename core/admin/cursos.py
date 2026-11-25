@@ -1416,7 +1416,7 @@ class PasoModuloForm(forms.ModelForm):
                 instance.media_wa_apto = bool(apto)
             elif pending:
                 instance.media_wa_apto = None
-            from core.media_pasos_listos import activar_paso_por_subida_staff
+            from core.curso.media_pasos_listos import activar_paso_por_subida_staff
 
             activar_paso_por_subida_staff(instance)
         elif quito_media:
@@ -2256,7 +2256,7 @@ class ModuloAdmin(admin.ModelAdmin):
         )
 
     def activar_videos_listos_view(self, request, modulo_id):
-        from core.media_pasos_listos import activar_pasos_video_wa_listos, contar_videos_wa_listos_inactivos
+        from core.curso.media_pasos_listos import activar_pasos_video_wa_listos, contar_videos_wa_listos_inactivos
 
         modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
         if not modulo:
@@ -2280,7 +2280,7 @@ class ModuloAdmin(admin.ModelAdmin):
 
     @admin.action(description='Activar videos WA ya listos (inactivos)')
     def activar_videos_wa_listos(self, request, queryset):
-        from core.media_pasos_listos import activar_pasos_video_wa_listos
+        from core.curso.media_pasos_listos import activar_pasos_video_wa_listos
 
         total = 0
         for modulo in queryset:
@@ -2415,7 +2415,7 @@ class ModuloAdmin(admin.ModelAdmin):
             extra_context['eki_mod_activar_videos_url'] = reverse(
                 'admin:core_modulo_activar_videos_listos', args=[obj.pk]
             )
-            from core.media_pasos_listos import contar_videos_wa_listos_inactivos
+            from core.curso.media_pasos_listos import contar_videos_wa_listos_inactivos
 
             extra_context['eki_mod_n_videos_inactivos'] = contar_videos_wa_listos_inactivos(obj)
             from core.models import ModuloPublicacionEvent

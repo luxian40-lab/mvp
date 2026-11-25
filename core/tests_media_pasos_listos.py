@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from django.test import TestCase
 
 from core.course_engine.adjuntar_pasos import adjuntar_assets_ce_a_modulo
-from core.media_pasos_listos import (
+from core.curso.media_pasos_listos import (
     activar_pasos_video_wa_listos,
     aplicar_resultado_encode_a_paso,
     contar_videos_wa_listos_inactivos,
@@ -244,7 +244,7 @@ class EncodeActivaPasoTests(_Base):
 
 class RepararCursoYAdminTests(_Base):
     def test_reparar_curso_resetea_progreso_si_no_completo(self):
-        from core.media_pasos_listos import reparar_curso_videos_wa_inactivos
+        from core.curso.media_pasos_listos import reparar_curso_videos_wa_inactivos
 
         PasoModulo.objects.create(
             modulo=self.mod,

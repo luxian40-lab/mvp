@@ -2,7 +2,7 @@
 """Activa videos WA ya listos (media_wa_apto=True) que quedaron inactivos."""
 from django.core.management.base import BaseCommand
 
-from core.media_pasos_listos import reparar_curso_videos_wa_inactivos
+from core.curso.media_pasos_listos import reparar_curso_videos_wa_inactivos
 from core.models import Curso
 
 
@@ -32,7 +32,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f'Curso {curso_id} no existe'))
             return
 
-        from core.media_pasos_listos import contar_videos_wa_listos_inactivos
+        from core.curso.media_pasos_listos import contar_videos_wa_listos_inactivos
 
         n_antes = sum(contar_videos_wa_listos_inactivos(m) for m in curso.modulos.all())
         self.stdout.write(

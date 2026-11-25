@@ -387,7 +387,7 @@ def module_builder_view(request, modulo_id: int):
                     )
                     paso.media_url = resultado['url']
                     paso.media_wa_apto = resultado.get('media_wa_apto')
-                    from core.media_pasos_listos import activar_paso_por_subida_staff
+                    from core.curso.media_pasos_listos import activar_paso_por_subida_staff
 
                     fields = ['media_url', 'media_wa_apto']
                     elegido = _video_entrega_de_upload(uploaded, request.POST.get('video_entrega'))
