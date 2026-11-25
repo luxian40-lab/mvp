@@ -100,7 +100,7 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
         return ''
 
     from core.ai_capabilities import resolver_ai_capability
-    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
+    from core.agentes.eki_ia_kill_switch import eki_ia_llm_kill_activo
 
     # Visión Nat es parte del producto: no bloquear si el override está off.
     # Solo registramos para ops; el productor siempre recibe análisis si hay foto.

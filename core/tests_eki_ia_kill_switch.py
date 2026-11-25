@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 
 from core.bot_comercial.vision import diagnosticar_imagen_cultivo
 from core.bot_comercial.webhook import _bot_comercial_respuesta_catalogo
-from core.eki_ia_kill_switch import eki_ia_llm_kill_activo, motivo_kill_switch
+from core.agentes.eki_ia_kill_switch import eki_ia_llm_kill_activo, motivo_kill_switch
 from core.models import Cliente, EventoIA
 from core.nati import buscar_en_web_colombia
 

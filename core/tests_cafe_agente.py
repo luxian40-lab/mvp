@@ -93,7 +93,7 @@ class CafePromptTests(SimpleTestCase):
     BOT_COMERCIAL_WEB_FALLBACK_ENABLED=True,
 )
 class CafeWebAmbitoTests(SimpleTestCase):
-    @patch('core.eki_ia_kill_switch.eki_ia_llm_kill_activo', return_value=False)
+    @patch('core.agentes.eki_ia_kill_switch.eki_ia_llm_kill_activo', return_value=False)
     def test_ambito_cafe_no_pide_cenicana(self, _kill):
         falso = MagicMock()
         falso.responses.create.return_value = MagicMock(output_text='broca')
@@ -105,7 +105,7 @@ class CafeWebAmbitoTests(SimpleTestCase):
         self.assertIn('ni de Cenicana', texto)
         self.assertNotIn('Cenicafe Cenicana', texto)
 
-    @patch('core.eki_ia_kill_switch.eki_ia_llm_kill_activo', return_value=False)
+    @patch('core.agentes.eki_ia_kill_switch.eki_ia_llm_kill_activo', return_value=False)
     def test_ambito_general_sigue_igual(self, _kill):
         falso = MagicMock()
         falso.responses.create.return_value = MagicMock(output_text='suelo')

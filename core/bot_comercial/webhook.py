@@ -479,7 +479,7 @@ def _bot_comercial_respuesta_sin_llm(
 
 def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> None:
     try:
-        from core.eki_ia_kill_switch import motivo_kill_switch
+        from core.agentes.eki_ia_kill_switch import motivo_kill_switch
         from core.eventos_ia import emit_evento
         from core.models import EventoIA
 
@@ -548,7 +548,7 @@ def _bot_comercial_respuesta_catalogo(
     Si se pasa `cliente` (instancia de `core.Cliente`), se usa su `system_prompt_extra`
     y `nombre_bot` para personalizar la identidad de Nat.
     """
-    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
+    from core.agentes.eki_ia_kill_switch import eki_ia_llm_kill_activo
 
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     kill = eki_ia_llm_kill_activo(cliente=cliente)

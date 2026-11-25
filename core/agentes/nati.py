@@ -436,7 +436,7 @@ def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None, *, am
     if not bool(getattr(settings, "BOT_COMERCIAL_WEB_FALLBACK_ENABLED", True)):
         return ""
 
-    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
+    from core.agentes.eki_ia_kill_switch import eki_ia_llm_kill_activo
 
     if eki_ia_llm_kill_activo(cliente=cliente):
         return ""
