@@ -253,7 +253,7 @@ class PasoModuloAdminUxTests(TestCase):
         """Regresión M8: borrar URL debe quitar rojo (media_wa_apto=False pegado)."""
         from django.forms import inlineformset_factory
         from core.admin.cursos import PasoModuloForm, PasoModuloInlineFormSet
-        from core.media_encode_async import media_encode_paso_key
+        from core.curso.media_encode_async import media_encode_paso_key
 
         self.paso.media_url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/roto.mp4'
         self.paso.media_wa_apto = False

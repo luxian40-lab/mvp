@@ -222,7 +222,7 @@ def aplicar_pasos_desde_post(
             paso.media_url = ''
             paso.media_wa_apto = None
             paso.save(update_fields=['media_url', 'media_wa_apto'])
-            from core.media_encode_async import limpiar_estado_encode_paso
+            from core.curso.media_encode_async import limpiar_estado_encode_paso
 
             limpiar_estado_encode_paso(paso.pk)
         guardados += 1

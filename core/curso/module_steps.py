@@ -336,7 +336,7 @@ def partes_mensaje_paso(
         body = (paso.contenido or '').strip()
     tail = _suffix_evaluacion_paso(paso)
     if url and getattr(paso, 'pk', None):
-        from core.media_encode_async import estado_encode_paso
+        from core.curso.media_encode_async import estado_encode_paso
 
         enc = estado_encode_paso(paso.pk, paso=paso)
         if enc and enc.get('status') in ('pending', 'running'):

@@ -142,7 +142,7 @@ def guardar_bytes_admin_media_resultado(
     razon = ''
     dest_carpeta = carpeta
     if name_l.endswith(('.mp4', '.m4v', '.mov')):
-        from core.media_encode_async import validar_cabecera_mp4_rapida
+        from core.curso.media_encode_async import validar_cabecera_mp4_rapida
 
         validar_cabecera_mp4_rapida(raw, filename)
         if validar_video:
@@ -177,7 +177,7 @@ def guardar_upload_admin_media_resultado(
     """Como ``guardar_upload_admin_media`` pero con ``{url, media_wa_apto, bytes, razon}``."""
     from django.utils.text import get_valid_filename
 
-    from core.media_encode_async import (
+    from core.curso.media_encode_async import (
         es_extension_video,
         nuevo_job_id,
         subir_video_incoming,

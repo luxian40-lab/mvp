@@ -267,7 +267,7 @@ def module_builder_view(request, modulo_id: int):
                 video_entrega = PasoModulo.VIDEO_WHATSAPP
                 if uploaded:
                     from core.admin._common import guardar_upload_admin_media_resultado
-                    from core.media_encode_async import (
+                    from core.curso.media_encode_async import (
                         aplicar_resultado_upload_async,
                         mensaje_upload_media,
                     )
@@ -373,7 +373,7 @@ def module_builder_view(request, modulo_id: int):
                     messages.error(request, 'Elegí un archivo para subir.')
                 else:
                     from core.admin._common import guardar_upload_admin_media_resultado
-                    from core.media_encode_async import (
+                    from core.curso.media_encode_async import (
                         aplicar_resultado_upload_async,
                         limpiar_estado_encode_paso,
                         mensaje_upload_media,
@@ -428,7 +428,7 @@ def module_builder_view(request, modulo_id: int):
             elif action == 'delete_media':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
-                from core.media_encode_async import limpiar_estado_encode_paso
+                from core.curso.media_encode_async import limpiar_estado_encode_paso
 
                 paso.media_url = ''
                 paso.media_wa_apto = None
@@ -485,7 +485,7 @@ def module_builder_view(request, modulo_id: int):
                     f'Micro duplicado como borrador (#{copia.orden} «{(copia.titulo or "").strip()}»).',
                 )
             elif action == 'encode_status':
-                from core.media_encode_async import estado_encode_paso
+                from core.curso.media_encode_async import estado_encode_paso
 
                 filas = []
                 for paso in PasoModulo.objects.filter(modulo=modulo).only(

@@ -320,7 +320,7 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
         if not url:
             continue
         if paso.pk:
-            from core.media_encode_async import estado_encode_paso
+            from core.curso.media_encode_async import estado_encode_paso
 
             enc = estado_encode_paso(paso.pk, paso=paso)
             if enc:
@@ -417,7 +417,7 @@ def estado_media_paso(paso) -> tuple[str, str]:
     if not url:
         return 'na', '—'
     if paso and getattr(paso, 'pk', None):
-        from core.media_encode_async import estado_encode_paso
+        from core.curso.media_encode_async import estado_encode_paso
 
         enc = estado_encode_paso(paso.pk, paso=paso)
         if enc:
@@ -460,7 +460,7 @@ def detalle_problema_media_paso(paso) -> dict | None:
 
     detalle = label.replace('🔴 ', '').replace('🟡 ', '')
     if paso.pk:
-        from core.media_encode_async import estado_encode_paso
+        from core.curso.media_encode_async import estado_encode_paso
 
         enc = estado_encode_paso(paso.pk, paso=paso)
         if enc and enc.get('error'):
@@ -516,7 +516,7 @@ def listar_problemas_media_modulo(modulo) -> list[dict]:
 
 def estado_upload_ui_paso(paso) -> dict:
     """Estado visible en Builder: idle|uploading|processing|ready|failed + label + css."""
-    from core.media_encode_async import estado_encode_paso
+    from core.curso.media_encode_async import estado_encode_paso
 
     url = (getattr(paso, 'media_url', None) or '').strip()
     if paso and getattr(paso, 'pk', None):

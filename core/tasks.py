@@ -977,7 +977,7 @@ def encode_paso_modulo_media(
     from django.core.files.storage import default_storage
 
     from core.admin._common import guardar_bytes_admin_media_resultado
-    from core.media_encode_async import _set_encode_state, _clear_encode_state
+    from core.curso.media_encode_async import _set_encode_state, _clear_encode_state
     from core.models import PasoModulo
 
     _set_encode_state(job_id=job_id, paso_id=paso_id, status='running')

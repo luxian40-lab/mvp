@@ -284,7 +284,7 @@ class ChecklistPasosYEncodeTests(TestCase):
     def test_encode_pending_bloquea_publicar(self):
         from django.core.cache import cache
 
-        from core.media_encode_async import media_encode_paso_key
+        from core.curso.media_encode_async import media_encode_paso_key
         from core.modulo_publicacion import publicar_modulo_wa
 
         paso = PasoModulo.objects.create(

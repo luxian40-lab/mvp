@@ -188,7 +188,7 @@ def aplicar_clase_simple_desde_form(form, formsets=None) -> PasoModulo | None:
         paso.media_wa_apto = None
         update_fields.extend(['media_url', 'media_wa_apto'])
         if paso.pk:
-            from core.media_encode_async import limpiar_estado_encode_paso
+            from core.curso.media_encode_async import limpiar_estado_encode_paso
 
             limpiar_estado_encode_paso(paso.pk)
 
@@ -1357,7 +1357,7 @@ class PasoModuloForm(forms.ModelForm):
             cleaned['orden'] = self.clean_orden() if 'orden' in self.fields else 1
         uploaded_file = cleaned.get('media_file_upload')
         if uploaded_file and self.instance.pk:
-            from core.media_encode_async import limpiar_estado_encode_paso
+            from core.curso.media_encode_async import limpiar_estado_encode_paso
 
             limpiar_estado_encode_paso(self.instance.pk)
         if not uploaded_file:
@@ -1430,12 +1430,12 @@ class PasoModuloForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
             if getattr(self, '_reset_media_wa', False) and instance.pk:
-                from core.media_encode_async import limpiar_estado_encode_paso
+                from core.curso.media_encode_async import limpiar_estado_encode_paso
 
                 limpiar_estado_encode_paso(instance.pk)
             async_res = getattr(self, '_pending_media_async', None)
             if async_res and instance.pk:
-                from core.media_encode_async import aplicar_resultado_upload_async
+                from core.curso.media_encode_async import aplicar_resultado_upload_async
 
                 aplicar_resultado_upload_async(
                     async_res,
@@ -2401,7 +2401,7 @@ class ModuloAdmin(admin.ModelAdmin):
             extra_context['eki_mod_avanzado_url'] = reverse(
                 'admin:core_modulo_change', args=[obj.pk]
             ) + '?avanzado=1'
-            from core.media_encode_async import estado_encode_modulo
+            from core.curso.media_encode_async import estado_encode_modulo
 
             extra_context['eki_mod_encode'] = estado_encode_modulo(obj)
             extra_context['eki_mod_switch_clase_url'] = reverse(
@@ -2643,7 +2643,7 @@ class ModuloAdmin(admin.ModelAdmin):
         paso = aplicar_clase_simple_desde_form(form, formsets=formsets)
         async_res = getattr(form, '_clase_pending_media_async', None)
         if paso and async_res:
-            from core.media_encode_async import (
+            from core.curso.media_encode_async import (
                 aplicar_resultado_upload_async,
                 mensaje_upload_media,
             )
@@ -2832,7 +2832,7 @@ class ModuloAdmin(admin.ModelAdmin):
                 renumerar_orden_1_based(formset.model, form.instance.pk)
             if formset.model is PasoModulo:
                 n_async = 0
-                from core.media_encode_async import mensaje_upload_media
+                from core.curso.media_encode_async import mensaje_upload_media
 
                 for f in formset.forms:
                     async_res = getattr(f, '_pending_media_async', None)

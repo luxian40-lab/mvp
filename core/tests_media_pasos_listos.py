@@ -442,7 +442,7 @@ class SubidaStaffActivaPasoTests(_Base):
     def test_entrega_omite_media_si_encode_pendiente(self):
         from django.core.cache import cache
 
-        from core.media_encode_async import media_encode_paso_key
+        from core.curso.media_encode_async import media_encode_paso_key
 
         paso = PasoModulo.objects.create(
             modulo=self.mod,

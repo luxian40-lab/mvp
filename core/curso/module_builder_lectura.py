@@ -19,7 +19,7 @@ def texto_topes() -> str:
 
 
 def _motivo_omision(paso) -> str:
-    from core.media_encode_async import estado_encode_paso
+    from core.curso.media_encode_async import estado_encode_paso
     from core.modulo_publicacion import detalle_problema_media_paso
 
     url = (getattr(paso, 'media_url', None) or '').strip()
@@ -77,7 +77,7 @@ def recepcion_secciones(arbol) -> list[dict]:
 
 def avisos_antes_de_publicar(modulo, arbol) -> list[str]:
     """Avisos de lectura. No bloquean publicar ni escriben."""
-    from core.media_encode_async import estado_encode_paso
+    from core.curso.media_encode_async import estado_encode_paso
 
     avisos: list[str] = []
     if not (getattr(modulo, 'titulo', None) or '').strip():

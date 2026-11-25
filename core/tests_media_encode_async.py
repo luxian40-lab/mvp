@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.admin._common import guardar_upload_admin_media_resultado
-from core.media_encode_async import (
+from core.curso.media_encode_async import (
     aplicar_resultado_upload_async,
     estado_encode_paso,
     media_encode_paso_key,
@@ -25,8 +25,8 @@ def _mp4_toy() -> bytes:
 @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
 class GuardarUploadAsyncTests(SimpleTestCase):
     @patch('core.admin._common.guardar_bytes_admin_media_resultado')
-    @patch('core.media_encode_async.subir_video_incoming')
-    @patch('core.media_encode_async.use_async_media_encode', return_value=True)
+    @patch('core.curso.media_encode_async.subir_video_incoming')
+    @patch('core.curso.media_encode_async.use_async_media_encode', return_value=True)
     def test_video_deferido_a_incoming(self, _ua, mock_incoming, mock_sync):
         mock_incoming.return_value = ('modulos/pasos/incoming/x.mp4', 'https://s3/x.mp4')
         raw = _mp4_toy() + b'\x00' * 100
@@ -111,7 +111,7 @@ class EstadoMediaProcesandoTests(TestCase):
         enc = estado_encode_paso(self.paso.pk, paso=self.paso)
         self.assertEqual(enc.get('status'), 'pending')
 
-    @patch('core.media_encode_async.encolar_encode_paso_modulo')
+    @patch('core.curso.media_encode_async.encolar_encode_paso_modulo')
     def test_encolar_setea_cache(self, mock_encolar):
         resultado = {
             'async_encode': True,
@@ -136,16 +136,16 @@ class EstadoMediaProcesandoTests(TestCase):
 
 
 class EncolarAlCommitTests(SimpleTestCase):
-    @patch('core.media_encode_async._set_encode_state')
+    @patch('core.curso.media_encode_async._set_encode_state')
     def test_el_aviso_sale_al_confirmar_el_guardado(self, _estado):
-        from core.media_encode_async import encolar_encode_paso_modulo
+        from core.curso.media_encode_async import encolar_encode_paso_modulo
 
         callbacks = []
 
         def captura(fn, using=None, robust=False):
             callbacks.append(fn)
 
-        with patch('core.media_encode_async.transaction.on_commit', side_effect=captura), \
+        with patch('core.curso.media_encode_async.transaction.on_commit', side_effect=captura), \
                 patch('core.tasks.encode_paso_modulo_media.delay') as delay:
             encolar_encode_paso_modulo(
                 paso_id=510,
@@ -175,8 +175,8 @@ class EncodePasoAusenteTests(SimpleTestCase):
         finally:
             encode_paso_modulo_media.pop_request()
 
-    @patch('core.media_encode_async._set_encode_state')
-    @patch('core.media_encode_async._clear_encode_state')
+    @patch('core.curso.media_encode_async._set_encode_state')
+    @patch('core.curso.media_encode_async._clear_encode_state')
     @patch('core.models.PasoModulo.objects.get')
     def test_si_el_paso_aun_no_esta_reintenta_sin_soltarlo(self, get, clear, _estado):
         from celery.exceptions import Retry
@@ -190,8 +190,8 @@ class EncodePasoAusenteTests(SimpleTestCase):
         retry.assert_called_once_with(countdown=2)
         clear.assert_not_called()
 
-    @patch('core.media_encode_async._set_encode_state')
-    @patch('core.media_encode_async._clear_encode_state')
+    @patch('core.curso.media_encode_async._set_encode_state')
+    @patch('core.curso.media_encode_async._clear_encode_state')
     @patch('core.models.PasoModulo.objects.get')
     def test_agotado_el_reintento_suelta_el_estado(self, get, clear, _estado):
         from core.models import PasoModulo
@@ -224,12 +224,12 @@ class MensajeUploadYEncodeModuloTests(TestCase):
         )
 
     def tearDown(self):
-        from core.media_encode_async import media_encode_paso_key
+        from core.curso.media_encode_async import media_encode_paso_key
 
         cache.delete(media_encode_paso_key(self.p2.pk))
 
     def test_mensaje_async_es_honesto(self):
-        from core.media_encode_async import mensaje_upload_media
+        from core.curso.media_encode_async import mensaje_upload_media
 
         msg = mensaje_upload_media({'async_encode': True})
         self.assertIn('2 instancias', msg)
@@ -237,7 +237,7 @@ class MensajeUploadYEncodeModuloTests(TestCase):
         self.assertIn('semáforo', msg)
 
     def test_estado_encode_modulo_ve_paso_que_no_es_el_primero(self):
-        from core.media_encode_async import estado_encode_modulo, media_encode_paso_key
+        from core.curso.media_encode_async import estado_encode_modulo, media_encode_paso_key
 
         cache.set(
             media_encode_paso_key(self.p2.pk),
