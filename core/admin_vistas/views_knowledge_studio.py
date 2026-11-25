@@ -7,7 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.knowledge_studio import calcular_salud_rag, publicar_candidata_en_rag, revisar_candidata
+from core.agentes.knowledge_studio import calcular_salud_rag, publicar_candidata_en_rag, revisar_candidata
 from core.models import Cliente, ConversacionRAGCandidata, DocumentoRAGComercial
 
 

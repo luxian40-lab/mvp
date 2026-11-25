@@ -1329,7 +1329,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             import uuid
 
             from core.eventos_ia import get_or_create_trace_id
-            from core.knowledge_studio import crear_candidata_hitl
+            from core.agentes.knowledge_studio import crear_candidata_hitl
 
             tid = get_or_create_trace_id()
             trace_uuid = uuid.UUID(tid) if tid else None

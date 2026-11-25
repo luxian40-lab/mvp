@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
-from core.knowledge_studio import (
+from core.agentes.knowledge_studio import (
     calcular_salud_rag,
     crear_candidata_hitl,
     publicar_candidata_en_rag,

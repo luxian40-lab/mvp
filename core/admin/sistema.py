@@ -405,7 +405,7 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
 
     @admin.action(description='Marcar aprobada (sin publicar)')
     def marcar_aprobada(self, request, queryset):
-        from core.knowledge_studio import revisar_candidata
+        from core.agentes.knowledge_studio import revisar_candidata
 
         for c in queryset.filter(estado=ConversacionRAGCandidata.ESTADO_PENDIENTE):
             revisar_candidata(c, usuario=request.user, accion='aprobar')
@@ -418,7 +418,7 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
         )
 
     def _revisar(self, request, obj, accion):
-        from core.knowledge_studio import revisar_candidata
+        from core.agentes.knowledge_studio import revisar_candidata
 
         revisar_candidata(
             obj,
@@ -445,7 +445,7 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
 
     @action(description=textos.A_DOCUMENTO, url_path='bandeja-documento', permissions=['change'])
     def bandeja_a_documento(self, request, obj):
-        from core.knowledge_studio import publicar_candidata_en_rag
+        from core.agentes.knowledge_studio import publicar_candidata_en_rag
 
         publicar_candidata_en_rag(obj, usuario=request.user)
 
