@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from core.models import Modulo, PasoModulo, SeccionModulo
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 
 from aprende.media_aula import MediaAula, media_desde_url, TIPO_ENLACE_EXTERNO
 

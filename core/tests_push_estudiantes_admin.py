@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes, MensajePush
+from core.analitica.models_extras import GrupoEstudiantes, MensajePush
 
 
 class PushEstudiantesAdminTests(TestCase):

@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from openpyxl import load_workbook
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from portal.capabilities import modulos_portal
 from portal.exports import filas_reenganche_sin_modulo
 from portal.middleware import PORTAL_SESSION_KEY

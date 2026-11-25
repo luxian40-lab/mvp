@@ -17,7 +17,7 @@ from core.curso.cursos_permitidos import (
     texto_cursos,
 )
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.canal.planes_linea import PLAN_CHOICES, plan_por_clave
 from core.canal.utils_telefono import normalizar_telefono
 

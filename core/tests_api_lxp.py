@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 
 pytestmark = pytest.mark.django_db

@@ -56,7 +56,7 @@ from core.campanas.admin_campana_actualizado import (
     CampanaUnicaAdmin,
     RespuestaCampanaUnicaAdmin,
 )
-from ..models_extras import (
+from core.analitica.models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
     MensajePush, EnvioMensajePush,
     EnlaceFormularioExterno, RegistroFormularioExterno,

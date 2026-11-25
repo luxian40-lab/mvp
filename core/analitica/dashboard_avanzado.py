@@ -22,7 +22,7 @@ from core.models import (
     PerfilGamificacion, Badge, TransaccionPuntos, SolicitudSoporte,
     Certificado, Linea
 )
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.gamificacion import BadgeEstudiante
 from core.curso.module_steps import pasos_activos_qs
 

@@ -103,7 +103,7 @@ from core.analitica.models_audit import AuditLog
 
 # ========== NUEVAS FUNCIONALIDADES ==========
 # Importar modelos adicionales
-from core.models_extras import (
+from core.analitica.models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, 
     ArchivoModulo, GrupoWhatsApp, InvitacionGrupo,
     MensajePush, EnvioMensajePush,

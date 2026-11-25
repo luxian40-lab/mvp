@@ -20,7 +20,7 @@ from core.models import (
     WhatsappLog,
 )
 from core.campanas.models_campana_meta import PlantillaMeta
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.tests_aviso_modulo import AJUSTES, LINEA_2, WABA_2, _sender_ok
 
 

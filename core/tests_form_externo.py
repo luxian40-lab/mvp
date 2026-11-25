@@ -13,7 +13,7 @@ from core.models import (
     HabilitacionModuloEstudiante,
     Modulo,
 )
-from core.models_extras import EnlaceFormularioExterno
+from core.analitica.models_extras import EnlaceFormularioExterno
 
 
 class FormExternoServiceTests(TestCase):

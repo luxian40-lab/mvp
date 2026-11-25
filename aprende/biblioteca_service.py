@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 
 from .acceso_modulos import modulos_visibles_aula
 from .contenido_modulo_service import media_pasos_modulo

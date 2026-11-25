@@ -526,7 +526,7 @@ def enviar_archivo_modulo_async(self, telefono, archivo_id):
     Envía un archivo multimedia de módulo por WhatsApp de forma asíncrona.
     """
     try:
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
         from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp
 
         archivo = ArchivoModulo.objects.get(id=archivo_id)

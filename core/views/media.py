@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 import mimetypes
 import requests
 
-from ..models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 
 # Endpoint proxy para servir archivos de S3 desde el dominio propio
 @csrf_exempt

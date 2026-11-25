@@ -255,7 +255,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(ext.tipo, TIPO_ENLACE_EXTERNO)
 
     def test_enlace_externo_en_leccion_estudiante(self):
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         ArchivoModulo.objects.create(
             modulo=self.modulo,
@@ -488,7 +488,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(e1.comentario_profesor, 'Excelente')
 
     def test_profesor_agrega_multiples_recursos_modulo(self):
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
         r = self.http.post(f'/aprende/profesor/modulo/{self.modulo.id}/', {
@@ -509,7 +509,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(tipos, {'video', 'pdf'})
 
     def test_migracion_legacy_video_pdf_a_archivo_modulo(self):
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         self.modulo.video_url = 'https://www.youtube.com/watch?v=abc12345678'
         self.modulo.archivo_pdf_url = 'https://example.com/doc.pdf'
@@ -530,7 +530,7 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Intro')
 
     def test_pdf_muestra_abrir_nueva_pestana(self):
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         ArchivoModulo.objects.bulk_create([
             ArchivoModulo(
@@ -620,7 +620,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r2.status_code, 302)
 
     def test_biblioteca_muestra_archivos_modulo_liberado(self):
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         ArchivoModulo.objects.create(
             modulo=self.modulo,
@@ -765,7 +765,7 @@ class AprendeWebTests(TestCase):
 
     def test_ranking_general_en_perfil(self):
         from core.gamificacion import PerfilGamificacion
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         est2 = Estudiante.objects.create(
             cedula='web_rank',
@@ -806,7 +806,7 @@ class AprendeWebTests(TestCase):
 
     def test_ranking_curso_general(self):
         from core.gamificacion import PerfilGamificacion
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         est2 = Estudiante.objects.create(
             cedula='web_rank2',

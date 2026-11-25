@@ -5,7 +5,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings_production')
 django.setup()
 
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 
 print("Total:", ArchivoModulo.objects.count())
 print("Con archivo:", ArchivoModulo.objects.exclude(archivo='').exclude(archivo=None).count())

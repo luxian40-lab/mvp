@@ -507,7 +507,7 @@ class ClienteAdminV2(ClienteAdmin):
     def personas_enlaces(self, obj):
         if not obj or not obj.pk:
             return 'Guarde para ver grupos y estudiantes.'
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         n_est = Estudiante.objects.filter(cliente=obj).count()
         n_act = Estudiante.objects.filter(cliente=obj, activo=True).count()

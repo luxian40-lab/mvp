@@ -37,7 +37,7 @@ django.setup()
 from django.core import serializers
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 
 
 def main():

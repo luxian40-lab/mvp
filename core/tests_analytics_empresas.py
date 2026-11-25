@@ -6,7 +6,7 @@ from django.test import Client, TestCase
 
 from core.analitica.metricas_empresa import calcular_metricas_empresa
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from formulario.factories import ClienteFactory
 
 

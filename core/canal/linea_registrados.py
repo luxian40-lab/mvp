@@ -32,7 +32,7 @@ def _cliente_redis():
 
 def es_registrado(telefono: str) -> bool:
     from core.models import ProgresoEstudiante
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
     from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono or '')

@@ -88,7 +88,7 @@ def clasificar_destino(url: str) -> tuple[str, str]:
 def _etiqueta(modulo, url: str, video_id: str) -> str:
     if video_id.startswith('archivo:'):
         try:
-            from core.models_extras import ArchivoModulo
+            from core.analitica.models_extras import ArchivoModulo
 
             arch = ArchivoModulo.objects.filter(pk=int(video_id.split(':', 1)[1])).first()
             if arch and (arch.titulo or '').strip():
@@ -112,7 +112,7 @@ def identificar_video(modulo, url: str) -> tuple[str, str, str, str]:
     video_id = ''
     if modulo is not None:
         try:
-            from core.models_extras import ArchivoModulo
+            from core.analitica.models_extras import ArchivoModulo
 
             for arch in modulo.archivos_multimedia.filter(activo=True, tipo='video'):
                 candidatos = [(arch.url_externa or '').strip()]

@@ -75,7 +75,7 @@ def _org_filtro(request):
 @require_GET
 def portal_eki_ops_estudiantes(request):
     from core.models import Curso, Estudiante
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     org_id, orgs = _org_filtro(request)
     qs = Estudiante.objects.select_related('cliente').annotate(
@@ -104,7 +104,7 @@ def portal_eki_ops_estudiantes(request):
 @requiere_eki_ops
 @require_GET
 def portal_eki_ops_grupos(request):
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     org_id, orgs = _org_filtro(request)
     qs = (
@@ -128,7 +128,7 @@ def portal_eki_ops_grupos(request):
 def portal_eki_ops_campanas(request):
     """Listar / crear / lanzar campañas WhatsApp (curso) multi-org."""
     from core.models import Campana, Curso, Plantilla
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
     from core.analitica.services import encolar_ejecutar_campana
 
     org_id, orgs = _org_filtro(request)
@@ -226,7 +226,7 @@ def _validar_y_lanzar_campana(campana, encolar_fn) -> tuple[bool, str]:
 
 def _crear_campana_ops(data) -> tuple[bool, str]:
     from core.models import Campana, Cliente, Curso, Estudiante, Plantilla
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     nombre = (data.get('nombre') or '').strip()
     cliente_id = data.get('cliente_id')

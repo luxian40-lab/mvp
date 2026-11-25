@@ -7,7 +7,7 @@ from django.db.models import Count, Q
 from django.shortcuts import render
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 from portal.models import PortalUsuario
 
 

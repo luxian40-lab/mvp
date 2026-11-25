@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalFeedback, PortalUsuario
 

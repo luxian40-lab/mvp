@@ -10,7 +10,7 @@ import json
 import logging
 from twilio.rest import Client
 from django.conf import settings
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 from core.models import WhatsappLog
 from django.utils import timezone
 

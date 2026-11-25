@@ -12,7 +12,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 from ..models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
-from ..models_extras import ArchivoModulo, GrupoEstudiantes
+from core.analitica.models_extras import ArchivoModulo, GrupoEstudiantes
 
 _NPS_VACIO = {
     'nps': None,

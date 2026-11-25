@@ -154,10 +154,10 @@ class ModuleStepsModelTests(TestCase):
             'El adjunto no debe ir en un mensaje Twilio sin texto propio',
         )
 
-    @patch('core.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
+    @patch('core.analitica.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
     def test_bloque_idx1_inyecta_archivo_modulo_multimedia(self, _mock_val):
         """Regresión: modo pasos no debe olvidar la pestaña Multimedia del módulo."""
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.filter(modulo=self.mod).delete()
@@ -189,10 +189,10 @@ class ModuleStepsModelTests(TestCase):
         self.assertNotIn('Aquí tiene el material del módulo', media_bloque[0])
         self.assertEqual(msg.count('Solo texto del paso'), 1)
 
-    @patch('core.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
+    @patch('core.analitica.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
     def test_bloque_idx1_no_inyecta_multimedia_si_pasos_tienen_media(self, _mock_val):
         """Finanzas: no mezclar ArchivoModulo viejo con el video/imagen del paso."""
-        from core.models_extras import ArchivoModulo
+        from core.analitica.models_extras import ArchivoModulo
 
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.filter(modulo=self.mod).delete()

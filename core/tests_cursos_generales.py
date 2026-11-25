@@ -24,7 +24,7 @@ from core.models import (
     SandboxCanalSesion,
     SeccionModulo,
 )
-from core.models_extras import ArchivoModulo
+from core.analitica.models_extras import ArchivoModulo
 from core.sandbox_menu import (
     MODO_ASESORIA,
     MODO_CURSOS,

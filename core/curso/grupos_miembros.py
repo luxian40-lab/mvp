@@ -5,7 +5,7 @@ import re
 from typing import Iterable
 
 from core.models import Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 
 def _solo_digitos(val: str) -> str:

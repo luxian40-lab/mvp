@@ -999,7 +999,7 @@ class CertificadoAdmin(admin.ModelAdmin):
         from django.http import HttpResponse
         import io
         from django.utils import timezone
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
         
         queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
         

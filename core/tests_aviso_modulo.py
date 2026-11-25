@@ -18,7 +18,7 @@ from core.models import (
     ProgresoEstudiante,
 )
 from core.campanas.models_campana_meta import PlantillaMeta
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 PHONE = '495439026995771'
 LINEA_2 = '894379507087782'

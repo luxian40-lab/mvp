@@ -25,7 +25,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from ..models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
-from ..models_extras import ArchivoModulo, GrupoEstudiantes
+from core.analitica.models_extras import ArchivoModulo, GrupoEstudiantes
 from ..canal.envios import enviar_whatsapp, enviar_whatsapp_twilio
 from ..intent_detector import detect_intent, mensaje_indica_listo as _mensaje_indica_listo
 from ..response_templates import (

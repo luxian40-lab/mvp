@@ -241,7 +241,7 @@ def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict
     No borra el curso; actualiza por número de módulo. Reutiliza las mismas URLs S3.
     """
     from core.models import Curso, Modulo
-    from core.models_extras import ArchivoModulo
+    from core.analitica.models_extras import ArchivoModulo
 
     destino = curso_demo_riendas()
     if destino is None:
@@ -368,7 +368,7 @@ def _reset_progreso_demo(progreso, curso) -> None:
 def _enviar_modulo1_demo(dest: str, curso) -> None:
     """Manda texto + multimedia del módulo 1 para que el usuario vea el curso al instante."""
     from core.curso.inscripcion_curso import primer_modulo_curso
-    from core.models_extras import ArchivoModulo
+    from core.analitica.models_extras import ArchivoModulo
     from core.response_templates import dividir_contenido_seguro
     from core.canal.envios import enviar_whatsapp_twilio
     from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp

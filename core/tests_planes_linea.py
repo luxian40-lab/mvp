@@ -116,7 +116,7 @@ class ResolverPlanTests(TestCase):
         self.assertEqual((plan.cursos_mes, plan.preguntas_mes), (1, 60))
 
     def _grupo(self, org, nombre, plan, estudiante):
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         grupo = GrupoEstudiantes.objects.create(
             nombre=nombre, cliente=org, plan_linea_meta=plan, activo=True
@@ -161,7 +161,7 @@ class ResolverPlanTests(TestCase):
         self.assertEqual(resolver_plan('573005550103').clave, PLAN_ASESOR_60)
 
     def test_grupo_inactivo_no_cambia_el_plan_del_cliente(self):
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         org = _org('Coop', PLAN_DOS_CURSOS)
         est = Estudiante.objects.create(nombre='A', cedula='G5', telefono=self.tel, cliente=org)
@@ -200,7 +200,7 @@ class MenuPorPlanTests(TestCase):
         self.assertFalse(Estudiante.objects.filter(telefono=tel).exists())
 
     def _persona_en_grupo(self, tel, plan_grupo, plan_org=PLAN_CURSO_ASESOR):
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         org = _org(f'Org{tel[-3:]}', plan_org)
         est = Estudiante.objects.create(

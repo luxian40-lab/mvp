@@ -402,7 +402,7 @@ def _asegurar_tiempo(item: dict) -> dict:
 @transaction.atomic
 def _clonar_contenido(origen, destino) -> dict:
     from core.models import Modulo, PasoModulo, SeccionModulo
-    from core.models_extras import ArchivoModulo
+    from core.analitica.models_extras import ArchivoModulo
 
     modulos = 0
     pasos = 0

@@ -6,7 +6,7 @@ import logging
 from django.db.models import Count, Q
 
 from core.models import Estudiante, ProgresoEstudiante
-from core.models_extras import EnvioMensajePush, GrupoEstudiantes, MensajePush
+from core.analitica.models_extras import EnvioMensajePush, GrupoEstudiantes, MensajePush
 
 logger = logging.getLogger(__name__)
 

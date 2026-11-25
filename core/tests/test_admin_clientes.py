@@ -408,7 +408,7 @@ class ListadoClienteV2Tests(TestCase):
 
         from django.core.management import call_command
 
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         roto = 'Usaqu\u00c3\u00a9n'
         cliente = Cliente.objects.create(

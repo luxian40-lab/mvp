@@ -168,7 +168,7 @@ def asegurar_grupo_cohorte(cliente):
     from django.db import DatabaseError
 
     from core.models.opciones import PLAN_CURSO_ASESOR
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     grupo_id = _id_setting('EKI_AGRICAPITAL_GRUPO_ID')
     try:

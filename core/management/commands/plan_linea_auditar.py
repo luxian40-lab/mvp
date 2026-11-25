@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 
 from core.models import Cliente, Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 
 class Command(BaseCommand):

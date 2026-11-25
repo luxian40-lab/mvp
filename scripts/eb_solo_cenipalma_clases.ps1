@@ -17,7 +17,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 tel = '$digits'
 cli = Cliente.objects.filter(nombre='Cenipalma').first()

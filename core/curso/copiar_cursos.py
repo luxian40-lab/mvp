@@ -33,7 +33,7 @@ from core.models import (
     PreguntaModulo,
     SeccionModulo,
 )
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 # Cliente origen por defecto: Alitic (no confundir con Analytics Pruebas).
 CLIENTE_ORIGEN_NOMBRE = 'Alitic'

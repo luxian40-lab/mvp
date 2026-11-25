@@ -10,7 +10,7 @@ from core.gamificacion.modo import (
     ranking_calificaciones_cliente,
 )
 from core.models import Curso, Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 
 def _grupo_para_ranking(estudiante: Estudiante, curso: Curso | None = None) -> GrupoEstudiantes | None:

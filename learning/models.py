@@ -9,7 +9,7 @@ from core.models import (
     ResultadoExamen as _ResultadoExamen,
 )
 from core.analitica.models_audit import AuditLog as _AuditLog
-from core.models_extras import PQRS as _PQRS
+from core.analitica.models_extras import PQRS as _PQRS
 from core.gamificacion import (
     Badge as _Badge,
     BadgeEstudiante as _BadgeEstudiante,

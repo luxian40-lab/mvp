@@ -157,7 +157,7 @@ def etiquetas_plan_pagina(estudiantes) -> dict:
     from django.db.models import Q
 
     from core.models import SandboxCanalSesion
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     cortas = {
         'curso_asesor': 'OP1',
@@ -2157,7 +2157,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                 SolicitudSoporte, Certificado
             )
             from core.gamificacion import PerfilGamificacion, BadgeEstudiante, TransaccionPuntos
-            from core.models_extras import EnvioProgramado, PQRS, InvitacionGrupo, GrupoEstudiantes
+            from core.analitica.models_extras import EnvioProgramado, PQRS, InvitacionGrupo, GrupoEstudiantes
             from core.gamificacion.recompensas import CanjeRecompensa
             
             # Limpiar relaciones vinculadas al teléfono

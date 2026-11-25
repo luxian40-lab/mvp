@@ -11,7 +11,7 @@ from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion, r
 from core.meta_waba import ejecutar_campana_meta
 from core.models import Estudiante, SandboxCanalSesion
 from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 PHONE = '495439026995771'
 CEDULA = 'ZZNOMOSTRAR-88421'

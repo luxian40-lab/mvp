@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 
 from core.models import Cliente, Curso, Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 
 def propuesta(texto):

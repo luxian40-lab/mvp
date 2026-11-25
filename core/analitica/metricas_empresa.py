@@ -331,7 +331,7 @@ def calcular_metricas_empresa(
 ) -> dict[str, Any]:
     from core.curso.drip_schedule import modulos_para_metricas
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     desde_dt = _parse_fecha(desde)
     hasta_dt = _parse_fecha(hasta) or timezone.localdate()

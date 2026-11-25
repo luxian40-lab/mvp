@@ -91,7 +91,7 @@ def _plan_grupo(telefono: str) -> str:
 
     from django.db.models import Q
 
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
     from core.canal.utils_telefono import variantes_telefono
 
     tels = variantes_telefono(telefono) or [telefono]
@@ -317,7 +317,7 @@ def _causa_sin_plan(telefono: str) -> str:
     from django.conf import settings
 
     from core.models import Estudiante
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     if not (getattr(settings, 'LINEA_META_PLAN_DEFAULT', '') or '').strip():
         causa_default = 'sin_default'

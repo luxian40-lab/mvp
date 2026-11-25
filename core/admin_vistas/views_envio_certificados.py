@@ -23,7 +23,7 @@ from core.certificados.certificado_presencial_service import (
     resolver_twilio_content_sid,
 )
 from core.models import Cliente, Curso
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.certificados.models_certificados import PlantillaCertificado
 
 MENSAJE_PREVIO_DEFAULT = (

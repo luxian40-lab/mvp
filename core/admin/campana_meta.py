@@ -253,7 +253,7 @@ def _contexto_ficha(campana: CampanaMeta) -> dict:
     grupos = []
     if campana.pk:
         from core.models import Estudiante
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         ids_personas = list(campana.destinatarios.values_list('pk', flat=True))
         for est in Estudiante.objects.filter(pk__in=ids_personas).select_related('cliente'):
@@ -596,7 +596,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         return JsonResponse({'resultados': filas})
 
     def buscar_grupos_view(self, request):
-        from core.models_extras import GrupoEstudiantes
+        from core.analitica.models_extras import GrupoEstudiantes
 
         q = (request.GET.get('q') or '').strip()
         cliente = (request.GET.get('cliente') or '').strip()

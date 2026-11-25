@@ -19,7 +19,7 @@ from core.lineas.registro_agricapital import (
 )
 from core.lineas.registro_guardar import guardar_registro
 from core.models import Cliente, Curso, Estudiante, Modulo
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.canal.sandbox_canal import salida_por_phone_id
 
 PHONE = '1477762615411333'

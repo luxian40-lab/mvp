@@ -9,7 +9,7 @@ from django.shortcuts import redirect, render
 
 from core.campanas.mensajes_push import enviar_push_a_estudiantes
 from core.models import Cliente, Curso, Estudiante
-from core.models_extras import GrupoEstudiantes, MensajePush
+from core.analitica.models_extras import GrupoEstudiantes, MensajePush
 
 
 def _cliente_desde_request(request) -> Cliente | None:

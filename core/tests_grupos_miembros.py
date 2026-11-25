@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from core.admin.grupos import EMOJI_GRUPO
 from core.models import Cliente, Estudiante
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 from core.curso.grupos_miembros import (
     agregar_miembros_por_identificadores,
     parsear_lineas_identificadores,

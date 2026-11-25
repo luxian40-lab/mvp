@@ -236,7 +236,7 @@ def exportar_metricas_csv(request):
 def api_grupos_por_empresa(request):
     """Lista grupos con al menos un estudiante para la empresa (cliente_id)."""
     from core.models import Estudiante
-    from core.models_extras import GrupoEstudiantes
+    from core.analitica.models_extras import GrupoEstudiantes
 
     cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
     if not cliente_id or not str(cliente_id).isdigit():

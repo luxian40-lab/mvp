@@ -12,7 +12,7 @@ from django.db import transaction
 
 from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
 from core.models import Cliente, Curso, Estudiante, Modulo
-from core.models_extras import GrupoEstudiantes
+from core.analitica.models_extras import GrupoEstudiantes
 
 CLIENTE_NOMBRE = 'Cenipalma'
 CURSO_WA_1 = 'Cenipalma WA — Curso 1'
