@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from core.avance_whatsapp import MODO_AVANCE_BOTON
-from core.copiar_cursos import ClienteOrigenNoEncontrado, copiar_cursos_a_pruebas
+from core.curso.copiar_cursos import ClienteOrigenNoEncontrado, copiar_cursos_a_pruebas
 from core.models import Cliente, Curso
 
 

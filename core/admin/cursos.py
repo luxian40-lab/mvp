@@ -1008,7 +1008,7 @@ class CursoAdmin(admin.ModelAdmin):
 
     @admin.action(description='📋 Copiar a Analytics (Pruebas) — legacy')
     def copiar_a_analytics_pruebas(self, request, queryset):
-        from core.copiar_cursos import (
+        from core.curso.copiar_cursos import (
             CLIENTE_ORIGEN_NOMBRE,
             ClienteOrigenNoEncontrado,
             copiar_cursos_a_pruebas,

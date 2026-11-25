@@ -1,7 +1,7 @@
-"""CLI: copia Analytics → Analytics (Pruebas). Ver core.copiar_cursos."""
+"""CLI: copia Analytics → Analytics (Pruebas). Ver core.curso.copiar_cursos."""
 from django.core.management.base import BaseCommand, CommandError
 
-from core.copiar_cursos import (
+from core.curso.copiar_cursos import (
     CLIENTE_ORIGEN_NOMBRE,
     ClienteOrigenNoEncontrado,
     copiar_cursos_a_pruebas,

@@ -1,7 +1,7 @@
-"""Tests core.copiar_cursos — Alitic → Analytics (Pruebas)."""
+"""Tests core.curso.copiar_cursos — Alitic → Analytics (Pruebas)."""
 from django.test import TestCase
 
-from core.copiar_cursos import (
+from core.curso.copiar_cursos import (
     ClienteOrigenNoEncontrado,
     copiar_cursos_a_pruebas,
     obtener_cliente_analytics_origen,

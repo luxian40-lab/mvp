@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.copiar_cursos import copiar_cursos_a_cliente
+from core.curso.copiar_cursos import copiar_cursos_a_cliente
 from core.models import Cliente, Curso
 
 

@@ -686,7 +686,7 @@ class ClienteAdmin(admin.ModelAdmin):
 
     @admin.action(description='📋 Copiar todos los cursos → Analytics (Pruebas)')
     def copiar_todos_cursos_a_analytics_pruebas(self, request, queryset):
-        from core.copiar_cursos import (
+        from core.curso.copiar_cursos import (
             ClienteOrigenNoEncontrado,
             copiar_cursos_a_pruebas,
             obtener_cliente_analytics_origen,

@@ -5,7 +5,7 @@ Estructura completa (módulos, preguntas, secciones, pasos, exámenes, drip, met
 Sin estudiantes ni progreso.
 
 Uso desde código:
-    from core.copiar_cursos import copiar_cursos_a_pruebas
+    from core.curso.copiar_cursos import copiar_cursos_a_pruebas
 
     resultado = copiar_cursos_a_pruebas(reset=True)
     resultado = copiar_cursos_a_pruebas(solo_curso_id=12)

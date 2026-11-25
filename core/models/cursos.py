@@ -291,8 +291,8 @@ class Curso(models.Model):
         return self.modulos.count()
 
     def copiar_a_analytics_pruebas(self, reset: bool = False):
-        """Copia este curso al cliente Analytics (Pruebas). Ver ``core.copiar_cursos``."""
-        from core.copiar_cursos import copiar_cursos_a_pruebas
+        """Copia este curso al cliente Analytics (Pruebas). Ver ``core.curso.copiar_cursos``."""
+        from core.curso.copiar_cursos import copiar_cursos_a_pruebas
 
         return copiar_cursos_a_pruebas(solo_curso_id=self.pk, reset=reset)
 

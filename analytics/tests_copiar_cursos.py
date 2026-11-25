@@ -1,7 +1,7 @@
 """Tests comando copiar_cursos."""
 from django.test import TestCase
 
-from core.copiar_cursos import copiar_cursos_a_pruebas
+from core.curso.copiar_cursos import copiar_cursos_a_pruebas
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
 
 
