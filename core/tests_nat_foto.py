@@ -262,7 +262,7 @@ def test_webhook_foto_entrada_y_foto_producto(
 ):
     """Cubre: foto entrada (visión) + foto producto al recomendar."""
     from core.bot_comercial import webhook as wh
-    from core.nat_router import NatRoutingDecision
+    from core.agentes.nat_router import NatRoutingDecision
 
     fake_routing = NatRoutingDecision(
         modo='catalogo',
@@ -307,7 +307,7 @@ def test_webhook_foto_entrada_y_foto_producto(
     mock_send_wh.return_value = {'success': True, 'mensaje_id': 'SMx'}
     mock_send_foto.return_value = {'success': True, 'mensaje_id': 'SMfoto'}
 
-    with patch('core.nat_router.decidir_routing_nat', return_value=fake_routing):
+    with patch('core.agentes.nat_router.decidir_routing_nat', return_value=fake_routing):
         with patch.object(wh, '_bot_comercial_respuesta_catalogo', mock_catalogo):
             wh._procesar_bot_comercial_twilio_webhook({
                 'From': 'whatsapp:573001112233',

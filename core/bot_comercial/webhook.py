@@ -562,7 +562,7 @@ def _bot_comercial_respuesta_catalogo(
 
     try:
         from core.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
-        from core.nat_router import decidir_routing_nat
+        from core.agentes.nat_router import decidir_routing_nat
         from core.openai_compat import cliente_openai
         import time
         inicio = time.time()
@@ -1271,7 +1271,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                         else contexto_precios_db
                     )
 
-                from core.nat_router import decidir_routing_nat
+                from core.agentes.nat_router import decidir_routing_nat
                 from core.nati import org_tiene_catalogo_productos
 
                 routing = decidir_routing_nat(

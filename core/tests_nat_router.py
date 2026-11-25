@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase, override_settings
 
-from core.nat_router import decidir_routing_nat, evaluar_calidad_rag
+from core.agentes.nat_router import decidir_routing_nat, evaluar_calidad_rag
 
 
 class NatRouterTests(SimpleTestCase):
@@ -90,7 +90,7 @@ class NatRouterTests(SimpleTestCase):
 
     @override_settings(BOT_COMERCIAL_RAG_MIN_SIMILARITY=0.52)
     def test_filtrar_chunks_por_similitud(self):
-        from core.nat_router import filtrar_chunks_por_similitud
+        from core.agentes.nat_router import filtrar_chunks_por_similitud
         out = filtrar_chunks_por_similitud([
             {'similitud': 0.4, 'fuente': 'ruido'},
             {'similitud': 0.6, 'fuente': 'util'},

@@ -162,7 +162,7 @@ def run() -> None:
             SECURE_SSL_REDIRECT=False,
         ):
             from core.bot_comercial import webhook as wh
-            from core.nat_router import NatRoutingDecision
+            from core.agentes.nat_router import NatRoutingDecision
 
             fake_routing = NatRoutingDecision(
                 modo='catalogo',
@@ -173,7 +173,7 @@ def run() -> None:
             )
             with patch('core.agentes.nat_diagnostico.siguiente_pregunta_diagnostico', return_value=None):
                 with patch.object(wh, '_bot_comercial_respuesta_catalogo', return_value=respuesta_llm):
-                    with patch('core.nat_router.decidir_routing_nat', return_value=fake_routing):
+                    with patch('core.agentes.nat_router.decidir_routing_nat', return_value=fake_routing):
                         with patch.object(
                             wh, 'enviar_whatsapp_twilio',
                             return_value={'success': True, 'mensaje_id': 'SMmancha'},
