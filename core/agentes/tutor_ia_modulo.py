@@ -14,7 +14,7 @@ from core.curso.facilitador_perfil import (
     system_prompt_evaluacion_para_curso,
     system_prompt_reto_para_curso,
 )
-from core.rag_uso import USO_CLAUDIA, USO_COMPANERO
+from core.agentes.rag_uso import USO_CLAUDIA, USO_COMPANERO
 
 logger = logging.getLogger(__name__)
 

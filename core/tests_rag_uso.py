@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from core.models import Cliente, Curso, DocumentoRAG, Modulo
-from core.rag_uso import (
+from core.agentes.rag_uso import (
     USO_CLAUDIA,
     USO_COMPANERO,
     USO_TODOS,

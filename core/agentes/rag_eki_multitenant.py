@@ -293,7 +293,7 @@ class RAGClienteCurso:
         en Python para no perder chunks viejos sin metadata `uso`.
         """
         try:
-            from core.rag_uso import filtrar_chunks_por_uso, normalizar_uso
+            from core.agentes.rag_uso import filtrar_chunks_por_uso, normalizar_uso
 
             count = self.collection.count()
             if count == 0:
