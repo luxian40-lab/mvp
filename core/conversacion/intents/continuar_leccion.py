@@ -901,7 +901,7 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
 
     try:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import marcar_recordatorio_respondido, registrar_evento
+        from core.analitica.telemetria import marcar_recordatorio_respondido, registrar_evento
 
         prog0 = (
             ProgresoEstudiante.objects.filter(estudiante=estudiante, completado=False)

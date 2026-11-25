@@ -182,7 +182,7 @@ def calcular_scores_riesgo(
         wa = wa_stats.get(eid) or {}
         # Preferir telemetría explícita de recordatorios; fallback WhatsApp heurístico.
         try:
-            from core.telemetria import recordatorios_ignorados_estudiante
+            from core.analitica.telemetria import recordatorios_ignorados_estudiante
 
             ignorados_tel = recordatorios_ignorados_estudiante(eid)
         except Exception:
@@ -364,7 +364,7 @@ def mapa_abandono_modulos(progreso_qs, curso) -> list[dict[str, Any]]:
 def mapa_abandono_pasos(progreso_qs, curso) -> list[dict[str, Any]]:
     """Mapa fino por paso (requiere telemetría)."""
     try:
-        from core.telemetria import mapa_abandono_por_paso
+        from core.analitica.telemetria import mapa_abandono_por_paso
 
         return mapa_abandono_por_paso(progreso_qs, curso)
     except Exception:

@@ -717,7 +717,7 @@ def entregar_bloque_secciones_desde_paso(
     # Telemetría Centro de Éxito (no debe romper la entrega).
     try:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+        from core.analitica.telemetria import registrar_evento
 
         est = progreso.estudiante
         if idx == 1:
@@ -1058,7 +1058,7 @@ def procesar_respuesta_evaluacion_paso(
 
     try:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+        from core.analitica.telemetria import registrar_evento
 
         registrar_evento(
             tipo=EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA,

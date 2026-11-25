@@ -14,7 +14,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.telemetria import (
+from core.analitica.telemetria import (
     mapa_abandono_por_paso,
     marcar_recordatorio_respondido,
     recordatorios_ignorados_estudiante,

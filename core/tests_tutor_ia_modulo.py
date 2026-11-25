@@ -183,7 +183,7 @@ class GuiaRetoIaTests(TestCase):
 
     def test_reto_no_repite_los_que_ya_recibio(self):
         from core.models import Estudiante
-        from core.telemetria import registrar_reto_planteado
+        from core.analitica.telemetria import registrar_reto_planteado
 
         est = Estudiante.objects.create(nombre='Ana', telefono='573001110098', cedula='9001110098', cliente=self.cli)
         otro = Estudiante.objects.create(nombre='Luis', telefono='573001110097', cedula='9001110097', cliente=self.cli)
@@ -196,7 +196,7 @@ class GuiaRetoIaTests(TestCase):
 
     def test_reto_respondido_cuenta_y_no_se_repite_en_la_lista(self):
         from core.models import Estudiante
-        from core.telemetria import registrar_reto_planteado, registrar_reto_respondido
+        from core.analitica.telemetria import registrar_reto_planteado, registrar_reto_respondido
 
         est = Estudiante.objects.create(nombre='Ana', telefono='573001110096', cedula='9001110096', cliente=self.cli)
         registrar_reto_planteado(est, curso=self.curso, modulo=self.m3, reto_texto='Reto de la tienda.')

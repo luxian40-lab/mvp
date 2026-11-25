@@ -149,7 +149,7 @@ def vista_previa(aviso, ahora: datetime | None = None) -> list[dict]:
 
 def _registrar_telemetria(estudiante, curso, modulo) -> None:
     from core.models import EstudianteEventoAprendizaje
-    from core.telemetria import registrar_evento
+    from core.analitica.telemetria import registrar_evento
 
     registrar_evento(
         tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,

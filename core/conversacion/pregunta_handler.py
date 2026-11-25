@@ -312,7 +312,7 @@ def validar_respuesta(estudiante, respuesta_letra):
 
     try:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+        from core.analitica.telemetria import registrar_evento
 
         registrar_evento(
             tipo=EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA,

@@ -204,7 +204,7 @@ def _enviar_uno(recordatorio, sender, progreso, ahora: datetime) -> str:
     envio.save(update_fields=['estado', 'wamid', 'respuesta'])
     if ok:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+        from core.analitica.telemetria import registrar_evento
 
         registrar_evento(
             tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,

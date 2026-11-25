@@ -16,7 +16,7 @@ def telemetria_modulo_completado(sender, instance, created, **kwargs):
         return
     try:
         from core.models import EstudianteEventoAprendizaje
-        from core.telemetria import registrar_evento
+        from core.analitica.telemetria import registrar_evento
 
         prog = instance.progreso
         est = prog.estudiante

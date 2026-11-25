@@ -167,7 +167,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
     _curso_reto = progreso.curso if progreso else None
     try:
         from core.curso.facilitador_perfil import resolver_perfil_facilitador
-        from core.telemetria import registrar_reto_respondido
+        from core.analitica.telemetria import registrar_reto_respondido
 
         registrar_reto_respondido(
             estudiante,
