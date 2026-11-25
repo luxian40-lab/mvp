@@ -206,7 +206,7 @@ def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estu
 
 def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, msg_eval, _MARCADOR_CONTINUEMOS):
     _prev_ctx = estudiante.contexto_temporal or {}
-    from core.helpers_examenes import contexto_temporal_tras_cerrar_agente
+    from core.curso.helpers_examenes import contexto_temporal_tras_cerrar_agente
     from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
     _base_ctx = contexto_limpio(_prev_ctx, contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx)) or {}

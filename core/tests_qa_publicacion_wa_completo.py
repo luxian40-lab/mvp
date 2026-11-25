@@ -6,7 +6,7 @@ Pruebas puntuales: gate, %, retos, agentes, cert cierre, campaña.
 """
 from django.test import TestCase
 
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 from core.models import (
     Campana,
     Cliente,

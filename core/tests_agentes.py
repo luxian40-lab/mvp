@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
-from core.helpers_examenes import debe_activar_checkpoint_reto_ia as debe_activar_reto
-from core.helpers_examenes import es_modulo_checkpoint_reto_ia
+from core.curso.helpers_examenes import debe_activar_checkpoint_reto_ia as debe_activar_reto
+from core.curso.helpers_examenes import es_modulo_checkpoint_reto_ia
 
 
 class ActivacionAgentesRetoTests(SimpleTestCase):

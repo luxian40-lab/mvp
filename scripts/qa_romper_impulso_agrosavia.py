@@ -15,7 +15,7 @@ from core.models import (
     ProgresoEstudiante,
     WhatsappLog,
 )
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 
 CUT = timezone.now() - timedelta(days=14)
 

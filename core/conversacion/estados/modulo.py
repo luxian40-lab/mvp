@@ -92,7 +92,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
         # Obtener progreso para avanzar al siguiente módulo
         if modulo_completado or es_pregunta_ia:
-            from core.helpers_examenes import puede_avanzar_modulo, es_modulo_checkpoint_reto_ia
+            from core.curso.helpers_examenes import puede_avanzar_modulo, es_modulo_checkpoint_reto_ia
 
             if modulo_completado:
                 progreso = modulo_completado.progreso

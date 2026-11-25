@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.multimsg import MEDIA, partir_sep
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 
 
 logger = logging.getLogger(__name__)

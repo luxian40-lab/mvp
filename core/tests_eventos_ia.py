@@ -16,7 +16,7 @@ from core.eventos_ia import (
     get_or_create_trace_id,
     set_trace_id,
 )
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 from core.models import EventoIA, Modulo
 
 

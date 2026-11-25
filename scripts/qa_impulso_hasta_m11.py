@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 from core.models import (
     Curso,
     Estudiante,

@@ -1,7 +1,7 @@
 """Publicación WA: gate runtime, porcentajes, retos, campaña."""
 from django.test import TestCase, override_settings
 
-from core.helpers_examenes import evaluar_checkpoint_reto_ia
+from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 from core.models import (
     Cliente,
     Curso,

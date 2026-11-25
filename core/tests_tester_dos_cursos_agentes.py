@@ -10,7 +10,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.flujo_whatsapp_b2b import armar_menu_seleccion_cursos, tiene_varios_cursos_activos
-from core.helpers_examenes import contexto_temporal_tras_cerrar_agente
+from core.curso.helpers_examenes import contexto_temporal_tras_cerrar_agente
 from core.models import (
     Cliente,
     Curso,

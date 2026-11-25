@@ -4,7 +4,7 @@ Registro de bounded contexts — mapa Parte 0 de la hoja de ruta CTO.
 | Dominio              | Responsabilidad                                      | Apps / módulos actuales              |
 |----------------------|------------------------------------------------------|--------------------------------------|
 | core                 | Identidad, clientes, estudiantes, admin base         | core.models, core.views              |
-| learning             | Cursos, módulos, progreso, checkpoints, certificados | core.helpers_examenes, drip, tutor   |
+| learning             | Cursos, módulos, progreso, checkpoints, certificados | core.curso.helpers_examenes, drip, tutor   |
 | agents_edu           | Darío, Claudia, facilitadora, tutor módulo           | core.agentes_ia, core.tutor_ia_modulo|
 | agents_commercial    | Nat, RAG comercial, prospectos                       | core.nati, core.rag_comercial_*      |
 | analytics            | KPIs, semáforos, reportes B2B, métricas empresa/Nat  | core.metricas_empresa, dashboard   |

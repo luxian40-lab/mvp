@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from core.helpers_examenes import contexto_temporal_tras_cerrar_agente
+from core.curso.helpers_examenes import contexto_temporal_tras_cerrar_agente
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.response_templates import get_response_for_intent
 
