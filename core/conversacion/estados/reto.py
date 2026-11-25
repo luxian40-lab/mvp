@@ -215,7 +215,7 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
     # No adelantar modulo_actual hasta que desbloquee el siguiente módulo.
     if progreso:
         modulo_cerrado = progreso.modulo_actual
-        from core.modulo_publicacion import (
+        from core.curso.modulo_publicacion import (
             mensaje_bloqueo_sin_siguiente_publicado,
             siguiente_modulo_publicado_wa,
         )

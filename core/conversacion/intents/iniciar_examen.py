@@ -23,7 +23,7 @@ def responder(intent, nombre_usuario, kwargs):
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
     
     # Verificar que haya completado todos los módulos
-    from core.modulo_publicacion import modulos_publicados_wa_qs, total_modulos_publicados_wa
+    from core.curso.modulo_publicacion import modulos_publicados_wa_qs, total_modulos_publicados_wa
 
     total_modulos = total_modulos_publicados_wa(progreso.curso)
     pub_ids = set(modulos_publicados_wa_qs(progreso.curso).values_list('id', flat=True))

@@ -14,7 +14,7 @@ from django.db.models import Count, Q
 
 from core.analitica.nps_cierre import nps_nota_cierre
 from core.lineas.modelo import LineaWhatsapp
-from core.modulo_publicacion import modulos_publicados_wa_qs
+from core.curso.modulo_publicacion import modulos_publicados_wa_qs
 from core.models import Curso, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
 from portal.analitica_universo import ids_estudiantes_analitica
 

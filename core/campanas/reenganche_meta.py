@@ -111,7 +111,7 @@ def candidatos_en(fecha):
     """Progresos cuyo siguiente módulo se desbloquea en esa fecha calendario local."""
     from core.drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
     from core.models import ProgresoEstudiante
-    from core.modulo_publicacion import siguiente_modulo_publicado_wa
+    from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
 
     queryset = ProgresoEstudiante.objects.select_related(
         'estudiante', 'curso', 'modulo_actual',

@@ -389,7 +389,7 @@ class LecturaEntregaVersionadaTests(TestCase):
 
     @override_settings(EKI_CURSO_VERSIONES=True)
     def test_siguiente_modulo_respeta_snap_no_modulo_nuevo_vivo(self):
-        from core.modulo_publicacion import siguiente_modulo_publicado_wa
+        from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
         from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 
         curso = Curso.objects.create(nombre='Avance snap', descripcion='d')

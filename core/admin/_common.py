@@ -328,7 +328,7 @@ class CursoListoCampanaFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        from core.modulo_publicacion import cursos_listos_para_campana_ids, curso_listo_para_campana_wa
+        from core.curso.modulo_publicacion import cursos_listos_para_campana_ids, curso_listo_para_campana_wa
 
         val = self.value()
         if not val:

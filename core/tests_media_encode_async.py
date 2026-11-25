@@ -11,7 +11,7 @@ from core.curso.media_encode_async import (
     estado_encode_paso,
     media_encode_paso_key,
 )
-from core.modulo_publicacion import estado_media_paso
+from core.curso.modulo_publicacion import estado_media_paso
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 
 

@@ -10,7 +10,7 @@ from core.curso.facilitador_perfil import (
     system_prompt_reto_para_curso,
 )
 from core.models import Cliente, Curso, Modulo
-from core.modulo_publicacion import resumen_tope_avance_wa
+from core.curso.modulo_publicacion import resumen_tope_avance_wa
 from core.prompts_tecnicoagro import PERFIL_CLAUDIA, PERFIL_TECNICOAGRO, PROMPT_TECNICOAGRO
 from core.tutor_ia_modulo import PROMPT_FACILITADOR_RETO, generar_reto_facilitador
 

@@ -19,7 +19,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     curso_listo_para_campana_wa,
     mensaje_bloqueo_sin_siguiente_publicado,
     numeros_cierre_curso_publicados,

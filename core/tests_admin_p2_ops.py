@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import Campana, Cliente, Curso, Modulo, ModuloPublicacionEvent, ProgresoEstudiante
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     campanas_programadas_con_borradores,
     cursos_listos_para_campana_ids,
     diff_snapshots,

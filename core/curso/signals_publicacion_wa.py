@@ -10,7 +10,7 @@ def modulo_borrador_slack_curso_activo(sender, instance, created, **kwargs):
     if not created:
         return
     try:
-        from core.modulo_publicacion import notificar_borrador_curso_activo
+        from core.curso.modulo_publicacion import notificar_borrador_curso_activo
 
         notificar_borrador_curso_activo(instance)
     except Exception:

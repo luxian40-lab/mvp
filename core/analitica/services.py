@@ -22,7 +22,7 @@ def ejecutar_campana_servicio(campana):
         logger.critical('campana_omitida_token_invalido id=%s', getattr(campana, 'pk', None))
         return {'total': 0, 'exitosos': 0, 'fallidos': 0, 'omitidos_token': 1}
     if getattr(campana, 'es_campana_curso', False) and getattr(campana, 'curso_destino', None):
-        from core.modulo_publicacion import curso_listo_para_campana_wa
+        from core.curso.modulo_publicacion import curso_listo_para_campana_wa
 
         ok, msg = curso_listo_para_campana_wa(campana.curso_destino)
         if not ok:

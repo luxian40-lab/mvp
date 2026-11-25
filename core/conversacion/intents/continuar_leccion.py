@@ -634,7 +634,7 @@ def _cerrar_modulo_listo(usa_pasos, _n_pasos, progreso, modulo_actual, ModuloCom
     perfil.refresh_from_db()
     subio_nivel = perfil.nivel > nivel_antes
 
-    from core.modulo_publicacion import (
+    from core.curso.modulo_publicacion import (
         mensaje_bloqueo_sin_siguiente_publicado,
         siguiente_modulo_publicado_wa,
         total_modulos_publicados_wa,
@@ -1348,7 +1348,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         perfil.refresh_from_db()
         subio_nivel = perfil.nivel > nivel_antes
 
-        from core.modulo_publicacion import (
+        from core.curso.modulo_publicacion import (
             mensaje_bloqueo_sin_siguiente_publicado,
             siguiente_modulo_publicado_wa,
             total_modulos_publicados_wa,

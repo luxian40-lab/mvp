@@ -36,7 +36,7 @@ def _avg_avance_pct() -> float:
     from collections import defaultdict
 
     from core.models import Curso, ModuloCompletado
-    from core.modulo_publicacion import modulos_publicados_wa_qs
+    from core.curso.modulo_publicacion import modulos_publicados_wa_qs
 
     qs = list(
         ProgresoEstudiante.objects.filter(curso_id__isnull=False)
@@ -898,7 +898,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         pass
 
     try:
-        from core.modulo_publicacion import campanas_programadas_con_borradores
+        from core.curso.modulo_publicacion import campanas_programadas_con_borradores
 
         for item in campanas_programadas_con_borradores()[:5]:
             fp = item['fecha_programada']

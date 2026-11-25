@@ -44,7 +44,7 @@ def cumple_reglas_diploma(progreso) -> tuple[bool, str | None]:
         return False, 'pregunta_abierta_pendiente'
 
     from core.models import ModuloCompletado, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
-    from core.modulo_publicacion import modulos_publicados_wa_qs
+    from core.curso.modulo_publicacion import modulos_publicados_wa_qs
 
     publicados = list(modulos_publicados_wa_qs(curso).order_by('numero', 'id'))
     if publicados:

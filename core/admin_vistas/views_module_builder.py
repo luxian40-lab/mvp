@@ -541,7 +541,7 @@ def module_builder_view(request, modulo_id: int):
 
     arbol, huerfanos = arbol_modulo(modulo, incluir_inactivos=True)
     diag = diagnostico_estructura(modulo)
-    from core.modulo_publicacion import listar_problemas_media_modulo
+    from core.curso.modulo_publicacion import listar_problemas_media_modulo
 
     media_problemas = listar_problemas_media_modulo(modulo)
     publicar_url = reverse('admin:core_modulo_publicar', args=[modulo.pk])

@@ -131,7 +131,7 @@ def arbol_modulo(modulo, *, incluir_inactivos: bool = True) -> tuple[list[dict],
     huerfanos = []
     for p in pasos:
         p.preview_kind = media_preview_kind(p.media_url or '')
-        from core.modulo_publicacion import detalle_problema_media_paso, estado_upload_ui_paso
+        from core.curso.modulo_publicacion import detalle_problema_media_paso, estado_upload_ui_paso
 
         p.media_problema = detalle_problema_media_paso(p)
         p.media_upload_ui = estado_upload_ui_paso(p)

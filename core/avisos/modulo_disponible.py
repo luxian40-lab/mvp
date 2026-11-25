@@ -76,7 +76,7 @@ def variables_aviso(plantilla, nombre: str, modulo_titulo: str, curso_nombre: st
 
 
 def _anterior(curso, modulo):
-    from core.modulo_publicacion import modulos_publicados_wa
+    from core.curso.modulo_publicacion import modulos_publicados_wa
 
     publicados = modulos_publicados_wa(curso)
     ids = [m.pk for m in publicados]

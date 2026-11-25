@@ -12,7 +12,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     curso_listo_para_campana_wa,
     mensaje_bloqueo_sin_siguiente_publicado,
     publicar_modulo_wa,
@@ -165,7 +165,7 @@ class ModuloPublicacionGateRuntimeTests(TestCase):
 
     def test_no_salta_m3_si_m2_borrador(self):
         """Regresión: no avanzar a M3 publicado mientras M2 sigue en borrador."""
-        from core.modulo_publicacion import siguiente_modulo_publicado_wa
+        from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
 
         self.assertIsNone(siguiente_modulo_publicado_wa(self.curso, self.m1))
 
@@ -267,7 +267,7 @@ class ChecklistPasosYEncodeTests(TestCase):
         self.sec = SeccionModulo.objects.create(modulo=self.mod, orden=1, titulo='S1')
 
     def test_pasos_inactivos_no_alcanzan_aunque_haya_contenido(self):
-        from core.modulo_publicacion import evaluar_checklist_publicacion_detalle
+        from core.curso.modulo_publicacion import evaluar_checklist_publicacion_detalle
 
         PasoModulo.objects.create(
             modulo=self.mod,
@@ -285,7 +285,7 @@ class ChecklistPasosYEncodeTests(TestCase):
         from django.core.cache import cache
 
         from core.curso.media_encode_async import media_encode_paso_key
-        from core.modulo_publicacion import publicar_modulo_wa
+        from core.curso.modulo_publicacion import publicar_modulo_wa
 
         paso = PasoModulo.objects.create(
             modulo=self.mod,

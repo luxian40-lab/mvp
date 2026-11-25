@@ -6,7 +6,7 @@ from typing import Any
 
 from django.db.models import Q
 
-from core.modulo_publicacion import _head_url_ok
+from core.curso.modulo_publicacion import _head_url_ok
 from core.models import Curso, Modulo, PasoModulo
 
 _MEDIA_EXT = ('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.jpg', '.jpeg', '.png', '.pdf', '.webp')

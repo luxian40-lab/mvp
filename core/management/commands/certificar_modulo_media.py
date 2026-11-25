@@ -7,7 +7,7 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 
 from core.models import Modulo
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     evaluar_checklist_publicacion_detalle,
     listar_problemas_media_modulo,
     validar_modulo_qa,

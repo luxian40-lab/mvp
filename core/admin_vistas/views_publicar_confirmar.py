@@ -15,7 +15,7 @@ from core.models import Modulo
 @staff_member_required
 @require_http_methods(['GET', 'POST'])
 def publicar_confirmar_view(request, modulo_id: int, contexto_admin=None):
-    from core.modulo_publicacion import (
+    from core.curso.modulo_publicacion import (
         evaluar_checklist_publicacion_detalle,
         publicar_modulo_wa,
     )

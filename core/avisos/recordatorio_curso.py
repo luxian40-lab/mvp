@@ -97,7 +97,7 @@ def _modulo_titulo(progreso) -> str:
 def disponible_desde(progreso, ahora: datetime):
     """(True, desde) si tiene contenido para avanzar; (False, None) si espera el calendario o no hay más."""
     from core.drip_schedule import estudiante_autorizado_en_modulo, habilitado_desde_efectivo
-    from core.modulo_publicacion import siguiente_modulo_publicado_wa
+    from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
 
     estudiante = progreso.estudiante
     actual = progreso.modulo_actual

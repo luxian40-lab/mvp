@@ -1,7 +1,7 @@
 """Diagnóstico explícito de media WA por paso en módulo."""
 from django.test import TestCase
 
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     detalle_problema_media_paso,
     evaluar_checklist_publicacion_detalle,
     listar_problemas_media_modulo,

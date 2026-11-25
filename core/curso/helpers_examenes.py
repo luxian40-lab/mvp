@@ -74,7 +74,7 @@ def obtener_siguiente_modulo(estudiante, curso):
         curso=curso
     )
     
-    from core.modulo_publicacion import modulos_publicados_wa_qs
+    from core.curso.modulo_publicacion import modulos_publicados_wa_qs
 
     # Si no tiene módulo actual, retornar el primero publicado
     if not progreso.modulo_actual:
@@ -414,7 +414,7 @@ def numero_cierre_de_regla(modulo, total_modulos: int) -> int:
     if curso is None and not getattr(modulo, 'curso_id', None):
         return int(total_modulos or 0)
     try:
-        from core.modulo_publicacion import modulos_publicados_wa_qs
+        from core.curso.modulo_publicacion import modulos_publicados_wa_qs
         if curso is None:
             from core.models import Curso
             curso = Curso.objects.filter(pk=modulo.curso_id).first()

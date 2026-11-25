@@ -24,7 +24,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.modulo_publicacion import (
+from core.curso.modulo_publicacion import (
     evaluar_checklist_publicacion_detalle,
     listar_problemas_media_modulo,
     publicar_modulo_wa,

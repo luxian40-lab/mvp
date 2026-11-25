@@ -52,7 +52,7 @@ def fecha_desbloqueo_drip(fecha_ultimo_avance, dias_espera: int):
 def _siguiente_modulo_orden(curso, modulo_actual, progreso=None) -> Modulo | None:
     if modulo_actual is None or curso is None:
         return None
-    from core.modulo_publicacion import siguiente_modulo_publicado_wa
+    from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
 
     return siguiente_modulo_publicado_wa(curso, modulo_actual, progreso=progreso)
 
@@ -272,7 +272,7 @@ def modulos_para_metricas(
     - usar_drip_calendario: excluye módulos cuya habilitado_desde aún no llega.
     - Solo módulos publicados WA (cursos modo clases: todos).
     """
-    from core.modulo_publicacion import modulos_publicados_wa
+    from core.curso.modulo_publicacion import modulos_publicados_wa
 
     mods = modulos_publicados_wa(curso)
     if modulo_hasta_numero is not None:

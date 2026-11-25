@@ -20,7 +20,7 @@ def texto_topes() -> str:
 
 def _motivo_omision(paso) -> str:
     from core.curso.media_encode_async import estado_encode_paso
-    from core.modulo_publicacion import detalle_problema_media_paso
+    from core.curso.modulo_publicacion import detalle_problema_media_paso
 
     url = (getattr(paso, 'media_url', None) or '').strip()
     if not url:

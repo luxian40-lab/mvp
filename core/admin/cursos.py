@@ -479,7 +479,7 @@ class CursoAdmin(admin.ModelAdmin):
     cliente_nombre.short_description = "Organización"
 
     def tope_whatsapp_resumen(self, obj):
-        from core.modulo_publicacion import resumen_tope_avance_wa
+        from core.curso.modulo_publicacion import resumen_tope_avance_wa
 
         if not obj or not obj.pk:
             return 'Guarde el curso y cree módulos para ver el tope WA.'
@@ -547,7 +547,7 @@ class CursoAdmin(admin.ModelAdmin):
 
     @admin.action(description='Publicar módulos listos (checklist OK)')
     def publicar_modulos_seleccionados(self, request, queryset):
-        from core.modulo_publicacion import publicar_modulos_bulk
+        from core.curso.modulo_publicacion import publicar_modulos_bulk
 
         total = 0
         errores: list[str] = []
@@ -566,7 +566,7 @@ class CursoAdmin(admin.ModelAdmin):
             messages.info(request, 'No había módulos borrador listos para publicar.')
 
     def publicar_modulos_curso_view(self, request, curso_id):
-        from core.modulo_publicacion import publicar_modulos_bulk
+        from core.curso.modulo_publicacion import publicar_modulos_bulk
 
         curso = Curso.objects.filter(pk=curso_id).first()
         if not curso:
@@ -607,7 +607,7 @@ class CursoAdmin(admin.ModelAdmin):
                 curso=obj,
                 completado=True,
             ).count()
-            from core.modulo_publicacion import resumen_publicacion_curso, total_modulos_publicados_wa
+            from core.curso.modulo_publicacion import resumen_publicacion_curso, total_modulos_publicados_wa
 
             extra_context['eki_curso_stats'] = {
                 'modulos': obj.modulos.count(),
@@ -1881,7 +1881,7 @@ class PasoModuloInline(admin.StackedInline):
 
     @admin.display(description='Media WA')
     def media_wa_semaforo(self, obj):
-        from core.modulo_publicacion import detalle_problema_media_paso, estado_media_paso
+        from core.curso.modulo_publicacion import detalle_problema_media_paso, estado_media_paso
 
         if not obj or not obj.pk:
             return '—'
@@ -2215,7 +2215,7 @@ class ModuloAdmin(admin.ModelAdmin):
         )
 
     def publicar_modulo_view(self, request, modulo_id):
-        from core.modulo_publicacion import (
+        from core.curso.modulo_publicacion import (
             evaluar_checklist_publicacion_detalle,
             publicar_modulo_wa,
         )
@@ -2291,7 +2291,7 @@ class ModuloAdmin(admin.ModelAdmin):
         )
 
     def validar_qa_modulo_view(self, request, modulo_id):
-        from core.modulo_publicacion import (
+        from core.curso.modulo_publicacion import (
             snapshot_modulo_publicacion,
             validar_modulo_qa,
         )
@@ -2381,7 +2381,7 @@ class ModuloAdmin(admin.ModelAdmin):
                 modulo=obj,
                 activo=True,
             ).count()
-            from core.modulo_publicacion import (
+            from core.curso.modulo_publicacion import (
                 evaluar_checklist_publicacion_detalle,
                 listar_problemas_media_modulo,
             )

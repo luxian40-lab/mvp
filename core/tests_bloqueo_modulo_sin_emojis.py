@@ -7,7 +7,7 @@ from core.drip_schedule import (
     format_mensaje_bloqueo_calendario_modulo,
     format_mensaje_bloqueo_drip,
 )
-from core.modulo_publicacion import format_mensaje_bloqueo_contenido_pendiente
+from core.curso.modulo_publicacion import format_mensaje_bloqueo_contenido_pendiente
 from core.tutor_ia_modulo import limpiar_emojis
 
 
