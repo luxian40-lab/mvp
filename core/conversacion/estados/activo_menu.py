@@ -24,7 +24,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     
     # Detectar "Necesito ayuda" / PQRS / Soporte (todo unificado)
     elif msg_lower in ['3', 'necesito ayuda', 'ayuda', '🙋‍♂️ necesito ayuda', 'pqrs', 'soporte', 'queja', 'reclamo', 'solicitud']:
-        from core.security_handler import procesar_solicitud_soporte
+        from core.conversacion.security_handler import procesar_solicitud_soporte
         respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'menu_ayuda')
         try:
             from core.lineas.salida_turno import enviar_respuesta_turno

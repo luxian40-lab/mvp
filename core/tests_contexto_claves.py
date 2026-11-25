@@ -180,7 +180,7 @@ class IaEmpaticaTests(ConCursoTestCase):
         self.est.save()
 
     def _pedir_ayuda_y_seguir(self, segundo):
-        from core.security_handler import interceptar_mensaje
+        from core.conversacion.security_handler import interceptar_mensaje
 
         self._con_contexto(curso_activo_id=self.curso.id, tipo='reto_facilitador')
         with patch('core.agentes.ia_empatica.responder_con_empatia', return_value='Tranquilo, vamos paso a paso.'):
@@ -188,7 +188,7 @@ class IaEmpaticaTests(ConCursoTestCase):
         ctx = self._contexto()
         self.assertEqual(ctx['tipo'], 'post_ia_empatica')
         self.assertEqual((ctx['cert_envio_pendiente'], ctx['curso_activo_id']), (CERT, self.curso.id))
-        with patch('core.security_handler.procesar_solicitud_soporte', return_value='Le escribe un humano.'):
+        with patch('core.conversacion.security_handler.procesar_solicitud_soporte', return_value='Le escribe un humano.'):
             interceptar_mensaje(self.est, segundo)
         return self._contexto()
 

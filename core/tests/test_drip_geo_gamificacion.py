@@ -20,7 +20,7 @@ from core.models import (
 from core.curso.drip_schedule import dias_espera_efectivos
 from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
 from core.response_templates import get_response_for_intent, _generar_completado_final
-from core.security_handler import _url_politica_datos_cliente
+from core.conversacion.security_handler import _url_politica_datos_cliente
 from core.selector_curso import continuar_curso_seleccionado, cursos_visibles_para_estudiante
 from core.views import _haversine_metros, _procesar_ubicacion_empleabilidad
 

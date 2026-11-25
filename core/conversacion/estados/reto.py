@@ -50,7 +50,7 @@ def manejar(contexto: Contexto) -> Respuesta:
 
     msg_lower = msg_body.strip().lower()
     if msg_lower in ['ayuda', 'soporte', 'ticket']:
-        from core.security_handler import procesar_solicitud_soporte
+        from core.conversacion.security_handler import procesar_solicitud_soporte
         texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
     elif _reto_respuesta_no_califica(msg_body):
         # Cortas / ayuda / duda de media: no reciben nota (todas las líneas).

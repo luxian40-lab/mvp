@@ -27,7 +27,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
             if resultado_tpl.get('success'):
                 return CORTAR
 
-            from core.security_handler import _url_politica_datos_cliente
+            from core.conversacion.security_handler import _url_politica_datos_cliente
             url_politica = _url_politica_datos_cliente(estudiante=estudiante)
             texto_respuesta = (
                 "👋 *¡Bienvenido a eki!*\n\n"

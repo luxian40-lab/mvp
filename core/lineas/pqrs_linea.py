@@ -27,7 +27,7 @@ def respuesta_en_puerta(estudiante, msg_body, msg_from, telefono_limpio) -> bool
             pedagogia_tiene_prioridad,
             respuesta_ayuda_con_ticket_abierto,
         )
-        from core.security_handler import procesar_solicitud_soporte
+        from core.conversacion.security_handler import procesar_solicitud_soporte
 
         resp = None
         if not pedagogia_tiene_prioridad(estudiante):

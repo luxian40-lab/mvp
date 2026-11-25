@@ -262,7 +262,7 @@ class MenuLegadoTests(_Base):
 
     def test_pqrs_durante_un_agente_abre_soporte(self):
         self._est(estado_onboarding='esperando_respuesta_asistente')
-        with patch('core.security_handler.procesar_solicitud_soporte', return_value='TICKET_OK') as soporte:
+        with patch('core.conversacion.security_handler.procesar_solicitud_soporte', return_value='TICKET_OK') as soporte:
             cli = self._post('pqrs', 'SM_tr_ml_pqrs')
         self.assertEqual(soporte.call_args.args[1:], ('pqrs', 'menu_ayuda'))
         self.assertEqual(self._cuerpos(cli), ['TICKET_OK'])
