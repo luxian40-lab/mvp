@@ -194,7 +194,7 @@ def _fila_codigo(raw: str):
 def _cupo_agotado(ip: str | None, estudiante_id: int | None) -> bool:
     """True si este fallo ya no debe seguir adivinando. Un OTP válido no pasa por aquí."""
     from core.locks import telefono_hash
-    from core.rate_limit import hit
+    from core.conversacion.rate_limit import hit
 
     prefijo = _aula_prefijo()
     ventana = _aula_int('AULA_LOGIN_VENTANA_SEG', 600)
