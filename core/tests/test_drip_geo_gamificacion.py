@@ -313,7 +313,7 @@ class DripGeoGamificacionTests(TestCase):
 		self.assertEqual(progreso.modulo_actual_id, m5.id)
 		self.assertTrue(ModuloCompletado.objects.filter(progreso=progreso, modulo=m4).exists())
 
-	@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
+	@patch('core.analitica.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 	def test_geogamificacion_respuesta_cercana(self):
 		estudiante = self._crear_estudiante('12')
 		aliado = AliadoEmpleabilidad.objects.create(
@@ -391,7 +391,7 @@ class DripGeoGamificacionTests(TestCase):
 		twilio.assert_not_called()
 		texto.assert_not_called()
 
-	@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
+	@patch('core.analitica.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 	def test_proximidad_bloqueada_por_cliente_fuera_de_ventana(self):
 		cliente = Cliente.objects.create(
 			nombre='Cliente Sin Ventana',

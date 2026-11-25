@@ -50,7 +50,7 @@ AGENTES = {
 def agente_de(estado_onboarding):
     """Handler de la cadena de agentes, o None para la rama por defecto del cuerpo."""
     if estado_onboarding == 'esperando_codigo_empleabilidad':
-        from core.empleabilidad_pausa import empleabilidad_en_pausa
+        from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
         if empleabilidad_en_pausa():
             return None

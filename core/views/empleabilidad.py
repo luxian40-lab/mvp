@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from .ventana_drip import _cliente_en_ventana
 
 def _cliente_habilita_proximidad(cliente):
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
     # PAUSA: radar/empleabilidad territorial fuera de circulación.
     if empleabilidad_en_pausa():
@@ -34,7 +34,7 @@ def _haversine_metros(lat1, lon1, lat2, lon2):
 
 def _activar_radar_empleabilidad_si_aplica(estudiante):
     from django.db.models import Q
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
     from ..models import AliadoEmpleabilidad
 
     # PAUSA PRODUCTO: no desbloquear radar Subachoque.
@@ -63,7 +63,7 @@ def _activar_radar_empleabilidad_si_aplica(estudiante):
 
 def _radar_msg_si_aplica(estudiante):
     """Copy de radar solo si la pausa está off y hay aliados. No envía Subachoque en pausa."""
-    from core.empleabilidad_pausa import mensaje_radar_desbloqueado
+    from core.analitica.empleabilidad_pausa import mensaje_radar_desbloqueado
 
     if not _activar_radar_empleabilidad_si_aplica(estudiante):
         return ''
@@ -75,7 +75,7 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     Guarda aliado objetivo en contexto para validación de código secreto.
     """
     from django.db.models import Q
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
     from ..models import AliadoEmpleabilidad, MisionEmpleabilidad
 
     # PAUSA PRODUCTO: no crear misiones ni pedir código de aliado.

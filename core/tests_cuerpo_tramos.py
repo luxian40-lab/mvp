@@ -119,7 +119,7 @@ class IntercepcionesTests(_Base):
 
     def test_ubicacion_con_empleabilidad_en_pausa_y_sin_texto_no_responde(self):
         self._est()
-        with patch('core.empleabilidad_pausa.empleabilidad_en_pausa', return_value=True):
+        with patch('core.analitica.empleabilidad_pausa.empleabilidad_en_pausa', return_value=True):
             cli = self._post('', 'SM_tr_ubicacion', Latitude='4.6', Longitude='-74.1')
         cli.messages.create.assert_not_called()
 

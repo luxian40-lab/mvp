@@ -42,7 +42,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         'esperando_seleccion_curso',
         'curso_finalizado',
     })
-    from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_estados
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_estados
     if not _emp_pausa_estados():
         _ESTADOS_AGENTE_NO_FORZAR = _ESTADOS_AGENTE_NO_FORZAR | {
             'esperando_codigo_empleabilidad',

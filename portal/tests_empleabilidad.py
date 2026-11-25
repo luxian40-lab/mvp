@@ -22,7 +22,7 @@ from portal.models import PortalUsuario
 
 
 class PortalEmpleabilidadModuloTests(TestCase):
-    @patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
+    @patch('core.analitica.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
     def test_modulo_empleabilidad_desde_portal_productos(self):
         c = Cliente.objects.create(
             nombre='Org Emp',
@@ -51,7 +51,7 @@ class PortalEmpleabilidadModuloTests(TestCase):
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
-@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
+@patch('core.analitica.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 class PortalEmpleabilidadVistaTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(

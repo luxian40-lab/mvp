@@ -12,7 +12,7 @@ MODULOS_VALIDOS = frozenset({'cursos', 'gei', 'nat', 'empleabilidad'})
 def _empleabilidad_portal_pausada() -> bool:
     """Radar/empleabilidad territorial pausado a nivel producto."""
     try:
-        from core.empleabilidad_pausa import empleabilidad_en_pausa
+        from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
         return empleabilidad_en_pausa()
     except Exception:

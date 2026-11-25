@@ -97,8 +97,8 @@ def test_empleabilidad_en_pausa_cae_a_la_rama_por_defecto():
 
     from core.conversacion.estados import despacho, empleabilidad
 
-    with patch('core.empleabilidad_pausa.empleabilidad_en_pausa', return_value=True):
+    with patch('core.analitica.empleabilidad_pausa.empleabilidad_en_pausa', return_value=True):
         assert despacho.agente_de('esperando_codigo_empleabilidad') is None
-    with patch('core.empleabilidad_pausa.empleabilidad_en_pausa', return_value=False):
+    with patch('core.analitica.empleabilidad_pausa.empleabilidad_en_pausa', return_value=False):
         assert despacho.agente_de('esperando_codigo_empleabilidad') is empleabilidad.manejar
     assert despacho.agente_de('completado') is None

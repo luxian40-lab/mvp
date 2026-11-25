@@ -30,7 +30,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
         'esperando_nota_cierre',                     # Nota 1 a 10 antes del certificado
     ]
-    from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_gate
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_gate
     # Radar: código de aliado (no gate *listo*) — pausado no intercepta.
     if not _emp_pausa_gate():
         estados_agente.append('esperando_codigo_empleabilidad')

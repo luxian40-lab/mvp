@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from core.empleabilidad_pausa import (
+from core.analitica.empleabilidad_pausa import (
     EKI_EMPLEABILIDAD_PAUSADA,
     MENSAJE_RADAR_DESBLOQUEADO,
     empleabilidad_en_pausa,
@@ -31,7 +31,7 @@ class EmpleabilidadPausaFlagTests(TestCase):
         self.assertEqual(mensaje_radar_desbloqueado(), '')
 
     def test_reactivar_devuelve_copy_historico(self):
-        with patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False):
+        with patch('core.analitica.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False):
             self.assertFalse(empleabilidad_en_pausa())
             self.assertIn('Radar de Empleos', mensaje_radar_desbloqueado())
             self.assertIn('Subachoque', MENSAJE_RADAR_DESBLOQUEADO)

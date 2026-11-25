@@ -159,7 +159,7 @@ def _cliente_habilita_pregunta_abierta_final(cliente):
 
 
 def _cliente_habilita_proximidad(cliente):
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
     if empleabilidad_en_pausa():
         return False
@@ -319,7 +319,7 @@ def _generar_completado_final(estudiante, curso_id):
         msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
     
     # Post-certificate cutoff — radar pausado: no Subachoque.
-    from core.empleabilidad_pausa import empleabilidad_en_pausa, mensaje_radar_desbloqueado
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa, mensaje_radar_desbloqueado
 
     estudiante.estado_onboarding = 'curso_finalizado'
     ctx = estudiante.contexto_temporal or {}

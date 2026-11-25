@@ -160,7 +160,7 @@ def api_estudiante_siguiente_tarea(request, telefono):
 
 def _empleabilidad_pausada_json():
     """Respuesta común cuando el radar/empleabilidad está pausado."""
-    from core.empleabilidad_pausa import empleabilidad_en_pausa
+    from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
     if not empleabilidad_en_pausa():
         return None

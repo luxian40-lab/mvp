@@ -18,7 +18,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     post_data = contexto.locales['post_data']
     telefono_limpio = contexto.telefono_limpio
     try:
-        from core.empleabilidad_pausa import liberar_estado_empleabilidad_si_pausada
+        from core.analitica.empleabilidad_pausa import liberar_estado_empleabilidad_si_pausada
 
         liberar_estado_empleabilidad_si_pausada(estudiante)
     except Exception:
@@ -72,7 +72,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     # Ubicación de WhatsApp (Twilio): Latitude/Longitude
     # PAUSA: radar/empleabilidad no consume el pin (no Subachoque).
     if latitud_raw is not None and longitud_raw is not None:
-        from core.empleabilidad_pausa import empleabilidad_en_pausa
+        from core.analitica.empleabilidad_pausa import empleabilidad_en_pausa
 
         if empleabilidad_en_pausa():
             logger.info(
