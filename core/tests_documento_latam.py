@@ -6,7 +6,7 @@ from core.analitica.documento_identidad import (
     normalizar_numero_documento,
     normalizar_tipo_documento,
 )
-from core.form_externo_service import _buscar_por_cedula
+from core.analitica.form_externo_service import _buscar_por_cedula
 from core.models import Cliente, Estudiante
 from core.canal.utils_telefono import normalizar_telefono
 
