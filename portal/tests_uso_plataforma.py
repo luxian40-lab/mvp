@@ -59,15 +59,6 @@ class UsoPlataformaTests(TestCase):
             fecha_inicio=timezone.localdate(),
             emitido=True,
         )
-        t0 = ahora - timedelta(minutes=10)
-        entra = WhatsappLog.objects.create(
-            telefono=self.ana.telefono, mensaje='hola', tipo='INCOMING', estudiante=self.ana,
-        )
-        sale = WhatsappLog.objects.create(
-            telefono=self.ana.telefono, mensaje='sigo', tipo='SENT', estudiante=self.ana,
-        )
-        WhatsappLog.objects.filter(pk=entra.pk).update(fecha=t0)
-        WhatsappLog.objects.filter(pk=sale.pk).update(fecha=t0 + timedelta(seconds=120))
         reciente = WhatsappLog.objects.create(
             telefono=self.eva.telefono, mensaje='sigo', tipo='INCOMING', estudiante=self.eva,
         )
@@ -119,32 +110,32 @@ class UsoPlataformaTests(TestCase):
             data = uso_plataforma(self.org)
         self.assertEqual(data['registrados'], 5)
         self.assertEqual(data['certificados'], 1)
-        self.assertEqual(data['finalizacion_n'], 1)
 
     def test_cajas_con_definicion_real(self):
         data = uso_plataforma(self.org)
         self.assertEqual(data['registrados'], 5)
         self.assertEqual(data['en_curso'], 3)
         self.assertEqual(data['certificados'], 1)
-        self.assertEqual(data['abandono_pct'], 20.0)
-        self.assertEqual(data['abandono_n'], 1)
-        self.assertEqual(data['finalizacion_pct'], 20.0)
-        self.assertEqual(data['finalizacion_n'], 1)
-        # Activos del mes = en curso ∩ actividad del mes (Ana y Eva; Caro ya terminó).
+        self.assertEqual(data['no_inicio_pct'], 20.0)
+        self.assertEqual(data['no_inicio_n'], 1)
+        # Beto en curso sin actividad reciente (40 días) → abandono 2 semanas.
+        # Ana activa, Eva activa por WA, Beto frío → 1 de 3.
+        self.assertEqual(data['abandono_2s_n'], 1)
+        self.assertEqual(data['abandono_2s_base'], 3)
+        self.assertEqual(data['abandono_2s_pct'], round(100 / 3, 1))
         self.assertEqual(data['activos_mes'], 2)
-        self.assertEqual(data['respuesta'], '2 min')
+        # Retorno sobre histórico de curso: Beto y Eva tenían actividad >30d; Eva volvió.
         self.assertEqual(data['retorno_pct'], 50.0)
         self.assertEqual(data['retorno_n'], 1)
         self.assertEqual(data['retorno_base'], 2)
         self.assertEqual(data['uso_pct'], 60.0)
         self.assertEqual(len(data['serie_activos']), 6)
         self.assertEqual(data['serie_abandonos'][-1]['valor'], 1)
-        # La serie sigue midiendo actividad del mes; la caja Activos filtra a en curso.
         self.assertEqual(data['serie_activos'][-1]['valor'], 3)
+        self.assertNotIn('respuesta', data)
+        self.assertNotIn('finalizacion_pct', data)
 
     def test_sin_registrados_no_inventa_porcentaje(self):
-        from core.models import Cliente
-
         vacia = Cliente.objects.create(
             nombre='Vacia',
             contacto_principal='B',
@@ -154,13 +145,12 @@ class UsoPlataformaTests(TestCase):
         )
         data = uso_plataforma(vacia)
         self.assertEqual(data['registrados'], 0)
-        self.assertIsNone(data['abandono_pct'])
-        self.assertIsNone(data['finalizacion_pct'])
+        self.assertIsNone(data['no_inicio_pct'])
+        self.assertIsNone(data['abandono_2s_pct'])
         self.assertIsNone(data['retorno_pct'])
         self.assertIsNone(data['uso_pct'])
-        self.assertIsNone(data['respuesta'])
 
-    def test_pagina_muestra_menu_y_nueve_cajas(self):
+    def test_pagina_muestra_menu_y_cajas(self):
         user = User.objects.create_user('uso_admin', 'u@t.com', 'pass')
         PortalUsuario.objects.create(user=user, organizacion=self.org, rol='admin')
         http = Client()
@@ -169,38 +159,21 @@ class UsoPlataformaTests(TestCase):
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
         self.assertIn('id="analitica-sub"', html)
-        self.assertIn('analitica-toggle', html)
-        self.assertNotIn('ana-burger', html)
         self.assertIn('Uso de plataforma', html)
-        self.assertIn('Desarrollo de habilidades', html)
-        self.assertIn('>Retención</a>', html)
-        self.assertIn('>Impacto</a>', html)
-        self.assertNotIn('>Centro de éxito</a>', html)
         for etiqueta in (
-            'Registrados', 'En curso', 'Certificados', 'Tasa de abandono',
-            'Tasa de finalización', 'Activos este mes', 'Tiempo de respuesta',
-            'Tasa de retorno', 'Uso del producto',
+            'Registrados', 'En curso', 'Certificados', 'Tasa de no inicio',
+            'Tasa de abandono 2 semanas', 'Activos este mes',
+            'Tasa de retorno', 'Uso del producto', 'Uso de agentes',
+            'Tasa de inicio', 'Culminación sobre iniciadores', 'Culminación sobre aceptantes',
         ):
             self.assertIn(etiqueta, html)
+        self.assertNotIn('Tasa de finalización', html)
+        self.assertNotIn('Tiempo de respuesta', html)
         self.assertIn('>Activos<', html)
-        self.assertIn('>Abandonos<', html)
-        self.assertIn('>Uso<', html)
         self.assertIn('20.0%', html)
-        self.assertIn('2 min', html)
+        self.assertIn('/portal/analitica/nps/', html)
         hab = http.get('/portal/analitica/?s=habilidades')
         self.assertEqual(hab.status_code, 200)
         cuerpo = hab.content.decode()
         self.assertIn('id="ana-habilidades"', cuerpo)
         self.assertIn('id="ana-uso" aria-labelledby="ana-uso-title" hidden', cuerpo)
-        self.assertIn('Desarrollo de habilidades', cuerpo)
-        impacto = http.get('/portal/analitica/?s=impacto')
-        self.assertEqual(impacto.status_code, 200)
-        limpio = impacto.content.decode()
-        self.assertIn('id="ana-impacto"', limpio)
-        self.assertIn('id="ana-uso" aria-labelledby="ana-uso-title" hidden', limpio)
-        self.assertIn('Impacto.', limpio)
-        self.assertIn('Alcance inclusivo', limpio)
-        self.assertIn('S1', limpio)
-        self.assertNotIn('Power skills', limpio)
-        self.assertIn('<section id="ana-impacto"', limpio)
-        self.assertNotIn('id="ana-impacto" hidden', limpio)

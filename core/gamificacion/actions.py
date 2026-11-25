@@ -290,24 +290,25 @@ def obtener_ranking_global(limite=10):
 
 def obtener_posicion_estudiante(estudiante):
     """
-    Obtiene la posición del estudiante en el ranking
-    
-    Args:
-        estudiante: Instancia de Estudiante
-    
-    Returns:
-        int: Posición en el ranking (1-indexed)
+    Posición del estudiante en el ranking de su organización (1-indexed).
+
+    Antes se comparaba contra todos los perfiles del sistema y el # del portal
+    quedaba lejos de la realidad de la org.
     """
     try:
         perfil = PerfilGamificacion.objects.get(estudiante=estudiante)
-        posicion = PerfilGamificacion.objects.filter(
-            puntos_totales__gt=perfil.puntos_totales
-        ).count() + 1
-        
-        # Actualizar posición en el perfil
+        cliente_id = estudiante.cliente_id
+        qs = PerfilGamificacion.objects.filter(
+            puntos_totales__gt=perfil.puntos_totales,
+            estudiante__activo=True,
+        )
+        if cliente_id:
+            qs = qs.filter(estudiante__cliente_id=cliente_id)
+        posicion = qs.count() + 1
+
         perfil.posicion_ranking = posicion
         perfil.save(update_fields=['posicion_ranking'])
-        
+
         return posicion
     except PerfilGamificacion.DoesNotExist:
         return 0

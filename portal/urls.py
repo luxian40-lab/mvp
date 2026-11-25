@@ -83,6 +83,7 @@ urlpatterns = [
     path('reportes/', views.portal_reportes, name='portal_reportes'),
     path('estudiantes/<int:estudiante_id>/', views.estudiante_detalle, name='portal_estudiante_detalle'),
     path('analitica/', views.portal_analitica, name='portal_analitica'),
+    path('analitica/nps/', views.portal_analitica_nps, name='portal_analitica_nps'),
     path('analitica/cursos/', views.portal_analitica_cursos, name='portal_analitica_cursos'),
     path(
         'analitica/cursos/<int:curso_id>/',

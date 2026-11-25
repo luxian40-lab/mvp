@@ -28,7 +28,9 @@
   grid-template-columns: 1.2fr 1fr;
   gap: 14px;
   margin: 22px 0 18px;
+  align-items: stretch;
 }
+.home-top > .home-card { height: 100%; min-height: 180px; box-sizing: border-box; }
 @media (max-width: 720px) { .home-top { grid-template-columns: 1fr; } }
 .home-map-card { padding: 12px; }
 .home-map-card__head {
@@ -78,12 +80,15 @@ html[data-theme="dark"] .home-metrics__more {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-bottom: 16px;
+  align-items: stretch;
 }
 @media (max-width: 560px) { .home-doors { grid-template-columns: 1fr; } }
 .home-door {
   position: relative;
   display: flex; flex-direction: column; justify-content: space-between;
-  min-height: 140px;
+  min-height: 148px;
+  height: 100%;
+  box-sizing: border-box;
   padding: 18px;
   border-radius: 16px;
   text-decoration: none;

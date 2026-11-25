@@ -71,17 +71,17 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(finca['inicio_pct'], 50.0)
         self.assertEqual(finca['culminacion_iniciados_pct'], 50.0)
         self.assertEqual(finca['culminacion_inscritos_pct'], 25.0)
-        # En curso solo el de un módulo cerrado (50 %); 0 % y terminado no entran.
-        self.assertEqual(finca['en_curso'], 1)
-        self.assertEqual(finca['avance_pct'], 50.0)
+        # Avance %: 0, 0, 50 y 100 → 37.5; módulo: 0, 0, 1 y 2 → 0.8
+        self.assertEqual(finca['avance_pct'], 37.5)
+        self.assertEqual(finca['avance_modulo'], 0.8)
+        self.assertEqual(finca['avance_semaforo'], 'amarillo')
         self.assertTrue(filas['Riendas']['general'])
         self.assertEqual(filas['Riendas']['inicio_pct'], 0.0)
         self.assertIsNone(filas['Riendas']['culminacion_iniciados_pct'])
-        self.assertEqual(filas['Riendas']['en_curso'], 0)
-        self.assertIsNone(filas['Riendas']['avance_pct'])
         self.assertEqual(filas['Sin gente']['inscritos'], 0)
         self.assertIsNone(filas['Sin gente']['inicio_pct'])
         self.assertIsNone(filas['Sin gente']['avance_pct'])
+        self.assertIsNone(filas['Sin gente']['avance_modulo'])
 
     def test_paso_sin_avance_no_cuenta_como_inicio(self):
         """Recibir el primer bloque (paso > 1) no es haber iniciado."""
@@ -110,24 +110,9 @@ class MetricasCursoTests(TestCase):
         self.assertEqual(total['terminaron_reg'], 1)
         self.assertEqual(total['inicio_pct'], 40.0)
         self.assertEqual(total['culminacion_inscritos_pct'], 20.0)
-        self.assertEqual(total['en_curso'], 1)
-        self.assertEqual(total['avance_pct'], 50.0)
-
-    def test_avance_promedio_solo_en_curso(self):
-        """Fichas en 0 % y cursos terminados no entran al denominador del avance."""
-        solo_puntero = ProgresoEstudiante.objects.get(
-            estudiante__telefono='573001300002', curso=self.finca,
-        )
-        ProgresoEstudiante.objects.filter(pk=solo_puntero.pk).update(
-            fecha_ultimo_avance=timezone.now(),
-        )
-        finca = {f['nombre']: f for f in metricas_cursos(self.org)['por_curso']}['Curso finca']
-        # En curso: módulo cerrado (50 %) + puntero que ahora inició (0 %) → 25.
-        self.assertEqual(finca['en_curso'], 2)
-        self.assertEqual(finca['avance_pct'], 25.0)
-        total = metricas_cursos(self.org)['total']
-        self.assertEqual(total['en_curso'], 2)
-        self.assertEqual(total['avance_pct'], 25.0)
+        self.assertEqual(total['avance_pct'], 30.0)
+        # (0+0+1+2+0) / 5 = 0.6
+        self.assertEqual(total['avance_modulo'], 0.6)
 
     def test_inicio_y_culminacion_aceptantes_sobre_registrados(self):
         """Las cajas de Uso dividen sobre personas registradas, no sobre inscripciones."""
@@ -271,19 +256,24 @@ class MetricasCursoTests(TestCase):
         for etiqueta in (
             'Tasa de inicio', 'Culminación sobre iniciadores', 'Culminación sobre aceptantes',
             'Avance promedio', 'Inicio de segundo curso', 'Curso con más inicios',
-            'Curso con mayor culminación', '>NPS<',
+            'Curso con mayor culminación', 'NPS',
         ):
             self.assertIn(etiqueta, uso)
         self.assertIn('Curso finca', uso)
         self.assertIn('1 de 2', uso)
         self.assertIn('Prioriza cursos donde ya alguien terminó.', uso)
         self.assertNotIn('Ningún curso llega a 5 iniciadores.', uso)
-        self.assertIn('Promotores 9–10, detractores 1–6.', uso)
+        self.assertIn('Tasa de no inicio', uso)
+        self.assertIn('Tasa de abandono 2 semanas', uso)
+        self.assertNotIn('Tasa de finalización', uso)
+        self.assertNotIn('Tiempo de respuesta', uso)
         self.assertNotIn('Culminación de quienes iniciaron', uso)
         self.assertNotIn('Culminación de inscritos', uso)
         self.assertIn('2 de 5', uso)
         self.assertIn('Registrados que iniciaron al menos un curso', uso)
         self.assertIn('Registrados que completaron al menos un curso', uso)
+        self.assertIn('/portal/analitica/nps/', uso)
+        self.assertIn('Módulo ', uso)
         self.assertNotIn('Ver métricas por curso', http.get('/portal/analitica/?s=impacto').content.decode())
         r = http.get('/portal/analitica/cursos/')
         self.assertEqual(r.status_code, 200)
@@ -295,4 +285,8 @@ class MetricasCursoTests(TestCase):
         self.assertIn('Culminación sobre iniciadores', html)
         self.assertIn('Culminación sobre aceptantes', html)
         self.assertIn('Sin línea asignada', html)
-        self.assertIn('fecha de avance', html)
+        self.assertIn('módulo inicial', html)
+        self.assertIn('mc-pile', html)
+        nps = http.get('/portal/analitica/nps/')
+        self.assertEqual(nps.status_code, 200)
+        self.assertIn('← Analítica', nps.content.decode())

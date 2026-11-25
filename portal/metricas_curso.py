@@ -1,22 +1,21 @@
 """Métricas por curso del portal: inicio, culminación y avance.
 
 Inscrito = fila de ProgresoEstudiante (aceptó el curso).
-Inició = tiene fecha_ultimo_avance, cerró un módulo o terminó el curso.
+Inició = empezó el módulo inicial: fecha_ultimo_avance, cerró un módulo o terminó.
 No basta con paso_actual_modulo > 1: el primer envío mueve el puntero
 sin que la persona haya avanzado.
 Terminó = progreso completado.
-En curso (inscripción) = inició y aún no terminó.
-Avance promedio = media del % de módulos cerrados solo entre inscripciones
-en curso (no diluye con fichas en 0 % ni con cursos ya terminados).
+Avance promedio = módulo promedio alcanzado (número), no porcentaje.
 Los totales se cuentan por inscripción (persona y curso), así suman lo mismo que la tabla.
 """
 from __future__ import annotations
 
-from django.db.models import Count, Q
+from django.db.models import Q
 
+from core.analitica.nps_cierre import nps_nota_cierre
 from core.lineas.modelo import LineaWhatsapp
 from core.modulo_publicacion import modulos_publicados_wa_qs
-from core.models import Curso, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
+from core.models import Curso, ModuloCompletado, ProgresoEstudiante
 from portal.analitica_universo import ids_estudiantes_analitica
 
 
@@ -33,18 +32,20 @@ def _fila(
     inscritos: int,
     iniciaron: int,
     terminaron: int,
-    suma_avance: int,
-    n_en_curso: int,
+    suma_modulos: float,
+    suma_avance_pct: int,
 ) -> dict:
+    avance_modulo = round(suma_modulos / inscritos, 1) if inscritos else None
+    avance_pct = round(suma_avance_pct / inscritos, 1) if inscritos else None
     return {
         'inscritos': inscritos,
         'iniciaron': iniciaron,
         'terminaron': terminaron,
-        'en_curso': n_en_curso,
         'inicio_pct': _pct(iniciaron, inscritos),
         'culminacion_iniciados_pct': _pct(terminaron, iniciaron),
         'culminacion_inscritos_pct': _pct(terminaron, inscritos),
-        'avance_pct': round(suma_avance / n_en_curso, 1) if n_en_curso else None,
+        'avance_modulo': avance_modulo,
+        'avance_pct': avance_pct,
     }
 
 
@@ -96,62 +97,96 @@ def _destacados(por_curso: list[dict]) -> dict:
     }
 
 
+def _semaforo(pct) -> str:
+    if pct is None:
+        return 'gris'
+    if pct >= 70:
+        return 'verde'
+    if pct >= 35:
+        return 'amarillo'
+    return 'rojo'
+
+
 def metricas_cursos(org) -> dict:
     """Totales, una fila por curso y los cursos agrupados por línea de WhatsApp."""
     ids_universo = ids_estudiantes_analitica(org)
     progresos = list(
         ProgresoEstudiante.objects.filter(
             estudiante_id__in=ids_universo,
-        ).values_list(
+        ).select_related('modulo_actual').values_list(
             'id',
             'estudiante_id',
             'curso_id',
             'completado',
             'fecha_ultimo_avance',
+            'modulo_actual__numero',
         )
     ) if ids_universo else []
-    ids_curso = {curso_id for _, _, curso_id, _, _ in progresos}
+    ids_curso = {curso_id for _, _, curso_id, _, _, _ in progresos}
     cursos = list(
         Curso.objects.filter(Q(id__in=ids_curso) | Q(cliente=org, activo=True))
         .order_by('orden', 'nombre')
     )
 
     publicados = {
-        curso.id: set(modulos_publicados_wa_qs(curso).values_list('id', flat=True))
+        curso.id: list(
+            modulos_publicados_wa_qs(curso).order_by('numero').values_list('id', 'numero')
+        )
+        for curso in cursos
+    }
+    pub_ids = {curso.id: {mid for mid, _ in pares} for curso, pares in (
+        (c, publicados[c.id]) for c in cursos
+    )}
+    max_numero = {
+        curso.id: max((num for _, num in publicados[curso.id]), default=0)
         for curso in cursos
     }
     cerrados: dict[int, set[int]] = {}
+    max_cerrado: dict[int, int] = {}
     if ids_universo:
-        for progreso_id, modulo_id in ModuloCompletado.objects.filter(
+        for progreso_id, modulo_id, numero in ModuloCompletado.objects.filter(
             progreso__estudiante_id__in=ids_universo,
-        ).values_list('progreso_id', 'modulo_id'):
+        ).values_list('progreso_id', 'modulo_id', 'modulo__numero'):
             cerrados.setdefault(progreso_id, set()).add(modulo_id)
+            if numero is not None:
+                prev = max_cerrado.get(progreso_id, 0)
+                if int(numero) > prev:
+                    max_cerrado[progreso_id] = int(numero)
 
-    # inscritos, iniciaron, terminaron, suma_avance (solo en curso), n_en_curso
-    acumulado: dict[int, list[int]] = {curso.id: [0, 0, 0, 0, 0] for curso in cursos}
+    # inscritos, iniciaron, terminaron, suma_modulos, suma_avance_pct
+    acumulado: dict[int, list] = {curso.id: [0, 0, 0, 0.0, 0] for curso in cursos}
     cursos_iniciados: dict[int, set[int]] = {}
     terminaron_persona: set[int] = set()
-    for progreso_id, estudiante_id, curso_id, completado, fecha_avance in progresos:
+    for progreso_id, estudiante_id, curso_id, completado, fecha_avance, num_actual in progresos:
         modulos = cerrados.get(progreso_id, set())
+        # Inicio = arrancó el módulo inicial (avance real, no solo el primer envío).
         inicio = completado or bool(modulos) or fecha_avance is not None
         if inicio:
             cursos_iniciados.setdefault(estudiante_id, set()).add(curso_id)
         if completado:
             terminaron_persona.add(estudiante_id)
-        total_modulos = len(publicados[curso_id])
+        total_modulos = len(pub_ids.get(curso_id, ()))
         if completado:
-            avance = 100
-        elif total_modulos:
-            avance = min(100, int(len(modulos & publicados[curso_id]) * 100 / total_modulos))
+            avance_pct = 100
+            modulo_alcanzado = float(max_numero.get(curso_id, 0) or total_modulos or 0)
         else:
-            avance = 0
+            if total_modulos:
+                avance_pct = min(
+                    100,
+                    int(len(modulos & pub_ids[curso_id]) * 100 / total_modulos),
+                )
+            else:
+                avance_pct = 0
+            modulo_alcanzado = float(max(
+                max_cerrado.get(progreso_id, 0),
+                int(num_actual or 0),
+            ))
         fila = acumulado[curso_id]
         fila[0] += 1
         fila[1] += int(inicio)
         fila[2] += int(completado)
-        if inicio and not completado:
-            fila[3] += avance
-            fila[4] += 1
+        fila[3] += modulo_alcanzado
+        fila[4] += avance_pct
 
     por_curso = []
     for curso in cursos:
@@ -159,11 +194,11 @@ def metricas_cursos(org) -> dict:
         datos['id'] = curso.id
         datos['nombre'] = curso.nombre
         datos['general'] = curso.cliente_id is None
+        datos['avance_semaforo'] = _semaforo(datos['avance_pct'])
         por_curso.append(datos)
 
-    # Totales por inscripción (tabla / culminación sobre iniciadores).
     total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(5)))
-    # Cajas de Uso: inicio y «culminación sobre aceptantes» van sobre registrados (personas).
+    total['avance_semaforo'] = _semaforo(total['avance_pct'])
     registrados = len(ids_universo)
     personas_iniciaron = len(cursos_iniciados)
     personas_terminaron = len(terminaron_persona)
@@ -213,25 +248,12 @@ def metricas_cursos(org) -> dict:
 
 
 def _nota_cierre(org) -> dict:
-    """NPS de la nota 1 a 10 guardada al cerrar el curso.
-
-    Promotores 9–10, pasivos 7–8, detractores 1–6.
-    NPS = porcentaje de promotores menos porcentaje de detractores.
-    """
-    ids_universo = ids_estudiantes_analitica(org)
-    if not ids_universo:
-        return {'n': 0, 'nps': None}
-    fila = NotaCierreCurso.objects.filter(
-        estudiante_id__in=ids_universo,
-    ).aggregate(
-        n=Count('id'),
-        promotores=Count('id', filter=Q(nota__gte=9)),
-        detractores=Count('id', filter=Q(nota__lte=6)),
-    )
-    n = fila['n'] or 0
-    if not n:
-        return {'n': 0, 'nps': None}
+    """NPS alineado con el Pulso admin (misma función y filtros de cliente activo)."""
+    data = nps_nota_cierre(cliente_id=org.pk, solo_activos=True)
     return {
-        'n': n,
-        'nps': round((fila['promotores'] - fila['detractores']) * 100 / n),
+        'n': data['n'],
+        'nps': data['nps'],
+        'promotores': data['promotores'],
+        'pasivos': data['pasivos'],
+        'detractores': data['detractores'],
     }

@@ -545,6 +545,8 @@ class ProgresoEstudiante(models.Model):
 
     def porcentaje_avance(self):
         """Calcula el porcentaje de avance en el curso (denominador = módulos publicados WA)."""
+        if self.completado:
+            return 100
         total_modulos = modulos_publicados_wa_qs(self.curso).count()
         if total_modulos == 0:
             return 0

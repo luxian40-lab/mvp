@@ -75,7 +75,7 @@
                 <tr{% if curso_foco == item.progreso.curso_id %} style="background: var(--surface);"{% endif %}>
                     <td>{{ item.progreso.curso.nombre }}</td>
                     <td>{{ item.estado }}</td>
-                    <td>M{{ item.max_modulo|default:"0" }}</td>
+                    <td>Módulo {{ item.max_modulo|default:"0" }}</td>
                     <td>
                         {% if item.progreso.modulo_actual %}
                             M{{ item.progreso.modulo_actual.numero }} — {{ item.progreso.modulo_actual.titulo|truncatechars:40 }}
@@ -84,7 +84,9 @@
                         {% endif %}
                     </td>
                     <td>{{ item.progreso.paso_actual_modulo }}</td>
-                    <td>{{ item.avance_pct }}%</td>
+                    <td title="Módulos cerrados sobre publicados">
+                        {% if item.progreso.completado %}100{% else %}{{ item.avance_pct }}{% endif %}%
+                    </td>
                     <td>{{ item.progreso.fecha_ultimo_avance|date:"d/m/Y H:i"|default:"—" }}</td>
                 </tr>
             {% empty %}

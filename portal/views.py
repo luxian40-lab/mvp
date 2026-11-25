@@ -1133,7 +1133,7 @@ def portal_analitica(request):
         from .impacto import impacto_nucleo
 
         impacto = impacto_nucleo(org)
-    uso_ia = uso_ia_por_persona(org) if seccion == 'habilidades' else None
+    uso_ia = uso_ia_por_persona(org) if seccion in ('uso', 'habilidades') else None
     metricas = metricas_cursos(org)
     return render(request, 'portal/analitica.html', {
         'org': org,
@@ -1150,6 +1150,27 @@ def portal_analitica(request):
         'seccion': seccion,
     })
 
+
+
+@portal_login_required
+def portal_analitica_nps(request):
+    """Listado de notas 1–10 al cerrar curso (misma base que el NPS del portal)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    from core.models import NotaCierreCurso
+
+    notas = (
+        NotaCierreCurso.objects.filter(estudiante__cliente=org, estudiante__activo=True)
+        .select_related('estudiante', 'curso')
+        .order_by('-fecha', 'estudiante__nombre')
+    )
+    metricas = metricas_cursos(org)
+    return render(request, 'portal/analitica_nps.html', {
+        'org': org,
+        'notas': notas,
+        'cursos_nota': metricas['nota_cierre'],
+    })
 
 @portal_login_required
 def portal_analitica_cursos(request):

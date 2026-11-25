@@ -1,0 +1,54 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}NPS | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>NPS</h1>
+        <p class="muted">
+            Notas 1–10 al cerrar el curso ·
+            {% if cursos_nota.nps is None %}Sin dato aún
+            {% else %}NPS {% if cursos_nota.nps > 0 %}+{% endif %}{{ cursos_nota.nps }}
+            ({{ cursos_nota.n }} nota{{ cursos_nota.n|pluralize }})
+            {% endif %}
+        </p>
+    </div>
+    <a class="btn btn-outline" href="{% url 'portal_analitica' %}">← Analítica</a>
+</div>
+
+<article class="panel" style="padding:18px;margin-bottom:20px;">
+    <p class="muted" style="margin:0;">
+        Promotores 9–10, pasivos 7–8, detractores 1–6.
+        Misma regla que el Pulso del admin.
+        {% if cursos_nota.n %}
+        Ahora: {{ cursos_nota.promotores }} promotores · {{ cursos_nota.pasivos }} pasivos · {{ cursos_nota.detractores }} detractores.
+        {% endif %}
+    </p>
+</article>
+
+<div class="panel" style="padding:8px 12px;overflow-x:auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Persona</th>
+                <th>Curso</th>
+                <th>Nota</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notas %}
+            <tr>
+                <td><a href="{% url 'portal_estudiante_detalle' n.estudiante_id %}">{{ n.estudiante.nombre }}</a></td>
+                <td>{{ n.curso.nombre }}</td>
+                <td>{{ n.nota }}</td>
+                <td>{{ n.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="muted">Todavía no hay notas de cierre en esta organización.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

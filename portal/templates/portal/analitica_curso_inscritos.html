@@ -48,6 +48,7 @@
         <h1>{{ curso.nombre }}</h1>
         <p class="muted">{{ lista.total }} aceptante{{ lista.total|pluralize:"s" }} de {{ org.nombre }}. El nombre abre el avance de esa persona en este curso.</p>
     </div>
+    <a class="btn btn-outline" href="{% url 'portal_analitica_cursos' %}">← Volver</a>
 </div>
 
 <form class="mc-buscar" method="get" action="">
