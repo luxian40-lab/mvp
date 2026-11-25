@@ -29,7 +29,7 @@ from core.models import (
     ModuloCompletado,
     WhatsappLog,
 )
-from core.services_estudiante import (
+from core.analitica.services_estudiante import (
     get_estudiante_payload,
     get_estudiante_progreso_payload,
     get_estudiante_siguiente_tarea_payload,
