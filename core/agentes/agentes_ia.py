@@ -5,7 +5,7 @@ Múltiples IAs con roles específicos para educación por WhatsApp
 
 import logging
 from core.models import Estudiante, ProgresoEstudiante
-from core.ai_assistant import get_openai_client, obtener_historial_conversacion
+from core.agentes.ai_assistant import get_openai_client, obtener_historial_conversacion
 from core.base_conocimientos import obtener_contexto_para_ia
 
 logger = logging.getLogger(__name__)

@@ -81,7 +81,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         else:
             try:
                 from core.canal.sandbox_canal import poner_reaccion_espera
-                from core.ai_assistant import responder_con_ia
+                from core.agentes.ai_assistant import responder_con_ia
 
                 poner_reaccion_espera(telefono_limpio, msg_sid)
                 texto_respuesta = responder_con_ia(msg_body, telefono_limpio)

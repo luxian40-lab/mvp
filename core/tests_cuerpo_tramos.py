@@ -305,7 +305,7 @@ class RespaldoTests(_Base):
 
     def test_sin_intent_responde_la_ia_y_descuenta_una_pregunta(self):
         est = self._est(preguntas_ia_restantes=2)
-        with patch('core.ai_assistant.responder_con_ia', return_value='IA_RESP') as ia, \
+        with patch('core.agentes.ai_assistant.responder_con_ia', return_value='IA_RESP') as ia, \
                 patch('core.canal.sandbox_canal.poner_reaccion_espera'):
             cli = self._listo('SM_tr_rs_ia', intent='desconocido')
         ia.assert_called_once_with('listo', TEL)
