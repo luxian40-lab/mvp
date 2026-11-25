@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django.utils import timezone
 from django.shortcuts import redirect
 from django.contrib import messages
-from core.exportar_respuestas_xlsx import exportar_respuestas_xlsx
+from core.analitica.exportar_respuestas_xlsx import exportar_respuestas_xlsx
 
 
 class RespuestaCampanaUnicaInline(admin.TabularInline):
