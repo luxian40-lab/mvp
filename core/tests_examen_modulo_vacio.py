@@ -181,7 +181,7 @@ class MediaNoAptaYPasosVaciosTests(TestCase):
         self.sec = SeccionModulo.objects.create(modulo=self.mod, orden=1, titulo='S1')
 
     def test_media_no_apta_no_pone_url_en_whatsapp(self):
-        from core.module_steps import partes_mensaje_paso
+        from core.curso.module_steps import partes_mensaje_paso
 
         paso = PasoModulo.objects.create(
             modulo=self.mod,
@@ -200,7 +200,7 @@ class MediaNoAptaYPasosVaciosTests(TestCase):
         self.assertIn('finanzas rurales', blob)
 
     def test_lote_salta_pasos_sin_texto_ni_media(self):
-        from core.module_steps import entregar_bloque_secciones_desde_paso
+        from core.curso.module_steps import entregar_bloque_secciones_desde_paso
 
         PasoModulo.objects.create(
             modulo=self.mod, seccion=self.sec, orden=1, contenido='Primera idea útil', activo=True,

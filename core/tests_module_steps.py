@@ -19,7 +19,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.module_steps import (
+from core.curso.module_steps import (
     modulo_tiene_pasos_activos,
     modulo_usa_pasos,
     reset_progreso_pasos_modulo,
@@ -66,7 +66,7 @@ class ModuleStepsModelTests(TestCase):
         self.assertFalse(modulo_usa_pasos(self.mod))
 
     def test_texto_legacy_vacio_si_usa_pasos(self):
-        from core.module_steps import texto_legacy_whatsapp
+        from core.curso.module_steps import texto_legacy_whatsapp
 
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(
@@ -83,7 +83,7 @@ class ModuleStepsModelTests(TestCase):
         self.assertEqual(texto_legacy_whatsapp(self.mod), '')
 
     def test_texto_legacy_devuelve_contenido_si_legacy(self):
-        from core.module_steps import texto_legacy_whatsapp
+        from core.curso.module_steps import texto_legacy_whatsapp
 
         self.mod.modo_entrega = Modulo.MODO_ENTREGA_LEGACY
         self.mod.save(update_fields=['modo_entrega'])
@@ -229,7 +229,7 @@ class ModuleStepsModelTests(TestCase):
         self.assertNotIn('cdn.example.com/VIDEOS_FINANZAS', msg)
 
     def test_recordatorio_no_redetails_el_micro(self):
-        from core.module_steps import mensaje_recordatorio_paso_actual
+        from core.curso.module_steps import mensaje_recordatorio_paso_actual
 
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.filter(modulo=self.mod).delete()
@@ -456,7 +456,7 @@ class ModuleStepsModelTests(TestCase):
 
     def test_eval_letra_correcta_usa_campo_admin_si_no_hay_textos_de_opciones(self):
         """Si solo hay correcta en JSON / campo admin, igual se valida la letra."""
-        from core.module_steps import _letra_correcta_eval_opciones
+        from core.curso.module_steps import _letra_correcta_eval_opciones
 
         s1 = _seccion(self.mod, 1)
         p = PasoModulo.objects.create(
@@ -1368,7 +1368,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
 
     def test_fin_modulo_1_con_pasos_y_eval_abcd_drip_no_bloquea_agentes(self):
         from core.models import PasoModulo
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         from core.response_templates import get_response_for_intent
 
         s1 = _seccion(self.m1, 1, 'Sección')
@@ -1418,7 +1418,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
 
     def test_sin_checkpoint_si_ia_off_drip_sigue_apegado(self):
         from core.models import PasoModulo
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         from core.response_templates import get_response_for_intent
 
         self.curso.usar_agentes_ia = False
@@ -1571,14 +1571,14 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
     def test_sin_microcontenidos_contenido_obligatorio(self):
         from django.core.exceptions import ValidationError
 
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         self.mod.contenido = ''
         with self.assertRaises(ValidationError):
             validar_contenido_modulo('', self.mod)
 
     def test_con_microcontenidos_contenido_opcional(self):
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(
@@ -1597,7 +1597,7 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
     def test_modulo_nuevo_sin_contenido_falla(self):
         from django.core.exceptions import ValidationError
 
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         nuevo = Modulo(
             curso=self.curso,
@@ -1666,7 +1666,7 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
 
     def test_formset_sin_cleaned_data_usa_pasos_en_bd(self):
         """Regresión: con micros en BD, no exigir contenido aunque el formset no limpie bien."""
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         s1 = _seccion(self.mod, 1)
         paso = PasoModulo.objects.create(
@@ -1692,7 +1692,7 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
 
     def test_formset_borrar_ultimo_paso_con_seccion_permite_vacio(self):
         """Con bloque en Estructura, borrar el último material no exige texto legacy."""
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         s1 = _seccion(self.mod, 1)
         paso = PasoModulo.objects.create(
@@ -1716,13 +1716,13 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
 
     def test_solo_seccion_sin_contenido_legacy_ok(self):
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         _seccion(self.mod, 1)
         validar_contenido_modulo('', self.mod)
 
     def test_clase_simple_en_post_sin_contenido_ok(self):
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         validar_contenido_modulo(
             '',
@@ -1731,7 +1731,7 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         )
 
     def test_seccion_nueva_en_post_sin_contenido_ok(self):
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         validar_contenido_modulo(
             '',
@@ -1788,7 +1788,7 @@ class AntiDuplicadoPostEvalPasosTests(TestCase):
         import time
 
         from core.models import PasoModulo
-        from core.module_steps import _respuesta_cola_tras_avanzar_eval_opc
+        from core.curso.module_steps import _respuesta_cola_tras_avanzar_eval_opc
 
         s1 = _seccion(self.m1, 1, 'S')
         PasoModulo.objects.create(

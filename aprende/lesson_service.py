@@ -8,7 +8,7 @@ from django.db.models import Max
 from core.curso.bloques_modulo import crear_secciones_desde_titulos, parse_titulos_bloques_rapidos
 from core.models import Curso, Modulo, SeccionModulo
 from core.models_extras import ArchivoModulo
-from core.module_steps import validar_contenido_modulo
+from core.curso.module_steps import validar_contenido_modulo
 
 
 def _infer_tipo_url(url: str) -> str:

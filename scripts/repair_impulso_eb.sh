@@ -20,7 +20,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from core.models import Curso, Estudiante, PasoModulo, WhatsappLog
-from core.module_steps import pasos_activos_qs
+from core.curso.module_steps import pasos_activos_qs
 from core.curso.media_wa_audit import _head_url_ok
 from core.twilio_media import (
     _descargar_bytes,

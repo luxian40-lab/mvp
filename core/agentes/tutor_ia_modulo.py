@@ -348,7 +348,7 @@ def _resumen_micros_modulo(modulo, limite: int = 4) -> str:
     if modulo is None:
         return ''
     try:
-        from core.module_steps import pasos_activos_qs
+        from core.curso.module_steps import pasos_activos_qs
 
         qs = pasos_activos_qs(modulo).order_by('orden', 'id')[:limite]
     except Exception:

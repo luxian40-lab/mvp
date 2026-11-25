@@ -38,7 +38,7 @@ def _motivo_omision(paso) -> str:
 
 def entrega_real_paso(paso) -> dict:
     """La misma decisión que partes_mensaje_paso: si el archivo sale o se omite."""
-    from core.module_steps import partes_mensaje_paso
+    from core.curso.module_steps import partes_mensaje_paso
 
     url = (getattr(paso, 'media_url', None) or '').strip()
     texto = (getattr(paso, 'contenido', None) or '').strip()

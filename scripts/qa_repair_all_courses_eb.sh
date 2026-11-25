@@ -20,7 +20,7 @@ django.setup()
 
 from core.curso.media_wa_audit import auditar_media_cursos, filas_a_dict
 from core.models import Curso, PasoModulo
-from core.module_steps import pasos_activos_qs
+from core.curso.module_steps import pasos_activos_qs
 from core.modulo_publicacion import _head_url_ok
 from core.twilio_media import (
     _descargar_bytes,

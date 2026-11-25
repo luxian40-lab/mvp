@@ -1502,7 +1502,7 @@ class ModuloAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from core.module_steps import cuenta_microcontenidos_modulo
+        from core.curso.module_steps import cuenta_microcontenidos_modulo
 
         # Form valida contenido con Clase/Estructura; no repetir en Modulo.clean.
         self.instance._eki_skip_contenido_model_clean = True
@@ -1693,7 +1693,7 @@ class ModuloAdminForm(forms.ModelForm):
         return cleaned
 
     def clean_contenido(self):
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         contenido = self.cleaned_data.get('contenido', '')
         if not self.instance.pk:
@@ -1729,7 +1729,7 @@ class PasoModuloInlineFormSet(BaseInlineFormSet):
 
     def clean(self):
         super().clean()
-        from core.module_steps import validar_contenido_modulo
+        from core.curso.module_steps import validar_contenido_modulo
 
         # Asegura ordenes distintos en cleaned_data (por si Unfold mandó duplicados).
         seen = set()

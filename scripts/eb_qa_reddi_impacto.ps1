@@ -11,7 +11,7 @@ from core.models import (
     Curso, Estudiante, Modulo, ModuloCompletado, PasoModulo,
     ProgresoEstudiante, WhatsappLog,
 )
-from core.module_steps import pasos_activos_qs
+from core.curso.module_steps import pasos_activos_qs
 
 CID = 52
 CUT2 = timezone.now() - timedelta(days=2)

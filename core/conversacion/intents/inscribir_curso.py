@@ -132,13 +132,13 @@ Te inscribiste en: *{curso.nombre}*
         primera_media_url_1 = video_url_modulo
 
     # Texto legacy del módulo (vacío si el módulo usa pasos internos)
-    from core.module_steps import texto_legacy_whatsapp
+    from core.curso.module_steps import texto_legacy_whatsapp
     contenido = texto_legacy_whatsapp(primer_modulo)
     chunks = dividir_contenido_seguro(contenido, max_chars=1500)
 
     modulo_header = f"📖 *{primer_modulo.numero}. {primer_modulo.titulo}*\n\n"
 
-    from core.module_steps import (
+    from core.curso.module_steps import (
         modulo_usa_pasos,
         pasos_activos_qs,
         reset_progreso_pasos_modulo,

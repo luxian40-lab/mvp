@@ -111,7 +111,7 @@ def reparar_curso_videos_wa_inactivos(curso, *, reset_progreso: bool = False) ->
     no se salte los videos que ahora van antes).
     """
     from core.models import ModuloCompletado, ProgresoEstudiante
-    from core.module_steps import reset_progreso_pasos_modulo
+    from core.curso.module_steps import reset_progreso_pasos_modulo
 
     n_pasos = 0
     mods: list[int] = []

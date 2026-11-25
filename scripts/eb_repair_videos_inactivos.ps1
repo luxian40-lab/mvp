@@ -11,7 +11,7 @@ import os, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 from core.models import PasoModulo, ProgresoEstudiante, ModuloCompletado, Curso
-from core.module_steps import reset_progreso_pasos_modulo
+from core.curso.module_steps import reset_progreso_pasos_modulo
 
 APPLY = [int(x) for x in '$applyCsv'.split(',') if x.strip()]
 

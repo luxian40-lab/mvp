@@ -110,7 +110,7 @@ def texto_reenviar_modulo(estudiante) -> str:
 
     Nunca llama a entregar_bloque_secciones_desde_paso (ese avanza paso_actual).
     """
-    from core.module_steps import (
+    from core.curso.module_steps import (
         mensaje_recordatorio_paso_actual,
         modulo_usa_pasos,
         partes_mensaje_paso,

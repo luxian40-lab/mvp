@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def responder_evaluacion_paso(estudiante, msg_body, msg_from, telefono_limpio, estado_chat) -> bool:
     if estado_chat != 'ACTIVO':
         return False
-    from core.module_steps import procesar_respuesta_evaluacion_paso
+    from core.curso.module_steps import procesar_respuesta_evaluacion_paso
 
     prog = (
         ProgresoEstudiante.objects.filter(estudiante=estudiante, completado=False)

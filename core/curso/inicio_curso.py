@@ -147,7 +147,7 @@ def _partes_sin_guardar(progreso, modulo) -> list[str]:
     from django.db import transaction
 
     from core.conversacion.multimsg import partes_multimsg
-    from core.module_steps import (
+    from core.curso.module_steps import (
         entregar_bloque_secciones_desde_paso,
         reset_progreso_pasos_modulo,
     )
@@ -163,7 +163,7 @@ def _partes_sin_guardar(progreso, modulo) -> list[str]:
 
 
 def _partes_del_modulo(progreso, modulo, *, persistir: bool = True) -> list[str]:
-    from core.module_steps import (
+    from core.curso.module_steps import (
         entregar_bloque_secciones_desde_paso,
         modulo_usa_pasos,
         pasos_activos_qs,

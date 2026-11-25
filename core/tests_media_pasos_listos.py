@@ -29,7 +29,7 @@ from core.modulo_publicacion import (
     listar_problemas_media_modulo,
     publicar_modulo_wa,
 )
-from core.module_steps import entregar_bloque_secciones_desde_paso, reset_progreso_pasos_modulo
+from core.curso.module_steps import entregar_bloque_secciones_desde_paso, reset_progreso_pasos_modulo
 
 
 VIDEO_LISTO = 'https://eki-produccion.s3.us-east-2.amazonaws.com/modulos/pasos/wa_safe/clip.mp4'

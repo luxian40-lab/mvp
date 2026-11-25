@@ -56,7 +56,7 @@ def responder(intent, nombre_usuario, kwargs):
         if falta_primera_entrega(estudiante, progreso, modulo_actual):
             return mensaje_primera_entrega(estudiante, progreso, modulo_actual)
 
-        from core.module_steps import (
+        from core.curso.module_steps import (
             modulo_usa_pasos,
             pasos_activos_qs,
             entregar_bloque_secciones_desde_paso,
@@ -99,7 +99,7 @@ def responder(intent, nombre_usuario, kwargs):
                         exc_info=True,
                     )
                     try:
-                        from core.module_steps import reset_progreso_pasos_modulo
+                        from core.curso.module_steps import reset_progreso_pasos_modulo
 
                         reset_progreso_pasos_modulo(progreso, save=True)
                         return entregar_bloque_secciones_desde_paso(
@@ -130,7 +130,7 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
         estudiante.contexto_temporal = _ctx_show or None
         estudiante.save(update_fields=['contexto_temporal'])
 
-    from core.module_steps import (
+    from core.curso.module_steps import (
         modulo_usa_pasos,
         mensaje_recordatorio_paso_actual,
         pasos_activos_qs,
@@ -473,7 +473,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
         if _msg_ficha:
             return _msg_ficha
         progreso.modulo_actual = siguiente_modulo
-        from core.module_steps import (
+        from core.curso.module_steps import (
             reset_progreso_pasos_modulo,
             modulo_usa_pasos,
             pasos_activos_qs,
@@ -529,7 +529,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
     
     # Mensaje: Siguiente módulo CON multimedia embebida
     from core.cursos.autoria.lectura_entrega import titulo_modulo_para_entrega
-    from core.module_steps import texto_legacy_whatsapp
+    from core.curso.module_steps import texto_legacy_whatsapp
     contenido_mod = texto_legacy_whatsapp(siguiente_modulo, progreso=progreso)
     chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
     _titulo_mod = titulo_modulo_para_entrega(progreso, siguiente_modulo)
@@ -721,7 +721,7 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
         if not modulo_actual:
             return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados. Contacta a soporte."
         progreso.modulo_actual = modulo_actual
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         reset_progreso_pasos_modulo(progreso, save=False)
         progreso.save()
 
@@ -739,7 +739,7 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
         and not ModuloCompletado.objects.filter(progreso=progreso, modulo=modulo_actual).exists()
     )
     if primero_listo_sin_ver_modulo:
-        from core.module_steps import (
+        from core.curso.module_steps import (
             entregar_bloque_secciones_desde_paso,
             modulo_usa_pasos,
             pasos_activos_qs,
@@ -1169,7 +1169,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         if not modulo_actual:
             return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados. Contacta a soporte."
         progreso.modulo_actual = modulo_actual
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         reset_progreso_pasos_modulo(progreso, save=False)
         progreso.save()
     
@@ -1187,7 +1187,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         and not ModuloCompletado.objects.filter(progreso=progreso, modulo=modulo_actual).exists()
     )
     if primero_listo_sin_ver_modulo:
-        from core.module_steps import (
+        from core.curso.module_steps import (
             entregar_bloque_secciones_desde_paso,
             modulo_usa_pasos,
             pasos_activos_qs,
@@ -1238,7 +1238,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         if falta_primera_entrega(estudiante, progreso, modulo_actual):
             return mensaje_primera_entrega(estudiante, progreso, modulo_actual)
 
-        from core.module_steps import (
+        from core.curso.module_steps import (
             modulo_usa_pasos,
             pasos_activos_qs,
             entregar_bloque_secciones_desde_paso,
@@ -1281,7 +1281,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         exc_info=True,
                     )
                     try:
-                        from core.module_steps import reset_progreso_pasos_modulo
+                        from core.curso.module_steps import reset_progreso_pasos_modulo
 
                         reset_progreso_pasos_modulo(progreso, save=True)
                         return entregar_bloque_secciones_desde_paso(
@@ -1435,7 +1435,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 if _msg_ficha:
                     return _msg_ficha
                 progreso.modulo_actual = siguiente_modulo
-                from core.module_steps import (
+                from core.curso.module_steps import (
                     reset_progreso_pasos_modulo,
                     modulo_usa_pasos,
                     pasos_activos_qs,
@@ -1490,7 +1490,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             # v1.9.8i: No "completado" message — just flow to next content
             
             # Mensaje: Siguiente módulo CON multimedia embebida
-            from core.module_steps import texto_legacy_whatsapp
+            from core.curso.module_steps import texto_legacy_whatsapp
             contenido_mod = texto_legacy_whatsapp(siguiente_modulo)
             chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
             modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
@@ -1701,7 +1701,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             estudiante.contexto_temporal = _ctx_show or None
             estudiante.save(update_fields=['contexto_temporal'])
 
-        from core.module_steps import (
+        from core.curso.module_steps import (
             modulo_usa_pasos,
             mensaje_recordatorio_paso_actual,
             pasos_activos_qs,

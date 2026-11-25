@@ -17,7 +17,7 @@ import django
 django.setup()
 
 from core.models import Curso, PasoModulo
-from core.module_steps import pasos_activos_qs
+from core.curso.module_steps import pasos_activos_qs
 from core.twilio_media import (
     _descargar_bytes,
     _subir_bytes_s3,

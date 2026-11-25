@@ -244,7 +244,7 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
             )
             if siguiente:
                 progreso.modulo_actual = siguiente
-                from core.module_steps import reset_progreso_pasos_modulo
+                from core.curso.module_steps import reset_progreso_pasos_modulo
                 reset_progreso_pasos_modulo(progreso, save=False)
                 progreso.save(
                     update_fields=[

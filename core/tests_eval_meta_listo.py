@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 
 from core.models import Curso, Estudiante, Modulo, PasoModulo, ProgresoEstudiante, SeccionModulo
-from core.module_steps import entregar_paso_indice, reset_progreso_pasos_modulo
+from core.curso.module_steps import entregar_paso_indice, reset_progreso_pasos_modulo
 from core.sandbox_menu import MODO_CURSOS
 
 SECRET = 'sekreto-test'

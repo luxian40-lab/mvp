@@ -83,7 +83,7 @@ def _texto_reenvio_menu(estudiante):
             modulo = curso.modulos.order_by('numero').first()
             if modulo:
                 progreso.modulo_actual = modulo
-                from core.module_steps import reset_progreso_pasos_modulo
+                from core.curso.module_steps import reset_progreso_pasos_modulo
                 reset_progreso_pasos_modulo(progreso, save=False)
                 progreso.save(
                     update_fields=[
@@ -94,7 +94,7 @@ def _texto_reenvio_menu(estudiante):
                     ]
                 )
         if modulo:
-            from core.module_steps import (
+            from core.curso.module_steps import (
                 modulo_usa_pasos,
                 mensaje_recordatorio_paso_actual,
                 pasos_activos_qs,
@@ -144,7 +144,7 @@ def _texto_reenvio_menu(estudiante):
                             archivos_msg += f"\n{icono} {archivo.titulo}"
                 if not archivos_multimedia.exists() and video_url:
                     primera_media_url = video_url
-                from core.module_steps import texto_legacy_whatsapp
+                from core.curso.module_steps import texto_legacy_whatsapp
                 msg_texto_menu = (
                     f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                     f"{texto_legacy_whatsapp(modulo)}"

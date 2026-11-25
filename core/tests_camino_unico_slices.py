@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from core.course_engine.adjuntar_pasos import adjuntar_assets_ce_a_modulo
 from core.models import Cliente, Curso, Modulo, PasoModulo, SeccionModulo
-from core.module_steps import texto_legacy_whatsapp
+from core.curso.module_steps import texto_legacy_whatsapp
 from core.modulo_publicacion import evaluar_checklist_publicacion_detalle, publicar_modulo_wa
 
 

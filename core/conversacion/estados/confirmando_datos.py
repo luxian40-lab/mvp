@@ -41,7 +41,7 @@ def manejar(contexto: Contexto) -> Respuesta:
                     modulo = curso.modulos.order_by('numero').first()
                     if modulo:
                         progreso.modulo_actual = modulo
-                        from core.module_steps import reset_progreso_pasos_modulo
+                        from core.curso.module_steps import reset_progreso_pasos_modulo
                         reset_progreso_pasos_modulo(progreso, save=False)
                         progreso.save(
                             update_fields=[
@@ -159,7 +159,7 @@ def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, par
     partes_intro.append("*Comenzamos con el primer módulo de su curso...*")
     msg_intro = "\n\n".join(partes_intro)
 
-    from core.module_steps import (
+    from core.curso.module_steps import (
         modulo_usa_pasos,
         pasos_activos_qs,
         reset_progreso_pasos_modulo,
@@ -208,7 +208,7 @@ def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, par
 
         # --- Mensaje 2: Contenido del módulo (con multimedia) ---
         from core.response_templates import dividir_contenido_seguro
-        from core.module_steps import texto_legacy_whatsapp
+        from core.curso.module_steps import texto_legacy_whatsapp
         contenido_modulo = texto_legacy_whatsapp(modulo)
         chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
         modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"

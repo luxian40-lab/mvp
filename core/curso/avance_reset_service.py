@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.db import transaction
 from django.db.models import Count
 
-from core.module_steps import pasos_activos_qs, reset_progreso_pasos_modulo
+from core.curso.module_steps import pasos_activos_qs, reset_progreso_pasos_modulo
 from core.models import (
     Curso,
     Estudiante,

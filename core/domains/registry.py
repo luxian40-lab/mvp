@@ -30,7 +30,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
         'modules': [
             'core.domains.learning.checkpoints',
             'core.drip_schedule',
-            'core.module_steps',
+            'core.curso.module_steps',
         ],
     },
     'agents_edu': {

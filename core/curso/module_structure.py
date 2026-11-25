@@ -38,7 +38,7 @@ def detectar_secciones_intercaladas(pasos: Iterable[PasoModulo]) -> list[dict]:
 
 
 def modulo_tiene_secciones_intercaladas(modulo: Modulo) -> list[dict]:
-    from core.module_steps import pasos_activos_qs
+    from core.curso.module_steps import pasos_activos_qs
 
     return detectar_secciones_intercaladas(list(pasos_activos_qs(modulo)))
 

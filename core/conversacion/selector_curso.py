@@ -103,7 +103,7 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
                 primer = c.modulos.order_by('numero').first()
                 if primer:
                     progreso_existente.modulo_actual = primer
-                    from core.module_steps import reset_progreso_pasos_modulo
+                    from core.curso.module_steps import reset_progreso_pasos_modulo
                     reset_progreso_pasos_modulo(progreso_existente, save=False)
                     progreso_existente.save(
                         update_fields=[
@@ -130,7 +130,7 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
     )
     if not progreso.modulo_actual and primer_modulo:
         progreso.modulo_actual = primer_modulo
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         reset_progreso_pasos_modulo(progreso, save=False)
         progreso.save(
             update_fields=[
@@ -248,7 +248,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         if not modulo_actual:
             return f"El curso {curso_seleccionado.nombre} no tiene módulos configurados."
         progreso.modulo_actual = modulo_actual
-        from core.module_steps import reset_progreso_pasos_modulo
+        from core.curso.module_steps import reset_progreso_pasos_modulo
         reset_progreso_pasos_modulo(progreso, save=False)
         progreso.save(
             update_fields=[
@@ -284,7 +284,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
 
         avance = progreso.porcentaje_avance()
 
-        from core.module_steps import (
+        from core.curso.module_steps import (
             modulo_usa_pasos,
             mensaje_recordatorio_paso_actual,
             pasos_activos_qs,
@@ -332,7 +332,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
                 ).exists()
             )
             if creado or nunca_recibio_material:
-                from core.module_steps import entregar_bloque_secciones_desde_paso
+                from core.curso.module_steps import entregar_bloque_secciones_desde_paso
 
                 bloque = entregar_bloque_secciones_desde_paso(
                     progreso, modulo_actual, idx_ent
@@ -396,7 +396,7 @@ Cuando termines, escribe: *"listo"*"""
             from core.avance_whatsapp import adaptar_mensaje_drip_bloqueo
             return adaptar_mensaje_drip_bloqueo(_blk_listo, estudiante)
 
-        from core.module_steps import modulo_usa_pasos
+        from core.curso.module_steps import modulo_usa_pasos
 
         if modulo_usa_pasos(modulo_actual):
             _persist_curso_foco()
@@ -436,7 +436,7 @@ Cuando termines, escribe: *"listo"*"""
                 return adaptar_mensaje_drip_bloqueo(_blk_sig, estudiante)
 
             progreso.modulo_actual = siguiente_modulo
-            from core.module_steps import reset_progreso_pasos_modulo
+            from core.curso.module_steps import reset_progreso_pasos_modulo
             reset_progreso_pasos_modulo(progreso, save=False)
             progreso.save(
                 update_fields=[
@@ -447,7 +447,7 @@ Cuando termines, escribe: *"listo"*"""
                 ]
             )
 
-            from core.module_steps import (
+            from core.curso.module_steps import (
                 modulo_usa_pasos,
                 pasos_activos_qs,
                 entregar_bloque_secciones_desde_paso,

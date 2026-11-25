@@ -263,7 +263,7 @@ class ChecklistPublicacion:
 
 
 def _modulo_tiene_material_minimo(modulo: Modulo) -> bool:
-    from core.module_steps import modulo_usa_pasos, pasos_activos_qs
+    from core.curso.module_steps import modulo_usa_pasos, pasos_activos_qs
 
     if modulo_usa_pasos(modulo):
         return pasos_activos_qs(modulo).exists()
@@ -291,7 +291,7 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
     avisos: list[str] = []
 
     if not _modulo_tiene_material_minimo(modulo):
-        from core.module_steps import modulo_usa_pasos
+        from core.curso.module_steps import modulo_usa_pasos
 
         if modulo_usa_pasos(modulo):
             errores.append(
@@ -311,7 +311,7 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
 
     from django.conf import settings as dj_settings
 
-    from core.module_steps import pasos_activos_qs
+    from core.curso.module_steps import pasos_activos_qs
 
     require_media_qa = bool(getattr(dj_settings, 'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', False))
 
@@ -584,7 +584,7 @@ def validar_modulo_qa(
     base = evaluar_checklist_publicacion_detalle(modulo)
     if modulo is None or not head_urls:
         return base
-    from core.module_steps import pasos_activos_qs
+    from core.curso.module_steps import pasos_activos_qs
 
     for paso in pasos_activos_qs(modulo):
         url = (paso.media_url or '').strip()
@@ -609,7 +609,7 @@ def validar_modulo_qa(
 def snapshot_modulo_publicacion(modulo: Modulo | None) -> dict:
     if modulo is None:
         return {}
-    from core.module_steps import pasos_activos_qs
+    from core.curso.module_steps import pasos_activos_qs
 
     pasos = []
     for p in pasos_activos_qs(modulo).order_by('orden', 'id'):

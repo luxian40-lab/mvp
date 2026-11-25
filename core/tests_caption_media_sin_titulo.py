@@ -6,7 +6,7 @@ Caso real: los pasos del curso Agrosavia se llaman «001.mp4» o «Microcontenid
 from django.test import TestCase
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
-from core.module_steps import partes_mensaje_paso
+from core.curso.module_steps import partes_mensaje_paso
 from core.response_templates import MENSAJE_CAPTION_SOLO_MEDIA
 
 URL_IMG = 'https://ejemplo.test/modulos/pasos/foto.jpg'
@@ -60,7 +60,7 @@ class CaptionMediaSinTituloTests(TestCase):
         from unittest.mock import patch
 
         from core.models import ArchivoModulo
-        from core.module_steps import partes_multimedia_modulo
+        from core.curso.module_steps import partes_multimedia_modulo
 
         with patch.object(ArchivoModulo, 'validar_url_publica', return_value=True):
             ArchivoModulo.objects.create(
