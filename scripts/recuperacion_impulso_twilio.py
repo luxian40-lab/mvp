@@ -304,7 +304,7 @@ def cmd_rollback_tres(args) -> int:
             'esperando_respuesta_evaluacion_paso', 'paso_evaluacion_paso', 'completado',
         ])
         # *Listo* debe abrir lección, no un mini-examen sin pregunta_id.
-        from core.pregunta_handler import recuperar_examen_modulo_vacio
+        from core.conversacion.pregunta_handler import recuperar_examen_modulo_vacio
 
         recuperar_examen_modulo_vacio(est)
 

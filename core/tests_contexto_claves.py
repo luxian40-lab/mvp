@@ -121,7 +121,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
         )
 
     def test_abrir_la_pregunta_conserva_el_certificado(self):
-        from core.pregunta_handler import guardar_contexto_pregunta, guardar_contexto_pregunta_rag
+        from core.conversacion.pregunta_handler import guardar_contexto_pregunta, guardar_contexto_pregunta_rag
 
         self._con_contexto(tipo='reto_facilitador', reto_texto='x')
         guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
@@ -135,7 +135,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
         self.assertNotIn('pregunta_id', ctx)
 
     def test_responder_la_pregunta_deja_solo_las_claves_de_la_persona(self):
-        from core.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
+        from core.conversacion.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
 
         self._con_contexto()
         guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
@@ -143,7 +143,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
         self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
 
     def test_respuesta_abierta_deja_solo_las_claves_de_la_persona(self):
-        from core.pregunta_handler import guardar_contexto_pregunta_rag, procesar_respuesta_abierta_ia
+        from core.conversacion.pregunta_handler import guardar_contexto_pregunta_rag, procesar_respuesta_abierta_ia
 
         self._con_contexto()
         guardar_contexto_pregunta_rag(self.est, self.mod, '¿qué aprendió?', self.progreso)
@@ -152,7 +152,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
         self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
 
     def test_salir_del_examen_vacio_conserva_las_claves(self):
-        from core.pregunta_handler import recuperar_examen_modulo_vacio
+        from core.conversacion.pregunta_handler import recuperar_examen_modulo_vacio
 
         self._con_contexto(tipo='pregunta_modulo', modulo_id=self.mod.id, curso_activo_id=self.curso.id)
         recuperar_examen_modulo_vacio(self.est)
@@ -163,7 +163,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
 
     @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=False)
     def test_apagado_se_pisa_como_siempre(self):
-        from core.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
+        from core.conversacion.pregunta_handler import guardar_contexto_pregunta, validar_respuesta
 
         self._con_contexto()
         guardar_contexto_pregunta(self.est, self.mod, self.pregunta, self.progreso)
@@ -378,7 +378,7 @@ class UltimoModuloTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_modulo'
         self.est.save()
-        with patch('core.pregunta_handler.procesar_respuesta_abierta_ia', return_value=(True, 'Bien.')):
+        with patch('core.conversacion.pregunta_handler.procesar_respuesta_abierta_ia', return_value=(True, 'Bien.')):
             modulo.manejar(Contexto(self.est, 'mediría la humedad', self.est.telefono, self.est.telefono))
         return self._contexto()
 

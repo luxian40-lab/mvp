@@ -21,7 +21,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     estudiante = contexto.estudiante
     msg_body = contexto.msg_body
     texto_respuesta = contexto.texto_respuesta
-    from core.pregunta_handler import (
+    from core.conversacion.pregunta_handler import (
         examen_modulo_sin_pregunta_pendiente,
         recuperar_examen_modulo_vacio,
     )
@@ -64,7 +64,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         )
     else:
         # Validar respuesta a pregunta de módulo
-        from core.pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
+        from core.conversacion.pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
         logger.info(f"📝 Validando respuesta a pregunta de módulo")
 
         # Verificar si la pregunta es abierta (IA) o de opciones

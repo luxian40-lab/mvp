@@ -14,7 +14,7 @@ from core.models import (
     SeccionModulo,
     WhatsappLog,
 )
-from core.pregunta_handler import (
+from core.conversacion.pregunta_handler import (
     examen_modulo_sin_pregunta_pendiente,
     recuperar_examen_modulo_vacio,
 )

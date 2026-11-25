@@ -2,7 +2,7 @@
 
 
 def responder(intent, nombre_usuario, kwargs):
-    from core.response_templates import LECCION_EN_CURSO, _VENTANA_ENTREGA_SEG, _barra_progreso, _cliente_habilita_pregunta_abierta_final, _es_mensaje_listo_avance_curso, _mensaje_pregunta_abierta_final, _retener_turno, _turno_estudiante, activar_checkpoint_facilitador, contexto_limpio, dividir_contenido_seguro, evaluar_checkpoint_reto_ia, logger, obtener_video_url, parte_mensaje_con_media, soltar_turno_entrega_actual, timezone
+    from core.conversacion.response_templates import LECCION_EN_CURSO, _VENTANA_ENTREGA_SEG, _barra_progreso, _cliente_habilita_pregunta_abierta_final, _es_mensaje_listo_avance_curso, _mensaje_pregunta_abierta_final, _retener_turno, _turno_estudiante, activar_checkpoint_facilitador, contexto_limpio, dividir_contenido_seguro, evaluar_checkpoint_reto_ia, logger, obtener_video_url, parte_mensaje_con_media, soltar_turno_entrega_actual, timezone
     from core.models import ProgresoEstudiante, ModuloCompletado
     
     estudiante_id = kwargs.get('estudiante_id')
@@ -92,7 +92,7 @@ def _avanzar_si_listo(
     if ya_completo_modulo and progreso.fecha_ultimo_avance:
         _blk = mensaje_bloqueo_avance_siguiente_modulo(estudiante, progreso, modulo_actual)
         if _blk:
-            from core.avance_whatsapp import adaptar_mensaje_drip_bloqueo
+            from core.conversacion.avance_whatsapp import adaptar_mensaje_drip_bloqueo
 
             return adaptar_mensaje_drip_bloqueo(_blk, estudiante)
 
@@ -176,7 +176,7 @@ def _avanzar_si_listo(
 def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_url, dividir_contenido_seguro, parte_mensaje_con_media):
     _ctx_show = dict(estudiante.contexto_temporal or {})
     if modulo_actual and _ctx_show.get('post_reto_entregar_modulo_id') == modulo_actual.id:
-        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+        from core.conversacion.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
 
         _ctx_show.pop('post_reto_entregar_modulo_id', None)
         _ctx_show.pop(CLAVE_ESPERA_CONTINUAR_POST_RETO, None)
@@ -298,7 +298,7 @@ def _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actua
                 getattr(modulo_actual, 'numero', None),
                 getattr(siguiente_modulo, 'numero', None),
             )
-            from core.avance_whatsapp import adaptar_mensaje_drip_bloqueo
+            from core.conversacion.avance_whatsapp import adaptar_mensaje_drip_bloqueo
             return adaptar_mensaje_drip_bloqueo(_blk_fin, estudiante)
 
         _cp_pref = getattr(modulo_actual, 'facilitador_checkpoint', None)
@@ -618,7 +618,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
         hay_media = True
     if hay_media:
         partes.append("[DELAY:5]")
-    from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+    from core.conversacion.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
 
     partes.append(
         resolver_cta_listo(estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
@@ -634,7 +634,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
 
 
 def _cerrar_modulo_listo(usa_pasos, _n_pasos, progreso, modulo_actual, ModuloCompletado, estudiante, logger, timezone, evaluar_checkpoint_reto_ia, activar_checkpoint_facilitador, _siguiente_modulo_listo, obtener_video_url, dividir_contenido_seguro, parte_mensaje_con_media, _cliente_habilita_pregunta_abierta_final, _mensaje_pregunta_abierta_final, contexto_limpio, _barra_progreso):
-    from core.pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
+    from core.conversacion.pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
 
     pasos_internos_completos = (
         usa_pasos
@@ -725,7 +725,7 @@ def _cerrar_modulo_listo(usa_pasos, _n_pasos, progreso, modulo_actual, ModuloCom
             return activar_checkpoint_facilitador(
                 estudiante, progreso, modulo_actual
             )
-        from core.avance_whatsapp import adaptar_mensaje_drip_bloqueo
+        from core.conversacion.avance_whatsapp import adaptar_mensaje_drip_bloqueo
         return adaptar_mensaje_drip_bloqueo(_blk_pub, estudiante)
 
     siguiente_modulo = siguiente_modulo_publicado_wa(
@@ -742,7 +742,7 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
     ):
         # *listo* / *continuar* / confirma corta (ok) → Formador (mismo contrato que estados/asistente).
         # Antes solo se reenviaba el nudge y el alumno veía el mismo mensaje muchas veces.
-        from core.intent_detector import mensaje_indica_listo_o_confirma_handoff
+        from core.conversacion.intent_detector import mensaje_indica_listo_o_confirma_handoff
 
         if mensaje_indica_listo_o_confirma_handoff(mensaje_original or ''):
             from core.conversacion.checkpoint_handoff import lanzar_reto_tras_companero
@@ -799,7 +799,7 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
             reset_progreso_pasos_modulo,
         )
 
-        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+        from core.conversacion.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
 
         _ctx_reto.pop('post_reto_entregar_modulo_id', None)
         _ctx_reto.pop(CLAVE_ESPERA_CONTINUAR_POST_RETO, None)
@@ -969,7 +969,7 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
 
     from django.db import transaction
 
-    from core.response_templates import logger
+    from core.conversacion.response_templates import logger
 
     _dedup_ok = bool(kwargs.get('_bypass_anti_duplicado'))
     if not _dedup_ok:
