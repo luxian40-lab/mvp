@@ -4,7 +4,7 @@ Uso: python manage.py seguimiento_estudiantes
 """
 
 from django.core.management.base import BaseCommand
-from core.seguimiento_proactivo import ejecutar_seguimiento_proactivo
+from core.conversacion.seguimiento_proactivo import ejecutar_seguimiento_proactivo
 
 
 class Command(BaseCommand):
