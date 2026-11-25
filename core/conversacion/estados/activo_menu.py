@@ -38,7 +38,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     elif msg_lower in ['4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
                        'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos',
                        'datos incorrectos', 'mis datos', 'actualizar datos']:
-        from core.correccion_datos import iniciar_flujo_correccion
+        from core.conversacion.correccion_datos import iniciar_flujo_correccion
         texto_respuesta = iniciar_flujo_correccion(estudiante)
         try:
             from core.lineas.salida_turno import enviar_respuesta_turno

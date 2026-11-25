@@ -18,7 +18,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     # Debe funcionar en cualquier estado del bot una vez el usuario
     # aceptó términos.
     # ============================================================
-    from core.correccion_datos import (
+    from core.conversacion.correccion_datos import (
         construir_menu_principal_texto,
         es_keyword_correccion,
         es_keyword_menu,

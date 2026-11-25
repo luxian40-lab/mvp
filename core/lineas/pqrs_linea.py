@@ -79,7 +79,7 @@ def seguimiento_en_linea(estudiante, msg_body):
 def corregir_datos_si_pide(estudiante, msg_lower, msg_from, telefono_limpio) -> bool:
     if msg_lower not in _CLAVES_CORREGIR:
         return False
-    from core.correccion_datos import iniciar_flujo_correccion
+    from core.conversacion.correccion_datos import iniciar_flujo_correccion
 
     texto = iniciar_flujo_correccion(estudiante)
     try:

@@ -157,7 +157,7 @@ class ArranqueTests(_Base):
 
 class PrioridadGlobalTests(_Base):
     def test_menu_sin_cliente_manda_el_menu_principal(self):
-        from core.correccion_datos import construir_menu_principal_texto
+        from core.conversacion.correccion_datos import construir_menu_principal_texto
 
         est = self._est(cliente=None)
         with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar:
@@ -185,7 +185,7 @@ class PrioridadGlobalTests(_Base):
     def test_en_flujo_de_correccion_sigue_el_flujo(self):
         self._est(contexto_temporal={'tipo': 'correccion_datos', 'estado': 'esperando_opcion', 'campo': ''})
         with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar, \
-                patch('core.correccion_datos.procesar_flujo_correccion', return_value='PASO_CORR'):
+                patch('core.conversacion.correccion_datos.procesar_flujo_correccion', return_value='PASO_CORR'):
             self._post('1', 'SM_tr_pg_flujo')
         enviar.assert_called_once_with(f'+{TEL}', 'PASO_CORR')
 

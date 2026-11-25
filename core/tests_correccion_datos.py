@@ -1,6 +1,6 @@
 import pytest
 
-from core.correccion_datos import (
+from core.conversacion.correccion_datos import (
     iniciar_flujo_correccion,
     normalizar_texto,
     procesar_flujo_correccion,

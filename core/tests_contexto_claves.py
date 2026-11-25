@@ -199,7 +199,7 @@ class IaEmpaticaTests(ConCursoTestCase):
         )
 
     def test_cancelar_la_correccion_de_datos_conserva_las_claves(self):
-        from core.correccion_datos import iniciar_flujo_correccion, procesar_flujo_correccion
+        from core.conversacion.correccion_datos import iniciar_flujo_correccion, procesar_flujo_correccion
 
         self._con_contexto(curso_activo_id=self.curso.id)
         iniciar_flujo_correccion(self.est)

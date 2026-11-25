@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from core.correccion_datos import construir_menu_principal_texto
+from core.conversacion.correccion_datos import construir_menu_principal_texto
 from core.conversacion.flujo_whatsapp_b2b import (
     es_estudiante_b2b,
     mensaje_curso_por_campana,

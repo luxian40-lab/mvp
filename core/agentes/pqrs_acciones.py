@@ -187,7 +187,7 @@ def ejecutar_correccion_datos(
     Aplica corrección si hay campo+valor; si no, inicia el flujo guiado.
     Returns (mensaje_whatsapp, resolvio_caso).
     """
-    from core.correccion_datos import iniciar_flujo_correccion
+    from core.conversacion.correccion_datos import iniciar_flujo_correccion
 
     campo_n = (campo or '').strip().lower()
     valor = (valor_nuevo or '').strip()
@@ -204,7 +204,7 @@ def ejecutar_correccion_datos(
 
 
 def _aplicar_campo(estudiante, campo: str, valor_nuevo: str) -> str:
-    from core.correccion_datos import (
+    from core.conversacion.correccion_datos import (
         _limpiar_flujo_correccion,
         _notificar_equipo_autocorreccion,
         _registrar_autocorreccion,
