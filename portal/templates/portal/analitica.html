@@ -313,15 +313,20 @@
                 <p>Nadie ha terminado (con ≥2 iniciadores) y ningún curso llega a {{ cursos_destacados.min_iniciadores }} iniciadores.</p>
                 {% endif %}
             </article>
-            <article class="ana-box" title="Porcentaje de promotores (nota 9–10) menos detractores (1–6) al cerrar el curso. Misma regla que el Pulso del admin.">
+            <article class="ana-box" title="Porcentaje de promotores (nota 9–10) menos detractores (1–6) al cerrar el curso. Pasivos 7–8. Misma regla que el Pulso del admin.">
                 <h3><a href="{% url 'portal_analitica_nps' %}" style="color:inherit;text-decoration:underline;">NPS</a></h3>
                 {% if cursos_nota.nps is None %}
                 <p class="metric-number">Sin dato</p>
-                <p>NPS de la nota de 1 a 10 al terminar. Promotores 9–10, detractores 1–6. <a href="{% url 'portal_analitica_nps' %}">Ver notas</a>.</p>
+                <p>Nota 1–10 al terminar. Promotores 9–10, pasivos 7–8, detractores 1–6. <a href="{% url 'portal_analitica_nps' %}">Ver notas</a>.</p>
                 {% else %}
                 <p class="metric-number"><a href="{% url 'portal_analitica_nps' %}" style="color:inherit;text-decoration:none;">{% if cursos_nota.nps > 0 %}+{% endif %}{{ cursos_nota.nps }}</a></p>
-                <p>NPS de {{ cursos_nota.n }} nota{{ cursos_nota.n|pluralize }}: {{ cursos_nota.promotores }} promotores, {{ cursos_nota.pasivos }} pasivos, {{ cursos_nota.detractores }} detractores. <a href="{% url 'portal_analitica_nps' %}">Ver detalle</a>.</p>
+                <p>NPS de {{ cursos_nota.n }} nota{{ cursos_nota.n|pluralize }}. <a href="{% url 'portal_analitica_nps' %}">Ver detalle</a>.</p>
                 {% endif %}
+                <p class="ana-nps-bandas" style="display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 0;font-size:13px;">
+                    <span>Promotores <strong>{% if cursos_nota.n %}{{ cursos_nota.promotores }}{% else %}—{% endif %}</strong></span>
+                    <span>Pasivos <strong>{% if cursos_nota.n %}{{ cursos_nota.pasivos }}{% else %}—{% endif %}</strong></span>
+                    <span>Detractores <strong>{% if cursos_nota.n %}{{ cursos_nota.detractores }}{% else %}—{% endif %}</strong></span>
+                </p>
             </article>
         </div>
 

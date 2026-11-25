@@ -27,30 +27,6 @@
     .mc-tabla tr:last-child td { border-bottom: 0; }
     .mc-tabla small { display: block; color: var(--texto-muted); font-size: 11.5px; }
     .mc-nota { color: var(--texto-muted); font-size: 13px; line-height: 1.45; max-width: 52rem; }
-    .mc-avance {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        justify-content: flex-end;
-    }
-    .mc-pile {
-        width: 36px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(30, 27, 36, 0.08);
-        overflow: hidden;
-        border: 1px solid var(--borde);
-        flex: 0 0 auto;
-    }
-    .mc-pile__fill {
-        height: 100%;
-        border-radius: inherit;
-        background: #9A6CAC;
-    }
-    .mc-pile--verde .mc-pile__fill { background: #2f9e44; }
-    .mc-pile--amarillo .mc-pile__fill { background: #f59f00; }
-    .mc-pile--rojo .mc-pile__fill { background: #e03131; }
-    .mc-pile--gris .mc-pile__fill { background: #adb5bd; width: 0 !important; }
 </style>
 {% endblock %}
 
@@ -90,12 +66,11 @@
                         {% if c.avance_modulo is None %}
                         Sin dato
                         {% else %}
-                        <span class="mc-avance">
-                            <span>Módulo {{ c.avance_modulo|stringformat:".1f" }}</span>
-                            <span class="mc-pile mc-pile--{{ c.avance_semaforo }}" title="{% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:'.1f' }}% de módulos cerrados{% endif %}" aria-hidden="true">
-                                <span class="mc-pile__fill" style="width:{% if c.avance_pct %}{{ c.avance_pct|floatformat:0 }}{% else %}0{% endif %}%;"></span>
-                            </span>
-                        </span>
+                        Módulo {{ c.avance_modulo|stringformat:".1f" }}
+                        <small>
+                            {% if c.avance_pct is not None %}{{ c.avance_pct|stringformat:".1f" }}% módulos cerrados{% else %}Sin %{% endif %}
+                            · <span class="semaforo-{{ c.avance_semaforo }}">{{ c.avance_semaforo }}</span>
+                        </small>
                         {% endif %}
                     </td>
                 </tr>
@@ -113,7 +88,7 @@
 <p class="mc-nota">
     Aceptante: aceptó el curso. Inició: empezó el módulo inicial (fecha de avance, módulo cerrado o terminado;
     recibir el primer mensaje no basta).
-    Avance: módulo promedio alcanzado; la pila muestra el % de módulos cerrados (verde ≥70 %, amarillo ≥35 %).
+    Avance: módulo promedio alcanzado y % de módulos cerrados (verde ≥70 %, amarillo ≥35 %, rojo debajo).
     Un curso puede aparecer en más de una línea si ambas lo ofrecen.
 </p>
 {% endblock %}

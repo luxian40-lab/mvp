@@ -18,12 +18,14 @@
 </div>
 
 <article class="panel" style="padding:18px;margin-bottom:20px;">
-    <p class="muted" style="margin:0;">
+    <p class="muted" style="margin:0 0 12px;">
         Promotores 9–10, pasivos 7–8, detractores 1–6.
         Misma regla que el Pulso del admin.
-        {% if cursos_nota.n %}
-        Ahora: {{ cursos_nota.promotores }} promotores · {{ cursos_nota.pasivos }} pasivos · {{ cursos_nota.detractores }} detractores.
-        {% endif %}
+    </p>
+    <p class="ana-nps-bandas" style="display:flex;gap:20px;flex-wrap:wrap;margin:0;font-size:15px;">
+        <span>Promotores <strong>{% if cursos_nota.n %}{{ cursos_nota.promotores }}{% else %}—{% endif %}</strong></span>
+        <span>Pasivos <strong>{% if cursos_nota.n %}{{ cursos_nota.pasivos }}{% else %}—{% endif %}</strong></span>
+        <span>Detractores <strong>{% if cursos_nota.n %}{{ cursos_nota.detractores }}{% else %}—{% endif %}</strong></span>
     </p>
 </article>
 
@@ -34,6 +36,7 @@
                 <th>Persona</th>
                 <th>Curso</th>
                 <th>Nota</th>
+                <th>Banda</th>
                 <th>Fecha</th>
             </tr>
         </thead>
@@ -43,10 +46,16 @@
                 <td><a href="{% url 'portal_estudiante_detalle' n.estudiante_id %}">{{ n.estudiante.nombre }}</a></td>
                 <td>{{ n.curso.nombre }}</td>
                 <td>{{ n.nota }}</td>
+                <td>
+                    {% if n.nota >= 9 %}Promotor
+                    {% elif n.nota >= 7 %}Pasivo
+                    {% else %}Detractor
+                    {% endif %}
+                </td>
                 <td>{{ n.fecha|date:"d/m/Y H:i" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="muted">Todavía no hay notas de cierre en esta organización.</td></tr>
+            <tr><td colspan="5" class="muted">Todavía no hay notas de cierre en esta organización.</td></tr>
             {% endfor %}
         </tbody>
     </table>
