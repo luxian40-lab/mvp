@@ -63,6 +63,50 @@ class OrdenEstadosTests(TestCase):
         log.refresh_from_db()
         self.assertEqual(log.estado, 'failed')
 
+    def test_failed_diploma_revierte_enviado_whatsapp(self):
+        from django.utils import timezone
+
+        from core.models import Cliente, Curso, Estudiante
+        from core.models_certificados import Certificado
+
+        org = Cliente.objects.create(
+            nombre='Org Dip Fail', contacto_principal='A', email='df@t.com',
+            telefono='573009991111', activo=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Ana Dip', cedula='1001', telefono='573009991112',
+            cliente=org, activo=True,
+        )
+        curso = Curso.objects.create(nombre='C', descripcion='d', cliente=org, activo=True)
+        hoy = timezone.now().date()
+        cert = Certificado.objects.create(
+            estudiante=est, curso=curso, calificacion_final=100,
+            fecha_inicio=hoy, fecha_completado=hoy, emitido=True,
+            codigo_verificacion='eki-FAIL-TEST1',
+            enviado_whatsapp=True, fecha_envio=timezone.now(),
+            archivo_imagen='certificados/generados/certificado_eki-FAIL-TEST1.png',
+        )
+        log = WhatsappLog.objects.create(
+            telefono=est.telefono,
+            mensaje_id='wamid.dipfail',
+            tipo='SENT',
+            canal='meta',
+            estado='SENT',
+            agente_usado='diploma_meta',
+            mensaje='🎓 FELICITACIONES',
+        )
+        aplicar_statuses([{
+            'id': 'wamid.dipfail',
+            'status': 'failed',
+            'timestamp': '7',
+            'errors': [{'code': 131047, 'title': 'Re-engagement message'}],
+        }])
+        cert.refresh_from_db()
+        self.assertFalse(cert.enviado_whatsapp)
+        self.assertIsNone(cert.fecha_envio)
+        log.refresh_from_db()
+        self.assertEqual(log.estado, 'failed')
+
     def test_actualiza_todos_los_logs_con_mismo_wamid(self):
         primero = _log('wamid.par', estado='SENT')
         segundo = _log('wamid.par', estado='PENDING')

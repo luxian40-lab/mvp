@@ -26,9 +26,45 @@ def manejar(contexto: Contexto) -> Respuesta:
             "Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
         )
     else:
-        texto_respuesta = (
-            "✅ *Tu proceso del curso ya finalizó y tu certificado fue enviado.*\n\n"
-            "Cuando tu organización te inscriba en un nuevo curso, te notificaremos. "
-            "¡Gracias por tu participación! 🎓"
-        )
+        if _diploma_entregado_de_verdad(estudiante):
+            texto_respuesta = (
+                "✅ *Tu progreso del curso ya finalizó y tu certificado fue enviado.*\n\n"
+                "Cuando tu organización te inscriba en un nuevo curso, te notificaremos. "
+                "¡Gracias por tu participación! 🎓"
+            )
+        else:
+            texto_respuesta = (
+                "✅ *Tu progreso del curso ya finalizó.*\n\n"
+                "Su certificado está listo; si no lo ve en este chat, escriba *certificado* "
+                "o espere el reenvío de su organización.\n\n"
+                "Cuando le inscriban en un nuevo curso, le avisamos. ¡Gracias! 🎓"
+            )
     return Respuesta(texto=texto_respuesta)
+
+
+def _diploma_entregado_de_verdad(estudiante) -> bool:
+    """True solo si hay envío diploma Meta no fallido (no basta el flag del admin)."""
+    from core.models import WhatsappLog
+    from core.models_certificados import Certificado
+
+    if not Certificado.objects.filter(
+        estudiante=estudiante, emitido=True, enviado_whatsapp=True,
+    ).exists():
+        return False
+    tel = getattr(estudiante, 'telefono', '') or ''
+    digits = ''.join(c for c in tel if c.isdigit())
+    if len(digits) < 10:
+        return False
+    ultimo = (
+        WhatsappLog.objects.filter(
+            telefono__endswith=digits[-10:],
+            tipo='SENT',
+            agente_usado__icontains='diploma',
+        )
+        .order_by('-fecha')
+        .first()
+    )
+    if ultimo is None:
+        return False
+    estado = (ultimo.estado or '').strip().lower()
+    return estado not in ('failed', 'error', 'undelivered')

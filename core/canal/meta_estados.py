@@ -170,11 +170,60 @@ def aplicar_statuses(statuses) -> int:
             log.save(update_fields=campos)
             actualizados += 1
             alguno_actualizado = True
+            if nuevo == 'failed':
+                _desmarcar_diploma_si_fallo(log)
         if alguno_actualizado:
             opaco = str(item.get('biz_opaque_callback_data') or '')[:120]
             if opaco:
                 logger.debug('meta_status_opaque id=%s', mid[:32])
     return actualizados
+
+
+def _desmarcar_diploma_si_fallo(log) -> None:
+    """Si el diploma quedó failed (p. ej. 131047), el flag enviado_whatsapp no puede mentir."""
+    agente = (getattr(log, 'agente_usado', None) or '').strip().lower()
+    if 'diploma' not in agente:
+        return
+    tel = ''.join(c for c in str(getattr(log, 'telefono', '') or '') if c.isdigit())
+    if len(tel) < 10:
+        return
+    try:
+        from core.models import Estudiante, WhatsappLog
+        from core.models_certificados import Certificado
+
+        est_ids = list(
+            Estudiante.objects.filter(telefono__endswith=tel[-10:]).values_list('id', flat=True)
+        )
+        if not est_ids:
+            return
+        # Solo si no hubo entrega diploma posterior exitosa.
+        posteriores = (
+            WhatsappLog.objects.filter(
+                telefono__endswith=tel[-10:],
+                tipo='SENT',
+                agente_usado__icontains='diploma',
+                fecha__gt=log.fecha,
+            )
+            .exclude(estado__iexact='failed')
+            .exclude(estado='ERROR')
+            .exists()
+        )
+        if posteriores:
+            return
+        n = Certificado.objects.filter(
+            estudiante_id__in=est_ids,
+            emitido=True,
+            enviado_whatsapp=True,
+        ).update(enviado_whatsapp=False, fecha_envio=None)
+        if n:
+            logger.info(
+                'diploma_flag_revertido n=%s tel=…%s code=%s',
+                n,
+                tel[-4:],
+                getattr(log, 'error_codigo', '') or '',
+            )
+    except Exception:
+        logger.exception('diploma_flag_revertido_fail')
 
 
 def encolar_statuses(payload) -> int:
