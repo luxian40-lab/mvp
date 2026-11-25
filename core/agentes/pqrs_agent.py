@@ -236,7 +236,7 @@ def _resultado_faq_organizacion(faq) -> dict[str, Any]:
 
 
 def _resultado_derivar_organizacion(cliente) -> dict[str, Any]:
-    from core.faq_organizacion import texto_contacto_organizacion
+    from core.agentes.faq_organizacion import texto_contacto_organizacion
 
     return {
         'categoria': 'organizacion',
@@ -414,7 +414,7 @@ def respuesta_ayuda_con_ticket_abierto(estudiante, mensaje: str) -> Optional[str
 
 
 def _contexto_completo(solicitud) -> str:
-    from core.faq_organizacion import listar_faqs_para_contexto
+    from core.agentes.faq_organizacion import listar_faqs_para_contexto
 
     est = getattr(solicitud, 'estudiante', None)
     partes = []
@@ -443,7 +443,7 @@ def _enriquecer_con_acciones(solicitud, resultado: dict[str, Any]) -> dict[str, 
 
 def procesar_pqrs_automatico(solicitud_soporte) -> dict[str, Any]:
     """Primera respuesta del agente tras crear la solicitud."""
-    from core.faq_organizacion import (
+    from core.agentes.faq_organizacion import (
         buscar_faq_organizacion,
         parece_consulta_organizacion,
     )
@@ -530,7 +530,7 @@ def procesar_seguimiento_pqrs(solicitud_soporte, mensaje_estudiante: str) -> dic
     if _detectar_consulta_contenido(mensaje):
         return _enriquecer_con_acciones(solicitud_soporte, _resultado_contenido_curso())
 
-    from core.faq_organizacion import buscar_faq_organizacion, parece_consulta_organizacion
+    from core.agentes.faq_organizacion import buscar_faq_organizacion, parece_consulta_organizacion
 
     est = getattr(solicitud_soporte, 'estudiante', None)
     cliente = getattr(est, 'cliente', None) if est else None

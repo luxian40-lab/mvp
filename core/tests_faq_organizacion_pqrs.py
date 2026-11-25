@@ -1,7 +1,7 @@
 """FAQ organización + derivación de contacto en PQRS."""
 from django.test import TestCase
 
-from core.faq_organizacion import (
+from core.agentes.faq_organizacion import (
     buscar_faq_organizacion,
     parece_consulta_organizacion,
     texto_contacto_organizacion,
