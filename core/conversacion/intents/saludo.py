@@ -11,7 +11,7 @@ def responder(intent, nombre_usuario, kwargs):
             _est = _EstMenu.objects.select_related('cliente').get(id=estudiante_id_menu)
             # B2B: sin menú 1-2-3 global; si tiene 2+ cursos activos, menú de elección
             if _est.cliente_id:
-                from core.flujo_whatsapp_b2b import (
+                from core.conversacion.flujo_whatsapp_b2b import (
                     armar_menu_seleccion_cursos,
                     tiene_varios_cursos_activos,
                 )

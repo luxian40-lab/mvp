@@ -556,7 +556,7 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if estudiante_id_b2b:
         try:
             from core.models import Estudiante
-            from core.flujo_whatsapp_b2b import respuesta_b2b_sin_menu
+            from core.conversacion.flujo_whatsapp_b2b import respuesta_b2b_sin_menu
 
             _est_b2b = Estudiante.objects.select_related('cliente').get(id=estudiante_id_b2b)
             _alt = respuesta_b2b_sin_menu(_est_b2b, intent, nombre_usuario, kwargs)

@@ -44,7 +44,7 @@ def es_keyword_correccion(texto_norm: str) -> bool:
 
 
 def construir_menu_principal_texto(estudiante) -> str:
-    from core.flujo_whatsapp_b2b import es_estudiante_b2b, texto_ayuda_comandos
+    from core.conversacion.flujo_whatsapp_b2b import es_estudiante_b2b, texto_ayuda_comandos
 
     if es_estudiante_b2b(estudiante):
         return texto_ayuda_comandos(estudiante)

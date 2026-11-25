@@ -86,7 +86,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
         except Exception:
             logger.exception('Agente formulario GEI (prioridad temprana) omitido')
 
-        from core.flujo_whatsapp_b2b import (
+        from core.conversacion.flujo_whatsapp_b2b import (
             es_estudiante_b2b,
             es_keyword_retomar,
             respuesta_tras_keyword_menu,

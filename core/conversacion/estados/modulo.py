@@ -58,7 +58,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     elif msg_body.strip().lower() in ['menu', 'menú']:
         estudiante.estado_onboarding = 'completado'
         estudiante.save()
-        from core.flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+        from core.conversacion.flujo_whatsapp_b2b import respuesta_tras_keyword_menu
         texto_respuesta = respuesta_tras_keyword_menu(
             estudiante, estudiante.nombre, msg_body
         )

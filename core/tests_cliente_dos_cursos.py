@@ -10,7 +10,7 @@ Flujo real:
 
 from django.test import Client, TestCase, override_settings
 
-from core.flujo_whatsapp_b2b import armar_menu_seleccion_cursos, tiene_varios_cursos_activos
+from core.conversacion.flujo_whatsapp_b2b import armar_menu_seleccion_cursos, tiene_varios_cursos_activos
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.response_templates import get_response_for_intent
 from core.selector_curso import (
