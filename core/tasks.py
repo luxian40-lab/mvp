@@ -150,14 +150,14 @@ def _cortar_reentregas(task, datos, kwargs=None) -> bool:
 
 
 def _aviso_flood_texto(telefono):
-    from core.antiflood import AVISO_FLOOD
+    from core.conversacion.antiflood import AVISO_FLOOD
     from core.canal.envios import enviar_whatsapp
 
     enviar_whatsapp(telefono, AVISO_FLOOD)
 
 
 def _aviso_flood_meta(telefono, inbound):
-    from core.antiflood import AVISO_FLOOD
+    from core.conversacion.antiflood import AVISO_FLOOD
     from core.sandbox_menu import enviar_texto_sandbox
 
     enviar_texto_sandbox(
@@ -169,7 +169,7 @@ def _aviso_flood_meta(telefono, inbound):
 
 
 def _frenar_flood(telefono, avisar) -> bool:
-    from core.antiflood import flood_excedido
+    from core.conversacion.antiflood import flood_excedido
 
     descartar, unico = flood_excedido(telefono)
     if not descartar:

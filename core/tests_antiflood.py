@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from core.antiflood import flood_excedido
+from core.conversacion.antiflood import flood_excedido
 
 
 class _Redis:
@@ -29,7 +29,7 @@ class _Redis:
 class AntifloodTests(SimpleTestCase):
     def test_el_trece_avisa_una_vez(self):
         falso = _Redis()
-        with patch('core.antiflood._cliente', return_value=falso):
+        with patch('core.conversacion.antiflood._cliente', return_value=falso):
             for _ in range(12):
                 self.assertEqual(flood_excedido('573001112233'), (False, False))
             self.assertEqual(flood_excedido('573001112233'), (True, True))
