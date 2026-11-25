@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from core.contexto_agro import extraer_campos_desde_mensaje, obtener_o_crear_contexto
 from core.models import Cliente, SesionComercial
-from core.nat_diagnostico import siguiente_pregunta_diagnostico
+from core.agentes.nat_diagnostico import siguiente_pregunta_diagnostico
 
 
 class NatDiagnosticoLoopTests(TestCase):
@@ -130,7 +130,7 @@ class NatDiagnosticoLoopTests(TestCase):
         self.assertTrue(self.ctx.metadata.get('diagnostico_omitido'))
 
     def test_ack_sin_eco_de_pedido_largo(self):
-        from core.nat_diagnostico import _ack, _sintoma_corto
+        from core.agentes.nat_diagnostico import _ack, _sintoma_corto
 
         self.ctx.problema = (
             'es amarillamiento que podemos hacer en Boyaca. '
@@ -262,7 +262,7 @@ class NatGuionOCriterioTests(TestCase):
         self.assertFalse(self.ctx.metadata.get('extension_afectada'))
 
     def test_entendio_va_arriba_del_mismo_mensaje(self):
-        from core.nat_diagnostico import anteponer_entendio
+        from core.agentes.nat_diagnostico import anteponer_entendio
 
         cuerpo = 'En café: ¿en qué parte de la planta empezó?'
         texto = anteponer_entendio(
@@ -306,7 +306,7 @@ class NatRomperGuionTests(TestCase):
         self.assertTrue(self.ctx.metadata.get('diagnostico_en_pausa'))
 
     def test_hola_con_pregunta_no_es_solo_saludo(self):
-        from core.nat_diagnostico import mensaje_es_solo_saludo
+        from core.agentes.nat_diagnostico import mensaje_es_solo_saludo
 
         self.assertTrue(mensaje_es_solo_saludo('Hola'))
         self.assertTrue(mensaje_es_solo_saludo('Buenos días'))
@@ -419,7 +419,7 @@ class NatRomperGuionTests(TestCase):
         self.assertIsNone(pregunta)
         self.ctx.refresh_from_db()
         self.assertFalse(self.ctx.metadata.get('extension_afectada'))
-        from core.nat_diagnostico import anteponer_entendio
+        from core.agentes.nat_diagnostico import anteponer_entendio
 
         texto = anteponer_entendio(
             self.ctx,

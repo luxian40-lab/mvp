@@ -250,7 +250,7 @@ def test_enviar_fotos_productos_llama_twilio_con_media(mock_send):
 )
 @patch('core.bot_comercial.productos_media.enviar_whatsapp_twilio')
 @patch('core.bot_comercial.webhook.enviar_whatsapp_twilio')
-@patch('core.nat_diagnostico.siguiente_pregunta_diagnostico', return_value=None)
+@patch('core.agentes.nat_diagnostico.siguiente_pregunta_diagnostico', return_value=None)
 @patch('core.bot_comercial.webhook._bot_comercial_diagnosticar_imagen')
 @patch('core.bot_comercial.webhook._bot_comercial_respuesta_catalogo')
 def test_webhook_foto_entrada_y_foto_producto(

@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.contexto_agro import actualizar_contexto_desde_mensaje, obtener_o_crear_contexto
 from core.models import Cliente, ProductoCatalogo, SesionComercial
-from core.nat_diagnostico import es_consulta_diagnostico, siguiente_pregunta_diagnostico
+from core.agentes.nat_diagnostico import es_consulta_diagnostico, siguiente_pregunta_diagnostico
 from core.nati import armar_system_prompt, obtener_contexto_productos
 
 
@@ -171,7 +171,7 @@ def run() -> None:
                 usar_web=False,
                 escala_premium=False,
             )
-            with patch('core.nat_diagnostico.siguiente_pregunta_diagnostico', return_value=None):
+            with patch('core.agentes.nat_diagnostico.siguiente_pregunta_diagnostico', return_value=None):
                 with patch.object(wh, '_bot_comercial_respuesta_catalogo', return_value=respuesta_llm):
                     with patch('core.nat_router.decidir_routing_nat', return_value=fake_routing):
                         with patch.object(

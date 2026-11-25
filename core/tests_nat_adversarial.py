@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from core.contexto_agro import obtener_o_crear_contexto
 from core.models import Cliente, SesionComercial
-from core.nat_diagnostico import reiniciar_diagnostico, siguiente_pregunta_diagnostico
+from core.agentes.nat_diagnostico import reiniciar_diagnostico, siguiente_pregunta_diagnostico
 
 
 class NatDiagnosticoAdversarialTests(TestCase):

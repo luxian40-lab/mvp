@@ -1006,7 +1006,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
 
     es_saludo = False
     try:
-        from core.nat_diagnostico import mensaje_es_solo_saludo
+        from core.agentes.nat_diagnostico import mensaje_es_solo_saludo
 
         es_saludo = mensaje_es_solo_saludo(msg_body)
     except Exception:
@@ -1067,7 +1067,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             texto_respuesta = armar_saludo_inicial(cliente_nati)
     elif msg_normalizado in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']:
         try:
-            from core.nat_diagnostico import reiniciar_diagnostico
+            from core.agentes.nat_diagnostico import reiniciar_diagnostico
 
             reiniciar_diagnostico(ctx_agro)
         except Exception:
@@ -1108,7 +1108,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             texto_respuesta = None
             llevar_entendio = False
             try:
-                from core.nat_diagnostico import (
+                from core.agentes.nat_diagnostico import (
                     anteponer_entendio,
                     dano_presente,
                     es_orientacion,
@@ -1365,7 +1365,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
 
     try:
         if llevar_entendio and texto_respuesta:
-            from core.nat_diagnostico import anteponer_entendio
+            from core.agentes.nat_diagnostico import anteponer_entendio
 
             texto_respuesta = anteponer_entendio(ctx_agro, msg_body, texto_respuesta)
         resultado_envio = enviar_whatsapp_twilio(
