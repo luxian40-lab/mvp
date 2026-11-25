@@ -5,7 +5,7 @@ from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from core.curso.drip_matriz_service import filas_matriz_modulo, sincronizar_habilitaciones_modulo
-from core.drip_schedule import estudiante_autorizado_en_modulo, modulo_disponible_por_calendario
+from core.curso.drip_schedule import estudiante_autorizado_en_modulo, modulo_disponible_por_calendario
 from core.models import (
     Cliente,
     Curso,

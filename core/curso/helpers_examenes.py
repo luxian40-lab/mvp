@@ -96,7 +96,7 @@ def obtener_siguiente_modulo(estudiante, curso):
     ).order_by('numero').first()
 
     if siguiente_modulo:
-        from core.drip_schedule import drip_bloquea_siguiente_modulo
+        from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
 
         if drip_bloquea_siguiente_modulo(progreso, modulo_actual):
             return modulo_actual

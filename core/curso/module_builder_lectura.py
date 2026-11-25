@@ -142,7 +142,7 @@ def _fmt(dt) -> str:
 
 def _capa(estudiante, modulo, disponible: bool) -> tuple[str, str]:
     """Nombra la capa que ya decidió el calendario. No recalcula la regla."""
-    from core.drip_schedule import estudiante_autorizado_en_modulo, habilitado_desde_efectivo
+    from core.curso.drip_schedule import estudiante_autorizado_en_modulo, habilitado_desde_efectivo
     from core.models import HabilitacionModuloDripCliente, HabilitacionModuloEstudiante
 
     if not estudiante_autorizado_en_modulo(estudiante, modulo):
@@ -184,7 +184,7 @@ def _capa(estudiante, modulo, disponible: bool) -> tuple[str, str]:
 
 
 def veredicto_persona(modulo, estudiante) -> dict:
-    from core.drip_schedule import (
+    from core.curso.drip_schedule import (
         dias_espera_efectivos,
         drip_bloquea_siguiente_modulo,
         mensaje_bloqueo_avance_siguiente_modulo,

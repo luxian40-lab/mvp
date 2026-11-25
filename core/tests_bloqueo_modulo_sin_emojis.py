@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from core.drip_schedule import (
+from core.curso.drip_schedule import (
     format_mensaje_bloqueo_calendario_modulo,
     format_mensaje_bloqueo_drip,
 )

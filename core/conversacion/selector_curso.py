@@ -199,7 +199,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     Respeta el drip (espera entre módulos) como el flujo principal en response_templates.
     """
     from core.models import Estudiante, Curso, ProgresoEstudiante, ModuloCompletado
-    from core.drip_schedule import drip_bloquea_siguiente_modulo, mensaje_bloqueo_avance_siguiente_modulo
+    from core.curso.drip_schedule import drip_bloquea_siguiente_modulo, mensaje_bloqueo_avance_siguiente_modulo
     from core.response_templates import obtener_video_url, partes_presentacion_agentes_curso
 
     try:

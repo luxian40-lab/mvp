@@ -88,7 +88,7 @@ def _anterior(curso, modulo):
 
 def _esperando(aviso, modulo, ahora: datetime):
     """Progresos que terminaron el módulo anterior, aún sin aviso de este módulo."""
-    from core.drip_schedule import estudiante_autorizado_en_modulo, habilitado_desde_efectivo
+    from core.curso.drip_schedule import estudiante_autorizado_en_modulo, habilitado_desde_efectivo
     from core.models import AvisoModuloEnviado, ProgresoEstudiante
 
     anterior = _anterior(aviso.curso, modulo)

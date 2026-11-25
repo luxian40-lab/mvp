@@ -21,7 +21,7 @@ from core.models import (
 from core.certificados.models_certificados import Certificado
 from core.campanas.campana_respuestas import destinatarios_efectivos_qs
 from core.models_extras import GrupoEstudiantes
-from core.drip_schedule import max_modulo_alcanzado
+from core.curso.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa
 from .authz import requiere_portal_admin
 from .curso_flujo_service import embudo_curso_portal

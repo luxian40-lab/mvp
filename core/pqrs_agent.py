@@ -112,7 +112,7 @@ _PATRON_BLOQUEO_PLATAFORMA = re.compile(
 
 def construir_contexto_estudiante(estudiante) -> str:
     """Resumen factual para el LLM (curso, módulo, avance, datos)."""
-    from core.drip_schedule import drip_bloquea_siguiente_modulo
+    from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
     from core.models import ProgresoEstudiante
 
     cliente = getattr(estudiante, 'cliente', None)

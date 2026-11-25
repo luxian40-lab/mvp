@@ -109,7 +109,7 @@ def _plantilla() -> str:
 
 def candidatos_en(fecha):
     """Progresos cuyo siguiente módulo se desbloquea en esa fecha calendario local."""
-    from core.drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
+    from core.curso.drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
     from core.models import ProgresoEstudiante
     from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
 

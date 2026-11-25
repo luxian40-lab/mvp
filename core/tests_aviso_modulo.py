@@ -347,7 +347,7 @@ class PausaDiceSiHayAvisoTests(TestCase):
         ModuloCompletado.objects.create(progreso=self.progreso, modulo=self.m1)
 
     def _mensaje(self):
-        from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+        from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
         self.ana.refresh_from_db()
         return mensaje_bloqueo_avance_siguiente_modulo(self.ana, self.progreso, self.m1)

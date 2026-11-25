@@ -10,7 +10,7 @@ from core.curso.avance_reset_service import (
     reiniciar_avance_curso,
     resumen_avance,
 )
-from core.drip_schedule import modulo_disponible_por_calendario
+from core.curso.drip_schedule import modulo_disponible_por_calendario
 from core.models import (
     Cliente,
     Curso,

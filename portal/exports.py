@@ -6,7 +6,7 @@ from typing import Iterable
 
 from django.http import HttpResponse
 
-from core.drip_schedule import estudiante_llego_hasta_modulo, max_modulo_alcanzado
+from core.curso.drip_schedule import estudiante_llego_hasta_modulo, max_modulo_alcanzado
 from core.export_estudiantes import limpiar_telefono
 from core.models import Curso, Estudiante, ProgresoEstudiante
 

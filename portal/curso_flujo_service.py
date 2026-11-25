@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.drip_schedule import max_modulo_alcanzado
+from core.curso.drip_schedule import max_modulo_alcanzado
 from core.models import Curso, Modulo, ProgresoEstudiante
 
 

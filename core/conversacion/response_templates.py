@@ -120,7 +120,7 @@ def _barra_progreso(porcentaje: int) -> str:
 
 
 def _mensaje_bloqueo_drip(fecha_desbloqueo):
-    from core.drip_schedule import format_mensaje_bloqueo_drip
+    from core.curso.drip_schedule import format_mensaje_bloqueo_drip
     return format_mensaje_bloqueo_drip(fecha_desbloqueo)
 
 

@@ -174,7 +174,7 @@ def listar_progreso_estudiantes(
     usar_drip_calendario: bool = True,
 ) -> list[dict]:
     """Detalle por inscripción: estudiante + curso + módulo actual."""
-    from core.drip_schedule import (
+    from core.curso.drip_schedule import (
         avance_sobre_modulos,
         estudiante_llego_hasta_modulo,
         max_modulo_alcanzado,
@@ -232,7 +232,7 @@ def listar_progreso_estudiantes(
 
 def _posicion_modulo_dashboard(progreso) -> int | str:
     """Módulo «actual» del estudiante para agrupar (0 = sin iniciar, 'completado' = curso listo)."""
-    from core.drip_schedule import max_modulo_alcanzado
+    from core.curso.drip_schedule import max_modulo_alcanzado
 
     if progreso.completado:
         return 'completado'
@@ -250,7 +250,7 @@ def calcular_distribucion_por_modulo(progreso_q, curso) -> list[dict]:
     calculado solo sobre M1..Mn (en M1 antes de M2 → 100% si ya cerraron M1).
     """
     from core.models import Modulo
-    from core.drip_schedule import avance_sobre_modulos
+    from core.curso.drip_schedule import avance_sobre_modulos
 
     if not curso:
         return []
@@ -329,7 +329,7 @@ def calcular_metricas_empresa(
     usar_drip_calendario: bool = True,
     incluir_progreso_detalle: bool = True,
 ) -> dict[str, Any]:
-    from core.drip_schedule import modulos_para_metricas
+    from core.curso.drip_schedule import modulos_para_metricas
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
     from core.models_extras import GrupoEstudiantes
 
@@ -360,7 +360,7 @@ def calcular_metricas_empresa(
 
     if modulo_hasta_numero is not None:
         usar_drip_calendario = False
-        from core.drip_schedule import estudiante_llego_hasta_modulo
+        from core.curso.drip_schedule import estudiante_llego_hasta_modulo
 
         cohorte_ids = [
             p.pk

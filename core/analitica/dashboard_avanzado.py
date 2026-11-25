@@ -36,7 +36,7 @@ except ImportError:
 def _avance_drip_pct(progreso) -> int:
     if not progreso:
         return 0
-    from core.drip_schedule import avance_sobre_modulos, modulos_para_metricas
+    from core.curso.drip_schedule import avance_sobre_modulos, modulos_para_metricas
     mods = modulos_para_metricas(progreso.estudiante, progreso.curso)
     _, _, pct = avance_sobre_modulos(progreso, mods)
     return pct

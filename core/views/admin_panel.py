@@ -447,7 +447,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         )
 
         seen_estudiante_sin_progreso = set()
-        from core.drip_schedule import avance_sobre_modulos, estudiante_llego_hasta_modulo, modulos_para_metricas
+        from core.curso.drip_schedule import avance_sobre_modulos, estudiante_llego_hasta_modulo, modulos_para_metricas
 
         for progreso in progresos_rows:
             est = progreso.estudiante

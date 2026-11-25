@@ -766,7 +766,7 @@ class ModuleBuilderUiV2LecturaTests(TestCase):
         self.assertIn("get('paso')", js)
 
     def test_probar_persona_no_escribe_y_coincide_con_el_calendario(self):
-        from core.drip_schedule import modulo_disponible_por_calendario
+        from core.curso.drip_schedule import modulo_disponible_por_calendario
         from core.models import Cliente, Estudiante, ProgresoEstudiante
 
         cliente = Cliente.objects.create(
@@ -813,7 +813,7 @@ class ModuleBuilderUiV2LecturaTests(TestCase):
     def test_veredicto_organizacion_lista_blanca_y_ritmo(self):
         from datetime import timedelta
 
-        from core.drip_schedule import (
+        from core.curso.drip_schedule import (
             drip_bloquea_siguiente_modulo,
             mensaje_bloqueo_avance_siguiente_modulo,
             modulo_disponible_por_calendario,

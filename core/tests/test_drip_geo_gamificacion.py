@@ -17,8 +17,8 @@ from core.models import (
 	PreguntaAbiertaFinalCurso,
 	ProgresoEstudiante,
 )
-from core.drip_schedule import dias_espera_efectivos
-from core.drip_schedule import drip_bloquea_siguiente_modulo
+from core.curso.drip_schedule import dias_espera_efectivos
+from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
 from core.response_templates import get_response_for_intent, _generar_completado_final
 from core.security_handler import _url_politica_datos_cliente
 from core.selector_curso import continuar_curso_seleccionado, cursos_visibles_para_estudiante
@@ -147,7 +147,7 @@ class DripGeoGamificacionTests(TestCase):
 		)
 		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
 		base = date(2026, 4, 25)
-		with patch('core.drip_schedule.timezone.localdate') as mock_localdate:
+		with patch('core.curso.drip_schedule.timezone.localdate') as mock_localdate:
 			mock_localdate.side_effect = lambda dt=None: (base if dt is not None else base + timedelta(days=1))
 			self.assertFalse(drip_bloquea_siguiente_modulo(progreso, modulo_1))
 
@@ -208,7 +208,7 @@ class DripGeoGamificacionTests(TestCase):
 		)
 		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
 		self.assertTrue(drip_bloquea_siguiente_modulo(progreso, modulo_1))
-		from core.drip_schedule import habilitado_desde_efectivo
+		from core.curso.drip_schedule import habilitado_desde_efectivo
 
 		self.assertEqual(habilitado_desde_efectivo(estudiante, modulo_2), antes)
 

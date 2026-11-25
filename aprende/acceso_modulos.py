@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.drip_schedule import (
+from core.curso.drip_schedule import (
     drip_bloquea_siguiente_modulo,
     max_modulo_alcanzado,
     modulo_disponible_por_calendario,

@@ -48,7 +48,7 @@ def _progreso_activo(estudiante):
 
 def texto_explicar_progreso(estudiante) -> str:
     """Información real de avance (sin inventar)."""
-    from core.drip_schedule import drip_bloquea_siguiente_modulo
+    from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
     from core.models import ProgresoEstudiante
 
     progresos = list(

@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.certificados.certificado_service import evaluar_elegibilidad_certificado
-from core.drip_schedule import estudiante_autorizado_en_modulo, modulo_disponible_por_calendario
+from core.curso.drip_schedule import estudiante_autorizado_en_modulo, modulo_disponible_por_calendario
 from core.gamificacion.modo import MODO_CALIFICACION, registrar_nota_gamificacion
 from core.models import (
     Cliente,

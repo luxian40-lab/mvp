@@ -4,7 +4,7 @@ import json
 
 from django.test import Client, TestCase
 
-from core.drip_schedule import estudiante_autorizado_en_modulo
+from core.curso.drip_schedule import estudiante_autorizado_en_modulo
 from core.form_externo_service import buscar_estudiante_enlace, procesar_respuesta_formulario_externo
 from core.models import (
     Cliente,

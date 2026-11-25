@@ -29,7 +29,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
         'description': 'Cursos, progreso, drip, checkpoints y certificación.',
         'modules': [
             'core.domains.learning.checkpoints',
-            'core.drip_schedule',
+            'core.curso.drip_schedule',
             'core.curso.module_steps',
         ],
     },

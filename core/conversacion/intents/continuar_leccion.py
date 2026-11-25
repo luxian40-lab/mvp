@@ -37,7 +37,7 @@ def responder(intent, nombre_usuario, kwargs):
 
     # Regla del curso: "listo" o "continuar" avanzan (mismo trigger).
     if _es_mensaje_listo_avance_curso(msg_norm):
-        from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+        from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
         ya_completo_modulo = ModuloCompletado.objects.filter(
             progreso=progreso,
@@ -231,7 +231,7 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
 
 def _siguiente_modulo_listo(siguiente_modulo, estudiante, progreso, modulo_actual, es_modulo_reto, logger, total_modulos, usar_ia_curso, decision_cp, obtener_video_url, dividir_contenido_seguro, activar_checkpoint_facilitador, parte_mensaje_con_media, _cliente_habilita_pregunta_abierta_final, timezone, _mensaje_pregunta_abierta_final, perfil, contexto_limpio, _barra_progreso):
     if siguiente_modulo:
-        from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+        from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
         _blk_fin = mensaje_bloqueo_avance_siguiente_modulo(
             estudiante, progreso, modulo_actual
@@ -776,7 +776,7 @@ def _ubicar_modulo_listo(_ctx_sesion_asistente, estudiante, _es_mensaje_listo_av
 
 def _elegir_progreso(progresos_activos, ProgresoEstudiante, estudiante):
     if progresos_activos.count() > 1:
-        from core.drip_schedule import drip_bloquea_siguiente_modulo
+        from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
 
         _bloqueados_drip = []
         _libres_drip = []
@@ -1017,7 +1017,7 @@ def _preparar_progresos(kwargs, _turno_estudiante, estudiante_id, _retener_turno
     # Varios cursos activos: solo forzar curso en drip si TODOS están bloqueados.
     # Si hay al menos uno libre (p. ej. mid-pasos), no hijackear el *listo*.
     if progresos_activos.count() > 1:
-        from core.drip_schedule import drip_bloquea_siguiente_modulo
+        from core.curso.drip_schedule import drip_bloquea_siguiente_modulo
 
         _bloqueados_drip = []
         _libres_drip = []
@@ -1219,7 +1219,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 
     # Regla del curso: "listo" o "continuar" avanzan (mismo trigger).
     if _es_mensaje_listo_avance_curso(msg_norm):
-        from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+        from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
         ya_completo_modulo = ModuloCompletado.objects.filter(
             progreso=progreso,
@@ -1392,7 +1392,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         siguiente_modulo = siguiente_modulo_publicado_wa(progreso.curso, modulo_actual)
         
         if siguiente_modulo:
-            from core.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+            from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
             _blk_fin = mensaje_bloqueo_avance_siguiente_modulo(
                 estudiante, progreso, modulo_actual
