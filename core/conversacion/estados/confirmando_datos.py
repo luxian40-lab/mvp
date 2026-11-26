@@ -27,7 +27,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         try:
             from core.models import ProgresoEstudiante
             from core.conversacion.response_templates import obtener_video_url
-            from core.selector_curso import resolver_curso_post_confirmacion
+            from core.conversacion.selector_curso import resolver_curso_post_confirmacion
 
             curso = resolver_curso_post_confirmacion(estudiante)
             if curso:

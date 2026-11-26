@@ -27,7 +27,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         elif msg_body.strip().isdigit():
             indice_sel = int(msg_body.strip())
         if indice_sel is not None:
-            from core.selector_curso import continuar_curso_seleccionado
+            from core.conversacion.selector_curso import continuar_curso_seleccionado
             estudiante.estado_onboarding = 'completado'
             estudiante.save(update_fields=['estado_onboarding'])
             texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice_sel, msg_body)

@@ -601,7 +601,7 @@ class SelectorCursoPasosTests(TestCase):
 
     def test_selector_solo_numero_con_pasos_entrega_paso_no_legacy(self):
         from core.models import PasoModulo
-        from core.selector_curso import continuar_curso_seleccionado
+        from core.conversacion.selector_curso import continuar_curso_seleccionado
 
         s1 = _seccion(self.m1, 1)
         PasoModulo.objects.create(
@@ -646,7 +646,7 @@ class SelectorCursoAgentesPrimeraVezTests(TestCase):
 
     def test_selector_creado_incluye_facilitadora_y_companero(self):
         from core.models import PasoModulo
-        from core.selector_curso import continuar_curso_seleccionado
+        from core.conversacion.selector_curso import continuar_curso_seleccionado
 
         s1 = _seccion(self.m1, 1)
         PasoModulo.objects.create(
@@ -668,7 +668,7 @@ class SelectorCursoAgentesPrimeraVezTests(TestCase):
     def test_selector_retomar_no_repite_presentacion_agentes(self):
         from core.models import PasoModulo
         from core.models import ProgresoEstudiante
-        from core.selector_curso import continuar_curso_seleccionado
+        from core.conversacion.selector_curso import continuar_curso_seleccionado
 
         s1 = _seccion(self.m1, 1)
         PasoModulo.objects.create(
@@ -729,7 +729,7 @@ class ModoEntregaExplicitoTests(TestCase):
         )
 
     def test_modo_legacy_ignora_pasos(self):
-        from core.selector_curso import continuar_curso_seleccionado
+        from core.conversacion.selector_curso import continuar_curso_seleccionado
 
         s1 = _seccion(self.m1, 1)
         PasoModulo.objects.create(
@@ -759,7 +759,7 @@ class ModoEntregaExplicitoTests(TestCase):
         self.assertIn('organizando el contenido', r)
 
     def test_modo_auto_con_pasos_usa_pasos(self):
-        from core.selector_curso import continuar_curso_seleccionado
+        from core.conversacion.selector_curso import continuar_curso_seleccionado
 
         self.assertEqual(self.m1.modo_entrega, Modulo.MODO_ENTREGA_AUTO)
         # Primera inscripción (sin progreso previo) debe entregar el micro, no solo CTA.

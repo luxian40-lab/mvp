@@ -3,7 +3,7 @@
 
 def responder(intent, nombre_usuario, kwargs):
     # Curso de lista (mismo orden que opcion_2 / selector_curso por cliente)
-    from core.selector_curso import continuar_curso_seleccionado
+    from core.conversacion.selector_curso import continuar_curso_seleccionado
 
     sid = kwargs.get('estudiante_id')
     msg = (kwargs.get('mensaje_original') or '').strip()

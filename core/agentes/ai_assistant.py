@@ -277,7 +277,7 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
                     # El usuario debe responder con un número
                     if mensaje.strip().isdigit():
                         indice_curso = int(mensaje.strip())
-                        from core.selector_curso import continuar_curso_seleccionado
+                        from core.conversacion.selector_curso import continuar_curso_seleccionado
                         return continuar_curso_seleccionado(estudiante.id, indice_curso, mensaje)
                     else:
                         # Si NO es un número, el usuario puede estar escribiendo otra cosa

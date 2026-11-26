@@ -9,7 +9,7 @@ def responder(intent, nombre_usuario, kwargs):
         return "Error al identificar estudiante. ⚠️"
     
     from core.models import Estudiante
-    from core.selector_curso import asegurar_inscripcion_catalogo_cliente
+    from core.conversacion.selector_curso import asegurar_inscripcion_catalogo_cliente
     estudiante = Estudiante.objects.get(id=estudiante_id)
     if getattr(estudiante, 'cliente_id', None):
         asegurar_inscripcion_catalogo_cliente(estudiante)

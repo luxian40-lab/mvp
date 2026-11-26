@@ -20,7 +20,7 @@ from core.models import (
     ProgresoEstudiante,
 )
 from core.conversacion.response_templates import get_response_for_intent
-from core.selector_curso import continuar_curso_seleccionado
+from core.conversacion.selector_curso import continuar_curso_seleccionado
 
 
 class TesterLocalDosCursosAgentesTests(TestCase):

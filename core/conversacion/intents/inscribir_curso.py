@@ -4,7 +4,7 @@
 def responder(intent, nombre_usuario, kwargs):
     from core.conversacion.response_templates import dividir_contenido_seguro, logger, obtener_video_url, parte_mensaje_con_media, partir_sep, timezone
     from core.models import ProgresoEstudiante, Estudiante
-    from core.selector_curso import cursos_visibles_para_estudiante
+    from core.conversacion.selector_curso import cursos_visibles_para_estudiante
     import re
     
     mensaje_original = kwargs.get('mensaje_original', '').strip()

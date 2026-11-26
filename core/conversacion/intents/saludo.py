@@ -6,7 +6,7 @@ def responder(intent, nombre_usuario, kwargs):
     if estudiante_id_menu:
         try:
             from core.models import Estudiante as _EstMenu
-            from core.selector_curso import asegurar_inscripcion_catalogo_cliente
+            from core.conversacion.selector_curso import asegurar_inscripcion_catalogo_cliente
 
             _est = _EstMenu.objects.select_related('cliente').get(id=estudiante_id_menu)
             # B2B: sin menú 1-2-3 global; si tiene 2+ cursos activos, menú de elección

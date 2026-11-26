@@ -3,7 +3,7 @@
 
 def responder(intent, nombre_usuario, kwargs):
     from core.models import Curso, Estudiante
-    from core.selector_curso import cursos_visibles_para_estudiante, asegurar_inscripcion_catalogo_cliente
+    from core.conversacion.selector_curso import cursos_visibles_para_estudiante, asegurar_inscripcion_catalogo_cliente
 
     estudiante_id_vc = kwargs.get('estudiante_id')
     cursos_activos = None

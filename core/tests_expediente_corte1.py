@@ -21,7 +21,7 @@ from core.models import (
     ProgresoEstudiante,
 )
 from core.certificados.models_certificados import Certificado
-from core.selector_curso import continuar_curso_seleccionado
+from core.conversacion.selector_curso import continuar_curso_seleccionado
 from core.views.ventana_drip import _pregunta_abierta_final_pendiente
 
 

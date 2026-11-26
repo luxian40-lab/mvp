@@ -15,7 +15,7 @@ from django.utils import timezone
 from core.certificados.certificado_presencial_service import cerrar_curso_si_tramo_final
 from core.conversacion.progreso_completado import marcar_progreso_curso_completado
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.selector_curso import continuar_curso_seleccionado
+from core.conversacion.selector_curso import continuar_curso_seleccionado
 
 # Raíz de producto donde no se permite asignar completado=True directo.
 _CORE = Path(settings.BASE_DIR) / 'core'

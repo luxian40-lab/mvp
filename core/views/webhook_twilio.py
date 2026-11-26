@@ -374,7 +374,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         indice = int(msg_body.strip())
                     
                     if indice is not None:
-                        from ..selector_curso import continuar_curso_seleccionado
+                        from ..conversacion.selector_curso import continuar_curso_seleccionado
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save(update_fields=['estado_onboarding'])
                         texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)

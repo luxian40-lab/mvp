@@ -118,7 +118,7 @@ def texto_ayuda_comandos(estudiante) -> str:
 
 def resolver_progreso_b2b(estudiante):
     """Progreso activo según campaña / catálogo (solo cuando hay un curso claro)."""
-    from core.selector_curso import asegurar_inscripcion_catalogo_cliente
+    from core.conversacion.selector_curso import asegurar_inscripcion_catalogo_cliente
 
     if not es_estudiante_b2b(estudiante):
         return None
@@ -128,7 +128,7 @@ def resolver_progreso_b2b(estudiante):
 
 
 def mensaje_curso_por_campana(estudiante) -> str:
-    from core.selector_curso import asegurar_inscripcion_catalogo_cliente
+    from core.conversacion.selector_curso import asegurar_inscripcion_catalogo_cliente
 
     if tiene_varios_cursos_activos(estudiante):
         return armar_menu_seleccion_cursos(estudiante)
