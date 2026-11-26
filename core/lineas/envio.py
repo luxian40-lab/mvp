@@ -334,7 +334,7 @@ def enviar_meta(
         # El ⏳ sobre su Continuemos ya dice que el módulo viene; no gastar un mensaje.
         return {'success': True, 'mensaje_id': None, 'response': 'reaccion_espera'}
     if '[SEND_BUTTON:continuemos]' in texto and not clean_url:
-        from core.avance_whatsapp import (
+        from core.conversacion.avance_whatsapp import (
             BOTON_CONTINUEMOS_ID,
             BOTON_CONTINUEMOS_TITULO,
             separar_boton_continuemos,
@@ -903,7 +903,7 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
         habeas_sid = ''
     if sid and _sid_es_habeas(sid, habeas_sid):
         return enviar_sandbox_habeas(telefono)
-    from core.avance_whatsapp import (
+    from core.conversacion.avance_whatsapp import (
         BOTON_CONTINUEMOS_ID,
         BOTON_CONTINUEMOS_TITULO,
         CUERPO_BOTON_CONTINUEMOS,

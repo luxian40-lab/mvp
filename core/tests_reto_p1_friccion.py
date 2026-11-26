@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from core.avance_whatsapp import (
+from core.conversacion.avance_whatsapp import (
     CLAVE_ESPERA_CONTINUAR_POST_RETO,
     texto_cuando_no_es_listo,
 )

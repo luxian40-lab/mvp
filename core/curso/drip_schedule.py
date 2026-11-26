@@ -145,7 +145,7 @@ def _texto_bloqueo(f_txt: str, cierre: str, cliente=None, *, con_aviso: bool = F
 
 def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
     """Mensaje WhatsApp: espera por días entre módulos (mismo tono que el drip histórico)."""
-    from core.avance_whatsapp import texto_bloqueo_drip_cierre
+    from core.conversacion.avance_whatsapp import texto_bloqueo_drip_cierre
 
     if hasattr(fecha_desbloqueo, 'hour'):
         f_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
@@ -156,7 +156,7 @@ def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
 
 def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None, *, con_aviso: bool = False) -> str:
     """Mismo tono que el drip por días; la fecha incluye hora (calendario programado)."""
-    from core.avance_whatsapp import texto_bloqueo_drip_cierre
+    from core.conversacion.avance_whatsapp import texto_bloqueo_drip_cierre
 
     f_txt = timezone.localtime(habilitado_desde).strftime('%d/%m/%Y a las %H:%M')
     return _texto_bloqueo(

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger('core.module_steps')
 
 # Entre secciones y al cerrar el módulo: el envío lo vuelve botón «Continuemos».
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
 
 MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_CONTINUAR_EN_MODULO = MARCADOR_BOTON_CONTINUEMOS
@@ -698,7 +698,7 @@ def entregar_bloque_secciones_desde_paso(
             else:
                 partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
         else:
-            from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+            from core.conversacion.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
 
             partes.append(
                 resolver_cta_listo(progreso.estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
@@ -800,7 +800,7 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
         if progreso.paso_actual_modulo <= n:
             partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
         else:
-            from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+            from core.conversacion.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
 
             partes.append(
                 resolver_cta_listo(progreso.estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)

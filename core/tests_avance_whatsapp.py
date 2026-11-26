@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from core.avance_whatsapp import (
+from core.conversacion.avance_whatsapp import (
     MARCADOR_BOTON_CONTINUEMOS,
     MODO_AVANCE_BOTON,
     MODO_AVANCE_TEXTO,

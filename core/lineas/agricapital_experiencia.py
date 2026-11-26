@@ -204,7 +204,7 @@ def texto_tip_media_agricapital() -> str:
 
 
 def texto_no_entendi_agricapital() -> str:
-    from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+    from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
 
     return TEXTO_NO_ENTENDI + '\n\n' + MARCADOR_BOTON_CONTINUEMOS
 

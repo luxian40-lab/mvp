@@ -239,7 +239,7 @@ def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, par
         if hay_mas_modulos:
             if hay_media_conf:
                 texto_respuesta += "[SEP][DELAY:5]"
-            from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+            from core.conversacion.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
             texto_respuesta += "[SEP]" + resolver_cta_listo(
                 estudiante, curso, CTX_FIN_ENTREGA_MODULO
             )

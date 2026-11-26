@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from core.avance_whatsapp import (
+from core.conversacion.avance_whatsapp import (
     MARCADOR_BOTON_CONTINUEMOS,
     texto_cuando_no_es_listo,
 )

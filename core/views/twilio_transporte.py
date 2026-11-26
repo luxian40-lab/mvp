@@ -352,7 +352,7 @@ class _ClienteConBoton:
         self.messages = self
 
     def create(self, **params):
-        from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
+        from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
 
         body = str(params.get('body') or '')
         if MARCADOR_BOTON_CONTINUEMOS not in body:

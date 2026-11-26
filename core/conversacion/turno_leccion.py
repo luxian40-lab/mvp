@@ -11,7 +11,7 @@ import logging
 
 from django.conf import settings
 
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
 
 logger = logging.getLogger(__name__)
 

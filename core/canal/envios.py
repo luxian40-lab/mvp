@@ -230,7 +230,7 @@ def enviar_whatsapp_twilio(
     except Exception:
         logger.exception('sandbox_meta_intercept_twilio_send')
 
-    from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
+    from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS, sid_plantilla_continuemos
 
     if MARCADOR_BOTON_CONTINUEMOS in str(texto or ''):
         resto = str(texto).replace(MARCADOR_BOTON_CONTINUEMOS, '').strip()
@@ -432,7 +432,7 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
 
     api_version = _version()
 
-    from core.avance_whatsapp import (
+    from core.conversacion.avance_whatsapp import (
         BOTON_CONTINUEMOS_ID,
         BOTON_CONTINUEMOS_TITULO,
         MARCADOR_BOTON_CONTINUEMOS,

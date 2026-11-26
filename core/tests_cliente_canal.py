@@ -119,7 +119,7 @@ class CanalesRealesTests(SimpleTestCase):
         self.assertEqual(sid.sid, 'wamid.x')
 
     def _boton(self):
-        from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+        from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
         from core.views.twilio_transporte import interceptar_envio_boton_twilio
 
         enviados = []

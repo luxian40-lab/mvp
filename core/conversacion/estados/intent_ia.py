@@ -68,7 +68,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         logger.info(f"🤖 Usando IA para pregunta sobre agricultura")
         if estudiante.preguntas_ia_restantes <= 0:
             # Freno de mano: IA pausada
-            from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+            from core.conversacion.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
             _prog_ia = estudiante.progresos.order_by('-fecha_inicio').first()
             _curso_ia = _prog_ia.curso if _prog_ia else None
             texto_respuesta = (

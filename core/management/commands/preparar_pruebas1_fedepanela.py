@@ -1,7 +1,7 @@
 """Copia curso(s) Fedepanela → cliente pruebas1 y activa modo botón (solo pruebas)."""
 from django.core.management.base import BaseCommand, CommandError
 
-from core.avance_whatsapp import MODO_AVANCE_BOTON
+from core.conversacion.avance_whatsapp import MODO_AVANCE_BOTON
 from core.curso.copiar_cursos import ClienteOrigenNoEncontrado, copiar_cursos_a_pruebas
 from core.models import Cliente, Curso
 

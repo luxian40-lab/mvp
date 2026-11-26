@@ -3,8 +3,8 @@ import logging
 
 from django.utils import timezone
 
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
-from core.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from core.conversacion.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.conversacion.multimsg import partes_multimsg

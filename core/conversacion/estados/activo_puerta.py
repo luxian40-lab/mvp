@@ -2,7 +2,7 @@
 
 import logging
 
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import WhatsappLog
@@ -88,7 +88,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
                     "Para avanzar, Pulse continuar, para seguir aprendiendo.\n\n" + _MARCADOR_CONTINUEMOS
                 )
             else:
-                from core.avance_whatsapp import texto_cuando_no_es_listo
+                from core.conversacion.avance_whatsapp import texto_cuando_no_es_listo
 
                 texto_respuesta = texto_cuando_no_es_listo(estudiante, msg_body)
             try:

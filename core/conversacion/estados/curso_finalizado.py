@@ -1,7 +1,7 @@
 """Estado curso_finalizado. Movido del cuerpo de _procesar_twilio_webhook_cuerpo sin cambios."""
 import logging
 
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import Contexto, Respuesta
 
 logger = logging.getLogger('core.views.webhook_twilio')

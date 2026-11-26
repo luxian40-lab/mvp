@@ -2,7 +2,7 @@
 import logging
 import re
 
-from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
+from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
@@ -255,7 +255,7 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
                     ]
                 )
                 _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
-            from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+            from core.conversacion.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
 
             _base_ctx[CLAVE_ESPERA_CONTINUAR_POST_RETO] = True
             estudiante.contexto_temporal = _base_ctx
@@ -268,7 +268,7 @@ def _avanzar_tras_reto(texto_respuesta, estudiante, contexto_limpio, progreso, m
                 + _MARCADOR_CONTINUEMOS
             )
     else:
-        from core.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
+        from core.conversacion.avance_whatsapp import CLAVE_ESPERA_CONTINUAR_POST_RETO
 
         _base_ctx[CLAVE_ESPERA_CONTINUAR_POST_RETO] = True
         estudiante.contexto_temporal = _base_ctx
