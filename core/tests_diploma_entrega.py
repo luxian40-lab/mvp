@@ -177,3 +177,140 @@ class DiplomaEntregaPlantillaYFlagTests(TestCase):
         tpl.assert_not_called()
         self.cert.refresh_from_db()
         self.assertFalse(self.cert.enviado_whatsapp)
+
+
+class DiplomaLineaEmpresaTests(TestCase):
+    """El diploma encolado no tiene turno. Sale por la línea de la empresa."""
+
+    def setUp(self):
+        from core.models import Cliente, Curso, Estudiante
+        from core.certificados.models_certificados import Certificado
+
+        self.cli = Cliente.objects.create(
+            nombre='Agri Test',
+            contacto_principal='A',
+            email='agri-diploma@test.com',
+            telefono='573000000026',
+            activo=True,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='dipL3',
+            nombre='Ana Linea',
+            telefono='573000000027',
+            cliente=self.cli,
+            estado_chat='ACTIVO',
+            activo=True,
+        )
+        self.curso = Curso.objects.create(nombre='Riego', cliente=self.cli, activo=True)
+        hoy = timezone.now().date()
+        self.cert = Certificado.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            calificacion_final=100,
+            fecha_inicio=hoy,
+            fecha_completado=hoy,
+            emitido=True,
+            codigo_verificacion='eki-L3AA-BBBB',
+            archivo_imagen='certificados/generados/certificado_eki-L3AA-BBBB.png',
+        )
+        self.media = (
+            'https://eki-produccion.s3.us-east-2.amazonaws.com/'
+            'certificados/generados/certificado_eki-L3AA-BBBB.png'
+        )
+
+    def _spy(self, capturado):
+        def spy(phone_id=None):
+            capturado['phone_id'] = phone_id
+            sender = MagicMock()
+            sender.canal = 'meta'
+            sender.plantilla_imagen.return_value = {'success': True, 'mensaje_id': 'wamid.L3'}
+            return sender
+        return spy
+
+    def _plantilla(self, waba_id):
+        from core.campanas.models_campana_meta import PlantillaMeta
+
+        PlantillaMeta.objects.create(
+            nombre_interno='Entrega documento',
+            meta_name='entrega_documento_eki',
+            cuerpo='Nombre: {{1}}. Curso: {{2}}. Referencia: {{3}}.',
+            tipo='IMAGEN',
+            categoria='UTILITY',
+            estado='APPROVED',
+            activa=True,
+            waba_id=waba_id,
+        )
+
+    def test_sin_plantilla_en_la_cuenta_no_cambia_la_linea(self):
+        from core.lineas.diploma_entrega import enviar_diploma_plantilla_meta
+
+        capturado = {}
+        with override_settings(
+            EKI_AGRICAPITAL_CLIENTE_ID=str(self.cli.pk),
+            EKI_LINEA_REGISTRO_PHONE_ID='1477762615411333',
+            EKI_LINEA_REGISTRO_WABA_ID='1560693046090506',
+            META_TEMPLATE_DIPLOMA='entrega_documento_eki',
+        ), patch('core.lineas.sender.sender_de_linea', self._spy(capturado)):
+            enviar_diploma_plantilla_meta(self.est.telefono, self.media)
+        self.assertIsNone(capturado['phone_id'])
+
+    def test_agricapital_sin_turno_sale_por_linea_3(self):
+        from core.lineas.diploma_entrega import enviar_diploma_plantilla_meta
+
+        self._plantilla('1560693046090506')
+        capturado = {}
+        with override_settings(
+            EKI_AGRICAPITAL_CLIENTE_ID=str(self.cli.pk),
+            EKI_LINEA_REGISTRO_PHONE_ID='1477762615411333',
+            EKI_LINEA_REGISTRO_WABA_ID='1560693046090506',
+            EKI_LINEA_REGISTRO_E164='573001112233',
+            META_TEMPLATE_DIPLOMA='entrega_documento_eki',
+        ), patch('core.lineas.sender.sender_de_linea', self._spy(capturado)):
+            r = enviar_diploma_plantilla_meta(
+                self.est.telefono,
+                self.media,
+                nombre_estudiante='Ana',
+                curso='Riego',
+                codigo='eki-L3AA-BBBB',
+            )
+        self.assertTrue(r['success'])
+        self.assertEqual(capturado['phone_id'], '1477762615411333')
+
+    def test_el_turno_abierto_no_se_cambia(self):
+        from core.canal.sandbox_canal import salida_por_phone_id
+        from core.lineas.diploma_entrega import enviar_diploma_plantilla_meta
+
+        capturado = {}
+        with override_settings(
+            EKI_AGRICAPITAL_CLIENTE_ID=str(self.cli.pk),
+            EKI_LINEA_REGISTRO_PHONE_ID='1477762615411333',
+            META_TEMPLATE_DIPLOMA='entrega_documento_eki',
+        ), salida_por_phone_id('495439026995771'), patch(
+            'core.lineas.sender.sender_de_linea', self._spy(capturado),
+        ):
+            enviar_diploma_plantilla_meta(self.est.telefono, self.media)
+        self.assertEqual(capturado['phone_id'], '495439026995771')
+
+    def test_empresa_con_linea_propia_usa_esa_linea(self):
+        from core.lineas.diploma_entrega import enviar_diploma_plantilla_meta
+
+        self.cli.phone_id_meta = '222000000000222'
+        self.cli.save(update_fields=['phone_id_meta'])
+        self._plantilla('1000000000008942')
+        capturado = {}
+        with override_settings(
+            META_TEMPLATE_DIPLOMA='entrega_documento_eki',
+            WHATSAPP_BUSINESS_ACCOUNT_ID='1000000000008942',
+        ), patch('core.lineas.sender.sender_de_linea', self._spy(capturado)):
+            enviar_diploma_plantilla_meta(self.est.telefono, self.media)
+        self.assertEqual(capturado['phone_id'], '222000000000222')
+
+    def test_sin_linea_de_empresa_sigue_el_turno(self):
+        from core.lineas.diploma_entrega import enviar_diploma_plantilla_meta
+
+        capturado = {}
+        with override_settings(META_TEMPLATE_DIPLOMA='entrega_documento_eki'), patch(
+            'core.lineas.sender.sender_de_linea', self._spy(capturado),
+        ):
+            enviar_diploma_plantilla_meta(self.est.telefono, self.media)
+        self.assertIsNone(capturado['phone_id'])

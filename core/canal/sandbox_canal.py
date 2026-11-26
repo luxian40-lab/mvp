@@ -165,8 +165,13 @@ def salida_por_phone_id(pnid: str | None):
         _pnid_salida.reset(token)
 
 
+def phone_id_salida_explicito() -> str:
+    """Phone id que el turno fijó. Vacío no cae a la línea 1."""
+    return (_pnid_salida.get() or '').strip()
+
+
 def phone_id_de_salida() -> str:
-    explicito = (_pnid_salida.get() or '').strip()
+    explicito = phone_id_salida_explicito()
     if explicito:
         return explicito
     return sandbox_phone_id()

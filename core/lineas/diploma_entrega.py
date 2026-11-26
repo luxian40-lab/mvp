@@ -44,6 +44,94 @@ def nombre_plantilla_diploma() -> str:
         return ''
 
 
+def _diploma_aprobado_en_meta(waba: str, nombre: str) -> bool:
+    """Consulta Graph si la fila local aún no refleja esa cuenta."""
+    from core.meta_waba import _get, _version, normalizar_estado
+
+    status, data = _get(
+        f'https://graph.facebook.com/{_version()}/{waba}/message_templates',
+        {'name': nombre, 'limit': 20},
+    )
+    if status != 200:
+        return False
+    for item in data.get('data') or []:
+        if (item.get('name') or '') != nombre:
+            continue
+        if normalizar_estado(str(item.get('status') or '')) == 'APPROVED':
+            return True
+    return False
+
+
+def _diploma_aprobado_en(phone_id: str) -> bool:
+    """La plantilla del diploma no cruza de cuenta. Sin ella, la línea 1 sigue entregando."""
+    pid = (phone_id or '').strip()
+    nombre = nombre_plantilla_diploma()
+    if not pid or not nombre:
+        return False
+
+    def _local_o_meta():
+        from core.campanas.models_campana_meta import PlantillaMeta
+        from core.lineas.campana import waba_de_linea
+
+        waba = (waba_de_linea(pid) or '').strip()
+        if not waba:
+            return False
+        if PlantillaMeta.objects.filter(
+            meta_name=nombre,
+            estado='APPROVED',
+            activa=True,
+            waba_id=waba,
+        ).exists():
+            return True
+        return _diploma_aprobado_en_meta(waba, nombre)
+
+    return bool(_db_o_nada(_local_o_meta, False))
+
+
+def phone_id_para_diploma(estudiante) -> str:
+    """Línea de la empresa cuando el envío ya no está dentro del chat.
+
+    AgriCapital sale por la línea 3, y otra empresa por su phone id, solo si
+    la plantilla del diploma está aprobada en esa cuenta. Si no, vacío: se
+    deja la línea del turno, o la línea 1 si no hay turno.
+    """
+    if estudiante is None:
+        return ''
+    from core.lineas.registro_abrir import phone_id_linea_registro
+    from core.lineas.registro_agricapital import es_cliente_agricapital
+
+    candidato = ''
+    cliente_id = getattr(estudiante, 'cliente_id', None)
+    if es_cliente_agricapital(cliente_id):
+        candidato = phone_id_linea_registro()
+    if not candidato:
+        candidato = (getattr(getattr(estudiante, 'cliente', None), 'phone_id_meta', '') or '').strip()
+    if not candidato and cliente_id:
+        try:
+            from core.lineas.meta import lineas_producto
+
+            for linea in lineas_producto():
+                if linea.cliente_id == cliente_id and (linea.phone_id or '').strip():
+                    candidato = linea.phone_id.strip()
+                    break
+        except Exception:
+            logger.exception('phone_id_para_diploma')
+    if candidato and _diploma_aprobado_en(candidato):
+        return candidato
+    return ''
+
+
+def _phone_id_de_entrega(telefono: str, media_url: str | None) -> str:
+    """La línea del turno gana. Si el turno no la fijó, la de la empresa."""
+    from core.canal.sandbox_canal import phone_id_salida_explicito
+
+    explicito = phone_id_salida_explicito()
+    if explicito:
+        return explicito
+    _nombre, _curso, _codigo, cert = _datos_certificado(telefono, media_url)
+    return phone_id_para_diploma(getattr(cert, 'estudiante', None) if cert else None)
+
+
 def enviar_diploma_plantilla_meta(
     telefono,
     media_url,
@@ -64,7 +152,7 @@ def enviar_diploma_plantilla_meta(
     }
     from core.lineas.sender import sender_de_linea
 
-    sender = sender_de_linea()
+    sender = sender_de_linea(_phone_id_de_entrega(telefono, media_url) or None)
     if getattr(sender, 'canal', '') == 'meta':
         return sender.plantilla_imagen(
             telefono,
@@ -134,7 +222,7 @@ def entregar_si_corresponde(
 def _enviar_sesion(telefono: str, texto: str, media_url: str | None, *, agente: str) -> dict:
     from core.lineas.sender import sender_de_linea
 
-    sender = sender_de_linea()
+    sender = sender_de_linea(_phone_id_de_entrega(telefono, media_url) or None)
     if getattr(sender, 'canal', '') == 'meta':
         return sender.texto(telefono, texto, media_url=media_url, agente=agente)
 
