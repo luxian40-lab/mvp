@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from core.intent_detector import (
+from core.conversacion.intent_detector import (
     mensaje_indica_listo,
     mensaje_indica_listo_o_confirma_handoff,
 )

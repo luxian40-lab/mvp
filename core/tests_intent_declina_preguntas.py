@@ -1,7 +1,7 @@
 """Detector: el estudiante declina preguntas al Compañero (pausa pre-reto)."""
 from django.test import SimpleTestCase
 
-from core.intent_detector import mensaje_declina_preguntas, mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_declina_preguntas, mensaje_indica_listo
 
 
 class MensajeDeclinaPreguntasTests(SimpleTestCase):

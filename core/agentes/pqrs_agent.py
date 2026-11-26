@@ -570,7 +570,7 @@ def intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, mensaje: str) -> Opt
     if not ticket:
         return None
 
-    from core.intent_detector import mensaje_indica_listo
+    from core.conversacion.intent_detector import mensaje_indica_listo
 
     # listo/continuar → liberar ticket y ceder al curso (no anexar al caso)
     if mensaje_indica_listo(mensaje):

@@ -8,7 +8,7 @@ from core.conversacion.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTE
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
 from core.conversacion.multimsg import partes_multimsg
-from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import ModuloCompletado
 from core.conversacion.response_templates import parte_mensaje_con_media
 from core.views.empleabilidad import _radar_msg_si_aplica

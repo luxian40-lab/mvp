@@ -3,10 +3,10 @@ import logging
 
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
-from core.intent_detector import mensaje_cierre_corto_companero as _mensaje_cierre_corto
-from core.intent_detector import mensaje_declina_preguntas as _mensaje_declina_preguntas
-from core.intent_detector import mensaje_indica_listo_o_confirma_handoff as _mensaje_indica_listo
-from core.intent_detector import mensaje_parece_pregunta_companero as _mensaje_parece_pregunta
+from core.conversacion.intent_detector import mensaje_cierre_corto_companero as _mensaje_cierre_corto
+from core.conversacion.intent_detector import mensaje_declina_preguntas as _mensaje_declina_preguntas
+from core.conversacion.intent_detector import mensaje_indica_listo_o_confirma_handoff as _mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_parece_pregunta_companero as _mensaje_parece_pregunta
 
 logger = logging.getLogger('core.views.webhook_twilio')
 

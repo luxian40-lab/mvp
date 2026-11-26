@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.http import HttpResponse
 
-from ..intent_detector import detect_intent
+from ..conversacion.intent_detector import detect_intent
 from ..models import Estudiante, WhatsappLog
 from ..conversacion.response_templates import get_response_for_intent
 from ..canal.envios import enviar_whatsapp

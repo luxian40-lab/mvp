@@ -12,7 +12,7 @@ from core.conversacion.avance_whatsapp import (
     resolver_cta_listo,
     texto_bloqueo_drip_cierre,
 )
-from core.intent_detector import mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo
 from core.models import Cliente, Curso, Estudiante
 
 

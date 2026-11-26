@@ -5,7 +5,7 @@ import re
 from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.contexto import Contexto, Respuesta
-from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.views.empleabilidad import _radar_msg_si_aplica
 from core.views.ventana_drip import _pregunta_abierta_final_pendiente
 

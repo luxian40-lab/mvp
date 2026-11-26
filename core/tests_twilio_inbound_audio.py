@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
 
-from core.intent_detector import mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo
 from core.canal.twilio_inbound_media import (
     descargar_bytes_twilio,
     es_audio_inbound_twilio,

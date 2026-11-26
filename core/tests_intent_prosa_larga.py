@@ -1,6 +1,6 @@
 """Regresión: transcripciones no deben disparar continuar_leccion por subcadenas ('si','seguir','ya')."""
 
-from core.intent_detector import detect_intent, mensaje_indica_listo
+from core.conversacion.intent_detector import detect_intent, mensaje_indica_listo
 
 
 def test_prosa_larga_con_si_en_medio_no_es_continuar():

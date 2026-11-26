@@ -267,7 +267,7 @@ def detectar_intent_con_evento(
     canal: str = 'whatsapp_edu',
 ) -> str:
     """Detecta intent y emite evento auditable en el mismo trace."""
-    from core.intent_detector import detect_intent
+    from core.conversacion.intent_detector import detect_intent
 
     intent = detect_intent(mensaje)
     emit_intent_detectado(

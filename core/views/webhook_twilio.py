@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from ..conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from ..conversacion.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
-from ..intent_detector import mensaje_indica_listo as _mensaje_indica_listo
+from ..conversacion.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from ..models import Estudiante, WhatsappLog
 from ..conversacion.response_templates import parte_mensaje_con_media
 

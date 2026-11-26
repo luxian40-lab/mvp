@@ -52,7 +52,7 @@ class PausaLeccionNuncaNoEntendiTests(SimpleTestCase):
 
     def test_cortesia_pide_continuar_sin_no_entendi(self):
         """si/ok/emoji no avanzan; reciben tip, no rechazo."""
-        from core.intent_detector import mensaje_indica_listo
+        from core.conversacion.intent_detector import mensaje_indica_listo
 
         est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=1, nombre='Ana')
         for msg in ('si', 'ok', '👍', '✅'):

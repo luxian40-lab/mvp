@@ -4,7 +4,7 @@ import logging
 
 from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import WhatsappLog
 
 logger = logging.getLogger('core.views.webhook_twilio')

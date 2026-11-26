@@ -338,7 +338,7 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
         print(f"❌ Error en IA: {error_msg}")
         
         # Fallback a respuestas básicas
-        from core.intent_detector import detect_intent
+        from core.conversacion.intent_detector import detect_intent
         from core.conversacion.response_templates import get_response_for_intent
         
         intent = detect_intent(mensaje)

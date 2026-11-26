@@ -74,7 +74,7 @@ def parte_mensaje_con_media(url: str, caption: str | None = None) -> str:
 
 def _es_mensaje_listo_avance_curso(texto: str) -> bool:
     """*listo* y *continuar* son el mismo disparador de avance."""
-    from core.intent_detector import mensaje_indica_listo
+    from core.conversacion.intent_detector import mensaje_indica_listo
     return mensaje_indica_listo(texto)
 
 

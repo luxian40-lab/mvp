@@ -1,7 +1,7 @@
 """Detector: ¿parece pregunta? / cierre corto en pausa del Compañero."""
 from django.test import SimpleTestCase
 
-from core.intent_detector import (
+from core.conversacion.intent_detector import (
     mensaje_cierre_corto_companero,
     mensaje_declina_preguntas,
     mensaje_parece_pregunta_companero,

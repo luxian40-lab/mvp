@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from core.intent_detector import mensaje_indica_listo
+from core.conversacion.intent_detector import mensaje_indica_listo
 from core.models import (
     Curso,
     Estudiante,

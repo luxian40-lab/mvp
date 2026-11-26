@@ -1323,7 +1323,7 @@ def chat_prueba_api(request):
             except Exception as e:
                 print(f"❌ Error en IA: {e}")
                 # Fallback
-                from ..intent_detector import detect_intent
+                from ..conversacion.intent_detector import detect_intent
                 from ..conversacion.response_templates import get_response_for_intent
                 intent = detect_intent(mensaje)
                 respuesta = get_response_for_intent(intent, 'Usuario')

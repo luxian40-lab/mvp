@@ -58,7 +58,7 @@ def turno_leccion_companero_habilitado() -> bool:
 
 def clasificar_mensaje_leccion(mensaje: str) -> str:
     """Devuelve ``media``, ``pregunta`` o ``leccion``. Nunca avanza el curso."""
-    from core.intent_detector import mensaje_parece_pregunta_companero
+    from core.conversacion.intent_detector import mensaje_parece_pregunta_companero
     from core.lineas.agricapital_experiencia import es_duda_media_agricapital
 
     texto = mensaje or ''
