@@ -10,12 +10,12 @@ Los totales se cuentan por inscripción (persona y curso), así suman lo mismo q
 """
 from __future__ import annotations
 
-from django.db.models import Count, Q
+from django.db.models import Q
 
 from core.analitica.nps_cierre import nps_nota_cierre
 from core.lineas.modelo import LineaWhatsapp
 from core.curso.modulo_publicacion import modulos_publicados_wa_qs
-from core.models import Curso, ModuloCompletado, NotaCierreCurso, ProgresoEstudiante
+from core.models import Curso, ModuloCompletado, ProgresoEstudiante
 from portal.analitica_universo import ids_estudiantes_analitica
 
 
@@ -107,48 +107,12 @@ def _semaforo(pct) -> str:
     return 'rojo'
 
 
-def _nps_vacio() -> dict:
-    return {'n': 0, 'nps': None, 'promotores': 0, 'pasivos': 0, 'detractores': 0}
-
-
-def _nps_desde_conteos(n: int, promotores: int, pasivos: int, detractores: int) -> dict:
-    if not n:
-        return _nps_vacio()
-    return {
-        'n': n,
-        'nps': round((promotores - detractores) * 100 / n),
-        'promotores': promotores,
-        'pasivos': pasivos,
-        'detractores': detractores,
-    }
-
-
-def _nps_por_curso(org, curso_ids: set[int]) -> dict[int, dict]:
-    """NPS por curso. Incluye notas de inactivos: un 10 al cerrar no debe desaparecer."""
-    if not curso_ids:
-        return {}
-    filas = (
-        NotaCierreCurso.objects.filter(
-            estudiante__cliente=org,
-            curso_id__in=curso_ids,
-        )
-        .values('curso_id')
-        .annotate(
-            n=Count('id'),
-            promotores=Count('id', filter=Q(nota__gte=9)),
-            pasivos=Count('id', filter=Q(nota__gte=7, nota__lte=8)),
-            detractores=Count('id', filter=Q(nota__lte=6)),
-        )
-    )
-    return {
-        int(fila['curso_id']): _nps_desde_conteos(
-            int(fila['n'] or 0),
-            int(fila['promotores'] or 0),
-            int(fila['pasivos'] or 0),
-            int(fila['detractores'] or 0),
-        )
-        for fila in filas
-    }
+def _con_semaforos(datos: dict) -> dict:
+    datos['inicio_semaforo'] = _semaforo(datos.get('inicio_pct'))
+    datos['culminacion_iniciados_semaforo'] = _semaforo(datos.get('culminacion_iniciados_pct'))
+    datos['culminacion_inscritos_semaforo'] = _semaforo(datos.get('culminacion_inscritos_pct'))
+    datos['avance_semaforo'] = _semaforo(datos.get('avance_pct'))
+    return datos
 
 
 def metricas_cursos(org) -> dict:
@@ -232,21 +196,16 @@ def metricas_cursos(org) -> dict:
         fila[3] += modulo_alcanzado
         fila[4] += avance_pct
 
-    nps_cursos = _nps_por_curso(org, {curso.id for curso in cursos})
     por_curso = []
     for curso in cursos:
         datos = _fila(*acumulado[curso.id])
         datos['id'] = curso.id
         datos['nombre'] = curso.nombre
         datos['general'] = curso.cliente_id is None
-        datos['avance_semaforo'] = _semaforo(datos['avance_pct'])
-        datos['nps'] = nps_cursos.get(curso.id, _nps_vacio())
-        por_curso.append(datos)
+        por_curso.append(_con_semaforos(datos))
 
-    total = _fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(5)))
-    total['avance_semaforo'] = _semaforo(total['avance_pct'])
+    total = _con_semaforos(_fila(*(sum(fila[i] for fila in acumulado.values()) for i in range(5))))
     nota_cierre = _nota_cierre(org)
-    total['nps'] = nota_cierre
     registrados = len(ids_universo)
     personas_iniciaron = len(cursos_iniciados)
     personas_terminaron = len(terminaron_persona)
