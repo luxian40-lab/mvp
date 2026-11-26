@@ -948,7 +948,7 @@ def enviar_sandbox_template_fallback(telefono: str, content_sid: str, variables:
 def _emit_enviado(telefono: str, texto: str, mensaje_id, canal: str, agente: str) -> None:
     try:
         from core.ai_capabilities import resolver_ai_capability
-        from core.eventos_ia import emit_mensaje_enviado
+        from core.agentes.eventos_ia import emit_mensaje_enviado
 
         if resolver_ai_capability('eventos_ia'):
             emit_mensaje_enviado(

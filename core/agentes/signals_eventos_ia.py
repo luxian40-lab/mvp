@@ -11,7 +11,7 @@ def emitir_evento_modulo_completado(sender, instance, created, **kwargs):
     if not created:
         return
     try:
-        from core.eventos_ia import emit_modulo_completado
+        from core.agentes.eventos_ia import emit_modulo_completado
 
         emit_modulo_completado(instance, origen='signal')
     except Exception:

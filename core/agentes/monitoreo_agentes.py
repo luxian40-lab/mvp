@@ -59,7 +59,7 @@ def registrar_uso_agente(telefono: str, mensaje: str, agente_usado: str,
 
         try:
             from core.models import Estudiante
-            from core.eventos_ia import emit_ia_agent_triggered
+            from core.agentes.eventos_ia import emit_ia_agent_triggered
 
             est = Estudiante.objects.filter(telefono=telefono).first()
             if not est and len(telefono) >= 10:

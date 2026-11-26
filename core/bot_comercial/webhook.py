@@ -480,7 +480,7 @@ def _bot_comercial_respuesta_sin_llm(
 def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> None:
     try:
         from core.agentes.eki_ia_kill_switch import motivo_kill_switch
-        from core.eventos_ia import emit_evento
+        from core.agentes.eventos_ia import emit_evento
         from core.models import EventoIA
 
         motivo = motivo_kill_switch(cliente=cliente)
@@ -666,7 +666,7 @@ def _bot_comercial_respuesta_catalogo(
         latencia_ms = int((time.time() - inicio) * 1000)
         usage = None
         try:
-            from core.eventos_ia import emit_ia_agent_triggered
+            from core.agentes.eventos_ia import emit_ia_agent_triggered
 
             meta_evt = {
                 'tiene_rag': bool(contexto_rag),
@@ -926,7 +926,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
         logger.info("♻️ Bot comercial: webhook duplicado ignorado | sid=%s", msg_sid)
         return
 
-    from core.eventos_ia import set_trace_id
+    from core.agentes.eventos_ia import set_trace_id
     set_trace_id()
 
     if msg_from.startswith('whatsapp:'):
@@ -968,7 +968,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     )
 
     try:
-        from core.eventos_ia import emit_webhook_recibido
+        from core.agentes.eventos_ia import emit_webhook_recibido
         from core.ai_capabilities import resolver_ai_capability
 
         if resolver_ai_capability('eventos_ia'):
@@ -1203,7 +1203,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                                     cliente_ids_consulta,
                                 )
                                 try:
-                                    from core.eventos_ia import emit_rag_query_executed
+                                    from core.agentes.eventos_ia import emit_rag_query_executed
 
                                     emit_rag_query_executed(
                                         pregunta=consulta,
@@ -1328,7 +1328,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
         try:
             import uuid
 
-            from core.eventos_ia import get_or_create_trace_id
+            from core.agentes.eventos_ia import get_or_create_trace_id
             from core.agentes.knowledge_studio import crear_candidata_hitl
 
             tid = get_or_create_trace_id()
@@ -1377,7 +1377,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
             raise RuntimeError(str(resultado_envio.get('response') or 'Error enviando por Twilio'))
 
         try:
-            from core.eventos_ia import emit_mensaje_enviado
+            from core.agentes.eventos_ia import emit_mensaje_enviado
 
             emit_mensaje_enviado(
                 telefono=telefono_limpio,

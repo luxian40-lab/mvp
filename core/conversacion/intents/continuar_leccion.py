@@ -703,7 +703,7 @@ def _cerrar_modulo_listo(usa_pasos, _n_pasos, progreso, modulo_actual, ModuloCom
     )
     es_modulo_reto = decision_cp.es_reto
     try:
-        from core.eventos_ia import emit_checkpoint_evaluado
+        from core.agentes.eventos_ia import emit_checkpoint_evaluado
 
         emit_checkpoint_evaluado(
             decision_cp,

@@ -12,7 +12,7 @@ def manejar(contexto: Contexto) -> Respuesta:
     msg_body = contexto.msg_body
     msg_sid = contexto.msg_sid
     telefono_limpio = contexto.telefono_limpio
-    from core.eventos_ia import detectar_intent_con_evento
+    from core.agentes.eventos_ia import detectar_intent_con_evento
     from core.conversacion.response_templates import get_response_for_intent
 
     _prog = None

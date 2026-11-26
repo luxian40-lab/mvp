@@ -183,7 +183,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             logger.info("♻️ Twilio inbound duplicado ignorado | sid=%s", msg_sid)
             return
 
-        from core.eventos_ia import set_trace_id
+        from core.agentes.eventos_ia import set_trace_id
         set_trace_id()
         
         logger.info(f"📱 Body: {msg_body} | From: {msg_from} | To: {msg_to}")
@@ -248,7 +248,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         logger.info(f"✅ Guardado INCOMING")
 
         try:
-            from core.eventos_ia import emit_webhook_recibido
+            from core.agentes.eventos_ia import emit_webhook_recibido
             from core.ai_capabilities import resolver_ai_capability
 
             if resolver_ai_capability('eventos_ia'):
@@ -384,7 +384,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
                         estudiante.save()
-                        from core.eventos_ia import detectar_intent_con_evento
+                        from core.agentes.eventos_ia import detectar_intent_con_evento
                         from ..conversacion.response_templates import get_response_for_intent
                         _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
                         intent = detectar_intent_con_evento(

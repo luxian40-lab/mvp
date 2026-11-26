@@ -270,7 +270,7 @@ class MenuLegadoTests(_Base):
 
 class RespaldoTests(_Base):
     def _listo(self, sid, intent='saludo', texto='HOLA_TPL'):
-        with patch('core.eventos_ia.detectar_intent_con_evento', return_value=intent), \
+        with patch('core.agentes.eventos_ia.detectar_intent_con_evento', return_value=intent), \
                 patch('core.conversacion.response_templates.get_response_for_intent', return_value=texto), \
                 patch('time.sleep'):
             return self._post('listo', sid)
@@ -334,7 +334,7 @@ class RespaldoTests(_Base):
 class EnvioComunTests(_Base):
     def _enviar(self, texto, sid):
         self._est()
-        with patch('core.eventos_ia.detectar_intent_con_evento', return_value='saludo'), \
+        with patch('core.agentes.eventos_ia.detectar_intent_con_evento', return_value='saludo'), \
                 patch('core.conversacion.response_templates.get_response_for_intent', return_value=texto), \
                 patch('time.sleep') as dormir, \
                 patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:

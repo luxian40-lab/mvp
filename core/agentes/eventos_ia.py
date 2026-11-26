@@ -2,7 +2,7 @@
 Emisión y consulta de eventos IA (Parte 2A — observabilidad).
 
 Uso:
-    from core.eventos_ia import emit_checkpoint_evaluado, get_or_create_trace_id
+    from core.agentes.eventos_ia import emit_checkpoint_evaluado, get_or_create_trace_id
 
 Cada webhook / turno de conversación debe compartir ``trace_id`` para replay.
 """

@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET
 
-from core.eventos_ia import serializar_evento
+from core.agentes.eventos_ia import serializar_evento
 from core.models import EventoIA
 
 

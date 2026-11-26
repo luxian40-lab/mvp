@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from core.eventos_ia import (
+from core.agentes.eventos_ia import (
     emit_checkpoint_evaluado,
     emit_evento,
     emit_intent_detectado,

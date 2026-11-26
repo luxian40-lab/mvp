@@ -37,7 +37,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             estudiante.estado_onboarding = 'completado'
             estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
-            from core.eventos_ia import detectar_intent_con_evento
+            from core.agentes.eventos_ia import detectar_intent_con_evento
             from core.conversacion.response_templates import get_response_for_intent
             _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
             intent = detectar_intent_con_evento(

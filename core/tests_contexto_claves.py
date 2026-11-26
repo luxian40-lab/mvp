@@ -220,7 +220,7 @@ class IaEmpaticaTests(ConCursoTestCase):
                 self.est.estado_onboarding = 'esperando_seleccion_curso'
                 self.est.save()
                 with patch('core.conversacion.response_templates.get_response_for_intent', return_value='hola'), \
-                        patch('core.eventos_ia.detectar_intent_con_evento', return_value='desconocido'):
+                        patch('core.agentes.eventos_ia.detectar_intent_con_evento', return_value='desconocido'):
                     seleccion_curso.manejar(Contexto(self.est, texto, self.est.telefono, self.est.telefono))
                 self.assertEqual(
                     self._contexto(),
