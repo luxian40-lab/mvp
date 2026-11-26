@@ -63,7 +63,7 @@ class ImpactoCapturaTests(TestCase):
     def test_finanzas_no_guarda_impacto_mientras_esta_pausada(self):
         with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
-            with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Revise el flujo de caja.'):
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Revise el flujo de caja.'):
                 dispatch_sandbox_menu(_payload(self.tel, 'cómo ordeno gastos'))
             dispatch_sandbox_menu(_payload(self.tel, 'sí'))
         self.est.refresh_from_db()
@@ -105,7 +105,7 @@ class ImpactoCapturaTests(TestCase):
             with patch('core.lineas.envio._post_graph', return_value=OK):
                 dispatch_sandbox_menu(_payload(self.tel, 'finanzas'))
             with patch(
-                'core.sandbox_agentes.responder_agente_sandbox',
+                'core.agentes.sandbox_agentes.responder_agente_sandbox',
                 return_value='Revise el flujo de caja.',
             ):
                 with patch('core.lineas.envio._post_graph', return_value=OK) as send:

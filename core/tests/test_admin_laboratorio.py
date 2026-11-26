@@ -50,7 +50,7 @@ class LaboratorioTests(TestCase):
             estado=ConocimientoAgente.ESTADO_APROBADO,
         )
         with patch(
-            'core.sandbox_agentes.responder_agente_sandbox',
+            'core.agentes.sandbox_agentes.responder_agente_sandbox',
             return_value='El suelo necesita sombra.',
         ) as llamado:
             respuesta = self.http.post(self.url, {
@@ -75,7 +75,7 @@ class LaboratorioTests(TestCase):
 
     def test_estuvo_mal_abre_una_candidata_pendiente(self):
         with patch(
-            'core.sandbox_agentes.responder_agente_sandbox',
+            'core.agentes.sandbox_agentes.responder_agente_sandbox',
             return_value='Respuesta de prueba.',
         ):
             self.http.post(self.url, {
@@ -106,7 +106,7 @@ class LaboratorioTests(TestCase):
         })
         self.assertEqual(PruebaAgente.objects.count(), 1)
         with patch(
-            'core.sandbox_agentes.responder_agente_sandbox',
+            'core.agentes.sandbox_agentes.responder_agente_sandbox',
             return_value='Conviene cultivar a la sombra.',
         ):
             self.http.post(self.url, {'accion': 'correr'})
@@ -121,7 +121,7 @@ class LaboratorioTests(TestCase):
         PruebaAgente.objects.create(agente='cafe', pregunta='Primera', debe_mencionar='sombra')
         PruebaAgente.objects.create(agente='cafe', pregunta='Segunda', debe_mencionar='sombra')
         with patch(
-            'core.sandbox_agentes.responder_agente_sandbox',
+            'core.agentes.sandbox_agentes.responder_agente_sandbox',
             return_value='Hay sombra.',
         ) as llamado:
             self.http.post(self.url, {'accion': 'correr'})
@@ -138,7 +138,7 @@ class LaboratorioTests(TestCase):
             'plan': '',
         }
         with patch(
-            'core.sandbox_agentes.responder_agente_sandbox',
+            'core.agentes.sandbox_agentes.responder_agente_sandbox',
             return_value='Lleve un cuaderno.',
         ) as llamado:
             self.http.post(self.url, datos, follow=True)

@@ -78,7 +78,7 @@ class PerfilEnElPromptTests(TestCase):
         FichaNegocio.objects.create(telefono=self.tel, dedica='cacao', equipo='trabajadores')
 
     def _sistema(self, **kwargs):
-        from core.sandbox_agentes import responder_agente_sandbox
+        from core.agentes.sandbox_agentes import responder_agente_sandbox
 
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('openai.OpenAI'), \
@@ -201,7 +201,7 @@ class FlujoFichaTests(TestCase):
         return self._mandar(texto)
 
     def _mandar(self, texto):
-        with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas') as ag, \
+        with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             ruta = dispatch_sandbox_menu(_payload(self.tel, texto))
         return ruta, ag, send
@@ -231,7 +231,7 @@ class FlujoFichaTests(TestCase):
     def test_en_el_turno_de_la_derivacion_no_se_pide(self):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'quiero vender mi café a mejor precio'))
         self.assertFalse(ag.call_args.kwargs['sin_pregunta_final'])
@@ -242,7 +242,7 @@ class FlujoFichaTests(TestCase):
         self.assertTrue(remite_a_otro_asesor('Escriba *menu* para elegir *Agrónomo* ahora.'))
         self.assertTrue(remite_a_otro_asesor('Eso lo ve mejor el *Agrónomo*: que escriba *agronomo*.'))
         self.assertFalse(remite_a_otro_asesor('Escriba en un papel *cuánto vende* cada día.'))
-        with patch('core.sandbox_agentes.responder_agente_sandbox',
+        with patch('core.agentes.sandbox_agentes.responder_agente_sandbox',
                    return_value='Para cultivos lo mejor es el *Agrónomo*: escriba *agronomo*.'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'necesito saber de cultivos'))
@@ -250,7 +250,7 @@ class FlujoFichaTests(TestCase):
         self.assertIsNone(self._ficha())
 
     def test_si_el_asesor_deja_una_pregunta_la_ficha_espera(self):
-        with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Suba poco a poco.\n\n¿A cuánto vende hoy?'), \
+        with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Suba poco a poco.\n\n¿A cuánto vende hoy?'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'cómo subo el precio'))
         self.assertEqual(len(_textos(send)), 1)
@@ -362,7 +362,7 @@ class FlujoFichaTests(TestCase):
     def _derivar(self, salida, texto='quiero vender mi café a mejor precio'):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=salida) as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, texto))
         return der, _textos(send)
@@ -387,7 +387,7 @@ class FlujoFichaTests(TestCase):
     def test_si_el_asesor_ya_pregunto_el_cierre_no_pregunta_otra_vez(self):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Elija un cliente.\n\n¿Cuál elige?'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Elija un cliente.\n\n¿Cuál elige?'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'no entiendo lo de ventas'))
         texto = _textos(send)[0]
@@ -431,7 +431,7 @@ class FlujoFichaTests(TestCase):
         self.assertNotIn(CIERRE, ' '.join(_textos(send)))
 
     def test_sin_cupo_no_pregunta(self):
-        with patch('core.sandbox_agentes.excedio_cupo_ia_linea', return_value=True):
+        with patch('core.agentes.sandbox_agentes.excedio_cupo_ia_linea', return_value=True):
             _, ag, send = self._turno_agente()
         ag.assert_not_called()
         self.assertEqual(len(_textos(send)), 1)
@@ -569,7 +569,7 @@ class DerivacionesTests(TestCase):
 
     def _mandar(self, texto, derivacion=('ventas', 'llm', '')):
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=derivacion), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, texto))
 
@@ -665,7 +665,7 @@ class FichaApagadaTests(TestCase):
         )
 
     def test_sin_flag_no_pregunta_ni_intercepta(self):
-        with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
+        with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'cómo subo el precio'))
             dispatch_sandbox_menu(_payload(self.tel, 'seguir'))
@@ -678,7 +678,7 @@ class FichaApagadaTests(TestCase):
     def test_sin_flag_no_se_anotan_derivaciones_ni_hay_cierre(self):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='asesoria')
         with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('ventas', 'llm')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'quiero vender más'))
             dispatch_sandbox_menu(_payload(self.tel, 'menu'))

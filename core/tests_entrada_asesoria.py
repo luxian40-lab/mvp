@@ -106,7 +106,7 @@ class EntradaAsesoriaTests(TestCase):
         self._enviar('Soy de Bogotá y vendo aguacate')
         duda = 'las hojas se están poniendo amarillas'
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('ventas', 'llm', '')) as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             ruta = dispatch_sandbox_menu(_payload(self.tel, duda))
         self.assertEqual(ruta, 'handled')
@@ -149,7 +149,7 @@ class EntradaAsesoriaTests(TestCase):
         self.assertEqual(self._ficha().entrada, 'indaga2')
         frase = 'entra y no me cubre lo que gasto'
         with patch('core.lineas.principal.derivar_asesoria.derivar_detalle', return_value=('finanzas', 'llm', '')) as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'), \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, frase))
         self.assertEqual(der.call_args.args[0], frase)

@@ -73,7 +73,7 @@ class ConocimientoAgenteTests(TestCase):
         falso = MagicMock()
         falso.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='ok'))]
         with override_settings(OPENAI_API_KEY='sk-test'), patch('openai.OpenAI', return_value=falso):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             responder_agente_sandbox('ventas', '¿cómo subo el precio?', telefono='573001')
         sistema = falso.chat.completions.create.call_args.kwargs['messages'][0]['content']
@@ -85,7 +85,7 @@ class ConocimientoAgenteTests(TestCase):
         falso = MagicMock()
         falso.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='ok'))]
         with override_settings(OPENAI_API_KEY='sk-test'), patch('openai.OpenAI', return_value=falso):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             responder_agente_sandbox('ventas', '¿cómo subo el precio?', telefono='573001')
         self.assertIsNone(_uso.get())

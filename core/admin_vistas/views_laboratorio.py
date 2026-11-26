@@ -80,7 +80,7 @@ def _cliente_id(valor: str):
 
 def ejecutar_en_laboratorio(*, agente: str, pregunta: str, cliente_id, usuario, plan: str) -> dict:
     """Misma función que la línea de agentes, sin teléfono y sin cupo."""
-    from core.sandbox_agentes import _modelo, responder_agente_sandbox
+    from core.agentes.sandbox_agentes import _modelo, responder_agente_sandbox
 
     if not _cupo_disponible(usuario.pk):
         return {'ok': False, 'error': 'Llegó al tope de pruebas de esta hora.'}

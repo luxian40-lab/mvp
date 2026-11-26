@@ -400,7 +400,7 @@ class ContadorAsesorTests(TestCase):
         with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
             self.assertEqual(self._usadas(), 0)
-            with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'):
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta'):
                 dispatch_sandbox_menu(_payload(self.tel, 'no tengo tiempo para estudiar'))
         self.assertEqual(self._usadas(), 1)
 
@@ -416,7 +416,7 @@ class ContadorAsesorTests(TestCase):
             toque = _payload(self.tel, 'ver_detalle')
             toque['_eki_tipo'] = 'interactive'
             self.assertEqual(dispatch_sandbox_menu(toque), 'handled')
-            with patch('core.sandbox_agentes.responder_agente_sandbox') as llm:
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox') as llm:
                 ventas = _payload(self.tel, 'ventas')
                 dispatch_sandbox_menu(ventas)
                 boton = _payload(self.tel, 'precio_1')
@@ -432,19 +432,19 @@ class ContadorAsesorTests(TestCase):
         )
         with patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'ventas'))
-            with patch('core.sandbox_agentes.responder_agente_sandbox') as llm:
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox') as llm:
                 dispatch_sandbox_menu(_payload(self.tel, 'cómo cobro más'))
         llm.assert_not_called()
         self.assertIn('ya usó las 60 preguntas', _textos(send)[-1])
 
     def test_memoria_del_agente_guarda_pregunta_y_respuesta(self):
-        from core.sandbox_agentes import _historial_sandbox
+        from core.agentes.sandbox_agentes import _historial_sandbox
 
         with patch('core.canal.sandbox_canal.requests.post') as post:
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
-            with patch('core.sandbox_agentes.responder_agente_sandbox', side_effect=['R1', 'R2']):
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', side_effect=['R1', 'R2']):
                 dispatch_sandbox_menu(_payload(self.tel, 'no tengo tiempo para estudiar'))
                 dispatch_sandbox_menu(_payload(self.tel, 'y los fines de semana tampoco'))
         historial = [(m['role'], m['content']) for m in _historial_sandbox(self.tel, 'coach')]
@@ -470,7 +470,7 @@ class ContadorAsesorTests(TestCase):
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
             post.reset_mock()
-            with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R1'):
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R1'):
                 pregunta = dict(_payload(self.tel, 'no tengo tiempo'), MessageSid='wamid.PREG1')
                 dispatch_sandbox_menu(pregunta)
         tipos = [(p['type'], (p.get('reaction') or {}).get('emoji')) for p in self._posts(post)]
@@ -490,7 +490,7 @@ class ContadorAsesorTests(TestCase):
             post.return_value.status_code = 200
             post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
             dispatch_sandbox_menu(_payload(self.tel, 'coach'))
-            with patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R1'):
+            with patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R1'):
                 dispatch_sandbox_menu(dict(_payload(self.tel, 'no tengo tiempo'), MessageSid='wamid.P2'))
         self.assertNotIn('reaction', [p['type'] for p in self._posts(post)])
 

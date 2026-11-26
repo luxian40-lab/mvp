@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.agentes.cafe_fuentes import consulta_cafe, enriquecer_contexto_cafe
 from core.nati import buscar_en_web_colombia
-from core.sandbox_agentes import _respuesta_si_falla, presentacion_agente, prompt_para
+from core.agentes.sandbox_agentes import _respuesta_si_falla, presentacion_agente, prompt_para
 from core.sandbox_menu import TEXTO_AGENTES, clasificar_asesoria, resolver_ruta_sandbox
 
 

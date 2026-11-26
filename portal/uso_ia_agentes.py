@@ -21,7 +21,7 @@ def _nombre_agente(etiqueta: str) -> str:
         return 'Agrónomo (Nat)'
     clave = etiqueta.removeprefix('sandbox_')
     try:
-        from core.sandbox_agentes import nombre_agente
+        from core.agentes.sandbox_agentes import nombre_agente
 
         return nombre_agente(clave)
     except KeyError:

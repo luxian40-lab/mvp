@@ -43,7 +43,7 @@ def texto_lista_agentes(tope: int) -> str:
 
 
 def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
-    from core.sandbox_agentes import _tope_asesor_mes
+    from core.agentes.sandbox_agentes import _tope_asesor_mes
     from core.canal.sandbox_canal import enviar_meta_lista, sandbox_via_meta
 
     if not sandbox_via_meta():
@@ -76,7 +76,7 @@ def enviar_pregunta_asesoria(telefono_usuario: str, from_number: str) -> dict:
         olvidar_repregunta,
         texto_pregunta,
     )
-    from core.sandbox_agentes import _tope_asesor_mes
+    from core.agentes.sandbox_agentes import _tope_asesor_mes
 
     permitidos = modos_agente(telefono_usuario)
     if not permitidos:
@@ -225,7 +225,7 @@ def finalizar_turno_asesor_llm(
     Devuelve True si la respuesta contó como útil para la ficha (no derivada).
     """
     from core.canal.planes_linea import registrar_pregunta_asesor
-    from core.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
+    from core.agentes.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
     from core.lineas.principal.ficha_negocio import deja_pregunta_abierta, remite_a_otro_asesor
 
     from_n = from_number or _menu().sandbox_number()
@@ -270,7 +270,7 @@ def _reaccion_espera(telefono: str, message_id: str) -> None:
 def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id: str = '') -> str:
     """Coach / Profe IA: reinicio, saludo de entrada o turno LLM. Returns 'handled'."""
     from core.lineas.principal.entrada_asesoria import tomar_sin_presentacion
-    from core.sandbox_agentes import responder_agente_sandbox, saludo_agente
+    from core.agentes.sandbox_agentes import responder_agente_sandbox, saludo_agente
 
     if tomar_sin_presentacion(decision.telefono_usuario):
         decision.saludo_entrada = False
@@ -302,7 +302,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id:
         )
     else:
         from core.conversacion.llm_diferido import es_respuesta_diferida
-        from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea, responder_agente_sandbox
+        from core.agentes.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea, responder_agente_sandbox
 
         tope = _tope_asesor_mes(decision.telefono_usuario)
         if excedio_cupo_ia_linea(decision.telefono_usuario):

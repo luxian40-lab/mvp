@@ -445,7 +445,7 @@ class SandboxMenuTests(TestCase):
         self.assertIn('reiniciar', TEXTO_AGENTES)
 
     def test_limites_ia_linea_meta(self):
-        from core.sandbox_agentes import excedio_cupo_ia_linea, max_tokens_linea_meta
+        from core.agentes.sandbox_agentes import excedio_cupo_ia_linea, max_tokens_linea_meta
 
         self.assertLessEqual(max_tokens_linea_meta(), 400)
         self.assertGreaterEqual(max_tokens_linea_meta(), 120)
@@ -500,7 +500,7 @@ class SandboxMenuTests(TestCase):
 
         from core.models import WhatsappLog
         from core.canal.planes_linea import registrar_pregunta_asesor
-        from core.sandbox_agentes import excedio_cupo_ia_linea
+        from core.agentes.sandbox_agentes import excedio_cupo_ia_linea
 
         tel = '573009991111'
         _habeas(tel)
@@ -520,7 +520,7 @@ class SandboxMenuTests(TestCase):
         self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).preguntas_mes, 1)
 
     def test_prompt_ventas_aplicable_manana(self):
-        from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente
+        from core.agentes.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente
 
         ventas = prompt_para('ventas')
         self.assertIn(PROMPT_VENTAS, ventas)
@@ -550,7 +550,7 @@ class SandboxMenuTests(TestCase):
         with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
             'openai.OpenAI', return_value=falso,
         ):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
         self.assertIn('miedo', texto.lower())
@@ -568,7 +568,7 @@ class SandboxMenuTests(TestCase):
         with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
             'openai.OpenAI', return_value=falso,
         ):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
         self.assertIn('miedo a fallar', texto.lower())
@@ -585,7 +585,7 @@ class SandboxMenuTests(TestCase):
         with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
             'openai.OpenAI', return_value=falso,
         ):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
         self.assertIn('miedo', texto.lower())
@@ -598,7 +598,7 @@ class SandboxMenuTests(TestCase):
         with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
             'openai.OpenAI', return_value=falso,
         ):
-            from core.sandbox_agentes import responder_agente_sandbox
+            from core.agentes.sandbox_agentes import responder_agente_sandbox
 
             ventas = responder_agente_sandbox('ventas', 'no me compran el café', telefono='573162395085')
             profe = responder_agente_sandbox('ia_campo', 'cómo uso la ia para un aviso', telefono='573162395085')

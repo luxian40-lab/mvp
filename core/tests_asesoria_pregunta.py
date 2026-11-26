@@ -46,7 +46,7 @@ class TextosTests(TestCase):
         self.assertNotIn('preguntas este mes', texto_pregunta(TODOS, 0))
 
     def test_los_agentes_no_mandan_a_menu_sino_al_otro_agente(self):
-        from core.sandbox_agentes import presentacion_agente, prompt_para
+        from core.agentes.sandbox_agentes import presentacion_agente, prompt_para
 
         for agente in ('coach', 'ia_campo', 'ventas', 'finanzas'):
             sistema = prompt_para(agente)
@@ -200,7 +200,7 @@ class FlujoAsesoriaPreguntaTests(TestCase):
         self._abrir()
         texto = 'quiero vender mi café a mejor precio'
         with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('ventas', 'llm')) as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Respuesta ventas') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             ruta = dispatch_sandbox_menu(_payload(self.tel, texto))
         self.assertEqual(ruta, 'handled')
@@ -215,11 +215,11 @@ class FlujoAsesoriaPreguntaTests(TestCase):
     def test_lo_que_sigue_se_queda_con_ese_agente(self):
         self._abrir()
         with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('finanzas', 'llm')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R'), \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'tengo muchas deudas'))
         with patch('core.lineas.principal.derivar_asesoria.derivar') as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R2') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R2') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'y cómo ahorro'))
         der.assert_not_called()
@@ -281,7 +281,7 @@ class FlujoAsesoriaPreguntaTests(TestCase):
     def test_tras_la_repregunta_una_respuesta_clara_va_al_agente(self):
         self._abrir()
         with patch('core.lineas.principal.derivar_asesoria.derivar', side_effect=[(None, 'llm'), ('coach', 'llm')]), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='Ánimo') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='Ánimo') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'eh'))
             dispatch_sandbox_menu(_payload(self.tel, 'ando sin ganas de nada'))
@@ -310,7 +310,7 @@ class FlujoAsesoriaPreguntaTests(TestCase):
     def test_el_nombre_del_agente_entra_con_su_saludo_sin_modelo(self):
         self._abrir()
         with patch('core.lineas.principal.derivar_asesoria.derivar') as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'ventas'))
         der.assert_not_called()
@@ -329,7 +329,7 @@ class FlujoAsesoriaPreguntaTests(TestCase):
     def test_sin_modelo_usa_las_palabras_clave(self):
         self._abrir()
         with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=(None, 'sin_llm')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox', return_value='R') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'tengo una deuda con el banco'))
         self.assertEqual(ag.call_args.args[0], 'finanzas')
@@ -337,9 +337,9 @@ class FlujoAsesoriaPreguntaTests(TestCase):
     def test_sin_cupo_no_gasta_modelo_y_avisa(self):
         SandboxCanalSesion.objects.filter(telefono=self.tel).update(preguntas_mes=60)
         self._abrir()
-        with patch('core.sandbox_agentes.excedio_cupo_ia_linea', return_value=True), \
+        with patch('core.agentes.sandbox_agentes.excedio_cupo_ia_linea', return_value=True), \
                 patch('core.lineas.principal.derivar_asesoria.derivar') as der, \
-                patch('core.sandbox_agentes.responder_agente_sandbox') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'quiero subir el precio del café'))
         der.assert_not_called()
@@ -380,7 +380,7 @@ class AgentesDeLaLineaTests(TestCase):
         with patch('core.lineas.envio._post_graph', return_value=OK):
             dispatch_sandbox_menu(_payload(self.tel, 'asesoria'))
         with patch('core.lineas.principal.derivar_asesoria.derivar', return_value=('coach', 'llm')), \
-                patch('core.sandbox_agentes.responder_agente_sandbox') as ag, \
+                patch('core.agentes.sandbox_agentes.responder_agente_sandbox') as ag, \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             dispatch_sandbox_menu(_payload(self.tel, 'ando desanimado'))
         ag.assert_not_called()

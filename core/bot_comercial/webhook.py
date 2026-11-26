@@ -579,7 +579,7 @@ def _bot_comercial_respuesta_catalogo(
             )
 
         system_prompt = armar_system_prompt(cliente=cliente)
-        from core.sandbox_agentes import IDENTIDAD_AGRONOMO_LINEA, agronomo_sin_nombre_activo
+        from core.agentes.sandbox_agentes import IDENTIDAD_AGRONOMO_LINEA, agronomo_sin_nombre_activo
 
         if agronomo_sin_nombre_activo():
             system_prompt = f"{system_prompt}\n\n{IDENTIDAD_AGRONOMO_LINEA}"
@@ -644,7 +644,7 @@ def _bot_comercial_respuesta_catalogo(
         max_out = max(280, min(max_out, 700))
         try:
             from core.canal.sandbox_canal import sandbox_meta_activo
-            from core.sandbox_agentes import max_tokens_linea_meta
+            from core.agentes.sandbox_agentes import max_tokens_linea_meta
 
             if sandbox_meta_activo():
                 max_out = min(max_out, max_tokens_linea_meta())
@@ -842,7 +842,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     """Webhook dedicado para bot comercial (texto libre, voz e imagen)."""
     from contextlib import nullcontext
 
-    from core.sandbox_agentes import identidad_agronomo_eki
+    from core.agentes.sandbox_agentes import identidad_agronomo_eki
     from core.canal.sandbox_canal import activar_sandbox_meta_si_inbound
 
     identidad = identidad_agronomo_eki() if forzar_canal else nullcontext()
@@ -1059,7 +1059,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     routing = None
     # Nat NO usa keywords de cursos (listo/continuar). Solo escapes propios.
     if es_saludo:
-        from core.sandbox_agentes import agronomo_sin_nombre_activo, presentacion_agente
+        from core.agentes.sandbox_agentes import agronomo_sin_nombre_activo, presentacion_agente
 
         if agronomo_sin_nombre_activo():
             texto_respuesta = presentacion_agente('nat')

@@ -469,7 +469,7 @@ def _derivar_pregunta_asesoria(decision: SandboxRouteDecision, sesion, body: str
         marcar_repregunta,
         olvidar_repregunta,
     )
-    from core.sandbox_agentes import excedio_cupo_ia_linea
+    from core.agentes.sandbox_agentes import excedio_cupo_ia_linea
 
     tel = decision.telefono_usuario
     texto = (body or '').strip()

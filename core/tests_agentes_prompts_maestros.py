@@ -1,7 +1,7 @@
 """Los cinco agentes comparten las instrucciones eki y conservan sus nombres."""
 from django.test import SimpleTestCase
 
-from core.sandbox_agentes import (
+from core.agentes.sandbox_agentes import (
     IDENTIDAD_AGRONOMO_LINEA,
     INSTRUCCIONES_EKI,
     _respuesta_si_falla,

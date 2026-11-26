@@ -186,7 +186,7 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
         if decision.reset_nat:
             _menu().marcar_corte_memoria_nat(decision.telefono_usuario)
             try:
-                from core.sandbox_agentes import presentacion_agente
+                from core.agentes.sandbox_agentes import presentacion_agente
 
                 _menu().enviar_texto_sandbox(
                     decision.telefono_usuario,
@@ -204,7 +204,7 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
             decision.derivado = True
         if decision.saludo_entrada:
             try:
-                from core.sandbox_agentes import presentacion_agente
+                from core.agentes.sandbox_agentes import presentacion_agente
 
                 _menu().enviar_texto_sandbox(
                     decision.telefono_usuario,
@@ -216,7 +216,7 @@ def _responder_asesor(decision: SandboxRouteDecision, payload: Any, body: str, f
                 logger.exception('sandbox_nat_saludo_entrada_fail')
             return 'handled'
         from core.canal.planes_linea import registrar_pregunta_asesor
-        from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
+        from core.agentes.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
 
         if decision.es_toque:
             try:

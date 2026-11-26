@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 
 from core.conversacion.intent_detector import detect_intent
 from core.presupuesto_llm import debe_degradar, dia_bogota, modelo_segun_presupuesto
-from core.sandbox_agentes import responder_agente_sandbox
+from core.agentes.sandbox_agentes import responder_agente_sandbox
 
 
 class _Redis:

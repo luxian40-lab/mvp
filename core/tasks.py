@@ -412,7 +412,7 @@ def ejecutar_llm_turno_whatsapp_async(
                 token.var.reset(token)
             if not (texto or '').strip():
                 if post_asesor and (body or '').strip():
-                    from core.sandbox_agentes import _respuesta_si_falla
+                    from core.agentes.sandbox_agentes import _respuesta_si_falla
 
                     texto = _respuesta_si_falla(agente or 'coach', body)
                 else:

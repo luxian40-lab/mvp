@@ -11,7 +11,7 @@ from core.analitica.fao_connector import (
     enriquecer_contexto_fao,
     formatear_contexto_fao,
 )
-from core.sandbox_agentes import responder_agente_sandbox
+from core.agentes.sandbox_agentes import responder_agente_sandbox
 
 
 pytestmark = pytest.mark.django_db
