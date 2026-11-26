@@ -14,7 +14,7 @@ from typing import Any, Iterator
 import requests
 from django.conf import settings
 
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 
 logger = logging.getLogger(__name__)
 

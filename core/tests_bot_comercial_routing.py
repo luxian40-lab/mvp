@@ -8,7 +8,7 @@ from core.bot_comercial_routing import (
     numeros_destino_comercial,
 )
 from core.models import Cliente
-from core.nati import resolver_cliente_desde_numero_whatsapp
+from core.agentes.nati import resolver_cliente_desde_numero_whatsapp
 
 
 @override_settings(

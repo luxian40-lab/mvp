@@ -23,7 +23,7 @@ def cortar_certificado_meta(post_data) -> bool:
     if status:
         return False
     from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
     from core.views.certificados_wa import _intentar_responder_envio_certificado
 
@@ -51,7 +51,7 @@ def cortar_habeas_meta(post_data) -> bool:
     if status:
         return False
     from core.conversacion.habeas_respuestas import aplicar_respuesta_habeas, texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
 
     body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip()
@@ -107,7 +107,7 @@ def menu_tras_confirmar_datos_meta(post_data) -> bool:
     if status:
         return False
     from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
 
     body = (texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '') or '').strip().lower()

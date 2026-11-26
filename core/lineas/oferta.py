@@ -71,7 +71,7 @@ def cliente_de_la_oferta(telefono: str | None):
     if cliente is not None or not telefono:
         return cliente
     from core.models import Estudiante
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     est = Estudiante.objects.filter(telefono=normalizar_telefono_whatsapp(telefono)).first()
     if est is None or not est.cliente_id:
@@ -81,7 +81,7 @@ def cliente_de_la_oferta(telefono: str | None):
 
 def modos_permitidos(telefono: str) -> set[str] | None:
     """None = los cinco. Conjunto = solo esos. Vacío = esta línea no abre agentes."""
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     cliente = cliente_de_la_oferta(telefono)
     if cliente is None or not (cliente.agentes_linea or '').strip():
@@ -138,7 +138,7 @@ def cursos_de_la_linea(telefono: str | None):
     """
     from core.lineas.variante import perfil_de
     from core.models import Curso, Estudiante
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     if not perfil_de().varios_cursos:
         return None

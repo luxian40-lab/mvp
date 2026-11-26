@@ -2,7 +2,7 @@
 App proxy admin + fachada de IA comercial (Nat).
 
 La lógica de runtime (routing, webhook, RAG) vive principalmente en ``core``
-(``core.bot_comercial``, ``core.nati``, ``core.nat_router``, …).
+(``core.bot_comercial``, ``core.agentes.nati``, ``core.nat_router``, …).
 Esta app agrupa modelos proxy en Jazzmin para operación comercial.
 """
 

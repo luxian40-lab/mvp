@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.conf import settings
 
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 
 
 def _sandbox_number() -> str:

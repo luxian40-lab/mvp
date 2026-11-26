@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from core.lineas.perfil import USO_COMPLETA, USO_REGISTRO, USO_SOLO_CURSOS, PerfilLinea, perfil_por_uso
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 
 
 @dataclass(frozen=True)

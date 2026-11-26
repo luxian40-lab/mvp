@@ -74,7 +74,7 @@ def _datos_webhook(args):
 def _log_fallo_definitivo(canal: str, args) -> None:
     """Sin teléfono en claro y sin mensaje al usuario."""
     from core.conversacion.locks import telefono_hash
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     from core.canal.webhook_evento import external_id_de_payload
 
@@ -263,7 +263,7 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
     """Nat fuera del request. El candado es por teléfono; si no se obtiene, reintenta."""
     from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
     from core.conversacion.locks import telefono_lock
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     from core.conversacion.salida_usuario import reset_mensaje_salio
 
@@ -305,7 +305,7 @@ def procesar_statuses_meta_async(self, statuses):
 def procesar_sandbox_meta_async(self, inbound: dict):
     """Una tarea por mensaje de la línea Meta. time_limit 60 < candado 90."""
     from core.conversacion.locks import telefono_lock
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.views import _aplicar_sandbox_menu
 
     from core.conversacion.salida_usuario import reset_mensaje_salio
@@ -336,7 +336,7 @@ def procesar_sandbox_meta_async(self, inbound: dict):
 def procesar_twilio_webhook_async(self, post_data: dict):
     """Webhook Twilio educativo en Celery. No toca el cuerpo del procesador."""
     from core.conversacion.locks import telefono_lock
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.views import _procesar_twilio_webhook
 
     from core.conversacion.salida_usuario import reset_mensaje_salio
@@ -389,7 +389,7 @@ def ejecutar_llm_turno_whatsapp_async(
     from django.conf import settings
 
     from core.conversacion.locks import telefono_lock
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
     tel = normalizar_telefono_whatsapp(str(telefono or '')) or str(telefono or '')
@@ -548,7 +548,7 @@ def enviar_archivo_modulo_async(self, telefono, archivo_id):
 def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx: int = 0, **kwargs):
     """Continúa un mensaje partido tras una pausa DELAY, sin sleep en el worker (G3)."""
     from core.conversacion.locks import telefono_lock
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     telefono_raw = (
         kwargs.get('to')

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.models import Cliente, SesionComercial
-from core.nati import (
+from core.agentes.nati import (
     NATI_SYSTEM_PROMPT_BASE,
     NOMBRE_BOT_DEFAULT,
     armar_saludo_inicial,
@@ -208,7 +208,7 @@ def test_bot_comercial_sin_cliente_usa_default_nati(settings):
 
 
 def test_nati_recuerda_conversacion():
-    from core.nati import armar_messages_para_openai
+    from core.agentes.nati import armar_messages_para_openai
 
     cliente = Cliente.objects.create(
         nombre="ACME MEM",
@@ -243,7 +243,7 @@ def test_nati_no_menciona_cursos_sin_pregunta():
 def test_nati_usa_web_si_no_hay_rag(settings):
     settings.OPENAI_API_KEY = ""
     with patch("core.views.legacy._contexto_fallback_web_agro", return_value="FUENTE WEB"), patch(
-        "core.nati.buscar_en_web_colombia", return_value="FUENTE WEB COLOMBIA"
+        "core.agentes.nati.buscar_en_web_colombia", return_value="FUENTE WEB COLOMBIA"
     ):
         from core.views import _bot_comercial_respuesta_catalogo
 

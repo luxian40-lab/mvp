@@ -56,7 +56,7 @@ def guardar_registro(telefono: str, datos: dict) -> str:
     from core.conversacion.consentimiento_wa import registrar_optin
     from core.analitica.documento_identidad import normalizar_numero_documento
     from core.models import Cliente, Estudiante
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
 
     if not _acepto(datos.get('habeas')):

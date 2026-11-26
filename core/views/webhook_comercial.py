@@ -54,7 +54,7 @@ def bot_comercial_webhook(request):
         return denied
 
     from core.conversacion.bandeja_entrada import anotar_payload_twilio, aplicar_con_turno, omitir_turno
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.webhook_evento import CANAL_TWILIO
 
     def _sid(data):

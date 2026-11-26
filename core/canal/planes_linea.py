@@ -119,7 +119,7 @@ def resolver_plan(telefono: str) -> PlanLinea:
     Con SANDBOX_PROVEEDOR=twilio (canal de demos) no se cobra: persona > LINEA_DEMO_TWILIO_PLAN.
     """
     from core.models import SandboxCanalSesion
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.sandbox_canal import sandbox_via_meta
 
     tel = normalizar_telefono_whatsapp(telefono or '')
@@ -196,7 +196,7 @@ def registrar_pregunta_asesor(telefono: str) -> None:
 def cursos_iniciados_en_el_mes(telefono: str, *, excluir_curso_id: int | None = None):
     """Cursos (generales eki o de la organización) que la persona empezó este mes."""
     from core.models import ProgresoEstudiante
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     qs = ProgresoEstudiante.objects.filter(
         estudiante__telefono=normalizar_telefono_whatsapp(telefono or ''),
@@ -251,7 +251,7 @@ TEXTO_PLAN_SIN_CURSOS = (
 
 def explicar_plan(telefono: str) -> dict:
     """De dónde sale el plan. No cambia la resolución del menú."""
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.sandbox_canal import sandbox_via_meta
 
     tel = normalizar_telefono_whatsapp(telefono or '')

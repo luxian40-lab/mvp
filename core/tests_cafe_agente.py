@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.agentes.cafe_fuentes import consulta_cafe, enriquecer_contexto_cafe
-from core.nati import buscar_en_web_colombia
+from core.agentes.nati import buscar_en_web_colombia
 from core.agentes.sandbox_agentes import _respuesta_si_falla, presentacion_agente, prompt_para
 from core.sandbox_menu import TEXTO_AGENTES, clasificar_asesoria, resolver_ruta_sandbox
 
@@ -15,7 +15,7 @@ class CafeFuentesTests(SimpleTestCase):
         self.assertEqual(consulta_cafe('roya en el café'), 'roya en el café')
 
     @patch('core.analitica.fao_connector.buscar_fao')
-    @patch('core.nati.buscar_en_web_colombia')
+    @patch('core.agentes.nati.buscar_en_web_colombia')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia')
     def test_agrosavia_corta_el_resto(self, agro, web, fao):
         agro.return_value = (
@@ -30,7 +30,7 @@ class CafeFuentesTests(SimpleTestCase):
         self.assertIn('café', agro.call_args[0][0].lower())
 
     @patch('core.analitica.fao_connector.buscar_fao')
-    @patch('core.nati.buscar_en_web_colombia', return_value='Según Cenicafé, recoja frutos brocados.')
+    @patch('core.agentes.nati.buscar_en_web_colombia', return_value='Según Cenicafé, recoja frutos brocados.')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_web_si_agrosavia_no_responde(self, _agro, web, fao):
         ctx, meta = enriquecer_contexto_cafe('broca')
@@ -42,7 +42,7 @@ class CafeFuentesTests(SimpleTestCase):
 
     @patch('core.analitica.fao_connector.formatear_contexto_fao', return_value='FUENTE INSTITUCIONAL FAO\ncoffee')
     @patch('core.analitica.fao_connector.buscar_fao', return_value=[{'titulo': 'Coffee'}])
-    @patch('core.nati.buscar_en_web_colombia', return_value='')
+    @patch('core.agentes.nati.buscar_en_web_colombia', return_value='')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_fao_solo_si_agrosavia_y_web_vacias(self, _agro, _web, fao, _fmt):
         ctx, meta = enriquecer_contexto_cafe('broca')
@@ -52,7 +52,7 @@ class CafeFuentesTests(SimpleTestCase):
 
     @patch('core.analitica.fao_connector.formatear_contexto_fao', return_value='')
     @patch('core.analitica.fao_connector.buscar_fao', return_value=[])
-    @patch('core.nati.buscar_en_web_colombia', return_value='')
+    @patch('core.agentes.nati.buscar_en_web_colombia', return_value='')
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia', return_value=('', {'agrosavia_usada': False}))
     def test_sin_fuente_no_arma_bloque(self, _agro, _web, _fao, _fmt):
         ctx, meta = enriquecer_contexto_cafe('broca', 'conocimiento previo')

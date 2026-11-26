@@ -46,7 +46,7 @@ def enriquecer_contexto_cafe(
 
     web = ''
     try:
-        from core.nati import buscar_en_web_colombia
+        from core.agentes.nati import buscar_en_web_colombia
 
         web = (buscar_en_web_colombia(q, ambito='cafe') or '').strip()
     except Exception:

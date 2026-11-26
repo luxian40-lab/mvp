@@ -47,7 +47,7 @@ def aplicar_ruta_catalogo(decision, sesion, body: str) -> bool:
 
 def _curso_abierto(telefono: str, curso_id: int) -> bool:
     from core.models import Estudiante, ProgresoEstudiante
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     est = Estudiante.objects.filter(telefono=normalizar_telefono_whatsapp(telefono)).first()
     if est is None:

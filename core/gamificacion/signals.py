@@ -57,7 +57,7 @@ def _notificar_org_admin(estudiante, asunto, mensaje_html):
 def _avisar_insignia_linea(estudiante, badge):
     """La insignia viaja dentro del próximo mensaje de la línea Meta, no en uno aparte."""
     try:
-        from core.nati import normalizar_telefono_whatsapp
+        from core.agentes.nati import normalizar_telefono_whatsapp
         from core.gamificacion.rachas_linea import agregar_aviso
 
         agregar_aviso(

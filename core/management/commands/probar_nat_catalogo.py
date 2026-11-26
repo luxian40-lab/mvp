@@ -10,7 +10,7 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand, CommandError
 
 from core.models import Cliente, ProductoCatalogo
-from core.nati import armar_system_prompt, obtener_contexto_productos
+from core.agentes.nati import armar_system_prompt, obtener_contexto_productos
 
 
 class Command(BaseCommand):

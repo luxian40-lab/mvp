@@ -3,7 +3,7 @@
 from django.test import TestCase, override_settings
 
 from core.models import Cliente
-from core.nati import armar_cliente_ids_rag, resolver_cliente_desde_numero_whatsapp
+from core.agentes.nati import armar_cliente_ids_rag, resolver_cliente_desde_numero_whatsapp
 
 
 class NatiResolverClienteTests(TestCase):

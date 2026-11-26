@@ -104,7 +104,7 @@ class EstudianteAdminForm(forms.ModelForm):
 
 
 def _telefono_plan(telefono: str) -> str:
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     return normalizar_telefono_whatsapp(telefono or '')
 

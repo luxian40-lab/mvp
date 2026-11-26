@@ -67,7 +67,7 @@ def _aplicar_sandbox_menu(data):
 def _estado_de_la_linea(data):
     """El estado que deje este turno queda también en la fila de la línea que lo recibió."""
     from core.conversacion.estado_linea import en_linea
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.sandbox_canal import inbound_es_meta, phone_id_de_salida
     from core.canal.utils_telefono import estudiante_por_telefono
 
@@ -129,7 +129,7 @@ def _aplicar_sandbox_menu_cuerpo(data):
             except Exception:
                 logger.exception('sandbox_nat_proceso_fail')
                 try:
-                    from core.nati import normalizar_telefono_whatsapp
+                    from core.agentes.nati import normalizar_telefono_whatsapp
                     from core.sandbox_menu import enviar_texto_sandbox
 
                     tel = normalizar_telefono_whatsapp(str(data.get('From') or ''))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from core.models import Cliente, ProductoCatalogo
-from core.nati import armar_system_prompt, obtener_contexto_productos
+from core.agentes.nati import armar_system_prompt, obtener_contexto_productos
 
 
 pytestmark = pytest.mark.django_db

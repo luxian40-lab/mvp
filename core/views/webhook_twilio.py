@@ -38,7 +38,7 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
         return False
     from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
     from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
 
     body = texto_desde_webhook_twilio(post_data, post_data.get('Body', '') or '')

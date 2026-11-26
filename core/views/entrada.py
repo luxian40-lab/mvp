@@ -42,7 +42,7 @@ def _sid_de(data) -> str:
 
 
 def _telefono_de(data) -> str:
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     return normalizar_telefono_whatsapp(str((data or {}).get('From') or '')) or 'sin-telefono'
 

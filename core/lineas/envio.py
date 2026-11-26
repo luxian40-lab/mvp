@@ -5,7 +5,7 @@ import requests
 from django.conf import settings
 
 from core.conversacion.marcas import PLANTILLA, es_marcado
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 
 logger = logging.getLogger(__name__)
 

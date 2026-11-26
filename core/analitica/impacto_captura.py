@@ -6,7 +6,7 @@ import unicodedata
 
 from django.core.cache import cache
 
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 from core.canal.utils_telefono import estudiante_por_telefono
 
 logger = logging.getLogger(__name__)

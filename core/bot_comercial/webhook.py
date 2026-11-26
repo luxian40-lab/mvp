@@ -62,7 +62,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
 
 def _bot_comercial_sin_contexto_natural(pregunta: str, cliente=None) -> str:
     """Respuestas cuando aún no hay contexto RAG suficiente (tono formal agrónomo)."""
-    from core.nati import obtener_nombre_bot
+    from core.agentes.nati import obtener_nombre_bot
 
     nombre = obtener_nombre_bot(cliente)
     q = (pregunta or '').strip().lower()
@@ -561,7 +561,7 @@ def _bot_comercial_respuesta_catalogo(
         return texto
 
     try:
-        from core.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
+        from core.agentes.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
         from core.agentes.nat_router import decidir_routing_nat
         from core.openai_compat import cliente_openai
         import time
@@ -863,7 +863,7 @@ def _telefono_linea_principal(post_data) -> str:
     """El teléfono si el turno viene de la línea principal con la ficha prendida; si no, vacío."""
     if post_data.get('_eki_linea_principal') != '1' or not getattr(settings, 'EKI_ASESORIA_CONTEXTO', False):
         return ''
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     return normalizar_telefono_whatsapp(str(post_data.get('From') or '')) or ''
 
@@ -1023,7 +1023,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     )
     canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
-    from core.nati import armar_saludo_inicial, armar_saludo_menu, armar_cliente_ids_rag, resolver_cliente_desde_numero_whatsapp
+    from core.agentes.nati import armar_saludo_inicial, armar_saludo_menu, armar_cliente_ids_rag, resolver_cliente_desde_numero_whatsapp
 
     cliente_nati = resolver_cliente_desde_numero_whatsapp(msg_to)
     if not cliente_nati and cliente_id_cfg:
@@ -1272,7 +1272,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                     )
 
                 from core.agentes.nat_router import decidir_routing_nat
-                from core.nati import org_tiene_catalogo_productos
+                from core.agentes.nati import org_tiene_catalogo_productos
 
                 routing = decidir_routing_nat(
                     consulta,
@@ -1293,7 +1293,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
                 )
 
                 if routing.usar_web and not contexto_web:
-                    from core.nati import buscar_en_web_colombia
+                    from core.agentes.nati import buscar_en_web_colombia
 
                     contexto_web = buscar_en_web_colombia(
                         consulta, cliente=cliente_nati,

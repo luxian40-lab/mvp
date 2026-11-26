@@ -22,7 +22,7 @@ from core.admin.clientes import HabilitacionModuloEstudianteInline
 from core.curso.cursos_permitidos import cursos_permitidos, parece_nombre_de_prueba
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante, SandboxCanalSesion
 from core.analitica.models_extras import GrupoEstudiantes
-from core.nati import normalizar_telefono_whatsapp
+from core.agentes.nati import normalizar_telefono_whatsapp
 from core.canal.planes_linea import PLAN_ASESOR_60, PLAN_CURSO_ASESOR, PLAN_DOS_CURSOS, resolver_plan
 from core.canal.utils_telefono import normalizar_telefono
 

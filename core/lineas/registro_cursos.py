@@ -115,7 +115,7 @@ def _oferta_recien_enviada(telefono: str) -> bool:
     from django.utils import timezone
 
     from core.models import WhatsappLog
-    from core.nati import normalizar_telefono_whatsapp
+    from core.agentes.nati import normalizar_telefono_whatsapp
 
     tel = normalizar_telefono_whatsapp(telefono) or (telefono or '')
     if not tel:
