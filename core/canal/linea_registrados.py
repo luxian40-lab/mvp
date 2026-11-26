@@ -54,7 +54,7 @@ def debe_cortar(telefono: str) -> bool:
 def aviso_unico_24h(telefono: str) -> bool:
     """True si toca enviar el texto. Si Redis cae, se envía."""
     try:
-        from core.locks import telefono_hash
+        from core.conversacion.locks import telefono_hash
 
         dia = datetime.now(_BOGOTA).strftime('%Y%m%d')
         clave = f'eki:linea:aviso:{telefono_hash(telefono)}:{dia}'
@@ -67,7 +67,7 @@ def aviso_unico_24h(telefono: str) -> bool:
 def permitir_numero_nuevo(telefono: str) -> bool:
     """Tope diario de números que aún no son estudiantes. Redis caído: deja pasar."""
     try:
-        from core.locks import telefono_hash
+        from core.conversacion.locks import telefono_hash
 
         tope = int(getattr(settings, 'LINEA_MAX_NUEVOS_DIA', 300) or 300)
         cliente = _cliente_redis()

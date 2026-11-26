@@ -28,7 +28,7 @@ def registrar(
     telefono: str, frase: str, agente: str, *, secundario: str = '', fuente: str = 'llm', con_contexto: bool = False,
 ) -> None:
     from core.conocimiento_agentes import _sin_datos_personales
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
     from core.models import DerivacionAsesoria
 
     try:
@@ -48,7 +48,7 @@ def marcar_si_corrige(telefono: str, anterior: str, nuevo: str) -> bool:
     """True si el cambio de modo corrige la derivación recién hecha."""
     if not anterior or anterior == nuevo:
         return False
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
     from core.models import DerivacionAsesoria, WhatsappLog
 
     desde = timezone.now() - timedelta(minutes=VENTANA_MINUTOS)

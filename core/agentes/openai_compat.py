@@ -21,7 +21,7 @@ def contexto_uso_llm(*, cliente_id=None, telefono: str = '', agente: str = ''):
 def _registrar_uso(modelo: str, texto: str, resp) -> None:
     """No tumba la respuesta si el ledger falla."""
     try:
-        from core.locks import telefono_hash
+        from core.conversacion.locks import telefono_hash
         from core.models_uso_llm import UsoLLM
 
         ctx = _uso.get() or {}

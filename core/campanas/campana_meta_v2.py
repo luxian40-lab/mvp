@@ -134,7 +134,7 @@ def ejecutar_campana_meta_v2(campana: CampanaMeta) -> dict:
             hueco_destino,
             pedir_token,
         )
-        from core.locks import telefono_hash
+        from core.conversacion.locks import telefono_hash
 
         marca = telefono_hash(str(estudiante.telefono or ''))
         if not bajo_tope_contactos(marca):

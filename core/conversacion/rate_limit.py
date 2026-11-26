@@ -12,7 +12,7 @@ def hit(clave: str, limite: int, ventana_seg: int) -> tuple[bool, int]:
     Redis caído: (False, -1) y un log. No abre la puerta.
     """
     try:
-        from core.locks import _cliente_redis
+        from core.conversacion.locks import _cliente_redis
 
         cliente = _cliente_redis()
         n = int(cliente.incr(clave))

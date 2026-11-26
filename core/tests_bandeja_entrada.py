@@ -198,7 +198,7 @@ def _candado(*_args, **_kwargs):
 class BandejaTareaTests(TestCase):
     @patch('core.tasks._frenar_flood', return_value=False)
     @patch('core.tasks._cortar_reentregas', return_value=False)
-    @patch('core.locks.telefono_lock', _candado)
+    @patch('core.conversacion.locks.telefono_lock', _candado)
     @patch('core.views._aplicar_sandbox_menu')
     def test_la_tarea_de_b_reintenta_sin_aplicar(self, menu, _reentrega, _flood):
         from celery.exceptions import Retry

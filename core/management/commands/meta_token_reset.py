@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Quita la bandera eki:meta:token_invalido.'
 
     def handle(self, *args, **options):
-        from core.locks import _cliente_redis
+        from core.conversacion.locks import _cliente_redis
 
         try:
             _cliente_redis(socket_connect_timeout=0.4, socket_timeout=0.4).delete(CLAVE_TOKEN_INVALIDO)

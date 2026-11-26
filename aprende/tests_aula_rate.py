@@ -92,7 +92,7 @@ class _Base(TestCase):
         )
         self.prefijo = _prefijo()
         self.redis = redis_de_test()
-        self._patch = patch('core.locks._cliente_redis', return_value=self.redis)
+        self._patch = patch('core.conversacion.locks._cliente_redis', return_value=self.redis)
         self._patch.start()
 
     def tearDown(self):
@@ -176,7 +176,7 @@ class AulaRateTests(_Base):
         self.assertFalse(CodigoAccesoAprende.objects.filter(codigo='424242').exists())
 
     def test_exito_resetea_estudiante_y_no_la_ip(self):
-        from core.locks import _cliente_redis, telefono_hash
+        from core.conversacion.locks import _cliente_redis, telefono_hash
 
         self._codigo('333444')
         with override_settings(
@@ -242,7 +242,7 @@ class AulaRateTests(_Base):
     def test_redis_caido_honra_codigo_valido(self):
         self._codigo('121212')
         with override_settings(AULA_LOGIN_PREFIJO=self.prefijo), \
-                patch('core.locks._cliente_redis', side_effect=ConnectionError('redis')):
+                patch('core.conversacion.locks._cliente_redis', side_effect=ConnectionError('redis')):
             r = self.http.post('/aprende/estudiante/login/', {
                 'codigo': '121212',
                 'accion': 'codigo',

@@ -57,7 +57,7 @@ class MetaTokenTests(TestCase):
             estudiante=est, curso=curso, modulo_actual=actual,
             fecha_ultimo_avance=timezone.now() - timedelta(days=2),
         )
-        with patch('core.locks._cliente_redis', return_value=redis), \
+        with patch('core.conversacion.locks._cliente_redis', return_value=redis), \
                 patch('core.canal.sandbox_canal.requests.post', return_value=_respuesta(190)), \
                 self.assertLogs('core.canal.meta_token', level='CRITICAL') as logs, \
                 patch('core.canal.sandbox_canal.enviar_meta') as envio:
@@ -84,7 +84,7 @@ class MetaTokenTests(TestCase):
         from core.canal.sandbox_canal import _post_graph
 
         redis = _Redis()
-        with patch('core.locks._cliente_redis', return_value=redis), \
+        with patch('core.conversacion.locks._cliente_redis', return_value=redis), \
                 patch('core.canal.sandbox_canal.requests.post', return_value=_respuesta(131026, 'GraphMethodException', 'undeliverable')):
             _post_graph({
                 'messaging_product': 'whatsapp',
@@ -105,7 +105,7 @@ class MetaTokenResetTests(TestCase):
         redis = _Redis()
         redis.datos[CLAVE_TOKEN_INVALIDO] = '1'
         out = StringIO()
-        with patch('core.locks._cliente_redis', return_value=redis):
+        with patch('core.conversacion.locks._cliente_redis', return_value=redis):
             call_command('meta_token_reset', stdout=out)
         self.assertNotIn(CLAVE_TOKEN_INVALIDO, redis.datos)
         self.assertIn('borrada', out.getvalue())

@@ -73,7 +73,7 @@ def _datos_webhook(args):
 
 def _log_fallo_definitivo(canal: str, args) -> None:
     """Sin teléfono en claro y sin mensaje al usuario."""
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
     from core.nati import normalizar_telefono_whatsapp
 
     from core.canal.webhook_evento import external_id_de_payload
@@ -128,7 +128,7 @@ def _cortar_reentregas(task, datos, kwargs=None) -> bool:
 
     Los retry() por candado no cuentan: solo delivery_info['redelivered'].
     """
-    from core.locks import ENTREGA_TOPE, contar_entrega
+    from core.conversacion.locks import ENTREGA_TOPE, contar_entrega
     from core.canal.webhook_evento import external_id_de_payload
 
     info = getattr(getattr(task, 'request', None), 'delivery_info', None) or {}
@@ -262,7 +262,7 @@ _WEBHOOK_TASK = dict(
 def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bool = False):
     """Nat fuera del request. El candado es por teléfono; si no se obtiene, reintenta."""
     from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
-    from core.locks import telefono_lock
+    from core.conversacion.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
 
     from core.conversacion.salida_usuario import reset_mensaje_salio
@@ -304,7 +304,7 @@ def procesar_statuses_meta_async(self, statuses):
 @shared_task(base=_TareaWebhookMeta, **_WEBHOOK_TASK)
 def procesar_sandbox_meta_async(self, inbound: dict):
     """Una tarea por mensaje de la línea Meta. time_limit 60 < candado 90."""
-    from core.locks import telefono_lock
+    from core.conversacion.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _aplicar_sandbox_menu
 
@@ -335,7 +335,7 @@ def procesar_sandbox_meta_async(self, inbound: dict):
 @shared_task(base=_TareaWebhook, **_WEBHOOK_TASK)
 def procesar_twilio_webhook_async(self, post_data: dict):
     """Webhook Twilio educativo en Celery. No toca el cuerpo del procesador."""
-    from core.locks import telefono_lock
+    from core.conversacion.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
     from core.views import _procesar_twilio_webhook
 
@@ -388,7 +388,7 @@ def ejecutar_llm_turno_whatsapp_async(
     """
     from django.conf import settings
 
-    from core.locks import telefono_lock
+    from core.conversacion.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
     from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
@@ -547,7 +547,7 @@ def enviar_archivo_modulo_async(self, telefono, archivo_id):
 @shared_task(bind=True, max_retries=2, default_retry_delay=5, acks_late=True, soft_time_limit=55, time_limit=60)
 def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx: int = 0, **kwargs):
     """Continúa un mensaje partido tras una pausa DELAY, sin sleep en el worker (G3)."""
-    from core.locks import telefono_lock
+    from core.conversacion.locks import telefono_lock
     from core.nati import normalizar_telefono_whatsapp
 
     telefono_raw = (

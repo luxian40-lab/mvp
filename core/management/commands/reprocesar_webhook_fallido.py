@@ -70,7 +70,7 @@ class Command(BaseCommand):
             raise CommandError('Falta --confirmar. No se reencoló.')
         if edad > _VENTANA and not options['forzar']:
             raise CommandError('Pasaron más de 24 h. Repite con --forzar --confirmar.')
-        from core.locks import borrar_entrega
+        from core.conversacion.locks import borrar_entrega
 
         borrar_entrega(fila.canal, fila.external_id)
         kwargs = sobre.get('kwargs') if isinstance(sobre.get('kwargs'), dict) else {}

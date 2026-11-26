@@ -33,7 +33,7 @@ def flood_excedido(telefono: str) -> tuple[bool, bool]:
     if not telefono or telefono == 'sin-telefono':
         return False, False
     try:
-        from core.locks import telefono_hash
+        from core.conversacion.locks import telefono_hash
 
         cliente = _cliente()
         minuto = _minuto()

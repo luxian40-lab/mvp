@@ -30,7 +30,7 @@ def _exige_redis(test):
 class TelefonoLockTests(SimpleTestCase):
     def test_mismo_telefono_se_excluye(self):
         _exige_redis(self)
-        from core.locks import telefono_lock
+        from core.conversacion.locks import telefono_lock
 
         orden = []
         listo = threading.Event()
@@ -56,7 +56,7 @@ class TelefonoLockTests(SimpleTestCase):
 
     def test_telefonos_distintos_no_se_bloquean(self):
         _exige_redis(self)
-        from core.locks import telefono_lock
+        from core.conversacion.locks import telefono_lock
 
         barrera = threading.Barrier(2)
 
@@ -84,7 +84,7 @@ class TelefonoLockTests(SimpleTestCase):
         _exige_redis(self)
         from redis.exceptions import LockError
 
-        from core.locks import telefono_lock
+        from core.conversacion.locks import telefono_lock
 
         telefono = '573000000088'
         orden = []
@@ -151,7 +151,7 @@ class TelefonoLockTests(SimpleTestCase):
         celery = pytest.importorskip('celery')
         from celery.exceptions import Retry
 
-        from core.locks import telefono_lock
+        from core.conversacion.locks import telefono_lock
         from core.tasks import procesar_sandbox_meta_async
 
         inbound = {
@@ -200,4 +200,4 @@ def patch_menu(procesado):
 def patch_espera():
     from unittest.mock import patch
 
-    return patch('core.locks.LOCK_BLOCKING', 0.3)
+    return patch('core.conversacion.locks.LOCK_BLOCKING', 0.3)

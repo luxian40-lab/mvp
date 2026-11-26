@@ -24,7 +24,7 @@ class AprendeWebTests(TestCase):
         cache.clear()
         from aprende.tests_aula_rate import redis_de_test
         from unittest.mock import patch
-        self._redis_login = patch('core.locks._cliente_redis', return_value=redis_de_test())
+        self._redis_login = patch('core.conversacion.locks._cliente_redis', return_value=redis_de_test())
         self._redis_login.start()
         self.http = Client()
         self.cliente = Cliente.objects.create(

@@ -193,7 +193,7 @@ def _fila_codigo(raw: str):
 
 def _cupo_agotado(ip: str | None, estudiante_id: int | None) -> bool:
     """True si este fallo ya no debe seguir adivinando. Un OTP válido no pasa por aquí."""
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
     from core.conversacion.rate_limit import hit
 
     prefijo = _aula_prefijo()
@@ -211,7 +211,7 @@ def _cupo_agotado(ip: str | None, estudiante_id: int | None) -> bool:
     if n_global == _aula_int('AULA_LOGIN_MAX_GLOBAL', 200) + 1:
         logger.warning('aula_login_ataque_probable')
         try:
-            from core.locks import _cliente_redis
+            from core.conversacion.locks import _cliente_redis
 
             _cliente_redis().set(
                 f'{prefijo}:estricto',
@@ -223,7 +223,7 @@ def _cupo_agotado(ip: str | None, estudiante_id: int | None) -> bool:
 
     estricto = False
     try:
-        from core.locks import _cliente_redis
+        from core.conversacion.locks import _cliente_redis
 
         estricto = bool(_cliente_redis().get(f'{prefijo}:estricto'))
     except Exception:
@@ -267,7 +267,7 @@ def verificar_codigo_web(
     cédula. El cupo solo cuenta intentos inválidos. Redis caído no bloquea
     un OTP válido. Si sí mandan documento y no es el del código, no entra.
     """
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
     from core.models import Estudiante
 
     mensaje = MENSAJE_CODIGO_RECHAZADO
@@ -293,7 +293,7 @@ def verificar_codigo_web(
         row.delete()
         if getattr(settings, 'AULA_LOGIN_REQUIERE_DOCUMENTO', False):
             try:
-                from core.locks import _cliente_redis
+                from core.conversacion.locks import _cliente_redis
 
                 _cliente_redis().delete(f'{_aula_prefijo()}:est:{est_hash}')
             except Exception:

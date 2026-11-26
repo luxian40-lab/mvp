@@ -52,7 +52,7 @@ class LlmTurnoAsyncPostAsesorTests(SimpleTestCase):
     @override_settings(OPENAI_API_KEY='sk-test')
     @patch('core.lineas.principal.asesores.finalizar_turno_asesor_llm')
     @patch('core.openai_compat.completar_chat', return_value='Respuesta LLM')
-    @patch('core.locks.telefono_lock')
+    @patch('core.conversacion.locks.telefono_lock')
     def test_tarea_con_post_asesor_usa_finalizar(self, lock, completar, finalizar):
         from contextlib import nullcontext
 

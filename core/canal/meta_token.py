@@ -12,7 +12,7 @@ TTL_TOKEN_INVALIDO_SEG = 15 * 60
 def marcar_token_invalido() -> None:
     logger.critical('meta_token_invalido')
     try:
-        from core.locks import _cliente_redis
+        from core.conversacion.locks import _cliente_redis
 
         _cliente_redis().set(CLAVE_TOKEN_INVALIDO, '1', ex=TTL_TOKEN_INVALIDO_SEG)
     except Exception:
@@ -21,7 +21,7 @@ def marcar_token_invalido() -> None:
 
 def token_invalido() -> bool:
     try:
-        from core.locks import _cliente_redis
+        from core.conversacion.locks import _cliente_redis
 
         return bool(_cliente_redis().get(CLAVE_TOKEN_INVALIDO))
     except Exception:

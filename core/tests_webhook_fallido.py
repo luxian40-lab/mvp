@@ -13,7 +13,7 @@ from django.utils import timezone
 
 
 def test_telefono_hash_es_hmac_no_sha256_pelado():
-    from core.locks import telefono_hash
+    from core.conversacion.locks import telefono_hash
 
     telefono = '573001112233'
     secreto = str(settings.SECRET_KEY).encode('utf-8')
@@ -133,7 +133,7 @@ def test_comando_reprocesar_encola_la_tarea_guardada():
     falso = _RedisFalso()
     falso.valores['eki:wa:entrega:twilio:SMreplay'] = 3
     with patch('core.tasks.procesar_twilio_webhook_async.delay', return_value=resultado) as delay, \
-            patch('core.locks._cliente_redis', return_value=falso):
+            patch('core.conversacion.locks._cliente_redis', return_value=falso):
         call_command('reprocesar_webhook_fallido', str(fila.pk), '--confirmar')
     delay.assert_called_once_with({'MessageSid': 'SMreplay', 'Body': 'listo'})
     assert 'eki:wa:entrega:twilio:SMreplay' in falso.borradas
@@ -285,7 +285,7 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
     from unittest.mock import patch
 
     from core import tasks as tasks_mod
-    from core.locks import ENTREGA_TTL_SEG
+    from core.conversacion.locks import ENTREGA_TTL_SEG
     from core.canal.webhook_evento import WebhookFallido
 
     @contextmanager
@@ -297,8 +297,8 @@ def test_la_tercera_entrega_no_ejecuta_y_guarda_el_wamid(nombre, canal, sid, kwa
     if canal == 'meta':
         datos['id'] = sid
     tarea = getattr(tasks_mod, nombre)
-    with patch('core.locks._cliente_redis', return_value=falso), \
-            patch('core.locks.telefono_lock', _abierto), \
+    with patch('core.conversacion.locks._cliente_redis', return_value=falso), \
+            patch('core.conversacion.locks.telefono_lock', _abierto), \
             patch('core.canal.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'), \
             patch(cuerpo) as proc:
         for _ in range(2):
@@ -332,8 +332,8 @@ def test_ocho_reintentos_de_lock_no_cuentan_como_reentrega():
     def _retry(*args, **kwargs):
         raise Retry('lock')
 
-    with patch('core.locks._cliente_redis', return_value=falso), \
-            patch('core.locks.telefono_lock', side_effect=LockError('ocupado')), \
+    with patch('core.conversacion.locks._cliente_redis', return_value=falso), \
+            patch('core.conversacion.locks.telefono_lock', side_effect=LockError('ocupado')), \
             patch('core.views._procesar_twilio_webhook') as proc, \
             patch.object(procesar_twilio_webhook_async, 'retry', _retry):
         for _ in range(8):
