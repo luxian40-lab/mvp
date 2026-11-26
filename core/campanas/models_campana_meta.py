@@ -32,7 +32,7 @@ CATEGORIAS_META = [
 ]
 
 # Formatos que Meta ofrece al crear una plantilla (texto, media, especiales).
-# El alta automática en Graph hoy arma Texto y Carrusel; el resto es registro.
+# El alta automática en Graph hoy arma Texto, Imagen y Carrusel; el resto es registro.
 TIPOS_PLANTILLA = [
     ('TEXTO', 'Texto'),
     ('IMAGEN', 'Imagen'),
@@ -50,7 +50,7 @@ TIPOS_PLANTILLA = [
     ('PEDIDO', 'Pedido (estado o detalle)'),
     ('OTRO', 'Otro'),
 ]
-TIPOS_ALTA_GRAPH = frozenset({'TEXTO', 'CARRUSEL'})
+TIPOS_ALTA_GRAPH = frozenset({'TEXTO', 'IMAGEN', 'CARRUSEL'})
 
 ORIGEN_PLANTILLA = [
     ('LOCAL', 'Local'),
@@ -155,7 +155,7 @@ class PlantillaMeta(models.Model):
         default='TEXTO',
         verbose_name='Tipo',
         help_text=(
-            'Formato en Meta. El alta automática cubre Texto y Carrusel; '
+            'Formato en Meta. El alta automática cubre Texto, Imagen y Carrusel; '
             'los demás quedan guardados como registro.'
         ),
     )
@@ -245,7 +245,10 @@ class PlantillaMeta(models.Model):
         verbose_name_plural = 'Plantillas Meta'
         ordering = ['-fecha_creacion']
         constraints = [
-            models.UniqueConstraint(fields=['meta_name', 'idioma'], name='uniq_plantilla_meta_nombre_idioma'),
+            models.UniqueConstraint(
+                fields=['meta_name', 'idioma', 'waba_id'],
+                name='uniq_plantilla_meta_nombre_idioma_waba',
+            ),
         ]
 
     def __str__(self):

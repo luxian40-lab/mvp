@@ -251,16 +251,24 @@ class CampanaMetaTests(TestCase):
             'LLAMADA', 'AUTENTICACION', 'PEDIDO',
         } <= codigos)
 
-    @patch('core.meta_waba._post')
-    def test_tipo_imagen_no_se_envia_a_meta(self, post):
+    @patch('core.canal.meta_waba.subir_ejemplo_imagen', return_value='handle.img.demo')
+    @patch('core.canal.meta_waba._post')
+    def test_tipo_imagen_se_envia_a_meta(self, post, _subir):
+        post.return_value = (200, {'id': 'tmpl_img_1', 'status': 'PENDING'})
         self.plantilla.tipo = 'IMAGEN'
+        self.plantilla.media_url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/demo.png'
+        self.plantilla.cuerpo = 'Nombre: {{1}}. Curso: {{2}}. Referencia: {{3}}.'
+        self.plantilla.ejemplos_cuerpo = 'Ana|Café|eki-1'
         self.plantilla.save()
         resultado = crear_plantilla_en_meta(self.plantilla)
-        post.assert_not_called()
-        self.assertFalse(resultado['success'])
-        self.assertIn('registro', resultado['message'])
+        self.assertTrue(resultado['success'])
+        post.assert_called_once()
+        payload = post.call_args[0][1]
+        header = payload['components'][0]
+        self.assertEqual(header['type'], 'HEADER')
+        self.assertEqual(header['format'], 'IMAGE')
         self.plantilla.refresh_from_db()
-        self.assertEqual(self.plantilla.estado, 'BORRADOR')
+        self.assertEqual(self.plantilla.estado, 'PENDING')
         self.assertEqual(self.plantilla.tipo, 'IMAGEN')
 
     def test_admin_abre_el_editor_y_guarda_el_mensaje(self):

@@ -135,6 +135,29 @@ def armar_componentes_alta(plantilla: PlantillaMeta) -> list[dict]:
     return componentes
 
 
+def armar_componentes_imagen(plantilla: PlantillaMeta, header_handle: str) -> list[dict]:
+    """Alta Graph con foto en el encabezado. El handle sale de subir_ejemplo_imagen."""
+    handle = (header_handle or '').strip()
+    if not handle:
+        raise RuntimeError('Falta el handle de la imagen de muestra.')
+    componentes: list[dict] = [{
+        'type': 'HEADER',
+        'format': 'IMAGE',
+        'example': {'header_handle': [handle]},
+    }]
+    cuerpo = (plantilla.cuerpo or '').strip()
+    body: dict = {'type': 'BODY', 'text': cuerpo}
+    n_body = len(set(variables_en(cuerpo)))
+    if n_body:
+        ejemplos = ejemplos_lista(plantilla.ejemplos_cuerpo)
+        body['example'] = {'body_text': [ejemplos[:n_body]]}
+    componentes.append(body)
+    footer = (plantilla.footer or '').strip()
+    if footer:
+        componentes.append({'type': 'FOOTER', 'text': footer})
+    return componentes
+
+
 def _post(url: str, payload: dict) -> tuple[int, dict]:
     headers = _headers()
     if not headers:
@@ -172,7 +195,24 @@ def _get(url: str, params: dict | None = None) -> tuple[int, dict]:
 
 
 def _app_id() -> str:
-    return (getattr(settings, 'WHATSAPP_APP_ID', None) or '').strip()
+    fijo = (getattr(settings, 'WHATSAPP_APP_ID', None) or '').strip()
+    if fijo:
+        return fijo
+    # EB a veces no tiene WHATSAPP_APP_ID; el token sí identifica la app.
+    token = _token()
+    if not token:
+        return ''
+    try:
+        status, data = _get(
+            f'https://graph.facebook.com/{_version()}/debug_token',
+            {'input_token': token, 'access_token': token},
+        )
+    except Exception:
+        logger.exception('meta_app_id_debug_token')
+        return ''
+    if status != 200:
+        return ''
+    return str(((data.get('data') or {}).get('app_id') or '')).strip()
 
 
 def subir_ejemplo_imagen(url: str) -> str:
@@ -306,7 +346,7 @@ def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
             'success': False,
             'message': (
                 f'{plantilla.get_tipo_display()} queda guardada como registro. '
-                'El envío automático a Meta hoy cubre Texto y Carrusel.'
+                'El envío automático a Meta hoy cubre Texto, Imagen y Carrusel.'
             ),
         }
     if tipo == 'CARRUSEL':
@@ -315,6 +355,19 @@ def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
         except Exception as exc:
             plantilla.waba_id = waba
             logger.warning('plantilla_carrusel_error %s', exc)
+            return _marcar_error_plantilla(plantilla, str(exc))
+    elif tipo == 'IMAGEN':
+        media = (getattr(plantilla, 'media_url', '') or '').strip()
+        if not media.startswith('https://'):
+            plantilla.waba_id = waba
+            return _marcar_error_plantilla(
+                plantilla, 'La plantilla de imagen necesita una URL https de muestra.',
+            )
+        try:
+            componentes = armar_componentes_imagen(plantilla, subir_ejemplo_imagen(media))
+        except Exception as exc:
+            plantilla.waba_id = waba
+            logger.warning('plantilla_imagen_error %s', exc)
             return _marcar_error_plantilla(plantilla, str(exc))
     else:
         componentes = armar_componentes_alta(plantilla)
