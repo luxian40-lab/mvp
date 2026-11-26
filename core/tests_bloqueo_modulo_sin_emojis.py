@@ -8,7 +8,7 @@ from core.curso.drip_schedule import (
     format_mensaje_bloqueo_drip,
 )
 from core.curso.modulo_publicacion import format_mensaje_bloqueo_contenido_pendiente
-from core.tutor_ia_modulo import limpiar_emojis
+from core.agentes.tutor_ia_modulo import limpiar_emojis
 
 
 class BloqueoModuloSinEmojisTests(TestCase):

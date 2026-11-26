@@ -204,8 +204,8 @@ class DaríoHandoffContinuarTests(TestCase):
             'preguntas_hechas': 0,
         }
 
-    @patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto de prueba')
-    @patch('core.tutor_ia_modulo.cargar_modulos_reto')
+    @patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto de prueba')
+    @patch('core.agentes.tutor_ia_modulo.cargar_modulos_reto')
     def test_continuar_activa_facilitadora_como_listo(self, mock_cargar, _mock_reto):
         mock_cargar.return_value = [self.mod]
         from core.views import _procesar_twilio_webhook
@@ -241,8 +241,8 @@ class DaríoHandoffContinuarTests(TestCase):
                 self.assertIn('Reto de prueba', texto)
                 self.assertNotIn('No entendí', texto)
 
-    @patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto via intent')
-    @patch('core.tutor_ia_modulo.cargar_modulos_reto')
+    @patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto via intent')
+    @patch('core.agentes.tutor_ia_modulo.cargar_modulos_reto')
     def test_continuar_leccion_intent_listo_pasa_a_claudia(self, mock_cargar, _mock_reto):
         """Regresión: get_response_for_intent no debe spamear el nudge de Darío."""
         from core.conversacion.response_templates import get_response_for_intent
@@ -328,7 +328,7 @@ class FacilitadoraNoSaltaConListoTests(TestCase):
         self.assertNotIn('módulo se está cargando', texto.lower())
         self.assertNotIn('Combinar redes', texto)
 
-    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Buen enfoque en autocuidado.'))
+    @patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Buen enfoque en autocuidado.'))
     def test_respuesta_real_evalua_facilitadora(self, _mock_eval):
         from core.views import _procesar_twilio_webhook
 

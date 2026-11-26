@@ -108,7 +108,7 @@ def mensaje_primera_entrega(estudiante, progreso, modulo, *, marcar: bool = True
         estudiante_es_agricapital,
         preparar_salida_agricapital,
     )
-    from core.tutor_ia_modulo import generar_presentacion_agentes
+    from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
 
     nombre = getattr(estudiante, 'nombre', None) or 'Estudiante'
     msg_tutor, msg_asistente = generar_presentacion_agentes(

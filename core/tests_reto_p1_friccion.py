@@ -46,7 +46,7 @@ class RespuestaCortaRetoTests(SimpleTestCase):
             msg_sid='wamid.x',
             texto_respuesta='',
         )
-        with patch('core.tutor_ia_modulo.evaluar_reto_facilitador') as mock_eval:
+        with patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador') as mock_eval:
             resp = reto_mod.manejar(contexto)
         mock_eval.assert_not_called()
         self.assertIn('no cuenta como respuesta', (resp.texto or '').lower())

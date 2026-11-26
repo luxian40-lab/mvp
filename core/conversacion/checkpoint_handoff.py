@@ -15,7 +15,7 @@ def lanzar_reto_tras_companero(estudiante, ctx, contexto_limpio, *, progreso_si_
     """Abre el reto del Formador. Devuelve el texto a enviar."""
     print("🎯 Asistente terminó → Activando Facilitadora con reto")
     from core.models import ProgresoEstudiante
-    from core.tutor_ia_modulo import (
+    from core.agentes.tutor_ia_modulo import (
         cargar_modulos_reto,
         generar_reto_facilitador,
         listar_modulos_cobertura_reto,
@@ -82,7 +82,7 @@ def lanzar_reto_tras_companero(estudiante, ctx, contexto_limpio, *, progreso_si_
             )
         except Exception:
             logger.debug('[reto] telemetría reto_planteado omitida', exc_info=True)
-        from core.tutor_ia_modulo import bloque_reto_whatsapp
+        from core.agentes.tutor_ia_modulo import bloque_reto_whatsapp
 
         return bloque_reto_whatsapp(nombre_tutor, reto)
 

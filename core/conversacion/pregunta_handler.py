@@ -13,7 +13,7 @@ def procesar_respuesta_abierta_ia(estudiante, respuesta_usuario):
     """
     # Intentar evaluar con IA
     try:
-        from core.tutor_ia_modulo import evaluar_respuesta_modulo
+        from core.agentes.tutor_ia_modulo import evaluar_respuesta_modulo
         from core.models import Modulo
         ctx = estudiante.contexto_temporal or {}
         modulo_id = ctx.get('modulo_id')

@@ -115,7 +115,7 @@ def responder_duda_en_leccion(estudiante, mensaje: str) -> str | None:
     try:
         from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
         from core.lineas.agricapital_experiencia import estudiante_es_agricapital
-        from core.tutor_ia_modulo import generar_respuesta_asistente
+        from core.agentes.tutor_ia_modulo import generar_respuesta_asistente
 
         modulos = _modulos_para_duda(estudiante)
         cuerpo = generar_respuesta_asistente(

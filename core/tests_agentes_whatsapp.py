@@ -8,7 +8,7 @@ from core.agentes.agentes_whatsapp import (
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.conversacion.response_templates import activar_checkpoint_facilitador
-from core.tutor_ia_modulo import bloque_reto_whatsapp, generar_presentacion_agentes
+from core.agentes.tutor_ia_modulo import bloque_reto_whatsapp, generar_presentacion_agentes
 
 
 class CuerpoSinTitularTests(TestCase):

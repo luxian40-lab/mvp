@@ -141,7 +141,7 @@ class AudioCompaneroNoEsListoTests(TestCase):
             'core.views.webhook_twilio._transcribir_audio_twilio',
             return_value='cuando debo preocuparme por la mortalidad de mis abejas',
         ) as trans, patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
             return_value='La mortalidad se monitorea cada semana.',
         ):
             self._webhook({'MediaContentType0': ''})

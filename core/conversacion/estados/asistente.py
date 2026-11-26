@@ -32,7 +32,7 @@ def _responder_pregunta_companero(
     """Una pregunta clara al Compañero (máx. 2). Suma cupo y responde con RAG/LLM."""
     preguntas_hechas += 1
     from core.models import ProgresoEstudiante
-    from core.tutor_ia_modulo import cargar_modulos_reto, generar_respuesta_asistente
+    from core.agentes.tutor_ia_modulo import cargar_modulos_reto, generar_respuesta_asistente
     try:
         _pr_dario = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
     except ProgresoEstudiante.DoesNotExist:

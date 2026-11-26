@@ -85,7 +85,7 @@ def partes_presentacion_agentes_curso(estudiante, curso) -> list:
     """
     if not getattr(curso, 'usar_agentes_ia', True):
         return []
-    from core.tutor_ia_modulo import generar_presentacion_agentes
+    from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
 
     nombre_tutor = 'Formador'
     nombre_asistente = 'Compañero'
@@ -485,7 +485,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
 
     El puntero de módulo no avanza; eso ocurre después de evaluar el reto.
     """
-    from core.tutor_ia_modulo import (
+    from core.agentes.tutor_ia_modulo import (
         descripcion_rango_modulos_reto_esp,
         listar_modulos_cobertura_reto,
     )

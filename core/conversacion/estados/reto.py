@@ -95,7 +95,7 @@ def _leer_evidencia_foto(evidencia_imagen_url, progreso_id, evidencia_imagen_typ
             evaluar_evidencia_foto,
             guardar_evidencia,
         )
-        from core.tutor_ia_modulo import cargar_modulos_reto
+        from core.agentes.tutor_ia_modulo import cargar_modulos_reto
 
         progreso_foto = ProgresoEstudiante.objects.filter(id=progreso_id).first()
         evidencia_bytes, evidencia_type = descargar_media_twilio(evidencia_imagen_url)
@@ -137,7 +137,7 @@ def _leer_evidencia_foto(evidencia_imagen_url, progreso_id, evidencia_imagen_typ
 
 def _evaluar_respuesta_reto(texto_respuesta, progreso_id, modulos_reto_ids, estudiante, resultado_foto, telefono_limpio, msg_sid, msg_body, reto_texto, evidencia_url_guardada, logger, ctx, _pregunta_abierta_final_pendiente, contexto_limpio, _radar_msg_si_aplica, _MARCADOR_CONTINUEMOS):
     from core.models import ProgresoEstudiante
-    from core.tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
+    from core.agentes.tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
     progreso = (
         ProgresoEstudiante.objects.filter(id=progreso_id).first()
         if progreso_id

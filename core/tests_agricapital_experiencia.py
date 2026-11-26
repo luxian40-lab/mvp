@@ -73,7 +73,7 @@ class RetoAgriCapitalNoCalificaTests(SimpleTestCase):
             texto_respuesta='',
         )
         with patch.object(reto_mod, 'evaluar_reto_facilitador', create=True) as mock_eval:
-            with patch('core.tutor_ia_modulo.evaluar_reto_facilitador') as mock_eval2:
+            with patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador') as mock_eval2:
                 resp = reto_mod.manejar(contexto)
         mock_eval2.assert_not_called()
         self.assertIn('no cuenta como respuesta', (resp.texto or '').lower())
@@ -170,7 +170,7 @@ class CopyVocesRitmoAgriCapitalTests(SimpleTestCase):
         self.assertNotIn('asesor', texto)
 
     def test_presentacion_curso_agri_via_generar_agentes(self):
-        from core.tutor_ia_modulo import generar_presentacion_agentes
+        from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
 
         curso = SimpleNamespace(cliente_id=AGRI_ID, nombre='Finanzas')
         fac, comp = generar_presentacion_agentes(
@@ -181,11 +181,11 @@ class CopyVocesRitmoAgriCapitalTests(SimpleTestCase):
         self.assertIn('te plantearé', fac.lower())
 
     def test_presentacion_otro_cliente_sigue_usted(self):
-        from core.tutor_ia_modulo import generar_presentacion_agentes
+        from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
 
         curso = SimpleNamespace(cliente_id=OTRO_ID, nombre='Otro')
         with patch(
-            'core.tutor_ia_modulo.es_perfil_tecnicoagro',
+            'core.agentes.tutor_ia_modulo.es_perfil_tecnicoagro',
             return_value=False,
         ):
             fac, comp = generar_presentacion_agentes('Otro', 'Ana', curso=curso)

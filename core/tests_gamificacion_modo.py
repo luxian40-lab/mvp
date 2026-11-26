@@ -17,7 +17,7 @@ from core.gamificacion.modo import (
     sincronizar_usar_gamificacion,
 )
 from core.models import Cliente, Curso, Estudiante
-from core.tutor_ia_modulo import _extraer_nota_1_5, evaluar_reto_facilitador
+from core.agentes.tutor_ia_modulo import _extraer_nota_1_5, evaluar_reto_facilitador
 
 
 class TestModoGamificacionCliente(TestCase):
@@ -110,7 +110,7 @@ class TestPromptNotas(TestCase):
         fb = 'Muy bien. Nota final: 3.5/5'
         self.assertEqual(_extraer_nota_1_5(fb), 3.5)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_evaluar_modo_calificacion_usa_parser_5(self, mock_client):
         mock_resp = type('R', (), {})()
         mock_resp.choices = [

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from core.models import Cliente, Curso, Modulo
-from core.tutor_ia_modulo import (
+from core.agentes.tutor_ia_modulo import (
     RETO_GUIA_DEFAULT,
     _es_respuesta_sin_contenido_reto,
     armar_guia_reto_para_prompt,
@@ -127,7 +127,7 @@ class GuiaRetoIaTests(TestCase):
         self.assertIn('PREGUNTAS/RETOS EJEMPLO', texto)
         self.assertIn('gasto revisaría', texto)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_generar_reto_inyecta_tipo_y_guia(self, mock_client):
         choice = MagicMock()
         choice.message.content = 'Situación breve. ¿Qué haría usted esta semana?'
@@ -157,7 +157,7 @@ class GuiaRetoIaTests(TestCase):
         choice.message.content = 'Situación. ¿Qué haría?'
         client = MagicMock()
         client.chat.completions.create.return_value = MagicMock(choices=[choice])
-        with patch('core.tutor_ia_modulo._get_client', return_value=client), \
+        with patch('core.agentes.tutor_ia_modulo._get_client', return_value=client), \
                 patch('core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
             generar_reto_facilitador(
                 modulos, self.curso.nombre, estudiante_nombre='Ana',
@@ -166,7 +166,7 @@ class GuiaRetoIaTests(TestCase):
         return client.chat.completions.create.call_args.kwargs['messages'][1]['content']
 
     def test_plantilla_aplicacion_no_asume_finca(self):
-        from core.tutor_ia_modulo import _INSTRUCCION_TIPO_RETO
+        from core.agentes.tutor_ia_modulo import _INSTRUCCION_TIPO_RETO
 
         texto = _INSTRUCCION_TIPO_RETO[Modulo.TIPO_RETO_APLICACION]
         self.assertNotIn('finca', texto.lower())
@@ -214,7 +214,7 @@ class AsistenteDominioCursoTests(TestCase):
     """Carlos no debe recortar el tema al título del módulo (ej. Bienvenida)."""
 
     def test_prompt_sistema_ustea_sin_emojis(self):
-        from core.tutor_ia_modulo import _prompt_sistema_asistente
+        from core.agentes.tutor_ia_modulo import _prompt_sistema_asistente
 
         p = _prompt_sistema_asistente('Carlos')
         self.assertIn('Carlos', p)
@@ -224,7 +224,7 @@ class AsistenteDominioCursoTests(TestCase):
         self.assertIn('dominio del curso', p.lower())
 
     def test_respuestas_caben_en_un_mensaje_con_boton(self):
-        from core.tutor_ia_modulo import (
+        from core.agentes.tutor_ia_modulo import (
             PROMPT_FACILITADOR_EVALUACION,
             PROMPT_FACILITADOR_EVALUACION_NOTAS,
             _prompt_sistema_asistente,
@@ -234,10 +234,10 @@ class AsistenteDominioCursoTests(TestCase):
         self.assertIn('Máximo 90 palabras de retroalimentación', PROMPT_FACILITADOR_EVALUACION)
         self.assertIn('Máximo 90 palabras', PROMPT_FACILITADOR_EVALUACION_NOTAS)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_pregunta_de_abejas_usa_el_curso_aunque_el_modulo_sea_bienvenida(self, mock_client):
         from core.agentes.prompts_tecnicoagro import PERFIL_TECNICOAGRO
-        from core.tutor_ia_modulo import generar_respuesta_asistente
+        from core.agentes.tutor_ia_modulo import generar_respuesta_asistente
 
         cli = Cliente.objects.create(
             nombre='AGROSAVIA',

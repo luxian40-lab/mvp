@@ -210,8 +210,8 @@ class TesterLocalDosCursosAgentesTests(TestCase):
         self.assertIn('CONTENIDO_A_2', resp)
         self.assertNotIn('CONTENIDO_B_', resp)
 
-    @patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto test multi')
-    @patch('core.tutor_ia_modulo.cargar_modulos_reto')
+    @patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto test multi')
+    @patch('core.agentes.tutor_ia_modulo.cargar_modulos_reto')
     def test_presentacion_agentes_por_curso_no_mezcla(self, mock_cargar, _mock_reto):
         mock_cargar.return_value = [self.mods_a[0]]
         from core.conversacion.response_templates import partes_presentacion_agentes_curso

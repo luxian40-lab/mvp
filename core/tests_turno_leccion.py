@@ -99,7 +99,7 @@ class CompaneroEnLeccionTests(SimpleTestCase):
         with patch(
             'core.conversacion.turno_leccion._modulos_para_duda', return_value=[],
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
             return_value='El interés compuesto suma rendimiento sobre rendimiento.',
         ) as gen:
             out = texto_cuando_no_es_listo(est, '¿qué es el interés compuesto?')
@@ -111,7 +111,7 @@ class CompaneroEnLeccionTests(SimpleTestCase):
 
     def test_reflexion_no_llama_companero(self):
         est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=9, nombre='Ana')
-        with patch('core.tutor_ia_modulo.generar_respuesta_asistente') as gen:
+        with patch('core.agentes.tutor_ia_modulo.generar_respuesta_asistente') as gen:
             out = texto_cuando_no_es_listo(
                 est, 'un gasto hormiga puede ser gasto diario de comprar dulces'
             )
@@ -120,7 +120,7 @@ class CompaneroEnLeccionTests(SimpleTestCase):
 
     def test_media_sigue_siendo_tip_no_companero(self):
         est = SimpleNamespace(cliente_id=27, contexto_temporal={}, pk=9, nombre='Ana')
-        with patch('core.tutor_ia_modulo.generar_respuesta_asistente') as gen:
+        with patch('core.agentes.tutor_ia_modulo.generar_respuesta_asistente') as gen:
             out = texto_cuando_no_es_listo(est, 'no veo el video')
         gen.assert_not_called()
         self.assertEqual(out, TEXTO_TIP_MEDIA_USTED)
@@ -164,7 +164,7 @@ class NingunCursoDevuelveNoEntendiTests(SimpleTestCase):
             with self.subTest(cliente_id=cliente_id), patch(
                 'core.conversacion.turno_leccion._modulos_para_duda', return_value=[],
             ), patch(
-                'core.tutor_ia_modulo.generar_respuesta_asistente',
+                'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
                 return_value='Respuesta de prueba del Compañero.',
             ):
                 out = texto_cuando_no_es_listo(est, '¿qué es el interés compuesto?')

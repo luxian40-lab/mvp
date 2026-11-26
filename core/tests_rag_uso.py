@@ -109,9 +109,9 @@ class TutorPideUsoAgenteTests(TestCase):
             contenido='Priorizar iniciativas.',
         )
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_companero_consulta_pack_companero(self, mock_client):
-        from core.tutor_ia_modulo import generar_respuesta_asistente
+        from core.agentes.tutor_ia_modulo import generar_respuesta_asistente
 
         mock_client.return_value = MagicMock(
             chat=MagicMock(
@@ -135,9 +135,9 @@ class TutorPideUsoAgenteTests(TestCase):
             )
         self.assertEqual(mock_rag.call_args.kwargs.get('uso'), USO_COMPANERO)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_reto_claudia_consulta_pack_claudia(self, mock_client):
-        from core.tutor_ia_modulo import generar_reto_facilitador
+        from core.agentes.tutor_ia_modulo import generar_reto_facilitador
 
         mock_client.return_value = MagicMock(
             chat=MagicMock(
@@ -161,9 +161,9 @@ class TutorPideUsoAgenteTests(TestCase):
             )
         self.assertEqual(mock_rag.call_args.kwargs.get('uso'), USO_CLAUDIA)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_evaluacion_claudia_consulta_pack_claudia(self, mock_client):
-        from core.tutor_ia_modulo import evaluar_reto_facilitador
+        from core.agentes.tutor_ia_modulo import evaluar_reto_facilitador
 
         mock_client.return_value = MagicMock(
             chat=MagicMock(

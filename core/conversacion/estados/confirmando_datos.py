@@ -129,7 +129,7 @@ def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, par
     )
 
     # Presentación de agentes
-    from core.tutor_ia_modulo import generar_presentacion_agentes
+    from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
     msg_tutor, msg_asistente = generar_presentacion_agentes(
         curso_nombre=curso.nombre,
         estudiante_nombre=estudiante.nombre or 'Estudiante',

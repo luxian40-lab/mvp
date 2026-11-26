@@ -147,7 +147,7 @@ class PreguntaHandlerTests(ConCursoTestCase):
 
         self._con_contexto()
         guardar_contexto_pregunta_rag(self.est, self.mod, '¿qué aprendió?', self.progreso)
-        with patch('core.tutor_ia_modulo.evaluar_respuesta_modulo', return_value=(True, 'bien')):
+        with patch('core.agentes.tutor_ia_modulo.evaluar_respuesta_modulo', return_value=(True, 'bien')):
             procesar_respuesta_abierta_ia(self.est, 'aprendí a regar')
         self.assertEqual(self._contexto(), {'cert_envio_pendiente': CERT, 'radar_empleabilidad_activo': True})
 
@@ -246,7 +246,7 @@ class RetoTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_reto'
         self.est.save()
-        with patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
+        with patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
                 patch('core.canal.sandbox_canal.poner_reaccion_espera'), \
                 patch('core.certificados.certificado_service.crear_certificado_automatico', return_value=None), \
                 patch('core.conversacion.estados.reto._radar_msg_si_aplica', return_value=''):
@@ -291,7 +291,7 @@ class PreguntaAbiertaFinalTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
         self.est.save()
-        with patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
+        with patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'bien')), \
                 patch('core.canal.sandbox_canal.poner_reaccion_espera'), \
                 patch('core.certificados.certificado_service.crear_certificado_automatico', return_value=None), \
                 patch('core.conversacion.estados.pregunta_abierta_final._radar_msg_si_aplica', return_value=''):
@@ -329,7 +329,7 @@ class AsistenteTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_asistente'
         self.est.save()
-        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+        with patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
             asistente.manejar(Contexto(self.est, 'listo', self.est.telefono, self.est.telefono))
         return self._contexto()
 
@@ -349,7 +349,7 @@ class AsistenteTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_asistente'
         self.est.save()
-        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.') as gen:
+        with patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.') as gen:
             asistente.manejar(Contexto(self.est, 'listo', self.est.telefono, self.est.telefono))
         self.assertEqual(gen.call_args.kwargs.get('estudiante'), self.est)
 
@@ -443,7 +443,7 @@ class ResponseTemplatesTests(ConCursoTestCase):
         )
         self.est.estado_onboarding = 'esperando_respuesta_asistente'
         self.est.save()
-        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+        with patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
             get_response_for_intent('continuar_leccion', 'Lu', estudiante_id=self.est.id, mensaje_original='listo')
         return self._contexto()
 
@@ -466,7 +466,7 @@ class RetoDespuesDeMariaTests(ConCursoTestCase):
         from core.lineas.reto import activar_reto_despues_de_maria
 
         self._con_contexto(tipo='asistente_maria', modulo_id=self.mod.id, curso_activo_id=self.curso.id)
-        with patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
+        with patch('core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Riegue la huerta.'):
             activar_reto_despues_de_maria(self.est, 'Bien.', self.progreso.id, [self.mod.id], False)
         ctx = self._contexto()
         self.assertEqual((ctx['tipo'], ctx['reto_texto']), ('reto_facilitador', 'Riegue la huerta.'))

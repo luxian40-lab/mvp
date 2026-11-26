@@ -312,7 +312,7 @@ class ModuleStepsModelTests(TestCase):
         self.assertIn('[send_button:continuemos]', blob)
         self.assertLess(blob.index('excelente'), blob.index('[send_button:continuemos]'))
 
-    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Muy bien aplicado el concepto.'))
+    @patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Muy bien aplicado el concepto.'))
     def test_eval_abierta_califica_con_facilitadora(self, _mock_eval):
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(
@@ -1283,7 +1283,7 @@ class RetoModulosCoberturaTests(TestCase):
         )
 
     def test_checkpoint_modulo_2_incluye_hasta_2(self):
-        from core.tutor_ia_modulo import (
+        from core.agentes.tutor_ia_modulo import (
             descripcion_rango_modulos_reto_esp,
             listar_modulos_cobertura_reto,
         )
@@ -1293,7 +1293,7 @@ class RetoModulosCoberturaTests(TestCase):
         self.assertEqual(descripcion_rango_modulos_reto_esp(rows), 'los módulos 1 a 2')
 
     def test_checkpoint_modulo_5_ventana_desde_4(self):
-        from core.tutor_ia_modulo import listar_modulos_cobertura_reto
+        from core.agentes.tutor_ia_modulo import listar_modulos_cobertura_reto
 
         m3 = Modulo.objects.create(
             curso=self.curso,
@@ -1499,7 +1499,7 @@ class RetoFacilitadoraRespetaDripTests(TestCase):
             }
         )
 
-    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Feedback reto'))
+    @patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Feedback reto'))
     def test_con_drip_no_adelanta_modulo_actual(self, _mock_eval):
         ModuloCompletado.objects.create(progreso=self.prog, modulo=self.m1)
         self.prog.fecha_ultimo_avance = timezone.now() - timedelta(days=1)
@@ -1523,7 +1523,7 @@ class RetoFacilitadoraRespetaDripTests(TestCase):
         self.assertEqual(self.est.estado_onboarding, 'completado')
         self.assertNotIn('post_reto_entregar_modulo_id', self.est.contexto_temporal or {})
 
-    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(7, 'OK'))
+    @patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(7, 'OK'))
     def test_sin_espera_entre_modulos_sigue_avanzando_puntero(self, _mock_eval):
         self.curso.dias_espera_entre_modulos = 0
         self.curso.save(update_fields=['dias_espera_entre_modulos'])

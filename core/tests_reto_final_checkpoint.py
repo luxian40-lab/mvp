@@ -72,7 +72,7 @@ class CierreSinCompletadoPrematuroTests(TestCase):
 
     def _continuar(self, trigger):
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador',
             return_value='RETO_FINAL_QA',
         ):
             return get_response_for_intent(
@@ -127,7 +127,7 @@ class LegadoCompletadoPrematuroTests(TestCase):
 
     def test_bypass_no_responde_ya_completaste(self):
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador',
             return_value='RETO_LEGADO_QA',
         ):
             out = get_response_for_intent(
@@ -167,7 +167,7 @@ class CheckpointMidCursoTests(TestCase):
 
     def test_ok_lanza_formador_mid_curso(self):
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador',
             return_value='RETO_MID_QA',
         ):
             out = get_response_for_intent(

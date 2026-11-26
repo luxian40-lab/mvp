@@ -12,7 +12,7 @@ from core.curso.facilitador_perfil import (
 from core.models import Cliente, Curso, Modulo
 from core.curso.modulo_publicacion import resumen_tope_avance_wa
 from core.agentes.prompts_tecnicoagro import PERFIL_CLAUDIA, PERFIL_TECNICOAGRO, PROMPT_TECNICOAGRO
-from core.tutor_ia_modulo import PROMPT_FACILITADOR_RETO, generar_reto_facilitador
+from core.agentes.tutor_ia_modulo import PROMPT_FACILITADOR_RETO, generar_reto_facilitador
 
 
 class FacilitadorPerfilTests(TestCase):
@@ -57,9 +57,9 @@ class FacilitadorPerfilTests(TestCase):
 
     def test_claudia_prompts_intactos(self):
         """No borrar Claudia: constantes siguen existiendo."""
-        self.assertIn('Formador', __import__('core.tutor_ia_modulo', fromlist=['PROMPT_FACILITADOR_EVALUACION']).PROMPT_FACILITADOR_EVALUACION)
+        self.assertIn('Formador', __import__('core.agentes.tutor_ia_modulo', fromlist=['PROMPT_FACILITADOR_EVALUACION']).PROMPT_FACILITADOR_EVALUACION)
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_generar_reto_usa_prompt_tecnicoagro(self, mock_client):
         self.curso.perfil_facilitador = Curso.PERFIL_FACILITADOR_TECNICOAGRO
         self.curso.save(update_fields=['perfil_facilitador'])
@@ -85,7 +85,7 @@ class FacilitadorPerfilTests(TestCase):
         'core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia',
         return_value=('FUENTE AGROSAVIA: manejo de varroa en apiarios', {'agrosavia_usada': True}),
     )
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_tecnicoagro_usa_agrosavia_live_cuando_no_hay_rag(self, mock_client, mock_agro):
         self.curso.perfil_facilitador = Curso.PERFIL_FACILITADOR_TECNICOAGRO
         self.curso.save(update_fields=['perfil_facilitador'])
@@ -110,7 +110,7 @@ class FacilitadorPerfilTests(TestCase):
         self.assertIn('FUENTE AGROSAVIA', user_msg)
 
     @patch('core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia')
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_claudia_no_consulta_agrosavia(self, mock_client, mock_agro):
         m = Modulo.objects.create(
             curso=self.curso,
@@ -221,7 +221,7 @@ class ContextoParticipantesTests(TestCase):
         """Si alguien cambia un texto general, la frase deja de reemplazarse sin avisar."""
         import inspect
 
-        import core.tutor_ia_modulo as tutor
+        import core.agentes.tutor_ia_modulo as tutor
         from core.curso.facilitador_perfil import _RURAL_FIJO
 
         fuente = inspect.getsource(tutor)
@@ -248,14 +248,14 @@ class ContextoParticipantesTests(TestCase):
         choice.message.content = 'PREGUNTA: x\nA) a\nB) b\nC) c\nD) d\nCORRECTA: A\nEXPLICACION: e'
         client = MagicMock()
         client.chat.completions.create.return_value = MagicMock(choices=[choice])
-        with patch('core.tutor_ia_modulo._get_client', return_value=client), \
+        with patch('core.agentes.tutor_ia_modulo._get_client', return_value=client), \
                 patch('core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''), \
                 self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
             llamar()
         return client.chat.completions.create.call_args.kwargs['messages']
 
     def test_companero_lleva_el_contexto_y_no_menciona_agrosavia(self):
-        from core.tutor_ia_modulo import generar_respuesta_asistente
+        from core.agentes.tutor_ia_modulo import generar_respuesta_asistente
 
         self._urbano()
         m = Modulo.objects.create(curso=self.curso, numero=1, titulo='Marca', contenido='Identidad.')
@@ -266,7 +266,7 @@ class ContextoParticipantesTests(TestCase):
         self.assertNotIn('ejemplo de campo', sistema)
 
     def test_recuperacion_no_habla_de_ruralidad_en_curso_urbano(self):
-        from core.tutor_ia_modulo import generar_pregunta_recuperacion
+        from core.agentes.tutor_ia_modulo import generar_pregunta_recuperacion
 
         self._urbano()
         m = Modulo.objects.create(curso=self.curso, numero=4, titulo='Plan', contenido='Plan de mercadeo.')

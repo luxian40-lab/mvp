@@ -10,7 +10,7 @@ from core.agentes.prompts_tecnicoagro import (
     ANEXO_RETO_CHECKPOINT_WA,
     PROMPT_TECNICOAGRO,
 )
-from core.tutor_ia_modulo import (
+from core.agentes.tutor_ia_modulo import (
     PIE_RESPUESTA_RETO,
     PROMPT_FACILITADOR_EVALUACION,
     PROMPT_FACILITADOR_EVALUACION_NOTAS,
@@ -121,7 +121,7 @@ class RetoGeneradoSinEmojisTests(TestCase):
             publicado_wa=True,
         )
 
-    @patch('core.tutor_ia_modulo._get_client')
+    @patch('core.agentes.tutor_ia_modulo._get_client')
     def test_reto_se_entrega_sin_emojis(self, mock_client):
         fake = MagicMock()
         fake.chat.completions.create.return_value = MagicMock(

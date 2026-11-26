@@ -92,7 +92,7 @@ Te inscribiste en: *{curso.nombre}*
 ⏱️ Duración: {curso.duracion_semanas} semanas"""
 
     # Message 2 & 3: Agent introductions (custom names from curso)
-    from core.tutor_ia_modulo import generar_presentacion_agentes
+    from core.agentes.tutor_ia_modulo import generar_presentacion_agentes
     nombre_tutor = 'Formador'
     nombre_asistente = 'Compañero'
     msg_geronimo, msg_maria = generar_presentacion_agentes(

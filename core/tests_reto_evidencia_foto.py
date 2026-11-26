@@ -140,7 +140,7 @@ class RetoEvidenciaFotoTests(TestCase):
         ).first()
         self.assertEqual(ev.metadata.get('evidencia_url'), 'https://s3/ev.jpg')
 
-    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(7, 'Buen registro.'))
+    @patch('core.agentes.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(7, 'Buen registro.'))
     def test_respuesta_de_texto_tambien_emite_evento(self, _mock_eval):
         mock_instance = MagicMock()
         mock_instance.messages.create.return_value = MagicMock(sid='SM_txt')

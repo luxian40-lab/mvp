@@ -131,7 +131,7 @@ def nombre_display_facilitador(curso: Curso | None, fallback: str = NOMBRE_FORMA
 
 
 def system_prompt_reto_para_curso(curso: Curso | None) -> str:
-    from core.tutor_ia_modulo import PROMPT_FACILITADOR_RETO
+    from core.agentes.tutor_ia_modulo import PROMPT_FACILITADOR_RETO
 
     if es_perfil_tecnicoagro(curso):
         return system_prompt_reto_tecnicoagro()
@@ -139,7 +139,7 @@ def system_prompt_reto_para_curso(curso: Curso | None) -> str:
 
 
 def system_prompt_evaluacion_para_curso(curso: Curso | None, *, usar_notas: bool) -> str:
-    from core.tutor_ia_modulo import (
+    from core.agentes.tutor_ia_modulo import (
         PROMPT_FACILITADOR_EVALUACION,
         PROMPT_FACILITADOR_EVALUACION_NOTAS,
     )

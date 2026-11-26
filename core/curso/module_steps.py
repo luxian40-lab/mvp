@@ -867,7 +867,7 @@ def _evaluar_abierta_microcontenido_facilitadora(
     Califica evaluación abierta de microcontenido con la misma IA facilitadora
     que la pregunta final del curso. Devuelve (puntaje_o_nota, feedback, sufijo_puntos).
     """
-    from core.tutor_ia_modulo import evaluar_reto_facilitador
+    from core.agentes.tutor_ia_modulo import evaluar_reto_facilitador
     from core.gamificacion.modo import (
         formatear_nota,
         gamificacion_otorga_puntos,

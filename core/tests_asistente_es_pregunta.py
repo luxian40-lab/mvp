@@ -43,9 +43,9 @@ class AsistenteEsPreguntaTests(TestCase):
 
         self._en_pausa()
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto cierre.',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto cierre.',
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
         ) as mock_asistente:
             asistente.manejar(Contexto(self.est, 'todo bien', self.est.telefono, self.est.telefono))
         mock_asistente.assert_not_called()
@@ -58,7 +58,7 @@ class AsistenteEsPreguntaTests(TestCase):
 
         self._en_pausa()
         with patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
             return_value='Respuesta clara.',
         ) as mock_asistente:
             out = asistente.manejar(
@@ -77,7 +77,7 @@ class AsistenteEsPreguntaTests(TestCase):
         from core.conversacion.estados import asistente
 
         self._en_pausa()
-        with patch('core.tutor_ia_modulo.generar_respuesta_asistente') as mock_asistente:
+        with patch('core.agentes.tutor_ia_modulo.generar_respuesta_asistente') as mock_asistente:
             out = asistente.manejar(
                 Contexto(self.est, 'bla bla', self.est.telefono, self.est.telefono),
             )
@@ -95,9 +95,9 @@ class AsistenteEsPreguntaTests(TestCase):
 
         self._en_pausa(repregunta_companero=True)
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto tras ambiguo.',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto tras ambiguo.',
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
         ) as mock_asistente:
             out = asistente.manejar(
                 Contexto(self.est, 'mmm no se', self.est.telefono, self.est.telefono),
@@ -113,9 +113,9 @@ class AsistenteEsPreguntaTests(TestCase):
 
         self._en_pausa()
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto ok.',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto ok.',
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
         ) as mock_asistente:
             asistente.manejar(Contexto(self.est, 'Ok', self.est.telefono, self.est.telefono))
         mock_asistente.assert_not_called()

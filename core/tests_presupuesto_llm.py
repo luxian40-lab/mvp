@@ -85,7 +85,7 @@ class PresupuestoLlmTests(TestCase):
 
     @override_settings(OPENAI_API_KEY='sk-test')
     def test_tutor_aula_no_abre_cliente_si_redis_caido(self):
-        from core.tutor_ia_modulo import _get_client
+        from core.agentes.tutor_ia_modulo import _get_client
 
         with patch('core.presupuesto_llm.debe_degradar', return_value=True):
             with patch('openai.OpenAI') as openai:

@@ -42,9 +42,9 @@ class AsistenteDeclinaPreguntasTests(TestCase):
 
         self._en_pausa(preguntas_hechas=0)
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto finca raíz.',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto finca raíz.',
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
         ) as mock_asistente:
             out = asistente.manejar(
                 Contexto(self.est, 'No tengo preguntas.', self.est.telefono, self.est.telefono),
@@ -62,7 +62,7 @@ class AsistenteDeclinaPreguntasTests(TestCase):
 
         self._en_pausa(preguntas_hechas=0)
         with patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
             return_value='El interés compuesto multiplica el capital.',
         ) as mock_asistente:
             out = asistente.manejar(
@@ -85,9 +85,9 @@ class AsistenteDeclinaPreguntasTests(TestCase):
 
         self._en_pausa(preguntas_hechas=0)
         with patch(
-            'core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto continuar.',
+            'core.agentes.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto continuar.',
         ), patch(
-            'core.tutor_ia_modulo.generar_respuesta_asistente',
+            'core.agentes.tutor_ia_modulo.generar_respuesta_asistente',
         ) as mock_asistente:
             asistente.manejar(
                 Contexto(self.est, 'continuemos', self.est.telefono, self.est.telefono),

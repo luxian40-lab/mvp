@@ -8,7 +8,7 @@ import pytest
 
 from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS, construir_mensaje_evaluacion_reto
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
-from core.tutor_ia_modulo import (
+from core.agentes.tutor_ia_modulo import (
     _es_respuesta_sin_contenido_reto,
     evaluar_reto_facilitador,
 )
@@ -34,7 +34,7 @@ def test_qa_respuesta_buena_pasa_detector():
 
 @pytest.mark.parametrize('texto', ['no se', 'bueno', 'ok'])
 def test_qa_evaluacion_vacia_siempre_1_sin_llamar_openai(texto):
-    with patch('core.tutor_ia_modulo._get_client') as mock_client:
+    with patch('core.agentes.tutor_ia_modulo._get_client') as mock_client:
         puntaje, fb = evaluar_reto_facilitador(
             modulos_cubiertos=[],
             respuesta_estudiante=texto,
@@ -46,7 +46,7 @@ def test_qa_evaluacion_vacia_siempre_1_sin_llamar_openai(texto):
     assert 'evidencia' in fb.lower() or 'no sabía' in fb.lower()
 
 
-@patch('core.tutor_ia_modulo._get_client')
+@patch('core.agentes.tutor_ia_modulo._get_client')
 def test_qa_evaluacion_buena_usa_openai_y_parsea(mock_client):
     choice = MagicMock()
     choice.message.content = (
@@ -66,7 +66,7 @@ def test_qa_evaluacion_buena_usa_openai_y_parsea(mock_client):
     mock_client.return_value.chat.completions.create.assert_called_once()
 
 
-@patch('core.tutor_ia_modulo._get_client', return_value=None)
+@patch('core.agentes.tutor_ia_modulo._get_client', return_value=None)
 def test_qa_fallback_sin_ia_cero_puntos(mock_client):
     puntaje, fb = evaluar_reto_facilitador(
         modulos_cubiertos=[],
@@ -79,7 +79,7 @@ def test_qa_fallback_sin_ia_cero_puntos(mock_client):
 
 
 @pytest.mark.django_db
-@patch('core.tutor_ia_modulo._get_client', return_value=None)
+@patch('core.agentes.tutor_ia_modulo._get_client', return_value=None)
 def test_qa_mensaje_whatsapp_sin_otorgar_puntos_en_fallback(_mock):
     cli = Cliente.objects.create(
         nombre='QA Coop',

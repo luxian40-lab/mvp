@@ -15,7 +15,7 @@ def activar_reto_despues_de_maria(
 ) -> str:
     from core.curso.facilitador_perfil import nombre_display_facilitador
     from core.models import Modulo, ProgresoEstudiante
-    from core.tutor_ia_modulo import (
+    from core.agentes.tutor_ia_modulo import (
         bloque_reto_whatsapp,
         cargar_modulos_reto,
         generar_reto_facilitador,

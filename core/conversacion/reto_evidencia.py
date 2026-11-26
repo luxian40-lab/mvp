@@ -82,7 +82,7 @@ def evaluar_evidencia_foto(
 
     from core.curso.facilitador_perfil import system_prompt_evaluacion_para_curso
     from core.gamificacion.modo import MODO_CALIFICACION, MODO_PUNTOS
-    from core.tutor_ia_modulo import _extraer_nota_1_5, _get_client
+    from core.agentes.tutor_ia_modulo import _extraer_nota_1_5, _get_client
 
     if not contenido:
         return None
@@ -136,7 +136,7 @@ def evaluar_evidencia_foto(
             max_tokens=320,
             timeout=25,
         )
-        from core.tutor_ia_modulo import limpiar_emojis, limpiar_plantilla_evaluacion
+        from core.agentes.tutor_ia_modulo import limpiar_emojis, limpiar_plantilla_evaluacion
 
         feedback = limpiar_plantilla_evaluacion(
             limpiar_emojis((response.choices[0].message.content or '').strip())
