@@ -514,7 +514,7 @@ def generar_reto_facilitador(
 
     contexto_rag = ""
     try:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         curso_rag = curso or (modulos_cubiertos[0].curso if modulos_cubiertos else None)
         if curso_rag:
             cliente_id = curso_rag.cliente_id if curso_rag.cliente_id else 0
@@ -663,7 +663,7 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
     # RAG context
     contexto_rag = ""
     try:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
         if curso:
             cliente_id = curso.cliente_id if curso.cliente_id else 0
@@ -790,7 +790,7 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
 
     contexto_rag = ""
     try:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         if curso:
             cliente_id = curso.cliente_id if curso.cliente_id else 0
             contexto_rag = rag_manager.obtener_contexto_para_ia(
@@ -1262,7 +1262,7 @@ def generar_pregunta_recuperacion(curso, modulos_completados, estudiante_nombre=
     # RAG context
     contexto_rag = ""
     try:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         cliente_id = curso.cliente_id if curso.cliente_id else 0
         contexto_rag = rag_manager.obtener_contexto_para_ia(
             cliente_id=cliente_id,

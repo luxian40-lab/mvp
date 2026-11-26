@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from core import rag_manager as rag_manager_mod
-from core.rag_manager import RAGManager, _pista_permisos
+from core.agentes.rag_manager import RAGManager, _pista_permisos
 
 
 class PistaPermisosChromaTests(TestCase):
@@ -26,7 +26,7 @@ class PistaPermisosChromaTests(TestCase):
             'RAGClienteCurso',
             side_effect=Exception('attempt to write a readonly database'),
         ):
-            with self.assertLogs('core.rag_manager', level='ERROR') as logs:
+            with self.assertLogs('core.agentes.rag_manager', level='ERROR') as logs:
                 self.assertIsNone(manager.obtener_rag(cliente_id=1, curso_id=35))
 
         self.assertIn('sudo -u webapp', '\n'.join(logs.output))

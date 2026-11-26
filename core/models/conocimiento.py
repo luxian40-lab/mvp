@@ -116,7 +116,7 @@ class DocumentoRAG(models.Model):
         NotImplementedError ("This backend doesn't support absolute paths").
         Hay que bajar a un temporal, igual que DocumentoRAGComercial.
         """
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         from django.utils import timezone
 
         if not self.archivo:

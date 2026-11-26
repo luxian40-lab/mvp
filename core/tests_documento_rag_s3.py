@@ -26,7 +26,7 @@ class DocumentoRAGIndexarS3Tests(TestCase):
         tmp.close()
 
         with patch.object(doc, '_descargar_temp', return_value=tmp.name) as mock_dl, patch(
-            'core.rag_manager.rag_manager.procesar_documento', return_value=4
+            'core.agentes.rag_manager.rag_manager.procesar_documento', return_value=4
         ) as mock_proc, patch.object(
             type(doc.archivo),
             'path',

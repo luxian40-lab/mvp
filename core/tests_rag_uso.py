@@ -81,7 +81,7 @@ class DocumentoRAGUsoDefaultTests(TestCase):
         )
         doc.archivo.save('faq.txt', ContentFile(b'faq companero'), save=True)
         with patch(
-            'core.rag_manager.rag_manager.procesar_documento', return_value=2
+            'core.agentes.rag_manager.rag_manager.procesar_documento', return_value=2
         ) as mock_proc:
             n = doc.indexar()
         self.assertEqual(n, 2)
@@ -125,7 +125,7 @@ class TutorPideUsoAgenteTests(TestCase):
             )
         )
         with patch(
-            'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
+            'core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
         ) as mock_rag:
             generar_respuesta_asistente(
                 [self.mod],
@@ -151,7 +151,7 @@ class TutorPideUsoAgenteTests(TestCase):
             )
         )
         with patch(
-            'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
+            'core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
         ) as mock_rag:
             generar_reto_facilitador(
                 [self.mod],
@@ -180,7 +180,7 @@ class TutorPideUsoAgenteTests(TestCase):
             )
         )
         with patch(
-            'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
+            'core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
         ) as mock_rag:
             evaluar_reto_facilitador(
                 [self.mod],

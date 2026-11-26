@@ -45,7 +45,7 @@ class RAGManager:
     Cada combinación tiene su propia BD vectorial.
 
     Uso:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         ctx = rag_manager.obtener_contexto_para_ia(cliente_id=1, curso_id=2, pregunta="¿Cómo plantar?")
     """
 

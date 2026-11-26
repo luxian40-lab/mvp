@@ -21,7 +21,7 @@ def obtener_contexto_rag_empresa(
         (contexto_texto, rag_disponible)
     """
     try:
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
 
         if not rag_manager.disponible:
             logger.warning('Course Engine: Chroma/RAG no disponible en este entorno')

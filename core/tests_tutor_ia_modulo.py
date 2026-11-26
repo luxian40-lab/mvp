@@ -135,7 +135,7 @@ class GuiaRetoIaTests(TestCase):
         client.chat.completions.create.return_value = MagicMock(choices=[choice])
         mock_client.return_value = client
 
-        with patch('core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
+        with patch('core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
             out = generar_reto_facilitador(
                 [self.m3],
                 self.curso.nombre,
@@ -158,7 +158,7 @@ class GuiaRetoIaTests(TestCase):
         client = MagicMock()
         client.chat.completions.create.return_value = MagicMock(choices=[choice])
         with patch('core.tutor_ia_modulo._get_client', return_value=client), \
-                patch('core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
+                patch('core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''):
             generar_reto_facilitador(
                 modulos, self.curso.nombre, estudiante_nombre='Ana',
                 curso=self.curso, modulo_checkpoint=checkpoint, **kwargs,
@@ -265,7 +265,7 @@ class AsistenteDominioCursoTests(TestCase):
         mock_client.return_value = client
 
         with patch(
-            'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
+            'core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
         ), patch(
             'core.analitica.agrosavia_connector.enriquecer_contexto_con_agrosavia',
             return_value=('FUENTE AGROSAVIA: varroa en colmenas', {'agrosavia_usada': True}),

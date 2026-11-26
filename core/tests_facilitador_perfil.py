@@ -249,7 +249,7 @@ class ContextoParticipantesTests(TestCase):
         client = MagicMock()
         client.chat.completions.create.return_value = MagicMock(choices=[choice])
         with patch('core.tutor_ia_modulo._get_client', return_value=client), \
-                patch('core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''), \
+                patch('core.agentes.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''), \
                 self.settings(EKI_CONTEXTO_PARTICIPANTES_ENABLED=True):
             llamar()
         return client.chat.completions.create.call_args.kwargs['messages']

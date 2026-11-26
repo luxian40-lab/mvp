@@ -86,7 +86,7 @@ def generar_pregunta_rag(modulo, estudiante):
         # 2. Obtener contexto RAG del curso
         contexto_rag = ""
         try:
-            from core.rag_manager import rag_manager
+            from core.agentes.rag_manager import rag_manager
             curso = modulo.curso
             cliente_id = curso.cliente_id if curso.cliente_id else 0
             contexto_rag = rag_manager.obtener_contexto_para_ia(

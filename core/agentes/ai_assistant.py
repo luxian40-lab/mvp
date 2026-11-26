@@ -309,7 +309,7 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
 
                 # 🤖 RAG Multi-Tenant: Inyectar contexto de documentos del curso
                 try:
-                    from core.rag_manager import rag_manager
+                    from core.agentes.rag_manager import rag_manager
                     cliente_id = progreso.curso.cliente_id if progreso.curso.cliente_id else 0
                     contexto_rag = rag_manager.obtener_contexto_para_ia(
                         cliente_id=cliente_id,

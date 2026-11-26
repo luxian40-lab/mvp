@@ -539,7 +539,7 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 
     @admin.action(description='🗑️ Eliminar del RAG (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         for doc in queryset:
             rag_manager.eliminar_documento(doc.cliente_id, doc.curso_id, doc.nombre)
             doc.estado = 'pendiente'

@@ -733,7 +733,7 @@ class CursoAdmin(admin.ModelAdmin):
     @admin.action(description='📝 Indexar contenido de módulos en RAG')
     def indexar_contenido_modulos(self, request, queryset):
         """Indexa el contenido educativo de los módulos en la BD vectorial."""
-        from core.rag_manager import rag_manager
+        from core.agentes.rag_manager import rag_manager
         total = 0
         for curso in queryset:
             n = rag_manager.indexar_modulos_curso(curso.id)
@@ -760,7 +760,7 @@ class CursoAdmin(admin.ModelAdmin):
         # Manejar eliminaciones
         for obj in formset.deleted_objects:
             if isinstance(obj, DocumentoRAG):
-                from core.rag_manager import rag_manager
+                from core.agentes.rag_manager import rag_manager
                 rag_manager.eliminar_documento(obj.cliente_id, obj.curso_id, obj.nombre)
             obj.delete()
 
