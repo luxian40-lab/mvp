@@ -273,7 +273,7 @@ class RespetaVentanaTests(SimpleTestCase):
             'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
             return_value=(progreso, True),
         ) as alta, patch(
-            'core.lineas.registro_cursos.ventana_abierta', return_value=False,
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=False,
         ), patch(
             'core.curso.inicio_curso.mensaje_primera_entrega',
         ) as primera, patch(
@@ -298,7 +298,7 @@ class RespetaVentanaTests(SimpleTestCase):
             'core.curso.inscripcion_curso.inscribir_estudiante_en_curso',
             return_value=(progreso, True),
         ), patch(
-            'core.lineas.registro_cursos.ventana_abierta', return_value=True,
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=True,
         ), patch(
             'core.curso.inicio_curso.curso_sin_empezar', return_value=True,
         ), patch(
@@ -316,25 +316,81 @@ class RespetaVentanaTests(SimpleTestCase):
         self.assertEqual(textos, ['Quedó en Suelos.', 'CLASE'])
         marca.assert_called_once_with(ficha, 5)
 
-    def test_listo_ventana_cerrada_no_vuelca_leccion(self):
+    def test_listo_ventana_cerrada_no_avanza_ni_vuelca_leccion(self):
         ficha = _Ficha()
         ficha.contexto_temporal = {'curso_activo_id': 5}
         with patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
         ), patch(
-            'core.lineas.registro_cursos.ventana_abierta', return_value=False,
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=False,
         ), patch(
-            'core.lineas.registro_cursos._reintentar_primera_si_falta', return_value=False,
-        ), patch(
-            'core.conversacion.intents.continuar_leccion.responder', return_value='PARTE',
-        ), patch(
+            'core.conversacion.intents.continuar_leccion.responder',
+        ) as avanzar, patch(
             'core.conversacion.response_templates.soltar_turno_entrega_actual',
         ) as soltar, patch(
             'core.lineas.registro_abrir._avisar',
-        ) as aviso:
+        ) as aviso, patch(
+            'core.lineas.registro_cursos._enviar_retoma_si_toca',
+        ) as retoma:
             atender_cursos('573001112233', 'listo', 7)
         aviso.assert_not_called()
-        soltar.assert_called_once()
+        avanzar.assert_not_called()
+        soltar.assert_not_called()
+        retoma.assert_called_once()
+
+    @override_settings(EKI_REGISTRO_REENGANCHE_PLANTILLA='', EKI_REGISTRO_REENGANCHE_IMAGEN='')
+    def test_listo_ventana_cerrada_sin_plantilla_no_envia(self):
+        ficha = _Ficha()
+        ficha.contexto_temporal = {'curso_activo_id': 5}
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=False,
+        ), patch(
+            'core.lineas.registro_cursos._retoma_recien_enviada', return_value=False,
+        ), patch(
+            'core.lineas.sender.sender_de_linea',
+        ) as sender:
+            atender_cursos('573001112233', 'listo', 7)
+        sender.assert_not_called()
+
+    def test_listo_ventana_abierta_fallo_envio_restaura_paso(self):
+        ficha = _Ficha()
+        ficha.contexto_temporal = {'curso_activo_id': 5}
+        progreso = SimpleNamespace(
+            pk=9,
+            paso_actual_modulo=3,
+            modulo_actual_id=20,
+            esperando_respuesta_evaluacion_paso=False,
+            paso_evaluacion_paso_id=None,
+            completado=False,
+        )
+
+        def _adelanta(*_args, **_kwargs):
+            progreso.paso_actual_modulo = 6
+            return 'PARTE'
+
+        with patch(
+            'core.lineas.registro_abrir._ficha', return_value=ficha,
+        ), patch(
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=True,
+        ), patch(
+            'core.lineas.registro_cursos._reintentar_primera_si_falta', return_value=False,
+        ), patch(
+            'core.lineas.registro_cursos._progreso_activo', return_value=progreso,
+        ), patch(
+            'core.conversacion.intents.continuar_leccion.responder', side_effect=_adelanta,
+        ), patch(
+            'core.conversacion.response_templates.soltar_turno_entrega_actual',
+        ), patch(
+            'core.lineas.registro_abrir._avisar', return_value={'success': False, 'response': {'code': 131047}},
+        ), patch(
+            'core.lineas.registro_cursos._restaurar_progreso',
+        ) as restaura:
+            atender_cursos('573001112233', 'listo', 7)
+        restaura.assert_called_once()
+        self.assertEqual(restaura.call_args.args[0], 9)
+        self.assertEqual(restaura.call_args.args[1]['paso_actual_modulo'], 3)
 
     def test_continuar_reintenta_saludo_si_quedo_pendiente(self):
         ficha = _Ficha()
@@ -347,7 +403,7 @@ class RespetaVentanaTests(SimpleTestCase):
         with patch(
             'core.lineas.registro_abrir._ficha', return_value=ficha,
         ), patch(
-            'core.lineas.registro_cursos.ventana_abierta', return_value=True,
+            'core.campanas.reenganche_meta.ventana_abierta', return_value=True,
         ), patch(
             'core.lineas.registro_cursos._progreso_activo', return_value=progreso,
         ), patch(

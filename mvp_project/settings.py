@@ -372,6 +372,16 @@ EKI_REGISTRO_RESPETA_VENTANA = os.environ.get(
 EKI_REGISTRO_VENTANA_BD = os.environ.get(
     'EKI_REGISTRO_VENTANA_BD', 'true'
 ).strip().lower() in ('1', 'true', 'yes', 'on')
+# Plantilla UTILITY de retoma en L3 cuando la ventana está cerrada.
+# Default en código (no hace falta eb setenv: el bloque de EB ya está al tope).
+# Vacío = solo omitir la lección de sesión, sin plantilla.
+EKI_REGISTRO_REENGANCHE_PLANTILLA = os.environ.get(
+    'EKI_REGISTRO_REENGANCHE_PLANTILLA', 'eki_avance_curso_img',
+).strip()
+EKI_REGISTRO_REENGANCHE_IMAGEN = os.environ.get(
+    'EKI_REGISTRO_REENGANCHE_IMAGEN',
+    'https://eki-produccion.s3.us-east-2.amazonaws.com/media/campanas/plantillas_push/recordatorio_curso.jpg',
+).strip()
 # Líneas de más. Vacío = se usan las dos de arriba y nada cambia.
 # Formato: phone_id|e164|nombre;phone_id|e164|nombre
 META_LINEAS = os.environ.get('META_LINEAS', '')

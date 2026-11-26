@@ -266,6 +266,62 @@ def _omitir_envio_libre(ficha) -> bool:
     return bool(ficha is not None and _respeta_ventana() and not _ventana_ok(ficha))
 
 
+def _plantilla_retoma() -> tuple[str, str]:
+    """(nombre Meta, url imagen). Vacío = no hay plantilla configurada."""
+    from django.conf import settings
+
+    nombre = (getattr(settings, 'EKI_REGISTRO_REENGANCHE_PLANTILLA', '') or '').strip()
+    imagen = (getattr(settings, 'EKI_REGISTRO_REENGANCHE_IMAGEN', '') or '').strip()
+    return nombre, imagen
+
+
+def _retoma_recien_enviada(telefono: str) -> bool:
+    """Una plantilla de retoma cada 20 h. Evita ráfaga si vuelven a tocar Continuar."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import WhatsappLog
+    from core.nati import normalizar_telefono_whatsapp
+
+    tel = normalizar_telefono_whatsapp(telefono) or (telefono or '')
+    if not tel:
+        return True
+    return WhatsappLog.objects.filter(
+        telefono__in=[tel, f'+{tel}'],
+        agente_usado='registro_reenganche',
+        fecha__gte=timezone.now() - timedelta(hours=20),
+    ).exists()
+
+
+def _enviar_retoma_si_toca(telefono: str, ficha) -> None:
+    """Ventana cerrada: plantilla UTILITY, nunca media de sesión. No avanza el paso."""
+    nombre, imagen = _plantilla_retoma()
+    if not nombre or not imagen or _retoma_recien_enviada(telefono):
+        return
+    from core.lineas.registro_abrir import phone_id_linea_registro
+    from core.lineas.sender import sender_de_linea
+
+    progreso = _progreso_activo(ficha)
+    curso = getattr(progreso, 'curso', None)
+    modulo = getattr(progreso, 'modulo_actual', None)
+    variables = {
+        '1': (getattr(ficha, 'nombre', None) or 'Estudiante')[:80],
+        '2': (getattr(curso, 'nombre', None) or 'su curso')[:80],
+        '3': f'Modulo {getattr(modulo, "numero", None) or ""}'.strip() or 'su módulo',
+    }
+    phone_id = phone_id_linea_registro()
+    if not phone_id:
+        logger.info('registro_retoma_sin_linea')
+        return
+    try:
+        sender_de_linea(phone_id).plantilla_imagen(
+            telefono, nombre, imagen, variables, agente='registro_reenganche',
+        )
+    except OSError:
+        logger.exception('registro_retoma')
+
+
 def _inscribir(telefono: str, curso_id: int, cliente_id: int | None) -> None:
     from core.curso.inscripcion_curso import inscribir_estudiante_en_curso
     from core.lineas.registro_abrir import _avisar, _ficha
@@ -386,6 +442,25 @@ def _reintentar_primera_si_falta(telefono: str, ficha) -> bool:
     return _entregar_primera_clase(telefono, ficha, progreso)
 
 
+def _foto_progreso(progreso) -> dict | None:
+    """Campos que continuar_leccion mueve antes de que Meta confirme el envío."""
+    if progreso is None or not getattr(progreso, 'pk', None):
+        return None
+    return {
+        'paso_actual_modulo': progreso.paso_actual_modulo,
+        'modulo_actual_id': progreso.modulo_actual_id,
+        'esperando_respuesta_evaluacion_paso': progreso.esperando_respuesta_evaluacion_paso,
+        'paso_evaluacion_paso_id': getattr(progreso, 'paso_evaluacion_paso_id', None),
+        'completado': progreso.completado,
+    }
+
+
+def _restaurar_progreso(progreso_id: int, foto: dict) -> None:
+    from core.models import ProgresoEstudiante
+
+    ProgresoEstudiante.objects.filter(pk=progreso_id).update(**foto)
+
+
 def _avanzar(telefono: str, body: str) -> bool:
     """listo y continuar siguen el curso en esta línea. No reabre el carrusel."""
     from core.conversacion.intents.continuar_leccion import responder
@@ -401,11 +476,21 @@ def _avanzar(telefono: str, body: str) -> bool:
     ficha = _ficha(telefono)
     if ficha is None:
         return False
+    # Cerrada: no llamar continuar_leccion (eso sube el paso aunque Meta no entregue).
+    if _omitir_envio_libre(ficha):
+        logger.info('registro_ventana_cerrada_omitido motivo=listo_avance')
+        try:
+            _enviar_retoma_si_toca(telefono, ficha)
+        except DatabaseError:
+            logger.exception('registro_retoma')
+        return True
     try:
         if _reintentar_primera_si_falta(telefono, ficha):
             return True
     except DatabaseError:
         logger.exception('registro_reintento_primera')
+    progreso = _progreso_activo(ficha)
+    foto = _foto_progreso(progreso)
     texto = ''
     try:
         texto = responder(
@@ -422,8 +507,11 @@ def _avanzar(telefono: str, body: str) -> bool:
         except DatabaseError:
             logger.exception('registro_soltar_turno')
     if texto and texto != LECCION_EN_CURSO:
-        if _omitir_envio_libre(ficha):
-            logger.info('registro_ventana_cerrada_omitido motivo=listo_avance')
-        else:
-            _avisar(telefono, texto, agente='registro_cursos')
+        resultado = _avisar(telefono, texto, agente='registro_cursos') or {}
+        if foto and not resultado.get('success'):
+            logger.info('registro_envio_fallo_restaura progreso=%s', progreso.pk)
+            try:
+                _restaurar_progreso(progreso.pk, foto)
+            except DatabaseError:
+                logger.exception('registro_restaura_progreso')
     return True
