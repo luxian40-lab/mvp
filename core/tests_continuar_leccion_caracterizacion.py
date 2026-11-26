@@ -52,18 +52,19 @@ class ContinuarLeccionCaracterizacionTests(TestCase):
         self.assertIn('Módulo 2', texto)
         self.assertIn('Segundo módulo', texto)
 
-    def test_continuemos_reenvia_contenido_modulo_actual(self):
+    def test_texto_no_listo_reenvia_contenido_modulo_actual(self):
         texto = get_response_for_intent(
             'continuar_leccion',
             self.est.nombre,
             estudiante_id=self.est.id,
-            mensaje_original='continuemos',
+            mensaje_original='hola de nuevo',
         )
         self.assertIn('CONTENIDO_CARACT_M1', texto)
         self.assertIn('Primer módulo', texto)
 
     def test_sin_progreso_activo_mensaje_curso_no_asignado(self):
         est = Estudiante.objects.create(
+            cedula='88776655',
             nombre='Sin curso',
             telefono='573009991666',
             cliente=self.cliente,
