@@ -4,7 +4,7 @@ import logging
 
 from core.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
-from core.response_templates import parte_mensaje_con_media
+from core.conversacion.response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger('core.views.webhook_twilio')
 
@@ -67,7 +67,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
 
 def _texto_reenvio_menu(estudiante):
     from core.models import Curso, ProgresoEstudiante
-    from core.response_templates import obtener_video_url
+    from core.conversacion.response_templates import obtener_video_url
     org = estudiante.cliente
     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
     progreso_existente = ProgresoEstudiante.objects.filter(

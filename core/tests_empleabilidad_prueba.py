@@ -24,7 +24,7 @@ from core.models import (
     Modulo,
     ProgresoEstudiante,
 )
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 
 def _install_twilio_rest_stub(client_class):

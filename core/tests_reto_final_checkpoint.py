@@ -12,7 +12,7 @@ from core.intent_detector import (
     mensaje_indica_listo_o_confirma_handoff,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 # Regla eki: tests / smoke usan solo este número (ver .cursor/hooks/telefono_qa_tests.py).
 TEL_QA = '573026480629'

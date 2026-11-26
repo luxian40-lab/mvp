@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from core.models import Curso, Modulo, PasoModulo, SeccionModulo
 from core.curso.module_steps import partes_mensaje_paso
-from core.response_templates import MENSAJE_CAPTION_SOLO_MEDIA
+from core.conversacion.response_templates import MENSAJE_CAPTION_SOLO_MEDIA
 
 URL_IMG = 'https://ejemplo.test/modulos/pasos/foto.jpg'
 

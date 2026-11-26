@@ -7,7 +7,7 @@ from core.agentes_whatsapp import (
     titular_agente_al_inicio,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.response_templates import activar_checkpoint_facilitador
+from core.conversacion.response_templates import activar_checkpoint_facilitador
 from core.tutor_ia_modulo import bloque_reto_whatsapp, generar_presentacion_agentes
 
 

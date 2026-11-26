@@ -339,7 +339,7 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
         
         # Fallback a respuestas básicas
         from core.intent_detector import detect_intent
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
         
         intent = detect_intent(mensaje)
         fallback_response = get_response_for_intent(intent)

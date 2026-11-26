@@ -369,7 +369,7 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     """Manda texto + multimedia del módulo 1 para que el usuario vea el curso al instante."""
     from core.curso.inscripcion_curso import primer_modulo_curso
     from core.analitica.models_extras import ArchivoModulo
-    from core.response_templates import dividir_contenido_seguro
+    from core.conversacion.response_templates import dividir_contenido_seguro
     from core.canal.envios import enviar_whatsapp_twilio
     from core.canal.whatsapp_service import enviar_archivo_modulo_whatsapp
 

@@ -227,7 +227,7 @@ def _texto_menu_handoff_linea_2(nombre: str) -> str:
 def respuesta_tras_keyword_menu(estudiante, nombre: str, mensaje_original: str = '') -> str:
     """B2B con curso activo: continuar o picker. Sin activos: menú OP o handoff línea 2."""
     from core.lineas.variante import perfil_de
-    from core.response_templates import get_response_for_intent
+    from core.conversacion.response_templates import get_response_for_intent
 
     if es_estudiante_b2b(estudiante):
         if tiene_varios_cursos_activos(estudiante):

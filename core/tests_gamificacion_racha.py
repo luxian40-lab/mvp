@@ -47,14 +47,14 @@ class TurnoDeListoTests(TestCase):
         self.est = Estudiante.objects.create(nombre='L', cedula='TL1', telefono='573005551009')
 
     def _listo(self):
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         return get_response_for_intent(
             'continuar_leccion', self.est.nombre, estudiante_id=self.est.id, mensaje_original='listo'
         )
 
     def test_un_listo_mientras_se_envia_no_avanza(self):
-        from core.response_templates import LECCION_EN_CURSO
+        from core.conversacion.response_templates import LECCION_EN_CURSO
 
         self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time()}
         self.est.save(update_fields=['contexto_temporal'])
@@ -63,7 +63,7 @@ class TurnoDeListoTests(TestCase):
         self.assertTrue(self.est.contexto_temporal.get('_leccion_enviando'))
 
     def test_al_soltar_el_turno_el_siguiente_listo_sigue(self):
-        from core.response_templates import LECCION_EN_CURSO, _turno_estudiante, soltar_turno_entrega_actual
+        from core.conversacion.response_templates import LECCION_EN_CURSO, _turno_estudiante, soltar_turno_entrega_actual
 
         self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time()}
         self.est.save(update_fields=['contexto_temporal'])
@@ -74,7 +74,7 @@ class TurnoDeListoTests(TestCase):
         self.assertNotEqual(self._listo(), LECCION_EN_CURSO)
 
     def test_un_turno_atascado_no_bloquea_para_siempre(self):
-        from core.response_templates import LECCION_EN_CURSO
+        from core.conversacion.response_templates import LECCION_EN_CURSO
 
         self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time() - 120}
         self.est.save(update_fields=['contexto_temporal'])

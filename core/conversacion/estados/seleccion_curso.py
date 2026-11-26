@@ -16,7 +16,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         estudiante.estado_onboarding = 'completado'
         estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
         estudiante.save()
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
     else:
         import re as re_curso_sel
@@ -38,7 +38,7 @@ def manejar(contexto: Contexto) -> Respuesta:
             estudiante.contexto_temporal = contexto_limpio(estudiante.contexto_temporal)
             estudiante.save()
             from core.eventos_ia import detectar_intent_con_evento
-            from core.response_templates import get_response_for_intent
+            from core.conversacion.response_templates import get_response_for_intent
             _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
             intent = detectar_intent_con_evento(
                 msg_body,

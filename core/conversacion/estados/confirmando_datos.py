@@ -3,7 +3,7 @@ import logging
 
 from core.conversacion.contexto import CORTAR, Contexto, Respuesta
 from core.conversacion.multimsg import partir_sep
-from core.response_templates import parte_mensaje_con_media
+from core.conversacion.response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger('core.views.webhook_twilio')
 
@@ -26,7 +26,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
         try:
             from core.models import ProgresoEstudiante
-            from core.response_templates import obtener_video_url
+            from core.conversacion.response_templates import obtener_video_url
             from core.selector_curso import resolver_curso_post_confirmacion
 
             curso = resolver_curso_post_confirmacion(estudiante)
@@ -207,7 +207,7 @@ def _entregar_primer_modulo(estudiante, curso, org_nombre, modulo, progreso, par
             primera_media_url = video_url
 
         # --- Mensaje 2: Contenido del módulo (con multimedia) ---
-        from core.response_templates import dividir_contenido_seguro
+        from core.conversacion.response_templates import dividir_contenido_seguro
         from core.curso.module_steps import texto_legacy_whatsapp
         contenido_modulo = texto_legacy_whatsapp(modulo)
         chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)

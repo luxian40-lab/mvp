@@ -1324,7 +1324,7 @@ def chat_prueba_api(request):
                 print(f"❌ Error en IA: {e}")
                 # Fallback
                 from ..intent_detector import detect_intent
-                from ..response_templates import get_response_for_intent
+                from ..conversacion.response_templates import get_response_for_intent
                 intent = detect_intent(mensaje)
                 respuesta = get_response_for_intent(intent, 'Usuario')
             

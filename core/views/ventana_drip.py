@@ -30,7 +30,7 @@ def _cliente_habilita_pregunta_abierta_final(cliente):
     )
 
 def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
-    from ..response_templates import _mensaje_bloqueo_drip
+    from ..conversacion.response_templates import _mensaje_bloqueo_drip
     return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
 def _pregunta_abierta_final_pendiente(estudiante, progreso):

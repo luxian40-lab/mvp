@@ -19,7 +19,7 @@ from core.models import (
     Modulo,
     ProgresoEstudiante,
 )
-from core.response_templates import _generar_completado_final
+from core.conversacion.response_templates import _generar_completado_final
 from core.views import _activar_radar_empleabilidad_si_aplica, _procesar_ubicacion_empleabilidad
 from portal.capabilities import modulos_portal
 

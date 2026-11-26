@@ -30,7 +30,7 @@ class DespachoIntentsTests(SimpleTestCase):
             self.assertEqual(list(inspect.signature(responder).parameters), ['intent', 'nombre_usuario', 'kwargs'])
 
     def test_despacha_con_los_mismos_argumentos(self):
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         self.assertIn('cambiar_nombre', set(INTENTS) | _intents_que_quedan())
         texto = get_response_for_intent('saludo', 'Ana')

@@ -27,7 +27,7 @@ from core.curso.module_steps import (
     entregar_bloque_secciones_desde_paso,
     procesar_respuesta_evaluacion_paso,
 )
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 
 def _seccion(mod, orden, titulo=''):
@@ -1369,7 +1369,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
     def test_fin_modulo_1_con_pasos_y_eval_abcd_drip_no_bloquea_agentes(self):
         from core.models import PasoModulo
         from core.curso.module_steps import reset_progreso_pasos_modulo
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         s1 = _seccion(self.m1, 1, 'Sección')
         for i, txt in enumerate(['Micro 1', 'Micro 2', 'Micro 3'], start=1):
@@ -1419,7 +1419,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
     def test_sin_checkpoint_si_ia_off_drip_sigue_apegado(self):
         from core.models import PasoModulo
         from core.curso.module_steps import reset_progreso_pasos_modulo
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         self.curso.usar_agentes_ia = False
         self.curso.save(update_fields=['usar_agentes_ia'])
@@ -1877,7 +1877,7 @@ class MultiCursoDripNoHijackPasosTests(TestCase):
 
     def test_listo_muestra_menu_si_hay_curso_libre(self):
         from core.models import PasoModulo
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         s1 = _seccion(self.mb1, 1)
         PasoModulo.objects.create(

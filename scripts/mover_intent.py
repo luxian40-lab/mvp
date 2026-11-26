@@ -229,7 +229,7 @@ def mover(intent: str, *, dry_run: bool = False) -> str:
         'def responder(intent, nombre_usuario, kwargs):\n',
     ]
     if del_modulo:
-        encabezado.append(f"    from core.response_templates import {', '.join(sorted(del_modulo))}\n")
+        encabezado.append(f"    from core.conversacion.response_templates import {', '.join(sorted(del_modulo))}\n")
     nuevo_texto = (''.join(encabezado) + ''.join(cuerpo)).replace('\r\n', '\n')
     if not nuevo_texto.endswith('\n'):
         nuevo_texto += '\n'

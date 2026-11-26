@@ -19,7 +19,7 @@ from core.models import (
     ModuloCompletado,
     ProgresoEstudiante,
 )
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 from core.selector_curso import continuar_curso_seleccionado
 
 
@@ -214,7 +214,7 @@ class TesterLocalDosCursosAgentesTests(TestCase):
     @patch('core.tutor_ia_modulo.cargar_modulos_reto')
     def test_presentacion_agentes_por_curso_no_mezcla(self, mock_cargar, _mock_reto):
         mock_cargar.return_value = [self.mods_a[0]]
-        from core.response_templates import partes_presentacion_agentes_curso
+        from core.conversacion.response_templates import partes_presentacion_agentes_curso
 
         partes_a = partes_presentacion_agentes_curso(self.est, self.curso_a)
         # Puede ser lista vacía si no hay config de agentes, pero no debe hablar de Curso B

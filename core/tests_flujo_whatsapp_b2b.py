@@ -18,7 +18,7 @@ from core.lineas.perfil import (
     USO_SOLO_CURSOS,
 )
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 
 class FlujoWhatsappB2BTests(TestCase):

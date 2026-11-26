@@ -36,7 +36,7 @@ MSG_LISTO_CONTINUAR_EN_MODULO = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_FIN_PASOS_MODULO = MARCADOR_BOTON_CONTINUEMOS
 
 from core.conversacion.multimsg import MULTI_MSG, partes_multimsg, partir_sep
-from core.response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
+from core.conversacion.response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
 
 # Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
 # entregue antes el texto corto de *listo* que el feedback más largo.
@@ -73,7 +73,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
     `paso` es el PasoModulo de evaluación que se acaba de cerrar.
     """
     if progreso.paso_actual_modulo > n:
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         tail = get_response_for_intent(
             'continuar_leccion',
@@ -496,7 +496,7 @@ def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | 
     Si los pasos activos ya tienen media, no se reinyecta la pestaña Multimedia
     ni el video legacy: evita el doble envío (archivo viejo + paso nuevo).
     """
-    from core.response_templates import obtener_video_url
+    from core.conversacion.response_templates import obtener_video_url
 
     if _pasos_activos_tienen_media(modulo):
         return []

@@ -535,7 +535,7 @@ class ContadorAsesorTests(TestCase):
     def test_listo_repetido_no_manda_modulo_cargando(self):
         from django.core.cache import cache
 
-        from core.response_templates import TEXTO_MODULO_CARGANDO
+        from core.conversacion.response_templates import TEXTO_MODULO_CARGANDO
         from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()
@@ -554,7 +554,7 @@ class ContadorAsesorTests(TestCase):
     def test_modulo_cargando_se_manda_si_no_hay_reaccion(self):
         from django.core.cache import cache
 
-        from core.response_templates import TEXTO_MODULO_CARGANDO
+        from core.conversacion.response_templates import TEXTO_MODULO_CARGANDO
         from core.canal.sandbox_canal import enviar_meta
 
         cache.clear()

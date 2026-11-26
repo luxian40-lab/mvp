@@ -219,7 +219,7 @@ class IaEmpaticaTests(ConCursoTestCase):
                 self._con_contexto(curso_activo_id=self.curso.id, tipo='seleccion_curso')
                 self.est.estado_onboarding = 'esperando_seleccion_curso'
                 self.est.save()
-                with patch('core.response_templates.get_response_for_intent', return_value='hola'), \
+                with patch('core.conversacion.response_templates.get_response_for_intent', return_value='hola'), \
                         patch('core.eventos_ia.detectar_intent_con_evento', return_value='desconocido'):
                     seleccion_curso.manejar(Contexto(self.est, texto, self.est.telefono, self.est.telefono))
                 self.assertEqual(
@@ -399,7 +399,7 @@ class UltimoModuloTests(ConCursoTestCase):
 @override_settings(EKI_CONTEXTO_CONSERVA_CLAVES=True)
 class ResponseTemplatesTests(ConCursoTestCase):
     def test_checkpoint_del_facilitador_conserva_las_claves(self):
-        from core.response_templates import activar_checkpoint_facilitador
+        from core.conversacion.response_templates import activar_checkpoint_facilitador
 
         self._con_contexto(tipo='pregunta_modulo', pregunta_id=4, ultimo_push_curso_id=self.curso.id)
         activar_checkpoint_facilitador(self.est, self.progreso, self.mod)
@@ -411,7 +411,7 @@ class ResponseTemplatesTests(ConCursoTestCase):
     def _completado_final(self, gamificacion):
         from core.gamificacion import PerfilGamificacion
         from core.models import PreguntaAbiertaFinalCurso
-        from core.response_templates import _generar_completado_final
+        from core.conversacion.response_templates import _generar_completado_final
 
         Curso.objects.filter(id=self.curso.id).update(usar_gamificacion=gamificacion)
         Cliente.objects.filter(id=self.cli.id).update(usar_gamificacion=gamificacion)
@@ -435,7 +435,7 @@ class ResponseTemplatesTests(ConCursoTestCase):
         self.assertNotIn('pregunta_id', ctx)
 
     def _listo_con_el_companero(self, modulos_reto_ids):
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         self._con_contexto(
             tipo='asistente_dario', modulos_reto_ids=modulos_reto_ids, progreso_id=self.progreso.id,

@@ -319,7 +319,7 @@ def enviar_meta(
     if not to:
         return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
 
-    from core.response_templates import dividir_contenido_seguro
+    from core.conversacion.response_templates import dividir_contenido_seguro
 
     texto = str(texto or '').strip()
     clean_url = str(media_url or '').strip() or None
@@ -328,7 +328,7 @@ def enviar_meta(
             to, texto, media_url=clean_url, canal_evento=canal_evento, agente_evento=agente_evento,
         )
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
-    from core.response_templates import TEXTO_MODULO_CARGANDO
+    from core.conversacion.response_templates import TEXTO_MODULO_CARGANDO
 
     if texto == TEXTO_MODULO_CARGANDO and not clean_url and hay_reaccion_espera(to):
         # El ⏳ sobre su Continuemos ya dice que el módulo viene; no gastar un mensaje.

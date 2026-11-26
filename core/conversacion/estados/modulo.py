@@ -10,7 +10,7 @@ from core.conversacion.contexto import Contexto, Respuesta
 from core.conversacion.multimsg import partes_multimsg
 from core.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from core.models import ModuloCompletado
-from core.response_templates import parte_mensaje_con_media
+from core.conversacion.response_templates import parte_mensaje_con_media
 from core.views.empleabilidad import _radar_msg_si_aplica
 from core.views.ventana_drip import _pregunta_abierta_final_pendiente
 
@@ -37,7 +37,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         recuperar_examen_modulo_vacio(estudiante)
         estudiante.refresh_from_db()
         if _mensaje_indica_listo(msg_body):
-            from core.response_templates import get_response_for_intent
+            from core.conversacion.response_templates import get_response_for_intent
 
             texto_respuesta = get_response_for_intent(
                 'continuar_leccion',

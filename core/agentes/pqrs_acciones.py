@@ -117,7 +117,7 @@ def texto_reenviar_modulo(estudiante) -> str:
         pasos_activos_qs,
         unir_multimsg,
     )
-    from core.response_templates import obtener_video_url
+    from core.conversacion.response_templates import obtener_video_url
 
     progreso = _progreso_activo(estudiante)
     if not progreso or not progreso.curso:

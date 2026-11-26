@@ -16,7 +16,7 @@ from core.models import (
     ProgresoEstudiante,
     SeccionModulo,
 )
-from core.response_templates import _es_mensaje_listo_avance_curso, get_response_for_intent
+from core.conversacion.response_templates import _es_mensaje_listo_avance_curso, get_response_for_intent
 
 TRIGGERS_VALIDOS = ('listo', 'continuar', '*listo*', '*continuar*', 'ok continuar', 'ya listo')
 TRIGGERS_INVALIDOS = (
@@ -245,7 +245,7 @@ class DaríoHandoffContinuarTests(TestCase):
     @patch('core.tutor_ia_modulo.cargar_modulos_reto')
     def test_continuar_leccion_intent_listo_pasa_a_claudia(self, mock_cargar, _mock_reto):
         """Regresión: get_response_for_intent no debe spamear el nudge de Darío."""
-        from core.response_templates import get_response_for_intent
+        from core.conversacion.response_templates import get_response_for_intent
 
         mock_cargar.return_value = [self.mod]
         self.est.estado_onboarding = 'esperando_respuesta_asistente'

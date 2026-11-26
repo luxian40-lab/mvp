@@ -4,7 +4,7 @@ import time
 from django.test import TestCase
 
 from core.models import Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 
 class PrimeraEntregaTests(TestCase):

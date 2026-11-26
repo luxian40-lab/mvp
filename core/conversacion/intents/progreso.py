@@ -2,5 +2,5 @@
 
 
 def responder(intent, nombre_usuario, kwargs):
-    from core.response_templates import get_response_for_intent
+    from core.conversacion.response_templates import get_response_for_intent
     return get_response_for_intent('opcion_1', nombre_usuario, kwargs)

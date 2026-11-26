@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from core.curso.helpers_examenes import contexto_temporal_tras_cerrar_agente
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 pytestmark = pytest.mark.django_db
 

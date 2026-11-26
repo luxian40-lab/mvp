@@ -7,7 +7,7 @@ from ..avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMO
 from ..avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
 from ..intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from ..models import Estudiante, WhatsappLog
-from ..response_templates import parte_mensaje_con_media
+from ..conversacion.response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         logger.debug("Webhook vacio ignorado (sin Body ni Media)")
         return
     
-    from ..response_templates import (
+    from ..conversacion.response_templates import (
         LECCION_EN_CURSO,
         activar_retencion_turno,
         cerrar_retencion_turno,
@@ -361,7 +361,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
-                    from ..response_templates import get_response_for_intent
+                    from ..conversacion.response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                 else:
                     # Extraer número del curso: soporta "tomar 1", "1", "tomar1"
@@ -385,7 +385,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.save()
                         from core.eventos_ia import detectar_intent_con_evento
-                        from ..response_templates import get_response_for_intent
+                        from ..conversacion.response_templates import get_response_for_intent
                         _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
                         intent = detectar_intent_con_evento(
                             msg_body,

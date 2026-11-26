@@ -251,7 +251,7 @@ def enviar_whatsapp_twilio(
 
     try:
         from twilio.rest import Client
-        from core.response_templates import dividir_contenido_seguro
+        from core.conversacion.response_templates import dividir_contenido_seguro
 
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
@@ -336,7 +336,7 @@ def enviar_whatsapp_twilio(
         if clean_url:
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
-        from core.response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
+        from core.conversacion.response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
         from core.canal.twilio_media import es_error_media_twilio
 
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()

@@ -200,7 +200,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     """
     from core.models import Estudiante, Curso, ProgresoEstudiante, ModuloCompletado
     from core.curso.drip_schedule import drip_bloquea_siguiente_modulo, mensaje_bloqueo_avance_siguiente_modulo
-    from core.response_templates import obtener_video_url, partes_presentacion_agentes_curso
+    from core.conversacion.response_templates import obtener_video_url, partes_presentacion_agentes_curso
 
     try:
         estudiante = Estudiante.objects.select_related('cliente').get(id=estudiante_id)
@@ -400,7 +400,7 @@ Cuando termines, escribe: *"listo"*"""
 
         if modulo_usa_pasos(modulo_actual):
             _persist_curso_foco()
-            from core.response_templates import get_response_for_intent
+            from core.conversacion.response_templates import get_response_for_intent
 
             return get_response_for_intent(
                 'continuar_leccion',

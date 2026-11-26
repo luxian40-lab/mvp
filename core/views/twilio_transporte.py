@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from django.conf import settings
 
 from ..models import WhatsappLog
-from ..response_templates import MENSAJE_CAPTION_SOLO_MEDIA as TWILIO_CAPTION_ADJUNTO
+from ..conversacion.response_templates import MENSAJE_CAPTION_SOLO_MEDIA as TWILIO_CAPTION_ADJUNTO
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
     limite = max_chars or _twilio_max_body_chars()
 
     try:
-        from ..response_templates import dividir_contenido_seguro
+        from ..conversacion.response_templates import dividir_contenido_seguro
         chunks = dividir_contenido_seguro(texto, max_chars=limite)
         if chunks:
             return chunks

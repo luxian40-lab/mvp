@@ -167,7 +167,7 @@ class PrioridadGlobalTests(_Base):
     def test_hola_de_b2b_retoma_la_leccion(self):
         est = self._est()
         with patch('core.canal.envios.enviar_whatsapp_twilio') as enviar, \
-                patch('core.response_templates.get_response_for_intent', return_value='RETOMA') as intent:
+                patch('core.conversacion.response_templates.get_response_for_intent', return_value='RETOMA') as intent:
             self._post('hola', 'SM_tr_pg_hola')
         intent.assert_called_once_with(
             'continuar_leccion', 'Tomas Tramo', estudiante_id=est.id, mensaje_original='hola',
@@ -271,7 +271,7 @@ class MenuLegadoTests(_Base):
 class RespaldoTests(_Base):
     def _listo(self, sid, intent='saludo', texto='HOLA_TPL'):
         with patch('core.eventos_ia.detectar_intent_con_evento', return_value=intent), \
-                patch('core.response_templates.get_response_for_intent', return_value=texto), \
+                patch('core.conversacion.response_templates.get_response_for_intent', return_value=texto), \
                 patch('time.sleep'):
             return self._post('listo', sid)
 
@@ -281,7 +281,7 @@ class RespaldoTests(_Base):
         self.assertEqual(self._cuerpos(cli), ['HOLA_TPL'])
 
     def test_leccion_en_curso_no_manda_nada(self):
-        from core.response_templates import LECCION_EN_CURSO
+        from core.conversacion.response_templates import LECCION_EN_CURSO
 
         self._est()
         with patch('core.canal.sandbox_canal.descartar_reaccion_espera') as descartar:
@@ -335,7 +335,7 @@ class EnvioComunTests(_Base):
     def _enviar(self, texto, sid):
         self._est()
         with patch('core.eventos_ia.detectar_intent_con_evento', return_value='saludo'), \
-                patch('core.response_templates.get_response_for_intent', return_value=texto), \
+                patch('core.conversacion.response_templates.get_response_for_intent', return_value=texto), \
                 patch('time.sleep') as dormir, \
                 patch('core.canal.whatsapp_service.enviar_template_twilio') as plantilla:
             cli = self._post('listo', sid)

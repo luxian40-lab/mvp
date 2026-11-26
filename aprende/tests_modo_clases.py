@@ -6,7 +6,7 @@ import pytest
 from aprende.acceso_modulos import modulos_visibles_aula
 from core.gamificacion.modo import MODO_PUNTOS, gamificacion_otorga_puntos
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
-from core.response_templates import get_response_for_intent
+from core.conversacion.response_templates import get_response_for_intent
 
 pytestmark = pytest.mark.django_db
 
