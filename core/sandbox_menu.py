@@ -235,7 +235,7 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
         return '', '', ''
     if not body:
         try:
-            from core.habeas_respuestas import texto_desde_webhook_twilio
+            from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
 
             body = (texto_desde_webhook_twilio(payload, '') or '').strip()
         except Exception:

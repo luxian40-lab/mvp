@@ -37,7 +37,7 @@ def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     if status:
         return False
     from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
-    from core.habeas_respuestas import texto_desde_webhook_twilio
+    from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
     from core.nati import normalizar_telefono_whatsapp
     from core.canal.utils_telefono import estudiante_por_telefono
 
@@ -171,7 +171,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # Twilio envía datos en formato form-data
         msg_body = post_data.get('Body', '')
         # Quick reply / botones Content: a veces Body vacío y solo ButtonPayload/Text
-        from ..habeas_respuestas import texto_desde_webhook_twilio
+        from ..conversacion.habeas_respuestas import texto_desde_webhook_twilio
 
         msg_body = texto_desde_webhook_twilio(post_data, msg_body)
         msg_from = post_data.get('From', '')  # whatsapp:+573001234567

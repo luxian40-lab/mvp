@@ -81,7 +81,7 @@ class HabeasCuerpoTests(TestCase):
         pendiente = {'certificado_id': 999999}
         self.est.contexto_temporal = {'cert_envio_pendiente': pendiente}
         self.est.save(update_fields=['contexto_temporal'])
-        with patch('core.habeas_respuestas.aplicar_respuesta_habeas') as mock_aplicar:
+        with patch('core.conversacion.habeas_respuestas.aplicar_respuesta_habeas') as mock_aplicar:
             # «listo» no libera el certificado, así que la marca sigue al llegar al habeas.
             self._post('listo', 'SM_hc_cert')
         mock_aplicar.assert_not_called()

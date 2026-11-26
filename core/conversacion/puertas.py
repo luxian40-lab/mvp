@@ -131,7 +131,7 @@ def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
     """Aceptó: pide la cédula. El menú sale cuando confirme los datos."""
     from core.conversacion.consentimiento_wa import registrar_optin
     from core.conversacion.estados.transiciones import aplicar
-    from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+    from core.conversacion.habeas_respuestas import MSG_ACEPTO_CEDULA
 
     registrar_optin(est, 'habeas')
     est.acepto_terminos = True
@@ -147,7 +147,7 @@ def _aceptar_habeas_y_pedir_cedula(telefono: str, from_number: str, est) -> str:
 
 
 def _enviar_confirma_numero(telefono: str, from_number: str, est) -> None:
-    from core.habeas_respuestas import texto_confirma_numero
+    from core.conversacion.habeas_respuestas import texto_confirma_numero
     from core.canal.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
     texto = texto_confirma_numero(est, telefono)
@@ -170,7 +170,7 @@ def _responder_cedula(telefono: str, from_number: str, body: str) -> str | None:
     """None si no está en cédula. 'handled' si esta vuelta fue la cédula."""
     import re
 
-    from core.habeas_respuestas import MSG_ACEPTO_CEDULA, MSG_CEDULA_NO_COINCIDE
+    from core.conversacion.habeas_respuestas import MSG_ACEPTO_CEDULA, MSG_CEDULA_NO_COINCIDE
     from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)
@@ -214,7 +214,7 @@ def abrir_tras_confirmar(est, telefono: str, from_number: str) -> None:
 
 def _responder_confirmacion(telefono: str, from_number: str, body: str) -> str | None:
     """None si no está confirmando. 'handled' si esta vuelta fue la verificación."""
-    from core.habeas_respuestas import MSG_DATOS_NO
+    from core.conversacion.habeas_respuestas import MSG_DATOS_NO
     from core.canal.utils_telefono import estudiante_por_telefono
 
     est = estudiante_por_telefono(telefono)

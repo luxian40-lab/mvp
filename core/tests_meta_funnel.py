@@ -274,7 +274,7 @@ class MetaFunnelTests(TestCase):
             dispatch_sandbox_menu(_payload(tel, 'acepto'))
         self.assertIn('cédula', texto.call_args.args[2].lower())
 
-        from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+        from core.conversacion.habeas_respuestas import MSG_ACEPTO_CEDULA
 
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
             dispatch_sandbox_menu(_payload(tel, 'Comenzar'))

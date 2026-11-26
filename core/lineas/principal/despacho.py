@@ -85,7 +85,7 @@ def _responder_identidad(decision: SandboxRouteDecision, payload: Any, body: str
         return 'handled'
 
     if decision.action == 'pedir_cedula':
-        from core.habeas_respuestas import MSG_ACEPTO_CEDULA
+        from core.conversacion.habeas_respuestas import MSG_ACEPTO_CEDULA
 
         try:
             _menu().enviar_texto_sandbox(

@@ -15,7 +15,7 @@ def manejar(contexto: Contexto) -> Respuesta | None:
     msg_from = contexto.msg_from
     telefono_limpio = contexto.telefono_limpio
     if not (estudiante.contexto_temporal or {}).get('cert_envio_pendiente'):
-        from core.habeas_respuestas import aplicar_respuesta_habeas
+        from core.conversacion.habeas_respuestas import aplicar_respuesta_habeas
 
         resultado_habeas = aplicar_respuesta_habeas(estudiante, msg_body)
         accion = resultado_habeas.get('accion')

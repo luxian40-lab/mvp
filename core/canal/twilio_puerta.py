@@ -67,7 +67,7 @@ def aplicar_puerta_twilio(post_data) -> str:
     if _es_status_callback_twilio(data):
         return 'seguir'
     from core.puentes import mensaje_pide_acceso_aula
-    from core.habeas_respuestas import texto_desde_webhook_twilio
+    from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
 
     body = texto_desde_webhook_twilio(data, data.get('Body', '') or '')
     if mensaje_pide_acceso_aula(body):
@@ -82,7 +82,7 @@ def responder_aula_meta(post_data) -> bool:
     """True si era *aula* y el código salió por Meta. Sin estudiante, el menú sigue."""
     data = post_data or {}
     from core.puentes import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
-    from core.habeas_respuestas import texto_desde_webhook_twilio
+    from core.conversacion.habeas_respuestas import texto_desde_webhook_twilio
 
     body = texto_desde_webhook_twilio(data, data.get('Body', '') or '')
     if not mensaje_pide_acceso_aula(body):

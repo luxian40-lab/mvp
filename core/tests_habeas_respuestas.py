@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from core.habeas_respuestas import (
+from core.conversacion.habeas_respuestas import (
     CTX_CONFIRMA_RECHAZO,
     aplicar_respuesta_habeas,
     clasificar_respuesta_habeas,

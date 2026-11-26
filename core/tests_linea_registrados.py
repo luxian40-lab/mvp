@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from core.habeas_respuestas import aplicar_respuesta_habeas
+from core.conversacion.habeas_respuestas import aplicar_respuesta_habeas
 from core.canal.linea_registrados import debe_cortar, permitir_numero_nuevo
 from core.models import Cliente, Estudiante
 from core.sandbox_menu import dispatch_sandbox_menu
