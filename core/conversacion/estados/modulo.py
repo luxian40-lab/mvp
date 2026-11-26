@@ -198,7 +198,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
-                                from core.agentes_whatsapp import mensaje_con_titular_agente
+                                from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
                                 texto_respuesta = (
                                     f"{mensaje_respuesta}\n\n"

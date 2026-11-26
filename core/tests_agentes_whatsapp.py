@@ -1,7 +1,7 @@
 """Sin titular de agente al inicio: el cuerpo va directo (no *Carlos* / Darío)."""
 from django.test import TestCase
 
-from core.agentes_whatsapp import (
+from core.agentes.agentes_whatsapp import (
     cuerpo_sin_titular_agente,
     mensaje_con_titular_agente,
     titular_agente_al_inicio,

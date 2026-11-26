@@ -197,7 +197,7 @@ def limpiar_plantilla_evaluacion(feedback: str) -> str:
 
 def bloque_reto_whatsapp(nombre_tutor: str, reto: str) -> str:
     """Mensaje del reto para WhatsApp: cabecera + reto + un solo cierre."""
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     cuerpo = limpiar_emojis(reto or '').strip()
     anterior = None
@@ -1179,7 +1179,7 @@ def generar_presentacion_agentes(
     nombre_tutor = 'Formador'
     if es_perfil_tecnicoagro(curso):
         nombre_tutor = nombre_display_facilitador(curso, fallback='Formador')
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     if es_perfil_tecnicoagro(curso):
         rol = etiqueta_rol_facilitador(curso)

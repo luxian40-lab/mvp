@@ -428,7 +428,7 @@ def _cierre_curso_listo(usar_gamificacion_final, estudiante, progreso, contexto_
             else:
                 modulos_final_range = "los módulos finales"
     
-            from core.agentes_whatsapp import mensaje_con_titular_agente
+            from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
             dario_final = mensaje_con_titular_agente(
                 nombre_asistente,

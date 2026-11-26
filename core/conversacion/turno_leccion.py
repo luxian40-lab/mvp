@@ -113,7 +113,7 @@ def responder_duda_en_leccion(estudiante, mensaje: str) -> str | None:
     if clasificar_mensaje_leccion(mensaje) != 'pregunta':
         return None
     try:
-        from core.agentes_whatsapp import mensaje_con_titular_agente
+        from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
         from core.lineas.agricapital_experiencia import estudiante_es_agricapital
         from core.tutor_ia_modulo import generar_respuesta_asistente
 

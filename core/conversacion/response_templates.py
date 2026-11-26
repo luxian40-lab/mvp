@@ -258,7 +258,7 @@ def _generar_completado_final(estudiante, curso_id):
                 estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
-                from core.agentes_whatsapp import mensaje_con_titular_agente
+                from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
                 return (
                     "[MULTI_MSG]"
@@ -505,7 +505,7 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     modulos_reto = listar_modulos_cobertura_reto(modulo_cerrado, progreso.curso)
     modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
 
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     dario_msg = mensaje_con_titular_agente(
         nombre_asistente,

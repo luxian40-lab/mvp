@@ -53,7 +53,7 @@ def _responder_pregunta_companero(
     estudiante.contexto_temporal = ctx
     estudiante.save()
 
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     if preguntas_hechas >= 2:
         return mensaje_con_titular_agente(
@@ -76,7 +76,7 @@ def _responder_pregunta_companero(
 
 def _repregunta_sin_cupo(estudiante, ctx, nombre_asistente) -> str:
     """Ambiguo: no LLM, no cupo. Una sola repregunta."""
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     ctx['repregunta_companero'] = True
     estudiante.contexto_temporal = ctx
@@ -101,7 +101,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
     elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
         logger.info(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
-        from core.agentes_whatsapp import mensaje_con_titular_agente
+        from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
         preguntas_restantes = 2 - preguntas_hechas
         texto_respuesta = mensaje_con_titular_agente(

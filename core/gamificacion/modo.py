@@ -202,7 +202,7 @@ def construir_mensaje_evaluacion_reto(
     feedback: str,
     nombre_tutor: str,
 ) -> str:
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
     from core.conversacion.response_templates import _barra_progreso
 
     cliente = getattr(estudiante, 'cliente', None)

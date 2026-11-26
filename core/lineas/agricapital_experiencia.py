@@ -211,7 +211,7 @@ def texto_no_entendi_agricapital() -> str:
 
 def presentacion_inicio_agricapital(curso_nombre: str, estudiante_nombre: str) -> tuple[str, str]:
     """S4: solo Formador + Compañero, en tú."""
-    from core.agentes_whatsapp import mensaje_con_titular_agente
+    from core.agentes.agentes_whatsapp import mensaje_con_titular_agente
 
     nombre = (estudiante_nombre or 'Estudiante').strip() or 'Estudiante'
     curso = (curso_nombre or 'tu curso').strip() or 'tu curso'
