@@ -416,6 +416,8 @@ def _enviar_partes_marcadas(
         )
         return bool(last.get('success'))
 
+    from core.canal.sandbox_canal import phone_id_de_salida
+
     resultado = recorrer_partes(
         texto,
         desde_idx=desde_idx,
@@ -426,6 +428,7 @@ def _enviar_partes_marcadas(
             'media_url': None,
             'canal_evento': canal_evento,
             'agente_evento': agente_evento,
+            'phone_id': phone_id_de_salida(),
         },
     )
     if resultado == 'fail':

@@ -560,16 +560,18 @@ def continuar_entrega_marcada_async(self, canal: str, texto: str = '', desde_idx
     try:
         with telefono_lock(telefono):
             if canal == 'meta':
+                from core.canal.sandbox_canal import canal_sandbox_meta, salida_por_phone_id
                 from core.lineas.envio import _enviar_partes_marcadas
 
-                return _enviar_partes_marcadas(
-                    kwargs.get('to') or telefono,
-                    texto,
-                    media_url=kwargs.get('media_url'),
-                    canal_evento=kwargs.get('canal_evento') or 'whatsapp_sandbox',
-                    agente_evento=kwargs.get('agente_evento') or '',
-                    desde_idx=int(desde_idx or 0),
-                )
+                with salida_por_phone_id(kwargs.get('phone_id') or ''), canal_sandbox_meta():
+                    return _enviar_partes_marcadas(
+                        kwargs.get('to') or telefono,
+                        texto,
+                        media_url=kwargs.get('media_url'),
+                        canal_evento=kwargs.get('canal_evento') or 'whatsapp_sandbox',
+                        agente_evento=kwargs.get('agente_evento') or '',
+                        desde_idx=int(desde_idx or 0),
+                    )
             if canal == 'twilio_marcado':
                 from core.lineas.entrega import enviar_marcado
 

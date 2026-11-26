@@ -36,6 +36,41 @@ class EntregaDelaysCeleryTests(TestCase):
         self.assertEqual(kwargs['canal'], 'meta')
         self.assertEqual(kwargs['payload']['desde_idx'], 2)
 
+    def test_delay_guarda_la_linea_para_el_video(self):
+        from core.canal.sandbox_canal import salida_por_phone_id
+
+        with salida_por_phone_id('1477762615411333'):
+            enviar_meta(TEL, '[MULTI_MSG]Uno[SEP][DELAY:3][SEP]Dos')
+        self.assertEqual(
+            self.encolar.call_args.kwargs['payload']['phone_id'],
+            '1477762615411333',
+        )
+
+    def test_continuacion_meta_sale_por_la_linea_guardada(self):
+        from contextlib import nullcontext
+
+        from core.canal.sandbox_canal import phone_id_de_salida
+        from core.tasks import continuar_entrega_marcada_async
+
+        visto = {}
+
+        def fake(*args, **kwargs):
+            visto['pid'] = phone_id_de_salida()
+            return {'success': True}
+
+        with (
+            patch('core.locks.telefono_lock', return_value=nullcontext()),
+            patch('core.lineas.envio._enviar_partes_marcadas', side_effect=fake),
+        ):
+            continuar_entrega_marcada_async.run(
+                canal='meta',
+                texto='Dos',
+                desde_idx=1,
+                to=TEL,
+                phone_id='1477762615411333',
+            )
+        self.assertEqual(visto['pid'], '1477762615411333')
+
 
 class RecorrerPartesTests(TestCase):
     def test_desde_idx_salta_lo_ya_enviado(self):
