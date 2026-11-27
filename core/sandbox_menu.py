@@ -15,36 +15,11 @@ from django.conf import settings
 from django.db import DatabaseError
 from django.utils import timezone
 
-# Reexport puertas / menú: __getattr__ al final (patch core.sandbox_menu.* en tests).
-from core.lineas.principal.asesores import (
-    FILAS_AGENTES,  # noqa: F401
-    _guardar_pregunta_en_memoria,  # noqa: F401
-    _manejar_agente_extra,  # noqa: F401
-    _reaccion_espera,  # noqa: F401
-    enviar_menu_agentes,  # noqa: F401
-    texto_lista_agentes,  # noqa: F401
-)
-from core.lineas.principal.cursos import (
-    _abiertos_del_mes,
-    _entrar_en_progreso,  # noqa: F401
-    _preguntar_cual_curso,  # noqa: F401
-    _progresos_del_telefono,  # noqa: F401
-    _sticky_cursos_solo_si_inscrito_demo,  # noqa: F401
-    _tiene_curso_abierto,  # noqa: F401
-    bootstrap_cursos_sandbox,  # noqa: F401
-    entrar_cursos_inscrito,  # noqa: F401
-    ofrecer_cursos_en_curso,  # noqa: F401
-)
-from core.agentes.nati import normalizar_telefono_whatsapp
-from core.canal.planes_linea import (
-    PLAN_CURSO_ASESOR,
-    TEXTO_PLAN_SIN_ASESOR,
-    TEXTO_PLAN_SIN_CURSOS,  # noqa: F401
-    TEXTO_SIN_PLAN,  # noqa: F401
-    plan_por_clave,
-    resolver_plan,  # noqa: F401
-    texto_menu_plan,
-)
+# Reexports puertas / menú / línea principal: __getattr__ al final (patch en tests).
+_pl = importlib.import_module('core.canal.planes_linea')
+PLAN_CURSO_ASESOR = _pl.PLAN_CURSO_ASESOR
+TEXTO_PLAN_SIN_ASESOR = _pl.TEXTO_PLAN_SIN_ASESOR
+TEXTO_MENU = _pl.texto_menu_plan(_pl.plan_por_clave(_pl.PLAN_CURSO_ASESOR))
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +40,6 @@ _ACCIONES_ASESOR = frozenset({
     'show_agentes', 'show_asesoria', 'repreguntar_asesoria',
     'nat', 'coach', 'ia_campo', 'ventas', 'finanzas', 'cafe',
 })
-
-TEXTO_MENU = texto_menu_plan(plan_por_clave(PLAN_CURSO_ASESOR))
 
 TEXTO_FORMACION = (
     "¿Qué le gustaría aprender para tomar mejores decisiones?\n\n"
@@ -175,7 +148,7 @@ def sandbox_menu_enabled() -> bool:
 
 
 def sandbox_number() -> str:
-    return normalizar_telefono_whatsapp(
+    return importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(
         getattr(settings, 'BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886') or '14155238886'
     )
 
@@ -219,8 +192,8 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
         except Exception:
             body = ''
     return (
-        normalizar_telefono_whatsapp(from_raw),
-        normalizar_telefono_whatsapp(to_raw),
+        importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(from_raw),
+        importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(to_raw),
         body,
     )
 
@@ -615,6 +588,10 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     import re
 
+    _abiertos_del_mes = importlib.import_module(
+        'core.lineas.principal.cursos',
+    )._abiertos_del_mes
+
     seguido = re.fullmatch(r'seguir_(\d+)', (body or '').strip())
     if seguido:
         curso_id = int(seguido.group(1))
@@ -901,10 +878,45 @@ _MENU_ATTRS = frozenset({
     'responder_catalogo_general',
 })
 
+_ASESORES_ATTRS = frozenset({
+    'FILAS_AGENTES',
+    '_guardar_pregunta_en_memoria',
+    '_manejar_agente_extra',
+    '_reaccion_espera',
+    'enviar_menu_agentes',
+    'texto_lista_agentes',
+})
+
+_CURSOS_ATTRS = frozenset({
+    '_abiertos_del_mes',
+    '_entrar_en_progreso',
+    '_preguntar_cual_curso',
+    '_progresos_del_telefono',
+    '_sticky_cursos_solo_si_inscrito_demo',
+    '_tiene_curso_abierto',
+    'bootstrap_cursos_sandbox',
+    'entrar_cursos_inscrito',
+    'ofrecer_cursos_en_curso',
+})
+
+_PLANES_ATTRS = frozenset({
+    'TEXTO_PLAN_SIN_CURSOS',
+    'TEXTO_SIN_PLAN',
+    'resolver_plan',
+    'texto_menu_plan',
+    'plan_por_clave',
+})
+
 
 def __getattr__(name: str):
     if name in _PUERTAS_ATTRS:
         return getattr(importlib.import_module('core.conversacion.puertas'), name)
     if name in _MENU_ATTRS:
         return getattr(importlib.import_module('core.lineas.principal.menu'), name)
+    if name in _ASESORES_ATTRS:
+        return getattr(importlib.import_module('core.lineas.principal.asesores'), name)
+    if name in _CURSOS_ATTRS:
+        return getattr(importlib.import_module('core.lineas.principal.cursos'), name)
+    if name in _PLANES_ATTRS:
+        return getattr(importlib.import_module('core.canal.planes_linea'), name)
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')

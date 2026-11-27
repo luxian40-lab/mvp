@@ -1,11 +1,17 @@
 """Envio por WhatsApp Cloud API. El curso llama estos nombres y no abre el webhook."""
+import importlib
 import logging
 
 import requests
 from django.conf import settings
 
-from core.conversacion.marcas import PLANTILLA, es_marcado
-from core.agentes.nati import normalizar_telefono_whatsapp
+_marcas = importlib.import_module('core.conversacion.marcas')
+PLANTILLA = _marcas.PLANTILLA
+es_marcado = _marcas.es_marcado
+
+
+def normalizar_telefono_whatsapp(valor: str) -> str:
+    return importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(valor)
 
 logger = logging.getLogger(__name__)
 

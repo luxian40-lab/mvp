@@ -12,15 +12,16 @@ from django.conf import settings
 from django.db.models import F
 from django.utils import timezone
 
-from core.canal.meta_waba import (
-    _destinatarios,
-    _error_meta,
-    _parametros_envio,
-    _phone_default,
-    _post,
-    _version,
-    campana_meta_habilitada,
-)
+import importlib
+
+_mw = importlib.import_module('core.canal.meta_waba')
+_destinatarios = _mw._destinatarios
+_error_meta = _mw._error_meta
+_parametros_envio = _mw._parametros_envio
+_phone_default = _mw._phone_default
+_post = _mw._post
+_version = _mw._version
+campana_meta_habilitada = _mw.campana_meta_habilitada
 from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta
 
 logger = logging.getLogger(__name__)

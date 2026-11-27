@@ -14,7 +14,11 @@ from typing import Any, Iterator
 import requests
 from django.conf import settings
 
-from core.agentes.nati import normalizar_telefono_whatsapp
+import importlib
+
+
+def normalizar_telefono_whatsapp(valor: str) -> str:
+    return importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(valor)
 
 logger = logging.getLogger(__name__)
 
@@ -219,40 +223,46 @@ def con_canal_sandbox_meta(fn):
     return wrapped
 
 
-from core.lineas.envio import (
-    _tipo_media_desde_url,
-    _telefono_graph,
-    _graph_headers,
-    _graph_messages_url,
-    _post_graph,
-    _clave_reaccion,
-    _enviar_reaccion,
-    _pendientes_reaccion,
-    hay_reaccion_espera,
-    poner_reaccion_espera,
-    descartar_reaccion_espera,
-    quitar_reaccion_espera,
-    _con_aviso_del_dia,
-    enviar_sandbox,
-    enviar_meta,
-    enviar_meta_plantilla,
-    enviar_meta_plantilla_imagen,
-    enviar_meta_botones,
-    enviar_meta_lista,
-    enviar_meta_url,
-    _par_ver,
-    _cards_carrusel,
-    _payload_carrusel,
-    enviar_meta_carrusel,
-    enviar_meta_flow,
-    enviar_sandbox_habeas,
-    _sid_es_habeas,
-    enviar_sandbox_template_fallback,
-    _emit_enviado,
-    _descargar_bytes_meta,
-    transcribir_audio_meta,
-    media_meta_a_data_url,
-)
+_ENVIO_ATTRS = frozenset({
+    '_tipo_media_desde_url',
+    '_telefono_graph',
+    '_graph_headers',
+    '_graph_messages_url',
+    '_post_graph',
+    '_clave_reaccion',
+    '_enviar_reaccion',
+    '_pendientes_reaccion',
+    'hay_reaccion_espera',
+    'poner_reaccion_espera',
+    'descartar_reaccion_espera',
+    'quitar_reaccion_espera',
+    '_con_aviso_del_dia',
+    'enviar_sandbox',
+    'enviar_meta',
+    'enviar_meta_plantilla',
+    'enviar_meta_plantilla_imagen',
+    'enviar_meta_botones',
+    'enviar_meta_lista',
+    'enviar_meta_url',
+    '_par_ver',
+    '_cards_carrusel',
+    '_payload_carrusel',
+    'enviar_meta_carrusel',
+    'enviar_meta_flow',
+    'enviar_sandbox_habeas',
+    '_sid_es_habeas',
+    'enviar_sandbox_template_fallback',
+    '_emit_enviado',
+    '_descargar_bytes_meta',
+    'transcribir_audio_meta',
+    'media_meta_a_data_url',
+})
+
+
+def __getattr__(name: str):
+    if name in _ENVIO_ATTRS:
+        return getattr(importlib.import_module('core.lineas.envio'), name)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
 def inbound_desde_meta_message(message: dict, value: dict) -> dict:
@@ -270,7 +280,9 @@ def inbound_desde_meta_message(message: dict, value: dict) -> dict:
     lat = ''
     lng = ''
 
-    from core.canal.meta_inbound import clasificar_mensaje
+    clasificar_mensaje = importlib.import_module(
+        'core.canal.meta_inbound',
+    ).clasificar_mensaje
 
     info = clasificar_mensaje(message)
     if info['skip']:
