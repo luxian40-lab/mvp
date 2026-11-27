@@ -13,14 +13,11 @@ import logging
 from contextlib import contextmanager
 
 from core.lineas.perfil import USO_REGISTRO
-from core.lineas.registro_agricapital import (
-    CTA_BIENVENIDA,
-    TEXTO_BIENVENIDA,
-    destino_frase_agri,
-    es_boton_registrarme,
-    es_cliente_agricapital,
-    es_enlace_agricapital,
-)
+import importlib
+
+
+def _registro_agricapital():
+    return importlib.import_module('core.lineas.registro_agricapital')
 from core.lineas.registro_enlace import leer_frase, token_de_cliente
 from core.lineas.registro_flow import NOMBRE_FLOW, PANTALLA, flow_registro
 
@@ -156,33 +153,35 @@ def abrir_registro(telefono: str, body: str) -> str | None:
     if ficha is not None:
         if _cede_al_menu(telefono, body):
             return None
-        from core.lineas.registro_cursos import atender_cursos
+        import importlib
 
+        atender_cursos = importlib.import_module('core.lineas.registro_cursos').atender_cursos
         atender_cursos(telefono, body, ficha.cliente_id or cliente_id)
         return 'handled'
 
-    cliente_boton = es_boton_registrarme(body)
+    _agri = _registro_agricapital()
+    cliente_boton = _agri.es_boton_registrarme(body)
     if cliente_boton is not None:
         _enviar_flow(
-            telefono, cliente_boton, texto=TEXTO_BIENVENIDA, cta=CTA_BIENVENIDA,
+            telefono, cliente_boton, texto=_agri.TEXTO_BIENVENIDA, cta=_agri.CTA_BIENVENIDA,
         )
         return 'handled'
 
-    if es_enlace_agricapital(cliente_id, body):
+    if _agri.es_enlace_agricapital(cliente_id, body):
         destino = cliente_id
         if destino is None:
-            agri = destino_frase_agri(body)
+            agri = _agri.destino_frase_agri(body)
             destino = agri[1] if agri else None
         if destino is None:
             return 'handled'
         _enviar_flow(
-            telefono, destino, texto=TEXTO_BIENVENIDA, cta=CTA_BIENVENIDA,
+            telefono, destino, texto=_agri.TEXTO_BIENVENIDA, cta=_agri.CTA_BIENVENIDA,
         )
         return 'handled'
 
-    if es_cliente_agricapital(cliente_id):
+    if _agri.es_cliente_agricapital(cliente_id):
         _enviar_flow(
-            telefono, cliente_id, texto=TEXTO_BIENVENIDA, cta=CTA_BIENVENIDA,
+            telefono, cliente_id, texto=_agri.TEXTO_BIENVENIDA, cta=_agri.CTA_BIENVENIDA,
         )
         return 'handled'
 
@@ -281,7 +280,7 @@ def _cliente_de_turno(telefono: str, body: str) -> int | None:
     if destino and destino[0] == 'cliente':
         _recordar(telefono, destino[1])
         return destino[1]
-    agri = destino_frase_agri(body)
+    agri = _registro_agricapital().destino_frase_agri(body)
     if agri:
         _recordar(telefono, agri[1])
         return agri[1]

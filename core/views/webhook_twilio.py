@@ -229,6 +229,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             msg_from = msg_from.replace('whatsapp:', '')
         
         # Normalizar teléfono igual que el modelo (sin +, sin espacios, sin guiones)
+        import importlib
         import re
         telefono_limpio = re.sub(r'\D', '', msg_from)  # Solo dígitos
         if len(telefono_limpio) == 10:
@@ -268,7 +269,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
 
-            from core.conversacion.estados import intercepciones
+            intercepciones = importlib.import_module('core.conversacion.estados.intercepciones')
 
             if intercepciones.manejar(Contexto(
                 estudiante,
@@ -292,7 +293,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                 logger.exception('Intercept certificado pendiente omitido: %s', e)
 
         except Estudiante.DoesNotExist:
-            from core.conversacion.estados import no_registrado
+            no_registrado = importlib.import_module('core.conversacion.estados.no_registrado')
 
             no_registrado.manejar(Contexto(
                 None,
@@ -306,11 +307,11 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # ============================================================
         # MÁQUINA DE ESTADOS B2B (Onboarding con Botones Twilio)
         # ============================================================
-        from core.conversacion.estados import arranque
+        arranque = importlib.import_module('core.conversacion.estados.arranque')
 
         estado_chat = arranque.manejar(Contexto(estudiante, None, None, None))
 
-        from core.conversacion.estados import prioridad_global
+        prioridad_global = importlib.import_module('core.conversacion.estados.prioridad_global')
 
         if prioridad_global.manejar(Contexto(
             estudiante,
@@ -323,15 +324,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
-            from core.conversacion.estados import habeas
+            habeas = importlib.import_module('core.conversacion.estados.habeas')
 
             if habeas.manejar(Contexto(estudiante, msg_body, msg_from, telefono_limpio)) is not None:
                 return  # CORTAR EJECUCIÓN
         
         # --- BARRERAS 2, 3 y 3B: cédula (2FA), confirmación de datos y corrección legado ---
-        from core.conversacion.estados.despacho import BARRERAS
-
-        _barrera = BARRERAS.get(estado_chat)
+        _BARRERAS = importlib.import_module('core.conversacion.estados.despacho').BARRERAS
+        _barrera = _BARRERAS.get(estado_chat)
         if _barrera is not None:
             _barrera(Contexto(estudiante, msg_body, msg_from, telefono_limpio))
             return  # CORTAR EJECUCIÓN
@@ -342,7 +342,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # Detectar acciones del menú principal (tanto ACTIVO como completado)
         if estado_chat == 'ACTIVO' or estudiante.estado_onboarding == 'completado':
             msg_lower = msg_body.strip().lower()
-            from core.conversacion.estados import activo_entrada
+            activo_entrada = importlib.import_module('core.conversacion.estados.activo_entrada')
 
             if activo_entrada.manejar(Contexto(
                 estudiante,
@@ -406,7 +406,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     logger.error(f"❌ Error enviando selección curso: {e}")
                 return  # CORTAR EJECUCIÓN
 
-            from core.conversacion.estados import activo_puerta
+            activo_puerta = importlib.import_module('core.conversacion.estados.activo_puerta')
 
             if activo_puerta.manejar(Contexto(
                 estudiante,
@@ -449,13 +449,12 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
-            from core.conversacion.estados import agente_sync
+            agente_sync = importlib.import_module('core.conversacion.estados.agente_sync')
 
             agente_sync.resincronizar(Contexto(estudiante, None, None, None))
 
-            from core.conversacion.estados.despacho import agente_de
-
-            _agente = agente_de(estudiante.estado_onboarding)
+            _agente_de = importlib.import_module('core.conversacion.estados.despacho').agente_de
+            _agente = _agente_de(estudiante.estado_onboarding)
             if _agente is not None:
                 texto_respuesta = _agente(Contexto(
                     estudiante, msg_body, msg_from, telefono_limpio,
@@ -465,7 +464,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
             
             # 4. Detectar intent y usar templates primero
             else:
-                from core.conversacion.estados import intent_ia
+                intent_ia = importlib.import_module('core.conversacion.estados.intent_ia')
 
                 _intent_ia = intent_ia.manejar(Contexto(
                     estudiante,
@@ -479,7 +478,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     return
                 texto_respuesta = _intent_ia.texto
         
-        from core.conversacion.estados import envio_comun
+        envio_comun = importlib.import_module('core.conversacion.estados.envio_comun')
 
         envio_comun.enviar(Contexto(estudiante, None, msg_from, telefono_limpio, texto_respuesta=texto_respuesta))
     

@@ -342,7 +342,11 @@ def armar_system_prompt(cliente=None, nombre_bot_override: Optional[str] = None)
         or NOMBRE_BOT_DEFAULT
     )
 
-    from core.agentes.sandbox_agentes import BLOQUE_REGISTRO, _CIERRE_REGISTRO
+    import importlib
+
+    _sandbox_agentes = importlib.import_module('core.agentes.sandbox_agentes')
+    BLOQUE_REGISTRO = _sandbox_agentes.BLOQUE_REGISTRO
+    _CIERRE_REGISTRO = _sandbox_agentes._CIERRE_REGISTRO
 
     prompt = (
         f"{BLOQUE_REGISTRO}\n\n"

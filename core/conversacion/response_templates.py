@@ -565,9 +565,10 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
         except Estudiante.DoesNotExist:
             pass
 
-    from core.conversacion.intents.despacho import INTENTS
+    import importlib
 
-    _responder = INTENTS.get(intent)
+    _INTENTS = importlib.import_module('core.conversacion.intents.despacho').INTENTS
+    _responder = _INTENTS.get(intent)
     if _responder is not None:
         return _responder(intent, nombre_usuario, kwargs)
     

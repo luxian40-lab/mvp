@@ -463,7 +463,11 @@ def _restaurar_progreso(progreso_id: int, foto: dict) -> None:
 
 def _avanzar(telefono: str, body: str) -> bool:
     """listo y continuar siguen el curso en esta línea. No reabre el carrusel."""
-    from core.conversacion.intents.continuar_leccion import responder
+    import importlib
+
+    responder = importlib.import_module(
+        'core.conversacion.intents.continuar_leccion',
+    ).responder
     from core.conversacion.response_templates import (
         LECCION_EN_CURSO,
         _es_mensaje_listo_avance_curso,
