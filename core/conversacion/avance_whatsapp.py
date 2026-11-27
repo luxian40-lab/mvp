@@ -74,6 +74,7 @@ def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
         responder_duda_en_leccion,
         texto_tip_turno_leccion,
         turno_leccion_companero_habilitado,
+        turno_leccion_tip_habilitado,
     )
 
     if espera_continuar_post_reto(estudiante):
@@ -87,7 +88,9 @@ def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
             duda = responder_duda_en_leccion(estudiante, mensaje)
             if duda:
                 return duda
-    return texto_tip_turno_leccion(estudiante, mensaje)
+    if turno_leccion_tip_habilitado():
+        return texto_tip_turno_leccion(estudiante, mensaje)
+    return TEXTO_NO_ENTENDI
 
 
 # Misma plantilla que core.whatsapp_service (evita import circular en tests).
