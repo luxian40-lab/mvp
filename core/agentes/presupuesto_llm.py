@@ -90,7 +90,12 @@ def nivel(cliente_id=None) -> str:
 
 
 def debe_degradar(cliente_id=None) -> bool:
-    return nivel(cliente_id) in ('agotado', 'redis_caido')
+    estado = nivel(cliente_id)
+    if estado == 'agotado':
+        return True
+    if estado == 'redis_caido':
+        return bool(getattr(settings, 'LLM_DEGRADAR_SIN_REDIS', True))
+    return False
 
 
 def modelo_segun_presupuesto(modelo: str, cliente_id=None) -> str:

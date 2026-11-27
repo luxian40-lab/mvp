@@ -75,6 +75,8 @@ AJUSTES_LINEAS = {
     'CELERY_TASK_ALWAYS_EAGER': True,
     'SECURE_SSL_REDIRECT': False,
     'OPENAI_API_KEY': CLAVE_OPENAI_FALSA,
+    # Arnés sin Redis local: LLM va por httpx mock, no por fallback de presupuesto.
+    'LLM_DEGRADAR_SIN_REDIS': False,
 }
 
 

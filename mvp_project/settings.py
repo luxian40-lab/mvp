@@ -1378,6 +1378,10 @@ LLM_PRESUPUESTO_DIARIO_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_USD'
 LLM_PRESUPUESTO_DIARIO_ORG_USD = Decimal(os.environ.get('LLM_PRESUPUESTO_DIARIO_ORG_USD', '10'))
 LLM_UMBRAL_ECONOMICO = 0.7
 LLM_UMBRAL_ALERTA = 0.8
+# Si Redis no responde: True = sin llamadas de pago (prod); False = sigue con tope desconocido (tests contrato).
+LLM_DEGRADAR_SIN_REDIS = os.environ.get('LLM_DEGRADAR_SIN_REDIS', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 LINEA_MAX_MSG_MIN = int(os.environ.get('LINEA_MAX_MSG_MIN', '12'))
 LINEA_MAX_NUEVOS_DIA = int(os.environ.get('LINEA_MAX_NUEVOS_DIA', '300'))
 LINEA_META_SOLO_REGISTRADOS = os.environ.get('LINEA_META_SOLO_REGISTRADOS', 'false').strip().lower() not in (
