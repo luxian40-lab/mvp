@@ -30,7 +30,7 @@ _VENDEDOR = re.compile(r'vendedor(?:a)? de\s+(\S+)', re.IGNORECASE)
 
 
 def _limpia(texto: str) -> str:
-    from core.conocimiento_agentes import _sin_datos_personales
+    from core.agentes.conocimiento_agentes import _sin_datos_personales
 
     return ' '.join(_sin_datos_personales(texto or '').split())
 

@@ -48,7 +48,7 @@ def _lineas_ficha(telefono: str) -> list[str]:
 
 
 def _linea_organizacion(telefono: str) -> list[str]:
-    from core.conocimiento_agentes import cliente_id_para_conocimiento
+    from core.agentes.conocimiento_agentes import cliente_id_para_conocimiento
     from core.models import Cliente
 
     cid = cliente_id_para_conocimiento(telefono)
@@ -88,7 +88,7 @@ def _lineas_estudiante(telefono: str) -> list[str]:
 
 def ultimo_agente(telefono: str) -> tuple[str, str] | None:
     """(modo, tema) del último asesor con el que habló en los últimos 30 días."""
-    from core.conocimiento_agentes import _sin_datos_personales
+    from core.agentes.conocimiento_agentes import _sin_datos_personales
     from core.models import WhatsappLog
 
     desde = timezone.now() - timedelta(days=DIAS_ULTIMO_AGENTE)

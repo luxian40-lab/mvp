@@ -653,7 +653,7 @@ def responder_agente_sandbox(
 
     sistema = prompt_para(agente)
     try:
-        from core.conocimiento_agentes import bloque_conocimiento, cliente_id_para_conocimiento
+        from core.agentes.conocimiento_agentes import bloque_conocimiento, cliente_id_para_conocimiento
 
         cid = cliente_id if cliente_id is not None else cliente_id_para_conocimiento(telefono)
         extra = bloque_conocimiento(agente, cid)

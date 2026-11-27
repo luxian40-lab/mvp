@@ -234,7 +234,7 @@ def finalizar_turno_asesor_llm(
     registrar_pregunta_asesor(telefono)
     _guardar_pregunta_en_memoria(telefono, agente, body)
     try:
-        from core.conocimiento_agentes import capturar_sugerencia
+        from core.agentes.conocimiento_agentes import capturar_sugerencia
 
         capturar_sugerencia(agente, body, texto)
     except Exception:

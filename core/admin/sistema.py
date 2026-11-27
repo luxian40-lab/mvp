@@ -333,7 +333,7 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
         return super().get_actions_submit_line(request, object_id)
 
     def _texto_limpio(self, texto):
-        from core.conocimiento_agentes import _sin_datos_personales
+        from core.agentes.conocimiento_agentes import _sin_datos_personales
 
         return _sin_datos_personales(texto or '')
 
@@ -427,7 +427,7 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
             respuesta_revisada=obj.respuesta_revisada or '',
         )
         if accion == 'aprobar':
-            from core.conocimiento_agentes import copiar_candidata_a_agentes
+            from core.agentes.conocimiento_agentes import copiar_candidata_a_agentes
 
             copiar_candidata_a_agentes(obj, request.user)
 

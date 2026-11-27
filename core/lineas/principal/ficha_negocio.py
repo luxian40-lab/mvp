@@ -181,7 +181,7 @@ def _guardar(ficha, campo: str, valor: str) -> None:
 
 def responder(telefono: str, texto: str) -> str | None:
     """Lo que se le contesta si el mensaje era la respuesta a la ficha. None: el mensaje sigue su camino."""
-    from core.conocimiento_agentes import _sin_datos_personales
+    from core.agentes.conocimiento_agentes import _sin_datos_personales
     from core.models import FichaNegocio
 
     crudo = ' '.join((texto or '').split())

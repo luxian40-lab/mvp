@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from core.conocimiento_agentes import bloque_conocimiento
+from core.agentes.conocimiento_agentes import bloque_conocimiento
 from core.models import ConversacionRAGCandidata
 from core.models_agentes import ConocimientoAgente
 

@@ -27,7 +27,7 @@ def _etiquetas_log(agente: str) -> list[str]:
 def registrar(
     telefono: str, frase: str, agente: str, *, secundario: str = '', fuente: str = 'llm', con_contexto: bool = False,
 ) -> None:
-    from core.conocimiento_agentes import _sin_datos_personales
+    from core.agentes.conocimiento_agentes import _sin_datos_personales
     from core.conversacion.locks import telefono_hash
     from core.models import DerivacionAsesoria
 

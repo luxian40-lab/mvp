@@ -3,7 +3,7 @@ from django.contrib import admin, messages
 from django.utils.safestring import mark_safe
 
 from core.admin._common import *  # noqa: F401,F403
-from core.conocimiento_agentes import limpiar_cache_conocimiento
+from core.agentes.conocimiento_agentes import limpiar_cache_conocimiento
 from core.models import DerivacionAsesoria, FichaNegocio
 from core.models_agentes import ConocimientoAgente
 

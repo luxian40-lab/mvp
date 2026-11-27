@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 
-from core.conocimiento_agentes import bloque_conocimiento, capturar_sugerencia
+from core.agentes.conocimiento_agentes import bloque_conocimiento, capturar_sugerencia
 from core.models import Cliente, SandboxCanalSesion
 from core.models_agentes import ConocimientoAgente
 
