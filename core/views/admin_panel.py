@@ -712,7 +712,7 @@ def _adjuntar_learning_extra(
     if learning_section == 'reportes' and cliente_id:
         org = Cliente.objects.filter(pk=cliente_id).first()
         if org:
-            from portal.curso_flujo_service import programa_reportes_admin
+            from core.puentes import programa_reportes_admin
 
             uso, cursos = programa_reportes_admin(org)
             context['programa_uso'] = uso

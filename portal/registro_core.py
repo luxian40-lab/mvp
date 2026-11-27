@@ -11,6 +11,8 @@ from portal.cobertura_geo import resumen_cobertura_geografica as _resumen_cobert
 registrar('resumen_cobertura_geografica', _resumen_cobertura_geografica)
 from portal.curso_flujo_service import embudo_posicion_hoy_por_curso as _embudo_posicion_hoy_por_curso
 registrar('embudo_posicion_hoy_por_curso', _embudo_posicion_hoy_por_curso)
+from portal.curso_flujo_service import programa_reportes_admin as _programa_reportes_admin
+registrar('programa_reportes_admin', _programa_reportes_admin)
 from portal.empleabilidad_metricas import resumen_empleabilidad_portal as _resumen_empleabilidad_portal
 registrar('resumen_empleabilidad_portal', _resumen_empleabilidad_portal)
 from portal.forms import ClientePortalAdminForm as _ClientePortalAdminForm
