@@ -28,7 +28,7 @@ from .audit import *  # noqa: F401,F403
 from .grupos import *  # noqa: F401,F403
 from .plantilla_dashboard import *  # noqa: F401,F403
 from .commercial import *  # noqa: F401,F403
-from .commercial import (  # re-export helpers usados por core.tasks
+from core.agentes.rag_comercial_archivos import (  # noqa: F401 — re-export proxy/tests
     _extension_archivo_comercial_ok,
     _nombre_documento_desde_nombre_archivo,
     _nombre_rag_comercial_unico,

@@ -850,7 +850,7 @@ def procesar_zip_rag_comercial(
     from django.contrib.auth import get_user_model
     from django.core.files.storage import default_storage
 
-    from core.admin import (
+    from core.agentes.rag_comercial_archivos import (
         _extension_archivo_comercial_ok,
         _nombre_documento_desde_nombre_archivo,
         _nombre_rag_comercial_unico,
@@ -978,7 +978,11 @@ def encode_paso_modulo_media(
     from django.core.exceptions import ValidationError
     from django.core.files.storage import default_storage
 
-    from core.admin._common import guardar_bytes_admin_media_resultado
+    import importlib
+
+    guardar_bytes_admin_media_resultado = importlib.import_module(
+        'core.admin._common',
+    ).guardar_bytes_admin_media_resultado
     from core.curso.media_encode_async import _set_encode_state, _clear_encode_state
     from core.models import PasoModulo
 
