@@ -57,7 +57,7 @@ def _cache_seconds() -> int:
 
 def resolver_ubicacion_texto(ctx_agro=None, pregunta: str = '') -> str:
     """Municipio / región / mención en pregunta para geocoding."""
-    from core.contexto_agro import _extraer_municipio_texto
+    from core.agentes.contexto_agro import _extraer_municipio_texto
 
     def _txt(val) -> str:
         if val is None:

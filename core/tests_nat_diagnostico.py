@@ -2,7 +2,7 @@
 
 from django.test import TestCase
 
-from core.contexto_agro import extraer_campos_desde_mensaje, obtener_o_crear_contexto
+from core.agentes.contexto_agro import extraer_campos_desde_mensaje, obtener_o_crear_contexto
 from core.models import Cliente, SesionComercial
 from core.agentes.nat_diagnostico import siguiente_pregunta_diagnostico
 

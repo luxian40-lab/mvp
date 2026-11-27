@@ -2,7 +2,7 @@
 
 from django.test import TestCase
 
-from core.contexto_agro import (
+from core.agentes.contexto_agro import (
     actualizar_contexto_desde_mensaje,
     extraer_campos_desde_mensaje,
     formatear_bloque_contexto_para_prompt,

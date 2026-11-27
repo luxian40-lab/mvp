@@ -1048,7 +1048,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     bloque_contexto_agro = _perfil_para_nat(telefono_limpio)
     try:
         from core.agentes.ai_capabilities import resolver_ai_capability
-        from core.contexto_agro import actualizar_contexto_desde_mensaje, formatear_bloque_contexto_para_prompt
+        from core.agentes.contexto_agro import actualizar_contexto_desde_mensaje, formatear_bloque_contexto_para_prompt
 
         if resolver_ai_capability('nati_structured_context', cliente=cliente_nati):
             ctx_agro = actualizar_contexto_desde_mensaje(sesion_comercial, msg_body)
