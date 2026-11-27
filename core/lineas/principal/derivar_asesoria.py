@@ -131,7 +131,7 @@ def derivar_detalle(
     if len(opciones) == 1:
         return opciones[0], 'llm', ''
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
-    from core.presupuesto_llm import debe_degradar
+    from core.agentes.presupuesto_llm import debe_degradar
 
     if not api_key or debe_degradar():
         return None, 'sin_llm', ''

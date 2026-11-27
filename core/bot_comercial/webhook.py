@@ -517,7 +517,7 @@ def _perfil_para_nat(telefono: str) -> str:
 def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
     """Llama al modelo anotando el costo a la org; el contexto de cobro no sobrevive a la llamada."""
     from core.agentes.openai_compat import completar_chat, contexto_uso_llm
-    from core.presupuesto_llm import modelo_segun_presupuesto
+    from core.agentes.presupuesto_llm import modelo_segun_presupuesto
 
     token_uso = contexto_uso_llm(cliente_id=cliente_id, agente='nati')
     try:
@@ -650,7 +650,7 @@ def _bot_comercial_respuesta_catalogo(
                 max_out = min(max_out, max_tokens_linea_meta())
         except Exception:
             pass
-        from core.presupuesto_llm import debe_degradar
+        from core.agentes.presupuesto_llm import debe_degradar
 
         cliente_id = getattr(cliente, 'pk', None)
         if debe_degradar(cliente_id):

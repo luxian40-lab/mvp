@@ -51,7 +51,7 @@ def _registrar_uso(modelo: str, texto: str, resp) -> None:
             costo_usd_est=costo,
             estimado=estimado,
         )
-        from core.presupuesto_llm import anotar_gasto
+        from core.agentes.presupuesto_llm import anotar_gasto
 
         anotar_gasto(costo, ctx.get('cliente_id'))
     except Exception:
@@ -121,7 +121,7 @@ def completar_chat(client, modelo: str, messages: list, max_out: int, temperatur
     en el primer intento no debe saltarse el segundo.
     Mitigación 5: sin presupuesto/Redis no hay llamada de pago.
     """
-    from core.presupuesto_llm import debe_degradar
+    from core.agentes.presupuesto_llm import debe_degradar
 
     if debe_degradar():
         return ''

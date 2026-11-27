@@ -64,7 +64,7 @@ class TextosTests(TestCase):
 @override_settings(OPENAI_API_KEY='sk-test', EKI_ASESORIA_MODELO='gpt-5-mini')
 class DerivarTests(TestCase):
     def _derivar(self, respuesta, texto='la broca me está acabando el cafetal', permitidos=TODOS):
-        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('core.agentes.openai_compat.cliente_openai', return_value='cli'), \
                 patch('core.agentes.openai_compat.completar_chat', return_value=respuesta) as llm:
             salida = derivar(texto, telefono='573005559001', permitidos=permitidos)
@@ -112,12 +112,12 @@ class DerivarTests(TestCase):
             raise RuntimeError('caída')
 
         cliente = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=caida)))
-        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('core.agentes.openai_compat.cliente_openai', return_value=cliente):
             self.assertEqual(derivar('precio', telefono='5730', permitidos=TODOS), (None, 'sin_llm'))
 
     def test_presupuesto_agotado_no_llama_al_modelo(self):
-        with patch('core.presupuesto_llm.debe_degradar', return_value=True), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=True), \
                 patch('core.agentes.openai_compat.completar_chat') as llm:
             self.assertEqual(derivar('precio', telefono='5730', permitidos=TODOS), (None, 'sin_llm'))
         llm.assert_not_called()
@@ -138,7 +138,7 @@ class DerivarTests(TestCase):
         cliente = SimpleNamespace(
             chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: resp)),
         )
-        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('core.agentes.openai_compat.cliente_openai', return_value=cliente):
             agente, _ = derivar('debo plata al banco', telefono='573005559002', permitidos=TODOS)
         self.assertEqual(agente, 'finanzas')

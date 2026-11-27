@@ -95,7 +95,7 @@ class ConocimientoAgenteTests(TestCase):
         from core.agentes.openai_compat import _uso
 
         with patch('core.agentes.openai_compat.completar_chat', return_value='ok'), \
-                patch('core.presupuesto_llm.modelo_segun_presupuesto', side_effect=lambda m, c=None: m):
+                patch('core.agentes.presupuesto_llm.modelo_segun_presupuesto', side_effect=lambda m, c=None: m):
             modelo, texto = _completar_nat(object(), 'gpt-x', [], 100, 0.1, None)
         self.assertEqual((modelo, texto), ('gpt-x', 'ok'))
         self.assertIsNone(_uso.get())

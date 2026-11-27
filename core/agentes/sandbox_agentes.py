@@ -642,7 +642,7 @@ def responder_agente_sandbox(
     if not q:
         return saludo_agente(agente)
 
-    from core.presupuesto_llm import debe_degradar
+    from core.agentes.presupuesto_llm import debe_degradar
 
     if debe_degradar():
         return _respuesta_si_falla(agente, q)
@@ -697,7 +697,7 @@ def responder_agente_sandbox(
 
         from core.conversacion.llm_diferido import completar_chat_o_diferir, es_respuesta_diferida
         from core.agentes.openai_compat import contexto_uso_llm
-        from core.presupuesto_llm import modelo_segun_presupuesto
+        from core.agentes.presupuesto_llm import modelo_segun_presupuesto
 
         token_uso = contexto_uso_llm(telefono=telefono, agente=agente)
         try:

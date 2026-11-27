@@ -526,7 +526,7 @@ def _gasto_llm_panel() -> dict:
 
         from core.models import Estudiante
         from core.agentes.models_uso_llm import UsoLLM
-        from core.presupuesto_llm import dia_bogota
+        from core.agentes.presupuesto_llm import dia_bogota
 
         hoy = dia_bogota()
         inicio = timezone.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)

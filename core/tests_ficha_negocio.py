@@ -80,7 +80,7 @@ class PerfilEnElPromptTests(TestCase):
     def _sistema(self, **kwargs):
         from core.agentes.sandbox_agentes import responder_agente_sandbox
 
-        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('openai.OpenAI'), \
                 patch('core.agentes.openai_compat.completar_chat', return_value='R') as llm:
             responder_agente_sandbox('ventas', 'cómo vendo más', telefono=self.tel, **kwargs)
@@ -129,7 +129,7 @@ class DerivarDetalleTests(TestCase):
     TODOS = ['nat', 'coach', 'ia_campo', 'ventas', 'finanzas']
 
     def _derivar(self, respuesta, **kwargs):
-        with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+        with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('core.agentes.openai_compat.cliente_openai', return_value='cli'), \
                 patch('core.agentes.openai_compat.completar_chat', return_value=respuesta) as llm:
             salida = derivar_detalle('debo plata y no vendo', telefono='5730', permitidos=self.TODOS, **kwargs)

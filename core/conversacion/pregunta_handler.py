@@ -108,7 +108,7 @@ def generar_pregunta_rag(modulo, estudiante):
         if not contenido_total.strip():
             return None
 
-        from core.presupuesto_llm import debe_degradar
+        from core.agentes.presupuesto_llm import debe_degradar
 
         if debe_degradar():
             return None

@@ -207,7 +207,7 @@ def tomar_sin_presentacion(telefono: str) -> bool:
 def _llamar(telefono: str, mensajes: list) -> str:
     from django.conf import settings
 
-    from core.presupuesto_llm import debe_degradar
+    from core.agentes.presupuesto_llm import debe_degradar
 
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
     if not api_key or debe_degradar():

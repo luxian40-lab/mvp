@@ -67,7 +67,7 @@ def test_enriquecer_concatena_sin_pisar_el_conocimiento():
 
 @override_settings(OPENAI_API_KEY='sk-test', BOT_VENTAS_FAO_ENABLED=True)
 def test_solo_ventas_consulta_la_fao():
-    with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
+    with patch('core.agentes.presupuesto_llm.debe_degradar', return_value=False), \
             patch('core.analitica.fao_connector.enriquecer_contexto_fao', return_value=('FAO', {'fao_usada': True})) as fao, \
             patch('core.agentes.openai_compat.completar_chat', return_value='Respuesta de prueba.'):
         ventas = responder_agente_sandbox('ventas', 'no consigo clientes para vender')

@@ -238,7 +238,7 @@ def _get_client():
     Mitigación 5: si Redis cae o el tope se agotó, no hay llamada de pago.
     """
     try:
-        from core.presupuesto_llm import debe_degradar
+        from core.agentes.presupuesto_llm import debe_degradar
 
         if debe_degradar():
             return None
