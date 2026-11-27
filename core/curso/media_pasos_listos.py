@@ -110,8 +110,13 @@ def reparar_curso_videos_wa_inactivos(curso, *, reset_progreso: bool = False) ->
     en un módulo tocado y aún no lo completaron (para que el próximo *listo*
     no se salte los videos que ahora van antes).
     """
+    import importlib
+
     from core.models import ModuloCompletado, ProgresoEstudiante
-    from core.curso.module_steps import reset_progreso_pasos_modulo
+
+    reset_progreso_pasos_modulo = importlib.import_module(
+        'core.curso.module_steps',
+    ).reset_progreso_pasos_modulo
 
     n_pasos = 0
     mods: list[int] = []

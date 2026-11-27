@@ -5,12 +5,20 @@ Este módulo conserva los nombres que ya usan utils, admin y tests.
 """
 from __future__ import annotations
 
-from core.lineas.diploma_entrega import (  # noqa: F401
-    es_entrega_diploma,
-    enviar_diploma_plantilla_meta,
-    nombre_plantilla_diploma,
-)
-from core.lineas.diploma_entrega import entregar_si_corresponde
+import importlib
+
+_DIPLOMA_ATTRS = frozenset({
+    'es_entrega_diploma',
+    'enviar_diploma_plantilla_meta',
+    'nombre_plantilla_diploma',
+    'entregar_si_corresponde',
+})
+
+
+def __getattr__(name: str):
+    if name in _DIPLOMA_ATTRS:
+        return getattr(importlib.import_module('core.lineas.diploma_entrega'), name)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
 def entregar_si_es_diploma(
@@ -21,6 +29,9 @@ def entregar_si_es_diploma(
     agente_evento: str = '',
 ) -> dict | None:
     """None si no es diploma. Si lo es, sale por la entrega unificada."""
+    entregar_si_corresponde = importlib.import_module(
+        'core.lineas.diploma_entrega',
+    ).entregar_si_corresponde
     return entregar_si_corresponde(
         telefono,
         texto,

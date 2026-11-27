@@ -6,6 +6,7 @@ Transporte: SANDBOX_PROVEEDOR=meta (default).
 """
 from __future__ import annotations
 
+import importlib
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -14,24 +15,7 @@ from django.conf import settings
 from django.db import DatabaseError
 from django.utils import timezone
 
-# Lo importado con noqa: F401 se lee como `core.sandbox_menu.X`: los módulos movidos
-# (puertas, línea principal) y los patch() de los tests lo buscan aquí.
-from core.conversacion.puertas import (
-    _NO_CONFIRMA_DATOS,  # noqa: F401
-    _SI_CONFIRMA_DATOS,  # noqa: F401
-    _aceptar_habeas_y_abrir_menu,  # noqa: F401
-    _aceptar_habeas_y_pedir_cedula,  # noqa: F401
-    _avisar_aula_es_twilio,  # noqa: F401
-    _enviar_confirma_numero,  # noqa: F401
-    _habeas_listo,  # noqa: F401
-    _responder_cedula,  # noqa: F401
-    _responder_confirmacion,  # noqa: F401
-    _responder_habeas,  # noqa: F401
-    _responder_optout,  # noqa: F401
-    abrir_tras_confirmar,  # noqa: F401
-    alinear_ficha_con_sesion_habeas,  # noqa: F401
-    correr_puertas,
-)
+# Reexport puertas / menú: __getattr__ al final (patch core.sandbox_menu.* en tests).
 from core.lineas.principal.asesores import (
     FILAS_AGENTES,  # noqa: F401
     _guardar_pregunta_en_memoria,  # noqa: F401
@@ -50,12 +34,6 @@ from core.lineas.principal.cursos import (
     bootstrap_cursos_sandbox,  # noqa: F401
     entrar_cursos_inscrito,  # noqa: F401
     ofrecer_cursos_en_curso,  # noqa: F401
-)
-from core.lineas.principal.despacho import despachar as despachar_linea_principal
-from core.lineas.principal.menu import (
-    enviar_catalogo_formacion,  # noqa: F401
-    enviar_menu_sandbox,  # noqa: F401
-    responder_catalogo_general,  # noqa: F401
 )
 from core.agentes.nati import normalizar_telefono_whatsapp
 from core.canal.planes_linea import (
@@ -645,7 +623,9 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
             decision.texto_menu = str(curso_id)
             return decision
 
-    from core.lineas.principal.menu import aplicar_ruta_catalogo
+    aplicar_ruta_catalogo = importlib.import_module(
+        'core.lineas.principal.menu',
+    ).aplicar_ruta_catalogo
 
     if aplicar_ruta_catalogo(decision, sesion, body):
         return decision
@@ -874,6 +854,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     from_tel, _, body_habeas = _extract_from_body(payload)
     body_habeas = _body_o_audio_transcrito(payload, body_habeas)
     if from_tel:
+        correr_puertas = importlib.import_module('core.conversacion.puertas').correr_puertas
         if correr_puertas(from_tel, body_habeas) == 'handled':
             return 'handled'
         try:
@@ -893,4 +874,37 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
 
     if perfil_de().curso_directo:
         return _despachar_curso_directo(decision, from_n)
-    return despachar_linea_principal(decision, payload, body, from_n)
+    despachar = importlib.import_module('core.lineas.principal.despacho').despachar
+    return despachar(decision, payload, body, from_n)
+
+
+_PUERTAS_ATTRS = frozenset({
+    '_NO_CONFIRMA_DATOS',
+    '_SI_CONFIRMA_DATOS',
+    '_aceptar_habeas_y_abrir_menu',
+    '_aceptar_habeas_y_pedir_cedula',
+    '_avisar_aula_es_twilio',
+    '_enviar_confirma_numero',
+    '_habeas_listo',
+    '_responder_cedula',
+    '_responder_confirmacion',
+    '_responder_habeas',
+    '_responder_optout',
+    'abrir_tras_confirmar',
+    'alinear_ficha_con_sesion_habeas',
+    'correr_puertas',
+})
+
+_MENU_ATTRS = frozenset({
+    'enviar_catalogo_formacion',
+    'enviar_menu_sandbox',
+    'responder_catalogo_general',
+})
+
+
+def __getattr__(name: str):
+    if name in _PUERTAS_ATTRS:
+        return getattr(importlib.import_module('core.conversacion.puertas'), name)
+    if name in _MENU_ATTRS:
+        return getattr(importlib.import_module('core.lineas.principal.menu'), name)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
