@@ -51,7 +51,7 @@ class Command(BaseCommand):
             )
 
         if options['reindexar_errores']:
-            from core.biblioteca_nat_service import reindexar_item
+            from core.agentes.biblioteca_nat_service import reindexar_item
 
             n = 0
             for item in BibliotecaConocimiento.objects.filter(estado_rag='error'):

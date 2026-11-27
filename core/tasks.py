@@ -774,7 +774,7 @@ def enviar_email_org_admin_async(self, estudiante_id, asunto, mensaje_html):
 @shared_task(bind=True, max_retries=2, default_retry_delay=120, time_limit=3600, soft_time_limit=3300)
 def indexar_biblioteca_nat_por_id(self, item_id: int):
     """Indexa BibliotecaConocimiento (Nat Knowledge Hub) fuera del request HTTP."""
-    from core.biblioteca_nat_service import indexar_item
+    from core.agentes.biblioteca_nat_service import indexar_item
     from core.models import BibliotecaConocimiento
 
     try:

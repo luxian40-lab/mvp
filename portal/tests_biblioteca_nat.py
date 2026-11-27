@@ -21,9 +21,9 @@ class BibliotecaNatServiceTests(TestCase):
             portal_productos='nat',
         )
 
-    @patch('core.biblioteca_nat_service.encolar_indexacion')
+    @patch('core.agentes.biblioteca_nat_service.encolar_indexacion')
     def test_crear_faq_indexa(self, mock_enc):
-        from core.biblioteca_nat_service import crear_desde_formulario
+        from core.agentes.biblioteca_nat_service import crear_desde_formulario
 
         item = crear_desde_formulario(
             self.cliente,
@@ -43,7 +43,7 @@ class BibliotecaNatServiceTests(TestCase):
     def test_fallback_texto_si_archivo_vacio(self, mock_rag):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from core.biblioteca_nat_service import indexar_item
+        from core.agentes.biblioteca_nat_service import indexar_item
 
         mock_rag.disponible = True
         mock_rag.procesar_documento.return_value = 0
@@ -113,7 +113,7 @@ class PortalSoloNatTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Biblioteca de conocimiento')
 
-    @patch('core.biblioteca_nat_service.encolar_indexacion')
+    @patch('core.agentes.biblioteca_nat_service.encolar_indexacion')
     def test_crear_faq_desde_portal(self, _mock_enc):
         self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})
         r = self.http.post('/portal/biblioteca/nuevo/', {

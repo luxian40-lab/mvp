@@ -2215,7 +2215,7 @@ def portal_gei_parametros(request):
 @portal_login_required
 @requiere_modulo('nat')
 def portal_biblioteca(request):
-    from core.biblioteca_nat_service import listar_biblioteca
+    from core.agentes.biblioteca_nat_service import listar_biblioteca
     from core.models import BibliotecaConocimiento
 
     org = _portal_org(request)
@@ -2243,7 +2243,7 @@ def portal_biblioteca(request):
 @portal_login_required
 @requiere_modulo('nat')
 def portal_biblioteca_crear(request):
-    from core.biblioteca_nat_service import crear_desde_formulario
+    from core.agentes.biblioteca_nat_service import crear_desde_formulario
     from core.models import BibliotecaConocimiento
 
     org = _portal_org(request)
@@ -2281,7 +2281,7 @@ def portal_biblioteca_crear(request):
 @portal_login_required
 @requiere_modulo('nat')
 def portal_biblioteca_editar(request, item_id: int):
-    from core.biblioteca_nat_service import actualizar_item
+    from core.agentes.biblioteca_nat_service import actualizar_item
     from core.models import BibliotecaConocimiento
 
     org = _portal_org(request)
@@ -2313,7 +2313,7 @@ def portal_biblioteca_editar(request, item_id: int):
 @portal_login_required
 @requiere_modulo('nat')
 def portal_biblioteca_reindexar(request, item_id: int):
-    from core.biblioteca_nat_service import reindexar_item
+    from core.agentes.biblioteca_nat_service import reindexar_item
     from core.models import BibliotecaConocimiento
 
     org = _portal_org(request)
@@ -2333,7 +2333,7 @@ def portal_biblioteca_reindexar(request, item_id: int):
 @requiere_modulo('nat')
 @requiere_portal_admin
 def portal_biblioteca_reindexar_todo(request):
-    from core.biblioteca_nat_service import reindexar_publicados
+    from core.agentes.biblioteca_nat_service import reindexar_publicados
 
     org = _portal_org(request)
     if not org:
@@ -2351,7 +2351,7 @@ def portal_biblioteca_reindexar_todo(request):
 @portal_login_required
 @requiere_modulo('nat')
 def portal_biblioteca_subida_masiva(request):
-    from core.biblioteca_nat_service import crear_masivo_desde_archivos
+    from core.agentes.biblioteca_nat_service import crear_masivo_desde_archivos
     from core.models import BibliotecaConocimiento
 
     org = _portal_org(request)

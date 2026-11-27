@@ -52,7 +52,7 @@ def _nombre_rag_unico(destino: Cliente, nombre: str) -> str:
 
 
 def _slug_unico(destino: Cliente, slug: str) -> str:
-    from core.biblioteca_nat_service import slug_unico
+    from core.agentes.biblioteca_nat_service import slug_unico
 
     return slug_unico(destino, slug.replace('-', ' ') or 'conocimiento')
 
@@ -187,7 +187,7 @@ def copiar_conocimiento_a_cliente(
         def _enqueue():
             from django.conf import settings
 
-            from core.biblioteca_nat_service import _stagger_segundos, encolar_indexacion
+            from core.agentes.biblioteca_nat_service import _stagger_segundos, encolar_indexacion
 
             for i, item in enumerate(bib_nuevos):
                 encolar_indexacion(item.pk, countdown=_stagger_segundos(i))
