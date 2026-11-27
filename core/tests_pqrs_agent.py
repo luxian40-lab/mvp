@@ -335,7 +335,7 @@ class TestContextoYAccionesPQRS(TestCase):
         self.assertEqual((self.est.contexto_temporal or {}).get('tipo'), 'correccion_datos')
 
     def test_accion_corregir_datos_aplica_valor(self):
-        from core.pqrs_acciones import ejecutar_accion_pqrs
+        from core.agentes.pqrs_acciones import ejecutar_accion_pqrs
 
         resultado = ejecutar_accion_pqrs(
             self.est,

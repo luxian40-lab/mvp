@@ -79,7 +79,7 @@ def intentar_reenvio_media_curso(estudiante, mensaje: str) -> str | None:
     agri_duda = _es_agri_duda_media(estudiante, mensaje)
     if not es_pedido_reenvio_media(mensaje) and not agri_duda:
         return None
-    from core.pqrs_acciones import texto_reenviar_modulo
+    from core.agentes.pqrs_acciones import texto_reenviar_modulo
 
     out = texto_reenviar_modulo(estudiante)
     if out:

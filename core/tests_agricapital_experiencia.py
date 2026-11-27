@@ -85,7 +85,7 @@ class MediaAgriCapitalTests(SimpleTestCase):
     def test_otro_cliente_no_descarga_no_activa_tip_agri(self):
         est = SimpleNamespace(cliente_id=OTRO_ID, telefono='573001112233')
         with patch(
-            'core.pqrs_acciones.texto_reenviar_modulo',
+            'core.agentes.pqrs_acciones.texto_reenviar_modulo',
             return_value=None,
         ):
             self.assertIsNone(intentar_reenvio_media_curso(est, 'No descarga'))
@@ -93,7 +93,7 @@ class MediaAgriCapitalTests(SimpleTestCase):
     def test_agri_no_descarga_da_tip_si_no_hay_media(self):
         est = SimpleNamespace(cliente_id=AGRI_ID, telefono='573001112233')
         with patch(
-            'core.pqrs_acciones.texto_reenviar_modulo',
+            'core.agentes.pqrs_acciones.texto_reenviar_modulo',
             return_value=None,
         ):
             out = intentar_reenvio_media_curso(est, 'No descarga')
@@ -103,7 +103,7 @@ class MediaAgriCapitalTests(SimpleTestCase):
     def test_agri_no_puedo_ver_imagen_intenta_reenvio(self):
         est = SimpleNamespace(cliente_id=AGRI_ID, telefono='573001112233')
         with patch(
-            'core.pqrs_acciones.texto_reenviar_modulo',
+            'core.agentes.pqrs_acciones.texto_reenviar_modulo',
             return_value='[MEDIA:https://ejemplo.test/a.jpg]',
         ), patch(
             'core.curso.media_entrega.marcar_paquete_recuperado_por_telefono',

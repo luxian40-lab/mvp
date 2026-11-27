@@ -433,7 +433,7 @@ def _contexto_completo(solicitud) -> str:
 
 
 def _enriquecer_con_acciones(solicitud, resultado: dict[str, Any]) -> dict[str, Any]:
-    from core.pqrs_acciones import ejecutar_accion_pqrs
+    from core.agentes.pqrs_acciones import ejecutar_accion_pqrs
 
     est = getattr(solicitud, 'estudiante', None)
     if not est:
