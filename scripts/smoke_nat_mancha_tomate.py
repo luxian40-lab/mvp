@@ -14,7 +14,7 @@ from django.utils import timezone
 from core.contexto_agro import actualizar_contexto_desde_mensaje, obtener_o_crear_contexto
 from core.models import Cliente, ProductoCatalogo, SesionComercial
 from core.agentes.nat_diagnostico import es_consulta_diagnostico, siguiente_pregunta_diagnostico
-from core.nati import armar_system_prompt, obtener_contexto_productos
+from core.agentes.nati import armar_system_prompt, obtener_contexto_productos
 
 
 def _ok(msg: str) -> None:
