@@ -969,7 +969,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
 
     try:
         from core.agentes.eventos_ia import emit_webhook_recibido
-        from core.ai_capabilities import resolver_ai_capability
+        from core.agentes.ai_capabilities import resolver_ai_capability
 
         if resolver_ai_capability('eventos_ia'):
             emit_webhook_recibido(
@@ -1047,7 +1047,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     ctx_agro = None
     bloque_contexto_agro = _perfil_para_nat(telefono_limpio)
     try:
-        from core.ai_capabilities import resolver_ai_capability
+        from core.agentes.ai_capabilities import resolver_ai_capability
         from core.contexto_agro import actualizar_contexto_desde_mensaje, formatear_bloque_contexto_para_prompt
 
         if resolver_ai_capability('nati_structured_context', cliente=cliente_nati):

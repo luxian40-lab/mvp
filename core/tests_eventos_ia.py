@@ -127,12 +127,12 @@ class CursoConModuloCeroCheckpointTests(TestCase):
 
 class AiCapabilitiesTests(TestCase):
     def test_registry_checkpoint_default_on(self):
-        from core.ai_capabilities import resolver_ai_capability
+        from core.agentes.ai_capabilities import resolver_ai_capability
 
         self.assertTrue(resolver_ai_capability('checkpoint_dario'))
 
     def test_registry_unknown_off(self):
-        from core.ai_capabilities import resolver_ai_capability
+        from core.agentes.ai_capabilities import resolver_ai_capability
 
         self.assertFalse(resolver_ai_capability('inventado'))
 

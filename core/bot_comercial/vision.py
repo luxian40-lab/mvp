@@ -99,7 +99,7 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
     if not media_url or not (media_type or '').startswith('image'):
         return ''
 
-    from core.ai_capabilities import resolver_ai_capability
+    from core.agentes.ai_capabilities import resolver_ai_capability
     from core.agentes.eki_ia_kill_switch import eki_ia_llm_kill_activo
 
     # Visión Nat es parte del producto: no bloquear si el override está off.

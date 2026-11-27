@@ -249,7 +249,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
         try:
             from core.agentes.eventos_ia import emit_webhook_recibido
-            from core.ai_capabilities import resolver_ai_capability
+            from core.agentes.ai_capabilities import resolver_ai_capability
 
             if resolver_ai_capability('eventos_ia'):
                 emit_webhook_recibido(

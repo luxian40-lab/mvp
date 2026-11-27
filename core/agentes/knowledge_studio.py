@@ -25,7 +25,7 @@ def crear_candidata_hitl(
     trace_id=None,
 ) -> 'ConversacionRAGCandidata | None':
     """Registra una conversación como candidata a revisión agronómica."""
-    from core.ai_capabilities import resolver_ai_capability
+    from core.agentes.ai_capabilities import resolver_ai_capability
     from core.models import ConversacionRAGCandidata
 
     if not resolver_ai_capability('hitl_rag_publish', cliente=cliente):

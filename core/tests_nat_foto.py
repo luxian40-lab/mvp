@@ -88,7 +88,7 @@ def test_url_vision_descarga_twilio_con_auth(mock_get):
 
 
 @override_settings(OPENAI_API_KEY='sk-test')
-@patch('core.ai_capabilities.resolver_ai_capability', return_value=True)
+@patch('core.agentes.ai_capabilities.resolver_ai_capability', return_value=True)
 @patch('core.bot_comercial.vision.url_vision_desde_twilio', return_value='data:image/jpeg;base64,abc')
 @patch('openai.OpenAI')
 def test_diagnosticar_imagen_usa_prompt_hipotesis(mock_openai, _url, _cap):
@@ -168,7 +168,7 @@ def test_match_producto_por_nombre_en_texto_sin_formato():
 
 
 @override_settings(OPENAI_API_KEY='sk-test')
-@patch('core.ai_capabilities.resolver_ai_capability', return_value=False)
+@patch('core.agentes.ai_capabilities.resolver_ai_capability', return_value=False)
 @patch('core.bot_comercial.vision.url_vision_desde_twilio', return_value='data:image/jpeg;base64,abc')
 @patch('openai.OpenAI')
 def test_vision_sigue_con_capability_off(mock_openai, _url, _cap):
