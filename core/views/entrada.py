@@ -243,7 +243,7 @@ def whatsapp_webhook(request):
                 return denied
 
         def _es_destino_bot_comercial(data):
-            from core.bot_comercial_routing import es_destino_bot_comercial
+            from core.agentes.bot_comercial_routing import es_destino_bot_comercial
             return es_destino_bot_comercial(data)
 
         try:

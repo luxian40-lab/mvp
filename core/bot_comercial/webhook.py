@@ -939,7 +939,7 @@ def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False)
     if len(telefono_limpio) == 10:
         telefono_limpio = f"57{telefono_limpio}"
 
-    from core.bot_comercial_routing import es_numero_comercial_conocido
+    from core.agentes.bot_comercial_routing import es_numero_comercial_conocido
     if (not forzar_canal) and to_limpio and not es_numero_comercial_conocido(to_limpio):
         logger.info(
             "Webhook bot comercial ignorado: To=%s no es línea Nat (global/org/sandbox)",

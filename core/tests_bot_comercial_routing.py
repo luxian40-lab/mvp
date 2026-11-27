@@ -2,7 +2,7 @@
 
 from django.test import SimpleTestCase, TestCase, override_settings
 
-from core.bot_comercial_routing import (
+from core.agentes.bot_comercial_routing import (
     es_destino_bot_comercial,
     es_numero_comercial_conocido,
     numeros_destino_comercial,

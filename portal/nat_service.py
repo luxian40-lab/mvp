@@ -20,7 +20,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
     """
     from django.conf import settings
 
-    from core.bot_comercial_routing import _sandbox_number
+    from core.agentes.bot_comercial_routing import _sandbox_number
     from core.models import BibliotecaConocimiento, DocumentoRAGComercial, ProductoCatalogo, ProductoComercial
 
     linea = (getattr(org, 'numero_whatsapp_nat', '') or '').strip()

@@ -108,7 +108,7 @@ def test_statuses_no_se_deduplican(mock_proc, mock_delay):
     SECURE_SSL_REDIRECT=False,
 )
 @patch('core.views.entrada._procesar_twilio_webhook', return_value=None)
-@patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
+@patch('core.agentes.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
 def test_status_callback_twilio_no_se_deduplica(mock_route, mock_proc):
     client = Client()
     data = {
@@ -228,7 +228,7 @@ def test_fallo_al_encolar_borra_reclamo_y_el_reintento_procesa():
     }
     with patch.object(entrada, '_encolar_twilio_edu_si_async') as mock_encolar, \
             patch.object(entrada, '_procesar_twilio_webhook', return_value=None) as mock_proc, \
-            patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False), \
+            patch('core.agentes.bot_comercial_routing.es_destino_bot_comercial', return_value=False), \
             patch('core.canal.twilio_puerta.aplicar_puerta_twilio', return_value='seguir'), \
             patch('core.canal.envios.enviar_whatsapp_twilio', side_effect=AssertionError('no debe llamar a Twilio')):
         mock_encolar.side_effect = ConnectionError('redis')

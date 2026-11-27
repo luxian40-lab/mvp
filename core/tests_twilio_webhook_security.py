@@ -64,7 +64,7 @@ def test_whatsapp_webhook_firma_invalida_403():
 )
 @patch('core.views.entrada._procesar_twilio_webhook', return_value=None)
 @patch('core.views.entrada._encolar_twilio_edu_si_async', return_value=False)
-@patch('core.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
+@patch('core.agentes.bot_comercial_routing.es_destino_bot_comercial', return_value=False)
 def test_whatsapp_webhook_firma_valida_ok(mock_route, mock_async, mock_proc):
     client = Client()
     data = {
