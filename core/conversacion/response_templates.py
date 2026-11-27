@@ -11,7 +11,6 @@ from urllib.parse import quote
 
 from core.conversacion.claves_contexto import contexto_limpio
 from core.conversacion.multimsg import MEDIA, partir_sep
-from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
 
 
 logger = logging.getLogger(__name__)
@@ -556,7 +555,11 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if estudiante_id_b2b:
         try:
             from core.models import Estudiante
-            from core.conversacion.flujo_whatsapp_b2b import respuesta_b2b_sin_menu
+            import importlib
+
+            respuesta_b2b_sin_menu = importlib.import_module(
+                'core.conversacion.flujo_whatsapp_b2b',
+            ).respuesta_b2b_sin_menu
 
             _est_b2b = Estudiante.objects.select_related('cliente').get(id=estudiante_id_b2b)
             _alt = respuesta_b2b_sin_menu(_est_b2b, intent, nombre_usuario, kwargs)

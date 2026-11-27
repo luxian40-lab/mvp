@@ -1,6 +1,7 @@
 """Pasos internos por módulo (entrega progresiva por WhatsApp)."""
 from __future__ import annotations
 
+import importlib
 import logging
 import re
 from typing import TYPE_CHECKING, Optional
@@ -29,14 +30,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger('core.module_steps')
 
 # Entre secciones y al cerrar el módulo: el envío lo vuelve botón «Continuemos».
-from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+MARCADOR_BOTON_CONTINUEMOS = importlib.import_module(
+    'core.conversacion.avance_whatsapp',
+).MARCADOR_BOTON_CONTINUEMOS
 
 MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_CONTINUAR_EN_MODULO = MARCADOR_BOTON_CONTINUEMOS
 MSG_LISTO_FIN_PASOS_MODULO = MARCADOR_BOTON_CONTINUEMOS
 
-from core.conversacion.multimsg import MULTI_MSG, partes_multimsg, partir_sep
-from core.conversacion.response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
+_mm = importlib.import_module('core.conversacion.multimsg')
+MULTI_MSG = _mm.MULTI_MSG
+partes_multimsg = _mm.partes_multimsg
+partir_sep = _mm.partir_sep
+_rt = importlib.import_module('core.conversacion.response_templates')
+MENSAJE_CAPTION_SOLO_MEDIA = _rt.MENSAJE_CAPTION_SOLO_MEDIA
+parte_mensaje_con_media = _rt.parte_mensaje_con_media
 
 # Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
 # entregue antes el texto corto de *listo* que el feedback más largo.

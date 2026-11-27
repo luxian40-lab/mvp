@@ -261,7 +261,11 @@ _WEBHOOK_TASK = dict(
 @shared_task(base=_TareaWebhook, **_WEBHOOK_TASK)
 def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bool = False):
     """Nat fuera del request. El candado es por teléfono; si no se obtiene, reintenta."""
-    from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
+    import importlib
+
+    _procesar_bot_comercial_twilio_webhook = importlib.import_module(
+        'core.bot_comercial.webhook',
+    )._procesar_bot_comercial_twilio_webhook
     from core.conversacion.locks import telefono_lock
     from core.agentes.nati import normalizar_telefono_whatsapp
 
