@@ -1,0 +1,3 @@
+# H4 — Freno de imports internos (bloque 6.3)
+
+**27 de noviembre de 2026:** se añadió el guardián AST `core/tests_bloque6_freno_imports_internos.py`. Falla si `core/curso/` importa `core.lineas.principal` o menú (`core.sandbox_menu`), o si `core/conversacion/` (fuera de tests) importa `core.admin` / `core.admin_vistas`. Complementa el ratchet de complejidad; no reemplaza la regla de que `core` no importe apps superiores (`core_importa_apps_superiores` = 0). Un import legado en `cursos_generales.py` (línea 639) queda exento documentado hasta sacar menú del motor.

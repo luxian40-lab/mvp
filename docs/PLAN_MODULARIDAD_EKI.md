@@ -124,6 +124,8 @@ E1–E3 siguen ON en producción (espejo en `Estudiante` a propósito). **E4, G4
 
 **Bloque 2 código VERDE en `origin/main` (2026-11-23):** outbox, cero `time.sleep` en conversación/líneas/avisos, `delays_por_celery`, Redis fail-closed, dueños W1 desplegados. W3 cerrado como no-crecer (`docs/INFORME_W3_DECISION.md`). W2: muestra noche 19 nov con LLEN 0; falta evidencia de pico en día laborable (ops). RAG: setenv falló por límite 4096; prod con `EKI_ROLE=web` no indexa; precondición H4 / bloque 6 cumplida a nivel código.
 
+**H4 paso 6.3 (27 nov 2026):** freno interno de imports en `core/tests_bloque6_freno_imports_internos.py` (curso ↔ línea principal/menú; conversación ↔ admin). Detalle en `docs/H4_FRENO_IMPORTS_INTERNOS.md`. No sustituye `core_importa_apps_superiores = 0`.
+
 Expediente (origen de cierre, calificación nullable, flags de diploma apagados) mergeado y desplegado antes de este corte.
 
 `EKI_CONTEXTO_CONSERVA_CLAVES=true` en prod. Cognito no es una fase de este plan.
