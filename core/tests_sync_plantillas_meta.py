@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 
-from core.meta_waba import enviar_prueba_meta, sincronizar_catalogo_meta
+from core.canal.meta_waba import enviar_prueba_meta, sincronizar_catalogo_meta
 from core.models import Cliente
 from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 
@@ -55,7 +55,7 @@ class SyncCatalogoMetaTests(TestCase):
                 }],
             }
 
-        with patch('core.meta_waba._get', side_effect=falso_get):
+        with patch('core.canal.meta_waba._get', side_effect=falso_get):
             resultado = sincronizar_catalogo_meta()
         self.assertTrue(resultado['ok'])
         local.refresh_from_db()
@@ -66,7 +66,7 @@ class SyncCatalogoMetaTests(TestCase):
         self.assertEqual(nueva.rejected_reason, 'INVALID_FORMAT')
 
     def test_comando_falla_sin_waba(self):
-        with patch('core.meta_waba._waba', return_value=''):
+        with patch('core.canal.meta_waba._waba', return_value=''):
             with self.assertRaises(CommandError):
                 call_command('sync_plantillas_meta')
 
@@ -110,8 +110,8 @@ class EnviarPruebaMetaTests(TestCase):
         self.campana.refresh_from_db()
         self.assertFalse(self.campana.ejecutada)
 
-    @patch('core.meta_waba.phone_pertenece_a_waba', return_value=(True, ''))
-    @patch('core.meta_waba._post')
+    @patch('core.canal.meta_waba.phone_pertenece_a_waba', return_value=(True, ''))
+    @patch('core.canal.meta_waba._post')
     def test_aprobada_envia_una_vez_sin_cerrar_campana(self, post, _phone):
         self.plantilla.estado = 'APPROVED'
         self.plantilla.save(update_fields=['estado'])

@@ -1117,7 +1117,7 @@ def generar_video_course_engine_async(
 @shared_task
 def sincronizar_plantillas_meta():
     """Poll de plantillas Meta en PENDING / IN_APPEAL. No toca Twilio."""
-    from core.meta_waba import sincronizar_pendientes
+    from core.canal.meta_waba import sincronizar_pendientes
 
     n = sincronizar_pendientes()
     logger.info('plantillas_meta_sync n=%s', n)
@@ -1127,7 +1127,7 @@ def sincronizar_plantillas_meta():
 @shared_task
 def sincronizar_catalogo_plantillas_meta():
     """Catálogo del WABA cada 30 minutos. No envía mensajes ni borra filas."""
-    from core.meta_waba import sincronizar_catalogo_meta
+    from core.canal.meta_waba import sincronizar_catalogo_meta
 
     resultado = sincronizar_catalogo_meta()
     logger.info('plantillas_meta_catalogo ok=%s resumen=%s', resultado.get('ok'), resultado.get('resumen'))
@@ -1148,7 +1148,7 @@ def enviar_campanas_meta_programadas():
     from django.conf import settings
     from django.utils import timezone
 
-    from core.meta_waba import encolar_campana_meta
+    from core.canal.meta_waba import encolar_campana_meta
     from core.campanas.models_campana_meta import CampanaMeta
 
     from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion
@@ -1167,7 +1167,7 @@ def enviar_campanas_meta_programadas():
 
 @shared_task(bind=True, max_retries=1, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
 def ejecutar_campana_meta_async(self, campana_id):
-    from core.meta_waba import ejecutar_campana_meta
+    from core.canal.meta_waba import ejecutar_campana_meta
     from core.campanas.models_campana_meta import CampanaMeta
 
     try:

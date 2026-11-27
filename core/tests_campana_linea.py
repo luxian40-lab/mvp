@@ -52,7 +52,7 @@ class CampanaLineaWabaTests(TestCase):
         self.assertNotIn(de_la_2.id, ids_1)
 
     def test_el_envio_corta_si_la_plantilla_es_de_otra_cuenta(self):
-        from core.meta_waba import ejecutar_campana_meta
+        from core.canal.meta_waba import ejecutar_campana_meta
 
         plantilla = _plantilla()
         campana = CampanaMeta.objects.create(
@@ -148,9 +148,9 @@ class CampanaLineaWabaTests(TestCase):
             self.assertFalse(form.is_valid())
             self.assertIn('linea', form.errors)
 
-    @patch('core.meta_waba.requests.post')
+    @patch('core.canal.meta_waba.requests.post')
     def test_crear_plantilla_pega_en_la_waba_de_la_linea_2(self, post):
-        from core.meta_waba import crear_plantilla_en_meta
+        from core.canal.meta_waba import crear_plantilla_en_meta
 
         post.return_value.status_code = 200
         post.return_value.json.return_value = {'id': '888', 'status': 'PENDING'}
@@ -164,9 +164,9 @@ class CampanaLineaWabaTests(TestCase):
         self.assertTrue(resultado['success'], resultado)
         self.assertIn(f'/{WABA_2}/message_templates', post.call_args.args[0])
 
-    @patch('core.meta_waba._get')
+    @patch('core.canal.meta_waba._get')
     def test_sincronizar_recorre_las_dos_waba_sin_mezclar(self, get):
-        from core.meta_waba import sincronizar_catalogo_meta
+        from core.canal.meta_waba import sincronizar_catalogo_meta
 
         de_1 = _plantilla(meta_template_id='55')
         de_2 = _plantilla(

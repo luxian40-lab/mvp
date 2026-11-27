@@ -41,7 +41,7 @@ def enviar_plantilla_a_meta(nombre_plantilla, contenido, categoria='MARKETING', 
     nombre_sanitizado = ''.join(c for c in nombre_sanitizado if c.isalnum() or c == '_')
     
     # Construir URL del endpoint
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     url = f"https://graph.facebook.com/{_version()}/{waba_id}/message_templates"
     
@@ -135,7 +135,7 @@ def verificar_estado_plantilla_meta(template_id):
     if not access_token:
         return {'success': False, 'message': 'Token no configurado'}
     
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     url = f"https://graph.facebook.com/{_version()}/{template_id}"
     headers = {"Authorization": f"Bearer {access_token}"}

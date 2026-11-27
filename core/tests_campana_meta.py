@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from core.meta_waba import (
+from core.canal.meta_waba import (
     aplicar_eventos_plantilla,
     armar_componentes_alta,
     crear_plantilla_en_meta,
@@ -70,7 +70,7 @@ class CampanaMetaTests(TestCase):
         self.assertEqual(comps[1]['example']['body_text'], [['Café']])
         self.assertEqual(comps[3]['buttons'][0]['type'], 'QUICK_REPLY')
 
-    @patch('core.meta_waba.requests.post')
+    @patch('core.canal.meta_waba.requests.post')
     def test_crear_guarda_id_y_pending(self, post):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {'id': '999', 'status': 'PENDING'}
@@ -85,7 +85,7 @@ class CampanaMetaTests(TestCase):
         self.assertEqual(payload['category'], 'UTILITY')
         self.assertIn('/111222333/message_templates', post.call_args.args[0])
 
-    @patch('core.meta_waba.requests.post')
+    @patch('core.canal.meta_waba.requests.post')
     def test_crear_error_meta_queda_en_error(self, post):
         post.return_value.status_code = 400
         post.return_value.json.return_value = {
@@ -176,7 +176,7 @@ class CampanaMetaTests(TestCase):
         pagina = self.client.get(reverse('admin:core_campanameta_change', args=[campana.pk]))
         self.assertContains(pagina, 'Enviar prueba')
         self.assertContains(pagina, 'Enviar a 1')
-        with patch('core.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
+        with patch('core.canal.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
             resp = self.client.post(reverse('admin:core_campanameta_enviar', args=[campana.pk]))
         self.assertEqual(resp.status_code, 302)
         encolar.assert_called_once_with(campana.id)
@@ -191,9 +191,9 @@ class CampanaMetaTests(TestCase):
         with self.assertRaises(ValueError):
             ejecutar_campana_meta(campana)
 
-    @patch('core.meta_waba.time.sleep')
-    @patch('core.meta_waba.requests.post')
-    @patch('core.meta_waba.requests.get')
+    @patch('core.canal.meta_waba.time.sleep')
+    @patch('core.canal.meta_waba.requests.post')
+    @patch('core.canal.meta_waba.requests.get')
     def test_enviar_arma_template_cloud_api(self, get, post, _sleep):
         self.plantilla.estado = 'APPROVED'
         self.plantilla.meta_template_id = '999'
@@ -366,7 +366,7 @@ class CampanaMetaTests(TestCase):
         self.assertContains(pagina, 'Tome las riendas de su dinero')
         self.assertContains(pagina, 'Innovación e IA para nuevos emprendedores')
         self.assertContains(pagina, 'Gestión de tiempo y productividad personal en el campo')
-        with patch('core.meta_waba._post') as post:
+        with patch('core.canal.meta_waba._post') as post:
             resp = client.post(reverse('admin_campana_meta_dia'), {
                 'nombre': 'Formación del día',
                 'cursos': ['riendas', 'innovacion', 'tiempo'],
@@ -391,8 +391,8 @@ class CampanaMetaTests(TestCase):
         ])
 
     @override_settings(WHATSAPP_APP_ID='999000')
-    @patch('core.meta_waba.subir_ejemplo_imagen', side_effect=['h-riendas', 'h-tiempo'])
-    @patch('core.meta_waba._post')
+    @patch('core.canal.meta_waba.subir_ejemplo_imagen', side_effect=['h-riendas', 'h-tiempo'])
+    @patch('core.canal.meta_waba._post')
     def test_carrusel_se_crea_en_meta(self, post, _subir):
         post.return_value = (200, {'id': 'car-1', 'status': 'PENDING'})
         plantilla = guardar_borrador_carrusel('Borrador', ['riendas', 'tiempo'])
@@ -417,8 +417,8 @@ class CampanaMetaTests(TestCase):
         self.assertEqual(primera[2]['buttons'][1]['text'], 'Más información')
         self.assertEqual(cards[1]['components'][0]['example']['header_handle'], ['h-tiempo'])
 
-    @patch('core.meta_waba.subir_ejemplo_imagen', side_effect=RuntimeError('Faltan WHATSAPP_APP_ID'))
-    @patch('core.meta_waba._post')
+    @patch('core.canal.meta_waba.subir_ejemplo_imagen', side_effect=RuntimeError('Faltan WHATSAPP_APP_ID'))
+    @patch('core.canal.meta_waba._post')
     def test_carrusel_sin_foto_no_crea_la_plantilla(self, post, _subir):
         plantilla = guardar_borrador_carrusel('Sin foto', ['riendas', 'tiempo'])
         resultado = crear_plantilla_en_meta(plantilla)
@@ -484,9 +484,9 @@ class CampanaMetaTests(TestCase):
         self.assertIn('copia', copia.nombre_interno)
         self.assertEqual(copia.meta_template_id, '')
 
-    @patch('core.meta_waba.enviar_prueba_meta')
+    @patch('core.canal.meta_waba.enviar_prueba_meta')
     def test_enviar_prueba_usa_los_ejemplos(self, prueba):
-        from core.meta_waba import enviar_prueba_de_plantilla
+        from core.canal.meta_waba import enviar_prueba_de_plantilla
 
         prueba.return_value = {'success': True, 'message': 'Prueba enviada.'}
         self.plantilla.estado = 'APPROVED'

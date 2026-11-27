@@ -248,7 +248,7 @@ class AltaEstudianteTests(TestCase):
         form = self._form(cedula='880', telefono='3001112277', enviar_bienvenida='')
         with self.settings():
             from unittest.mock import patch
-            with patch('core.meta_waba._post') as post:
+            with patch('core.canal.meta_waba._post') as post:
                 est = self._guardar(form)
                 post.assert_not_called()
         self.assertTrue(Estudiante.objects.filter(pk=est.pk).exists())
@@ -261,7 +261,7 @@ class AltaEstudianteTests(TestCase):
         est2 = form_falla.save(commit=False)
         est2.wa_optin_fecha = timezone.now()
         with self.settings(WHATSAPP_PHONE_ID='15550001111'):
-            with patch('core.meta_waba._post', return_value=(500, {})) as post:
+            with patch('core.canal.meta_waba._post', return_value=(500, {})) as post:
                 request = self.rf.post('/admin/')
                 request.user = self.user
                 request.session = {}
@@ -379,7 +379,7 @@ class AltaEstudianteTests(TestCase):
             ['CC', '4246', 'Nadie', '3001112304', 'No existe', 'General eki'],
         ])
         url = reverse('admin:core_estudiante_importar')
-        with patch('core.meta_waba._post') as post:
+        with patch('core.canal.meta_waba._post') as post:
             previo = self.client.post(url, {'paso': 'previsualizar', 'archivo_excel': archivo})
             self.assertContains(previo, 'el curso no se inscribe aquí')
             self.assertContains(previo, 'Documento vacío')

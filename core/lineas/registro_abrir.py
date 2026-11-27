@@ -110,7 +110,7 @@ def publicar_flow_registro() -> str:
     from django.conf import settings
 
     from core.lineas.envio import _graph_headers
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     waba = (getattr(settings, 'EKI_LINEA_REGISTRO_WABA_ID', '') or '').strip()
     headers = _graph_headers()

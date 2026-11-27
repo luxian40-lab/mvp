@@ -192,7 +192,7 @@ def guardar_asistente(datos, plantilla: PlantillaMeta | None, *, enviar: bool) -
     if tipo == 'CARRUSEL':
         _guardar_tarjetas(plantilla, normal['tarjetas'])
     if enviar:
-        from core.meta_waba import crear_plantilla_en_meta
+        from core.canal.meta_waba import crear_plantilla_en_meta
 
         resultado = crear_plantilla_en_meta(plantilla)
         if not resultado.get('success'):

@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.campanas.campana_audiencia import marcar_programadas_sin_aprobacion, resumir_audiencia
-from core.meta_waba import ejecutar_campana_meta
+from core.canal.meta_waba import ejecutar_campana_meta
 from core.models import Estudiante, SandboxCanalSesion
 from core.campanas.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
 from core.analitica.models_extras import GrupoEstudiantes
@@ -116,7 +116,7 @@ class CampanasAdminTests(TestCase):
         persona = _persona('Masiva', '573001110099', 'c-masiva')
         campana = self._campana(nombre='Masiva')
         campana.destinatarios.add(persona)
-        with patch('core.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
+        with patch('core.canal.meta_waba.encolar_campana_meta', return_value='sync') as encolar:
             self.client.post(reverse('admin:core_campanameta_changelist'), {
                 'action': 'ejecutar_campanas',
                 '_selected_action': [str(campana.pk)],
@@ -128,7 +128,7 @@ class CampanasAdminTests(TestCase):
         persona = _persona('Otra', '573001110098', 'c-otra-masiva')
         campana = self._campana(nombre='Bloqueada masiva', plantilla=borrador)
         campana.destinatarios.add(persona)
-        with patch('core.meta_waba.encolar_campana_meta') as encolar:
+        with patch('core.canal.meta_waba.encolar_campana_meta') as encolar:
             self.client.post(reverse('admin:core_campanameta_changelist'), {
                 'action': 'ejecutar_campanas',
                 '_selected_action': [str(campana.pk)],
@@ -157,9 +157,9 @@ class CampanasAdminTests(TestCase):
         self.assertEqual(resumen['suma'], 4)
         self.assertEqual(resumen['repetidas'], 2)
         self.assertEqual(resumen['reciben'], 2)
-        with patch('core.meta_waba.time.sleep'), \
-                patch('core.meta_waba.requests.get') as get, \
-                patch('core.meta_waba.requests.post') as post:
+        with patch('core.canal.meta_waba.time.sleep'), \
+                patch('core.canal.meta_waba.requests.get') as get, \
+                patch('core.canal.meta_waba.requests.post') as post:
             get.return_value.status_code = 200
             get.return_value.json.return_value = {'data': [{'id': PHONE}]}
             post.return_value.status_code = 200
@@ -181,9 +181,9 @@ class CampanasAdminTests(TestCase):
         }
         aplicar_mapeo(campana)
         campana.save()
-        with patch('core.meta_waba.time.sleep'), \
-                patch('core.meta_waba.requests.get') as get, \
-                patch('core.meta_waba.requests.post') as post:
+        with patch('core.canal.meta_waba.time.sleep'), \
+                patch('core.canal.meta_waba.requests.get') as get, \
+                patch('core.canal.meta_waba.requests.post') as post:
             get.return_value.status_code = 200
             get.return_value.json.return_value = {'data': [{'id': PHONE}]}
             post.return_value.status_code = 200
@@ -277,7 +277,7 @@ class CampanasAdminTests(TestCase):
         pagina = self.client.get(reverse('admin:core_campanameta_change', args=[campana.pk]))
         self.assertContains(pagina, 'Meta todavía no aprobó esta plantilla.')
         self.assertNotContains(pagina, 'Enviar a ')
-        with patch('core.meta_waba.encolar_campana_meta') as encolar:
+        with patch('core.canal.meta_waba.encolar_campana_meta') as encolar:
             self.client.post(reverse('admin:core_campanameta_enviar', args=[campana.pk]))
         encolar.assert_not_called()
         campana.refresh_from_db()
@@ -295,9 +295,9 @@ class CampanasAdminTests(TestCase):
         }
         aplicar_mapeo(campana)
         campana.save()
-        with patch('core.meta_waba.time.sleep'), \
-                patch('core.meta_waba.requests.get') as get, \
-                patch('core.meta_waba.requests.post') as post:
+        with patch('core.canal.meta_waba.time.sleep'), \
+                patch('core.canal.meta_waba.requests.get') as get, \
+                patch('core.canal.meta_waba.requests.post') as post:
             get.return_value.status_code = 200
             get.return_value.json.return_value = {'data': [{'id': PHONE}]}
             post.return_value.status_code = 200
@@ -321,9 +321,9 @@ class CampanasAdminTests(TestCase):
         }
         aplicar_mapeo(campana)
         campana.save()
-        with patch('core.meta_waba.time.sleep'), \
-                patch('core.meta_waba.requests.get') as get, \
-                patch('core.meta_waba.requests.post') as post:
+        with patch('core.canal.meta_waba.time.sleep'), \
+                patch('core.canal.meta_waba.requests.get') as get, \
+                patch('core.canal.meta_waba.requests.post') as post:
             get.return_value.status_code = 200
             get.return_value.json.return_value = {'data': [{'id': PHONE}]}
             post.return_value.status_code = 200
@@ -339,7 +339,7 @@ class CampanasAdminTests(TestCase):
         campana.destinatarios.add(_persona('Sol', '573001110051', 'c-sol'))
         self.plantilla.estado = 'PAUSED'
         self.plantilla.save(update_fields=['estado'])
-        with patch('core.meta_waba.encolar_campana_meta') as encolar:
+        with patch('core.canal.meta_waba.encolar_campana_meta') as encolar:
             from core.tasks import enviar_campanas_meta_programadas
 
             enviar_campanas_meta_programadas()

@@ -77,7 +77,7 @@ class PlantillaLineaFilter(admin.SimpleListFilter):
             return queryset
         from core.lineas.campana import waba_de_linea
         from core.lineas.variante import perfil_de
-        from core.meta_waba import _waba
+        from core.canal.meta_waba import _waba
 
         waba = waba_de_linea(phone)
         if not perfil_de(phone).usa_waba_principal:
@@ -470,7 +470,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
                 errores.extend(list(lista))
         if request.method == 'POST' and plantilla is not None and plantilla.estado in SOLO_LECTURA:
             if request.POST.get('accion') == 'probar':
-                from core.meta_waba import enviar_prueba_de_plantilla
+                from core.canal.meta_waba import enviar_prueba_de_plantilla
 
                 resultado = enviar_prueba_de_plantilla(
                     plantilla,
@@ -665,7 +665,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
 
     @action(description='Traer de Meta', url_path='traer-de-meta', icon='download', permissions=['change'])
     def traer_de_meta(self, request):
-        from core.meta_waba import sincronizar_catalogo_meta
+        from core.canal.meta_waba import sincronizar_catalogo_meta
 
         resultado = sincronizar_catalogo_meta()
         if not resultado.get('ok'):
@@ -689,7 +689,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
                 level=messages.WARNING,
             )
             return lista
-        from core.meta_waba import crear_plantilla_en_meta
+        from core.canal.meta_waba import crear_plantilla_en_meta
 
         resultado = crear_plantilla_en_meta(plantilla)
         nivel = messages.SUCCESS if resultado.get('success') else messages.ERROR
@@ -698,7 +698,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
 
     @action(description='Sincronizar estado', url_path='sincronizar', icon='sync', permissions=['change'])
     def sincronizar_estado(self, request, object_id):
-        from core.meta_waba import sincronizar_plantilla
+        from core.canal.meta_waba import sincronizar_plantilla
 
         plantilla = self.get_object(request, object_id)
         lista = redirect('admin:core_plantillameta_changelist')
@@ -726,7 +726,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
         },
     )
     def enviar_prueba(self, request, form, object_id):
-        from core.meta_waba import enviar_prueba_meta
+        from core.canal.meta_waba import enviar_prueba_meta
 
         plantilla = self.get_object(request, object_id)
         lista = redirect('admin:core_plantillameta_changelist')
@@ -808,7 +808,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
 
     @admin.action(description='Sincronizar estado')
     def sincronizar_seleccionadas(self, request, queryset):
-        from core.meta_waba import sincronizar_plantilla
+        from core.canal.meta_waba import sincronizar_plantilla
 
         ok = 0
         for plantilla in queryset:

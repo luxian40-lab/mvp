@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from core.meta_waba import aplicar_eventos_plantilla, sincronizar_catalogo_meta
+from core.canal.meta_waba import aplicar_eventos_plantilla, sincronizar_catalogo_meta
 from core.campanas.models_campana_meta import CampanaMeta, PlantillaMeta
 from core.campanas.plantilla_meta_reglas import errores_de_alta
 
@@ -185,7 +185,7 @@ class ImportarPlantillasTests(TestCase):
             meta_template_id='99',
             estado='APPROVED',
         )
-        with patch('core.meta_waba._get', return_value=(200, self._catalogo())):
+        with patch('core.canal.meta_waba._get', return_value=(200, self._catalogo())):
             primera = sincronizar_catalogo_meta()
             segunda = sincronizar_catalogo_meta()
         self.assertTrue(primera['ok'])
@@ -224,7 +224,7 @@ class ImportarPlantillasTests(TestCase):
                 return 429, {'error': {'code': 4, 'message': 'rate'}}
             return 200, {'data': []}
 
-        with patch('core.meta_waba._get', side_effect=falso_get), patch('core.meta_waba.time.sleep'):
+        with patch('core.canal.meta_waba._get', side_effect=falso_get), patch('core.canal.meta_waba.time.sleep'):
             resultado = sincronizar_catalogo_meta()
         self.assertTrue(resultado['ok'])
         self.assertEqual(llamadas['n'], 2)
@@ -358,8 +358,8 @@ class EjecutarPlantillaTests(TestCase):
         self.assertContains(campana, 'Aprobada')
         self.assertEqual(CampanaMeta.objects.count(), 0)
 
-    @patch('core.meta_waba._post')
-    @patch('core.meta_waba.phone_pertenece_a_waba', return_value=(True, ''))
+    @patch('core.canal.meta_waba._post')
+    @patch('core.canal.meta_waba.phone_pertenece_a_waba', return_value=(True, ''))
     def test_aprobada_arma_la_prueba_sin_llamar_si_el_post_esta_mockeado(self, _phone, post):
         post.return_value = (200, {'messages': [{'id': 'wamid.PRUEBA'}]})
         self.borrador.estado = 'APPROVED'

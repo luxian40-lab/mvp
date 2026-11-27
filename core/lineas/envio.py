@@ -54,7 +54,7 @@ def _graph_messages_url(api_version: str | None = None) -> str | None:
     phone_id = _salida_phone_id()
     if not phone_id:
         return None
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     version = api_version or _version()
     return f'https://graph.facebook.com/{version}/{phone_id}/messages'
@@ -966,7 +966,7 @@ def _descargar_bytes_meta(media_id: str) -> tuple[bytes, str]:
     token = (getattr(settings, 'WHATSAPP_TOKEN', None) or '').strip()
     if not token or not media_id:
         return b'', ''
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     api_version = _version()
     headers = {'Authorization': f'Bearer {token}'}

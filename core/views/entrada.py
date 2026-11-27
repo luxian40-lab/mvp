@@ -273,7 +273,7 @@ def whatsapp_webhook(request):
                     return HttpResponse('OK')
 
                 try:
-                    from core.meta_waba import aplicar_eventos_plantilla
+                    from core.canal.meta_waba import aplicar_eventos_plantilla
 
                     aplicar_eventos_plantilla(
                         payload,

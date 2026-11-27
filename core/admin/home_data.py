@@ -512,7 +512,7 @@ def _avance_promedio() -> int:
 def _graph_linea(phone_id: str) -> dict:
     import requests
 
-    from core.meta_waba import _headers, _version
+    from core.canal.meta_waba import _headers, _version
 
     headers = _headers()
     if not headers:

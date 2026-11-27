@@ -685,7 +685,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         })
 
     def enviar_prueba_view(self, request, object_id):
-        from core.meta_waba import enviar_prueba_meta
+        from core.canal.meta_waba import enviar_prueba_meta
 
         campana = get_object_or_404(CampanaMeta.objects.select_related('plantilla'), pk=object_id)
         destino = redirect('admin:core_campanameta_change', campana.pk)
@@ -734,7 +734,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         return destino
 
     def reintentar_view(self, request, object_id):
-        from core.meta_waba import encolar_campana_meta
+        from core.canal.meta_waba import encolar_campana_meta
 
         campana = get_object_or_404(CampanaMeta.objects.select_related('plantilla'), pk=object_id)
         destino = redirect('admin:core_campanameta_change', campana.pk)
@@ -758,7 +758,7 @@ class CampanaMetaAdmin(admin.ModelAdmin):
         return resumir_audiencia(campana)['reciben']
 
     def _lanzar_una(self, request, campana):
-        from core.meta_waba import encolar_campana_meta
+        from core.canal.meta_waba import encolar_campana_meta
 
         if not campana.plantilla_id or campana.plantilla.estado != 'APPROVED':
             self.message_user(

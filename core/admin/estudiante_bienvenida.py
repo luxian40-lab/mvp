@@ -54,7 +54,7 @@ def enviar_bienvenida_alta(estudiante, cursos=None) -> dict:
 
     from core.campanas.campana_meta_v2 import clasificar_respuesta
     from core.conversacion.consentimiento_wa import puede_recibir_plantilla
-    from core.meta_waba import _parametros_envio, _phone_default, _post, _version
+    from core.canal.meta_waba import _parametros_envio, _phone_default, _post, _version
 
     if not puede_recibir_plantilla(estudiante):
         if getattr(estudiante, 'wa_optout_fecha', None):

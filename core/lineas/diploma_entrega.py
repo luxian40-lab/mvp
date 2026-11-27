@@ -46,7 +46,7 @@ def nombre_plantilla_diploma() -> str:
 
 def _diploma_aprobado_en_meta(waba: str, nombre: str) -> bool:
     """Consulta Graph si la fila local aún no refleja esa cuenta."""
-    from core.meta_waba import _get, _version, normalizar_estado
+    from core.canal.meta_waba import _get, _version, normalizar_estado
 
     status, data = _get(
         f'https://graph.facebook.com/{_version()}/{waba}/message_templates',

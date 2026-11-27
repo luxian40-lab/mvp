@@ -169,7 +169,7 @@ def publicar_flow(tipo) -> str:
 
     waba = (getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID', '') or '').strip()
     headers = _graph_headers()
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     version = _version()
     if not waba or not headers:

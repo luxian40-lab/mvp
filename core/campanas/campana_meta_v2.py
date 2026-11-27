@@ -12,7 +12,7 @@ from django.conf import settings
 from django.db.models import F
 from django.utils import timezone
 
-from core.meta_waba import (
+from core.canal.meta_waba import (
     _destinatarios,
     _error_meta,
     _parametros_envio,

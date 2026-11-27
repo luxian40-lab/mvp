@@ -85,7 +85,7 @@ class AudioProcessor:
                 'Authorization': f'Bearer {settings.WHATSAPP_TOKEN}'
             }
             
-            from core.meta_waba import _version
+            from core.canal.meta_waba import _version
 
             version = _version()
             url_info = f"https://graph.facebook.com/{version}/{audio_id}"

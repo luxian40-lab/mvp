@@ -9,7 +9,7 @@ from core.management.commands.cargar_plantillas_bienvenida import (
     TEXTO_INICIO_CURSO,
     cargar_borradores,
 )
-from core.meta_waba import armar_componentes_alta
+from core.canal.meta_waba import armar_componentes_alta
 from core.campanas.models_campana_meta import PlantillaMeta
 
 
@@ -71,7 +71,7 @@ class CargarPlantillasBienvenidaTests(TestCase):
     def test_comando_no_llama_a_meta(self):
         from unittest.mock import patch
 
-        with patch('core.meta_waba.crear_plantilla_en_meta') as alta:
+        with patch('core.canal.meta_waba.crear_plantilla_en_meta') as alta:
             call_command('cargar_plantillas_bienvenida')
         alta.assert_not_called()
         self.assertEqual(PlantillaMeta.objects.filter(estado='BORRADOR').count(), 6)

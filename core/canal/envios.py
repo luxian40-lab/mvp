@@ -428,7 +428,7 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
     """
     token = getattr(settings, 'WHATSAPP_TOKEN', None)
     phone_id = getattr(settings, 'WHATSAPP_PHONE_ID', None)
-    from core.meta_waba import _version
+    from core.canal.meta_waba import _version
 
     api_version = _version()
 

@@ -8,7 +8,7 @@ def waba_de_linea(phone_id: str) -> str:
 
     from core.lineas.meta import linea_por_phone_id
     from core.lineas.variante import perfil_de
-    from core.meta_waba import _waba
+    from core.canal.meta_waba import _waba
 
     linea = linea_por_phone_id(phone_id)
     if linea is not None and linea.waba_id:
@@ -21,7 +21,7 @@ def waba_de_linea(phone_id: str) -> str:
 def plantillas_aprobadas_de_linea(phone_id: str):
     """Solo plantillas de la WABA de esa línea. Vacío = no hay nada que ofrecer."""
     from core.lineas.variante import perfil_de
-    from core.meta_waba import _waba
+    from core.canal.meta_waba import _waba
     from core.campanas.models_campana_meta import PlantillaMeta
 
     qs = PlantillaMeta.objects.filter(activa=True, estado='APPROVED')
@@ -43,7 +43,7 @@ def plantilla_sirve_en_linea(plantilla, phone_id: str) -> str:
     if plantilla is None:
         return ''
     from core.lineas.variante import perfil_de
-    from core.meta_waba import _waba
+    from core.canal.meta_waba import _waba
 
     waba_plantilla = (getattr(plantilla, 'waba_id', '') or '').strip()
     principal = _waba()
@@ -70,7 +70,7 @@ def plantilla_sirve_en_linea(plantilla, phone_id: str) -> str:
 def wabas_configuradas() -> list[str]:
     """WABAs de las líneas que tienen cuenta. Sin duplicar."""
     from core.lineas.meta import lineas_producto
-    from core.meta_waba import _waba
+    from core.canal.meta_waba import _waba
 
     vistos: list[str] = []
     for linea in lineas_producto():

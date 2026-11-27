@@ -1,7 +1,7 @@
 """Trae de Meta el estado de cada plantilla (aprobada, pendiente o rechazada)."""
 from django.core.management.base import BaseCommand, CommandError
 
-from core.meta_waba import sincronizar_catalogo_meta
+from core.canal.meta_waba import sincronizar_catalogo_meta
 
 
 class Command(BaseCommand):
