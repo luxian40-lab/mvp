@@ -34,7 +34,7 @@ def _luna(_client, modelo, messages, _max_out, temperature=None):
 class EntradaAsesoriaTests(TestCase):
     def setUp(self):
         cache.clear()
-        parche = patch('core.openai_compat.completar_chat', side_effect=_luna)
+        parche = patch('core.agentes.openai_compat.completar_chat', side_effect=_luna)
         self.luna = parche.start()
         self.addCleanup(parche.stop)
         self.tel = '573005559180'
@@ -171,7 +171,7 @@ class EntradaAsesoriaTests(TestCase):
         self._enviar('asesoria')
         self._enviar('Bien')
         self._enviar('Soy de Bogotá y vendo aguacate')
-        with patch('core.openai_compat.completar_chat', return_value=''):
+        with patch('core.agentes.openai_compat.completar_chat', return_value=''):
             _, textos = self._enviar('no sé')
         self.assertFalse(any('¿De dónde es?' in t for t in textos))
         self.assertEqual(self._usadas(), 0)

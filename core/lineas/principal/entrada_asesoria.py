@@ -212,7 +212,7 @@ def _llamar(telefono: str, mensajes: list) -> str:
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
     if not api_key or debe_degradar():
         return ''
-    from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
+    from core.agentes.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
     marca = contexto_uso_llm(telefono=telefono, agente='entrada_asesoria')
     try:

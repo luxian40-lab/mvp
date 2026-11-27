@@ -54,7 +54,7 @@ class MetaFunnelTests(TestCase):
     def test_numero_nuevo_recibe_habeas_aunque_el_flag_pida_solo_registrados(self):
         tel = '573009991001'
         with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
-            with patch('core.openai_compat.completar_chat') as chat:
+            with patch('core.agentes.openai_compat.completar_chat') as chat:
                 ruta = dispatch_sandbox_menu(_payload(tel, 'hola'))
         self.assertEqual(ruta, 'handled')
         habeas.assert_called_once()

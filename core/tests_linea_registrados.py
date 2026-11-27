@@ -36,7 +36,7 @@ class SoloRegistradosTests(TestCase):
     def test_desconocido_no_llama_al_modelo(self):
         tel = '573009990001'
         with patch('core.canal.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
-            with patch('core.openai_compat.completar_chat') as chat:
+            with patch('core.agentes.openai_compat.completar_chat') as chat:
                 salida = dispatch_sandbox_menu(_payload(tel, 'quiero el curso'))
         self.assertEqual(salida, 'handled')
         chat.assert_not_called()

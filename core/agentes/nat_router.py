@@ -145,7 +145,7 @@ def _clasificar_con_nano(mensaje: str) -> str | None:
         return None
     try:
         from openai import OpenAI
-        from core.openai_compat import chat_completion_token_kwargs
+        from core.agentes.openai_compat import chat_completion_token_kwargs
 
         client = OpenAI(api_key=api_key)
         modelo = _cfg('BOT_COMERCIAL_MODEL_ROUTER', 'gpt-5-nano')

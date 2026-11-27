@@ -696,7 +696,7 @@ def responder_agente_sandbox(
         from openai import OpenAI
 
         from core.conversacion.llm_diferido import completar_chat_o_diferir, es_respuesta_diferida
-        from core.openai_compat import contexto_uso_llm
+        from core.agentes.openai_compat import contexto_uso_llm
         from core.presupuesto_llm import modelo_segun_presupuesto
 
         token_uso = contexto_uso_llm(telefono=telefono, agente=agente)

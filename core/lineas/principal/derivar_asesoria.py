@@ -135,7 +135,7 @@ def derivar_detalle(
 
     if not api_key or debe_degradar():
         return None, 'sin_llm', ''
-    from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
+    from core.agentes.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
     token = contexto_uso_llm(telefono=telefono, agente='derivar_asesoria')
     try:

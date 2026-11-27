@@ -39,7 +39,7 @@ def completar_chat_o_diferir(
     agente_secundario: str = '',
 ) -> str:
     """Igual que completar_chat; con el flag on encola y devuelve la marca."""
-    from core.openai_compat import completar_chat
+    from core.agentes.openai_compat import completar_chat
 
     if not respuesta_diferida_activa():
         return completar_chat(client, modelo, messages, max_out, temperature)

@@ -65,8 +65,8 @@ class TextosTests(TestCase):
 class DerivarTests(TestCase):
     def _derivar(self, respuesta, texto='la broca me está acabando el cafetal', permitidos=TODOS):
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
-                patch('core.openai_compat.cliente_openai', return_value='cli'), \
-                patch('core.openai_compat.completar_chat', return_value=respuesta) as llm:
+                patch('core.agentes.openai_compat.cliente_openai', return_value='cli'), \
+                patch('core.agentes.openai_compat.completar_chat', return_value=respuesta) as llm:
             salida = derivar(texto, telefono='573005559001', permitidos=permitidos)
         return salida, llm
 
@@ -113,23 +113,23 @@ class DerivarTests(TestCase):
 
         cliente = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=caida)))
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
-                patch('core.openai_compat.cliente_openai', return_value=cliente):
+                patch('core.agentes.openai_compat.cliente_openai', return_value=cliente):
             self.assertEqual(derivar('precio', telefono='5730', permitidos=TODOS), (None, 'sin_llm'))
 
     def test_presupuesto_agotado_no_llama_al_modelo(self):
         with patch('core.presupuesto_llm.debe_degradar', return_value=True), \
-                patch('core.openai_compat.completar_chat') as llm:
+                patch('core.agentes.openai_compat.completar_chat') as llm:
             self.assertEqual(derivar('precio', telefono='5730', permitidos=TODOS), (None, 'sin_llm'))
         llm.assert_not_called()
 
     @override_settings(OPENAI_API_KEY='')
     def test_sin_clave_no_llama_al_modelo(self):
-        with patch('core.openai_compat.completar_chat') as llm:
+        with patch('core.agentes.openai_compat.completar_chat') as llm:
             self.assertEqual(derivar('precio', telefono='5730', permitidos=TODOS), (None, 'sin_llm'))
         llm.assert_not_called()
 
     def test_el_costo_se_anota_a_la_derivacion_y_no_queda_pegado(self):
-        from core.openai_compat import _uso
+        from core.agentes.openai_compat import _uso
 
         resp = SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content='finanzas'))],
@@ -139,7 +139,7 @@ class DerivarTests(TestCase):
             chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: resp)),
         )
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
-                patch('core.openai_compat.cliente_openai', return_value=cliente):
+                patch('core.agentes.openai_compat.cliente_openai', return_value=cliente):
             agente, _ = derivar('debo plata al banco', telefono='573005559002', permitidos=TODOS)
         self.assertEqual(agente, 'finanzas')
         self.assertEqual(UsoLLM.objects.get().agente, 'derivar_asesoria')

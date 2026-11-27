@@ -390,7 +390,7 @@ def ejecutar_llm_turno_whatsapp_async(
 
     from core.conversacion.locks import telefono_lock
     from core.agentes.nati import normalizar_telefono_whatsapp
-    from core.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
+    from core.agentes.openai_compat import cliente_openai, completar_chat, contexto_uso_llm
 
     tel = normalizar_telefono_whatsapp(str(telefono or '')) or str(telefono or '')
     try:

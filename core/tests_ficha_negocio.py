@@ -82,7 +82,7 @@ class PerfilEnElPromptTests(TestCase):
 
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
                 patch('openai.OpenAI'), \
-                patch('core.openai_compat.completar_chat', return_value='R') as llm:
+                patch('core.agentes.openai_compat.completar_chat', return_value='R') as llm:
             responder_agente_sandbox('ventas', 'cómo vendo más', telefono=self.tel, **kwargs)
         return llm.call_args.args[2][0]['content']
 
@@ -130,8 +130,8 @@ class DerivarDetalleTests(TestCase):
 
     def _derivar(self, respuesta, **kwargs):
         with patch('core.presupuesto_llm.debe_degradar', return_value=False), \
-                patch('core.openai_compat.cliente_openai', return_value='cli'), \
-                patch('core.openai_compat.completar_chat', return_value=respuesta) as llm:
+                patch('core.agentes.openai_compat.cliente_openai', return_value='cli'), \
+                patch('core.agentes.openai_compat.completar_chat', return_value=respuesta) as llm:
             salida = derivar_detalle('debo plata y no vendo', telefono='5730', permitidos=self.TODOS, **kwargs)
         return salida, llm.call_args.args[2][0]['content']
 
@@ -467,7 +467,7 @@ class NatFichaTests(TestCase):
                 webhook._completar_nat(None, 'gpt-5-mini', [], 100, 0.2, None)
 
         with patch('core.bot_comercial.webhook._procesar_bot_comercial_twilio_webhook_cuerpo', side_effect=cuerpo), \
-                patch('core.openai_compat.completar_chat', return_value=respuesta), \
+                patch('core.agentes.openai_compat.completar_chat', return_value=respuesta), \
                 patch('core.lineas.envio._post_graph', return_value=OK) as send:
             webhook._procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
         return _textos(send)

@@ -516,7 +516,7 @@ def _perfil_para_nat(telefono: str) -> str:
 
 def _completar_nat(client, modelo, messages, max_out, temperatura, cliente_id):
     """Llama al modelo anotando el costo a la org; el contexto de cobro no sobrevive a la llamada."""
-    from core.openai_compat import completar_chat, contexto_uso_llm
+    from core.agentes.openai_compat import completar_chat, contexto_uso_llm
     from core.presupuesto_llm import modelo_segun_presupuesto
 
     token_uso = contexto_uso_llm(cliente_id=cliente_id, agente='nati')
@@ -563,7 +563,7 @@ def _bot_comercial_respuesta_catalogo(
     try:
         from core.agentes.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
         from core.agentes.nat_router import decidir_routing_nat
-        from core.openai_compat import cliente_openai
+        from core.agentes.openai_compat import cliente_openai
         import time
         inicio = time.time()
         client = cliente_openai(api_key)

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from django.test import TestCase
 
 from core.agentes.models_uso_llm import UsoLLM
-from core.openai_compat import completar_chat, contexto_uso_llm
+from core.agentes.openai_compat import completar_chat, contexto_uso_llm
 
 
 def _cliente():

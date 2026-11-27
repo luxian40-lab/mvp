@@ -80,7 +80,7 @@ class ConocimientoAgenteTests(TestCase):
         self.assertIn('Precio justo', sistema)
 
     def test_el_costo_no_queda_pegado_a_la_siguiente_llamada(self):
-        from core.openai_compat import _uso
+        from core.agentes.openai_compat import _uso
 
         falso = MagicMock()
         falso.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='ok'))]
@@ -92,9 +92,9 @@ class ConocimientoAgenteTests(TestCase):
 
     def test_nat_no_deja_el_costo_pegado(self):
         from core.bot_comercial.webhook import _completar_nat
-        from core.openai_compat import _uso
+        from core.agentes.openai_compat import _uso
 
-        with patch('core.openai_compat.completar_chat', return_value='ok'), \
+        with patch('core.agentes.openai_compat.completar_chat', return_value='ok'), \
                 patch('core.presupuesto_llm.modelo_segun_presupuesto', side_effect=lambda m, c=None: m):
             modelo, texto = _completar_nat(object(), 'gpt-x', [], 100, 0.1, None)
         self.assertEqual((modelo, texto), ('gpt-x', 'ok'))

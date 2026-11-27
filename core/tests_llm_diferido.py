@@ -12,7 +12,7 @@ from core.conversacion.llm_diferido import (
 
 class LlmDiferidoFlagOffTests(SimpleTestCase):
     @override_settings(EKI_LLM_RESPUESTA_DIFERIDA=False)
-    @patch('core.openai_compat.completar_chat', return_value='hola')
+    @patch('core.agentes.openai_compat.completar_chat', return_value='hola')
     @patch('core.tasks.ejecutar_llm_turno_whatsapp_async.delay')
     def test_flag_apagado_llama_sync_y_no_encola(self, delay, completar):
         out = completar_chat_o_diferir(
@@ -27,7 +27,7 @@ class LlmDiferidoFlagOffTests(SimpleTestCase):
 
 class LlmDiferidoFlagOnTests(SimpleTestCase):
     @override_settings(EKI_LLM_RESPUESTA_DIFERIDA=True)
-    @patch('core.openai_compat.completar_chat', return_value='hola')
+    @patch('core.agentes.openai_compat.completar_chat', return_value='hola')
     @patch('core.tasks.ejecutar_llm_turno_whatsapp_async.delay')
     def test_flag_prendido_encola_y_devuelve_marca(self, delay, completar):
         out = completar_chat_o_diferir(
@@ -51,7 +51,7 @@ class LlmDiferidoFlagOnTests(SimpleTestCase):
 class LlmTurnoAsyncPostAsesorTests(SimpleTestCase):
     @override_settings(OPENAI_API_KEY='sk-test')
     @patch('core.lineas.principal.asesores.finalizar_turno_asesor_llm')
-    @patch('core.openai_compat.completar_chat', return_value='Respuesta LLM')
+    @patch('core.agentes.openai_compat.completar_chat', return_value='Respuesta LLM')
     @patch('core.conversacion.locks.telefono_lock')
     def test_tarea_con_post_asesor_usa_finalizar(self, lock, completar, finalizar):
         from contextlib import nullcontext

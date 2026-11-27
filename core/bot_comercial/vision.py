@@ -129,7 +129,7 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
         )
 
     try:
-        from core.openai_compat import chat_completion_token_kwargs, cliente_openai
+        from core.agentes.openai_compat import chat_completion_token_kwargs, cliente_openai
 
         client = cliente_openai(api_key)
         vision_model = getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
