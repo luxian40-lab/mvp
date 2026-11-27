@@ -322,3 +322,192 @@ def _texto_certificado_modulo(estudiante, progreso, mensaje_respuesta) -> str:
         partes.append(radar_msg)
     partes.append(msg_cert_img)
     return "[MULTI_MSG]" + "[SEP]".join(partes)
+
+def _preparar_avance_modulo(texto_respuesta, progreso, modulo_actual, estudiante, mensaje_respuesta):
+    from core.curso.modulo_publicacion import (
+        mensaje_bloqueo_sin_siguiente_publicado,
+        siguiente_modulo_publicado_wa,
+        total_modulos_publicados_wa,
+    )
+
+    from core.curso.helpers_examenes import evaluar_checkpoint_reto_ia
+    from core.conversacion.response_templates import (
+        activar_checkpoint_facilitador,
+    )
+
+    total_modulos = total_modulos_publicados_wa(progreso.curso)
+    usar_agentes_ia_curso = bool(
+        getattr(progreso.curso, 'usar_agentes_ia', True)
+    )
+    decision_cp = evaluar_checkpoint_reto_ia(
+        modulo_actual,
+        total_modulos,
+        usar_agentes_ia_curso,
+    )
+    es_modulo_reto = decision_cp.es_reto
+    try:
+        from core.agentes.eventos_ia import emit_checkpoint_evaluado
+
+        emit_checkpoint_evaluado(
+            decision_cp,
+            estudiante=estudiante,
+            curso=progreso.curso,
+            modulo=modulo_actual,
+            origen='pregunta_modulo',
+        )
+    except Exception:
+        pass
+
+    drip_bloqueado = False
+    _blk_pub_v = mensaje_bloqueo_sin_siguiente_publicado(
+        estudiante, progreso, modulo_actual
+    )
+    if _blk_pub_v:
+        # El siguiente módulo en borrador no tapa el checkpoint:
+        # primero el reto, el bloqueo llega al cerrarlo.
+        if es_modulo_reto:
+            _dario_blk = activar_checkpoint_facilitador(
+                estudiante, progreso, modulo_actual
+            )
+            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(
+                [mensaje_respuesta, _dario_blk]
+            )
+        else:
+            texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_pub_v}"
+        drip_bloqueado = True
+        siguiente_modulo = None
+    else:
+        siguiente_modulo = siguiente_modulo_publicado_wa(
+            progreso.curso, modulo_actual
+        )
+
+    if siguiente_modulo:
+        from core.curso.drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+
+        _blk_v = mensaje_bloqueo_avance_siguiente_modulo(
+            estudiante, progreso, modulo_actual
+        )
+        # Igual que en continuar_leccion: el drip no debe tapar el checkpoint IA.
+        if _blk_v and not es_modulo_reto:
+            texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_v}"
+            drip_bloqueado = True
+            siguiente_modulo = None
+    return (texto_respuesta, siguiente_modulo, activar_checkpoint_facilitador, total_modulos, usar_agentes_ia_curso, decision_cp, es_modulo_reto, drip_bloqueado)
+
+def _texto_siguiente_modulo(modulo_actual, logger, progreso, total_modulos, usar_agentes_ia_curso, decision_cp, es_modulo_reto, estudiante, siguiente_modulo, mensaje_respuesta, activar_checkpoint_facilitador, partes_multimsg, parte_mensaje_con_media):
+    _fcp = getattr(modulo_actual, 'facilitador_checkpoint', None)
+    logger.info(
+        '🎯 [checkpoint-pregunta-modulo] curso=%s mod_num=%s total_mod=%s '
+        'usar_ia=%s facilitador_checkpoint=%s regla=%s -> es_reto=%s | est=%s',
+        progreso.curso_id,
+        getattr(modulo_actual, 'numero', None),
+        total_modulos,
+        usar_agentes_ia_curso,
+        _fcp,
+        decision_cp.regla_aplicada,
+        es_modulo_reto,
+        estudiante.id,
+    )
+
+    if not es_modulo_reto:
+        # Normal: advance pointer
+        progreso.modulo_actual = siguiente_modulo
+        from core.module_steps import reset_progreso_pasos_modulo
+        reset_progreso_pasos_modulo(progreso, save=False)
+        progreso.save(
+            update_fields=[
+                'modulo_actual',
+                'paso_actual_modulo',
+                'esperando_respuesta_evaluacion_paso',
+                'paso_evaluacion_paso_id',
+            ]
+        )
+    # else: pointer stays — will advance after reto
+
+    estudiante.preguntas_ia_restantes = 3
+    estudiante.save()
+
+    porcentaje = progreso.porcentaje_avance()
+    from core.conversacion.response_templates import obtener_video_url
+    video_url = obtener_video_url(siguiente_modulo)
+
+    archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
+    archivos_msg = ""
+    primera_media_url = None
+    extra_media_urls = []
+
+    if archivos_multimedia.exists():
+        archivos_msg = ""
+        for idx, archivo in enumerate(archivos_multimedia):
+            icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+            url = archivo.get_url_para_envio()
+            if url:
+                if not primera_media_url:
+                    primera_media_url = url
+                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                else:
+                    extra_media_urls.append((url, archivo.titulo, icono))
+                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+            else:
+                archivos_msg += f"\n{icono} {archivo.titulo}"
+
+    if not archivos_multimedia.exists() and video_url:
+        primera_media_url = video_url
+
+    msg_completado = mensaje_respuesta
+
+    if es_modulo_reto:
+        dario_msg = activar_checkpoint_facilitador(
+            estudiante, progreso, modulo_actual
+        )
+        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_completado, dario_msg])
+    else:
+        # v1.9.8i: Normal module — exam result + next module (no completado msg)
+        estudiante.estado_onboarding = 'completado'
+        estudiante.save()
+
+        from core.module_steps import (
+            entregar_bloque_secciones_desde_paso,
+            modulo_usa_pasos,
+            pasos_activos_qs,
+            texto_legacy_whatsapp,
+        )
+        from core.avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+
+        if modulo_usa_pasos(siguiente_modulo) and pasos_activos_qs(siguiente_modulo).exists():
+            msg_pasos_n = entregar_bloque_secciones_desde_paso(
+                progreso, siguiente_modulo, 1
+            )
+            partes = [msg_completado] + [
+                p for p in partes_multimsg(msg_pasos_n or '') if p
+            ]
+            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+        else:
+            _leg = texto_legacy_whatsapp(siguiente_modulo)
+            msg_modulo = (
+                f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
+                f"{siguiente_modulo.descripcion}\n\n{_leg}"
+            )
+            if siguiente_modulo.examen_obligatorio:
+                msg_modulo += (
+                    f"\n\n⚠️ *Este módulo tiene examen obligatorio "
+                    f"({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
+                )
+            partes = [msg_completado, msg_modulo]
+            hay_media_exam = False
+            if primera_media_url:
+                partes.append(parte_mensaje_con_media(primera_media_url))
+                hay_media_exam = True
+            for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                partes.append(parte_mensaje_con_media(extra_url))
+                hay_media_exam = True
+            if hay_media_exam:
+                partes.append("[DELAY:5]")
+            partes.append(
+                resolver_cta_listo(
+                    estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO
+                )
+            )
+            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+    return texto_respuesta
+

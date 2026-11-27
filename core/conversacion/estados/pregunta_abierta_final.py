@@ -153,3 +153,113 @@ def _texto_certificado_abierta(estudiante, curso_obj, feedback_final, puntos_msg
     if msg_cert_img:
         partes_finales.append(msg_cert_img)
     return "[MULTI_MSG]" + "[SEP]".join(partes_finales)
+
+def _abierta_agricapital_no_califica(estudiante, msg_body: str) -> bool:
+    from core.lineas.agricapital_experiencia import (
+        es_mensaje_no_calificable_reto,
+        estudiante_es_agricapital,
+    )
+
+    return estudiante_es_agricapital(estudiante) and es_mensaje_no_calificable_reto(msg_body)
+
+def _calificar_pregunta_abierta(pregunta, progreso, estudiante, telefono_limpio, msg_sid, msg_body, logger, timezone, respuesta_final):
+    curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
+    modulos_eval = list(curso_obj.modulos.all().order_by('numero')) if curso_obj else []
+    puntaje_final_10 = 7
+    feedback_final = (
+        "1. Gracias por su respuesta; usted sí propone una línea de acción.\n\n"
+        "2. Para subir nivel, faltó precisión objetiva en dos partes: "
+        "(a) diagnóstico: qué señales mediría, cuánto y en qué tiempo; "
+        "(b) control: qué acción exacta aplicaría, con qué frecuencia y criterio de verificación.\n\n"
+        "3. Puntaje total: 7/10\n"
+        "4. Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
+        "Diagnóstico: parcial | Acción/Control: parcial."
+    )
+    try:
+        from core.tutor_ia_modulo import evaluar_reto_facilitador
+        from core.gamificacion_modo import (
+            get_modo_gamificacion,
+            modo_usa_calificacion,
+            gamificacion_otorga_puntos,
+            formatear_nota,
+            registrar_nota_gamificacion,
+            resumen_calificaciones_estudiante,
+        )
+
+        modo_gami = get_modo_gamificacion(
+            getattr(estudiante, 'cliente', None),
+        )
+        from core.sandbox_canal import poner_reaccion_espera
+
+        poner_reaccion_espera(telefono_limpio, msg_sid)
+        puntaje_final, feedback_final = evaluar_reto_facilitador(
+            modulos_eval,
+            msg_body,
+            pregunta.pregunta,
+            estudiante_nombre=estudiante.nombre or "Estudiante",
+            curso_nombre=(getattr(curso_obj, 'nombre', None) if curso_obj else None),
+            modo_gamificacion=modo_gami,
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
+
+    respuesta_final.estado = 'calificada'
+    if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+        nota = float(puntaje_final)
+        respuesta_final.calificacion = int(round(nota * 10))
+    else:
+        respuesta_final.calificacion = int(
+            max(1, min(10, int(puntaje_final))) * 10,
+        )
+    respuesta_final.retroalimentacion = feedback_final
+    respuesta_final.fecha_calificacion = timezone.now()
+    respuesta_final.save(update_fields=['estado', 'calificacion', 'retroalimentacion', 'fecha_calificacion'])
+
+    puntos_msg = ""
+    try:
+        if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+            nota_f = float(puntaje_final)
+            registrar_nota_gamificacion(
+                estudiante,
+                nota_f,
+                'pregunta_abierta',
+                curso=curso_obj,
+                detalle='Pregunta abierta final',
+            )
+            res_n = resumen_calificaciones_estudiante(
+                estudiante,
+                curso_obj.id if curso_obj else None,
+            )
+            prom = res_n.get('promedio')
+            extra_prom = (
+                f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
+                if prom is not None else ''
+            )
+            puntos_msg = (
+                f"\n\n*Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+            )
+        elif gamificacion_otorga_puntos(
+            getattr(estudiante, 'cliente', None), curso_obj,
+        ):
+            from core.gamificacion import PerfilGamificacion
+            from core.conversacion.response_templates import _barra_progreso
+
+            perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+            puntaje_10 = int(puntaje_final)
+            puntos_abierta = int(max(1, min(10, puntaje_10)) * 5)
+            perfil.agregar_puntos(
+                puntos_abierta,
+                f"Pregunta abierta final: {puntaje_10}/10",
+            )
+            perfil.refresh_from_db()
+
+            porcentaje = progreso.porcentaje_avance() if progreso else 100
+            barra = _barra_progreso(porcentaje)
+            puntos_msg = (
+                f"\n\n💰 *+{puntos_abierta} puntos* → Total: *{perfil.puntos_totales} pts*\n"
+                f"{barra} {porcentaje}%"
+            )
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron aplicar puntos por pregunta abierta final: {e}")
+    return (curso_obj, feedback_final, puntos_msg)
+
