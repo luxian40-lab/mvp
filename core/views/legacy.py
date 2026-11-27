@@ -128,28 +128,86 @@ from core.bot_comercial.webhook import (  # noqa: E402
 
 
 
-from .webhook_comercial import _encolar_bot_comercial_si_async, bot_comercial_webhook
+import importlib
 
-from .twilio_transporte import (
-    _encolar_twilio_edu_si_async,
-    _enviar_mensaje_twilio_segmentado,
-    _registrar_estado_twilio_callback,
-    youtube_hace_solo_enlace_en_texto,
-)
 
-from .empleabilidad import (
-    _procesar_ubicacion_empleabilidad,
-    _radar_msg_si_aplica,
-)
-from .certificados_wa import _intentar_responder_envio_certificado
-from .ventana_drip import _pregunta_abierta_final_pendiente
+def _encolar_bot_comercial_si_async(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_comercial')._encolar_bot_comercial_si_async(
+        *args, **kwargs,
+    )
 
-from .webhook_meta import (
-    _aplicar_sandbox_menu,
-    _encolar_sandbox_si_async,
-    _procesar_meta_webhook,
-    _sandbox_inbound_repetido,
-)
-from . import webhook_comercial as _webhook_comercial_mod
-_webhook_comercial_mod._aplicar_sandbox_menu = _aplicar_sandbox_menu
-from .webhook_twilio import _procesar_twilio_webhook
+
+def bot_comercial_webhook(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_comercial').bot_comercial_webhook(*args, **kwargs)
+
+
+def _encolar_twilio_edu_si_async(*args, **kwargs):
+    return importlib.import_module('core.views.twilio_transporte')._encolar_twilio_edu_si_async(*args, **kwargs)
+
+
+def _enviar_mensaje_twilio_segmentado(*args, **kwargs):
+    return importlib.import_module('core.views.twilio_transporte')._enviar_mensaje_twilio_segmentado(
+        *args, **kwargs,
+    )
+
+
+def _registrar_estado_twilio_callback(*args, **kwargs):
+    return importlib.import_module('core.views.twilio_transporte')._registrar_estado_twilio_callback(
+        *args, **kwargs,
+    )
+
+
+def youtube_hace_solo_enlace_en_texto(*args, **kwargs):
+    return importlib.import_module('core.views.twilio_transporte').youtube_hace_solo_enlace_en_texto(
+        *args, **kwargs,
+    )
+
+
+def _procesar_ubicacion_empleabilidad(*args, **kwargs):
+    return importlib.import_module('core.views.empleabilidad')._procesar_ubicacion_empleabilidad(
+        *args, **kwargs,
+    )
+
+
+def _radar_msg_si_aplica(*args, **kwargs):
+    return importlib.import_module('core.views.empleabilidad')._radar_msg_si_aplica(*args, **kwargs)
+
+
+def _intentar_responder_envio_certificado(*args, **kwargs):
+    return importlib.import_module('core.views.certificados_wa')._intentar_responder_envio_certificado(
+        *args, **kwargs,
+    )
+
+
+def _pregunta_abierta_final_pendiente(*args, **kwargs):
+    return importlib.import_module('core.views.ventana_drip')._pregunta_abierta_final_pendiente(*args, **kwargs)
+
+
+def _aplicar_sandbox_menu(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_meta')._aplicar_sandbox_menu(*args, **kwargs)
+
+
+def _encolar_sandbox_si_async(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_meta')._encolar_sandbox_si_async(*args, **kwargs)
+
+
+def _procesar_meta_webhook(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_meta')._procesar_meta_webhook(*args, **kwargs)
+
+
+def _sandbox_inbound_repetido(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_meta')._sandbox_inbound_repetido(*args, **kwargs)
+
+
+def _procesar_twilio_webhook(*args, **kwargs):
+    return importlib.import_module('core.views.webhook_twilio')._procesar_twilio_webhook(*args, **kwargs)
+
+
+def _wire_webhook_comercial_sandbox_menu() -> None:
+    comercial = importlib.import_module('core.views.webhook_comercial')
+    comercial._aplicar_sandbox_menu = importlib.import_module(
+        'core.views.webhook_meta',
+    )._aplicar_sandbox_menu
+
+
+_wire_webhook_comercial_sandbox_menu()

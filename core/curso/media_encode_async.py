@@ -87,7 +87,11 @@ def encolar_encode_paso_modulo(
     _set_encode_state(job_id=job_id, paso_id=paso_id, status='pending')
 
     def _publicar():
-        from core.tasks import encode_paso_modulo_media
+        import importlib
+
+        encode_paso_modulo_media = importlib.import_module(
+            'core.tasks',
+        ).encode_paso_modulo_media
 
         encode_paso_modulo_media.delay(
             job_id,

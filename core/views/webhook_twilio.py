@@ -3,29 +3,9 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
-from ..conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS as _MARCADOR_CONTINUEMOS
-from ..conversacion.avance_whatsapp import TEXTO_NO_ENTENDI as _TEXTO_NO_ENTENDI
-from ..conversacion.intent_detector import mensaje_indica_listo as _mensaje_indica_listo
 from ..models import Estudiante, WhatsappLog
-from ..conversacion.response_templates import parte_mensaje_con_media
 
 logger = logging.getLogger(__name__)
-
-from .audio import _transcribir_audio_twilio
-from .certificados_wa import _intentar_responder_envio_certificado
-from .empleabilidad import _procesar_ubicacion_empleabilidad
-from .twilio_transporte import (
-    _enviar_mensaje_twilio_segmentado,
-    _es_status_callback_twilio,
-    _registrar_estado_twilio_callback,
-    youtube_hace_solo_enlace_en_texto,
-)
-from core.lineas.identidad import (
-    cortar_certificado_meta as _cortar_certificado_meta,
-    cortar_habeas_meta as _cortar_habeas_meta,
-    menu_tras_confirmar_datos_meta as _menu_tras_confirmar_datos_meta,
-)
-from core.conversacion.contexto import Contexto
 
 def _intentar_aula_twilio_fuera_de_activo(post_data) -> bool:
     """*aula* en Twilio aunque el chat no esté ACTIVO. No entra al cuerpo."""
@@ -99,6 +79,16 @@ def _entrada_para_medir(post_data, turno):
 
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
+    import importlib
+
+    _identidad = importlib.import_module('core.lineas.identidad')
+    _cortar_certificado_meta = _identidad.cortar_certificado_meta
+    _cortar_habeas_meta = _identidad.cortar_habeas_meta
+    _menu_tras_confirmar_datos_meta = _identidad.menu_tras_confirmar_datos_meta
+    _twilio_transporte = importlib.import_module('core.views.twilio_transporte')
+    _es_status_callback_twilio = _twilio_transporte._es_status_callback_twilio
+    _registrar_estado_twilio_callback = _twilio_transporte._registrar_estado_twilio_callback
+
     from core.conversacion.medicion import medir_turno
     from core.conversacion.turno import turno_activo
     from core.canal.sandbox_canal import activar_sandbox_meta_si_inbound, inbound_es_meta
@@ -133,6 +123,11 @@ def _procesar_twilio_webhook(post_data):
 
 def _procesar_twilio_webhook_cuerpo(post_data):
     """Procesa webhooks de Twilio WhatsApp"""
+    import importlib
+
+    _registrar_estado_twilio_callback = importlib.import_module(
+        'core.views.twilio_transporte',
+    )._registrar_estado_twilio_callback
     # ============================================================
     # FILTRO 1: Ignorar status callbacks de Twilio (queued/sent/delivered)
     # Twilio envía callbacks de estado al mismo webhook, NO son mensajes
@@ -165,6 +160,19 @@ def _procesar_twilio_webhook_cuerpo(post_data):
     )
 
     _turno_token = activar_retencion_turno()
+    Contexto = importlib.import_module('core.conversacion.contexto').Contexto
+    _TEXTO_NO_ENTENDI = importlib.import_module(
+        'core.conversacion.avance_whatsapp',
+    ).TEXTO_NO_ENTENDI
+    _transcribir_audio_twilio = importlib.import_module(
+        'core.views.audio',
+    )._transcribir_audio_twilio
+    _intentar_responder_envio_certificado = importlib.import_module(
+        'core.views.certificados_wa',
+    )._intentar_responder_envio_certificado
+    _registrar_estado_twilio_callback = importlib.import_module(
+        'core.views.twilio_transporte',
+    )._registrar_estado_twilio_callback
     try:
         logger.info("🔵 TWILIO: Procesando...")
         
@@ -200,7 +208,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
         es_audio = es_audio_inbound_twilio(num_media, media_type, media_url)
         # Imagen: puede ser evidencia de un reto de campo (se resuelve en esa rama).
-        from core.conversacion.reto_evidencia import es_imagen_soportada
+        es_imagen_soportada = importlib.import_module(
+            'core.conversacion.reto_evidencia',
+        ).es_imagen_soportada
 
         evidencia_imagen_url = media_url if (num_media > 0 and es_imagen_soportada(media_type)) else ''
         evidencia_imagen_type = media_type if evidencia_imagen_url else ''
@@ -421,7 +431,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # ============================================================
         # PQRS: seguimiento de ticket abierto (cede a pedagogía / agentes)
         # ============================================================
-        from core.lineas.pqrs_linea import seguimiento_en_linea
+        seguimiento_en_linea = importlib.import_module(
+            'core.lineas.pqrs_linea',
+        ).seguimiento_en_linea
         pqrs_atendido, respuesta_pqrs = seguimiento_en_linea(estudiante, msg_body)
 
         # ============================================================

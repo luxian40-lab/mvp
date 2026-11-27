@@ -376,7 +376,11 @@ def encolar_generacion_video(
         7200,
     )
 
-    from core.tasks import generar_video_course_engine_async
+    import importlib
+
+    generar_video_course_engine_async = importlib.import_module(
+        'core.tasks',
+    ).generar_video_course_engine_async
 
     try:
         async_result = generar_video_course_engine_async.delay(

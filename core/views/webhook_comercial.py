@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -9,7 +10,8 @@ from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
 # legacy lo sustituye al cargar webhook_meta (la llamada vive en este módulo).
 _aplicar_sandbox_menu = None
 
-from .legacy import logger
+logger = logging.getLogger(__name__)
+
 from .twilio_transporte import (
     _es_status_callback_twilio,
     _twilio_post_plano,

@@ -44,7 +44,11 @@ def completar_chat_o_diferir(
     if not respuesta_diferida_activa():
         return completar_chat(client, modelo, messages, max_out, temperature)
 
-    from core.tasks import ejecutar_llm_turno_whatsapp_async
+    import importlib
+
+    ejecutar_llm_turno_whatsapp_async = importlib.import_module(
+        'core.tasks',
+    ).ejecutar_llm_turno_whatsapp_async
 
     payload: dict[str, Any] = {
         'modelo': modelo,
