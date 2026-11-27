@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @shared_task
 def correlacionar_alertas_territoriales():
     """Agrupa señales de la ventana en alertas y reintenta el lake si quedó outbox."""
-    from core.event_engine import correr_correlacion_territorial
+    from core.agentes.event_engine import correr_correlacion_territorial
 
     out = correr_correlacion_territorial()
     logger.info(

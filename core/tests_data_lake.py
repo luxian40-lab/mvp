@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from core.event_engine import correr_correlacion_territorial, publicar_evento
+from core.agentes.event_engine import correr_correlacion_territorial, publicar_evento
 
 
 @override_settings(
@@ -56,16 +56,16 @@ class DataLakeFlushTests(TestCase):
 
 @override_settings(DATA_LAKE_ENABLED=True)
 class DataLakeCeleryTests(TestCase):
-    @patch('core.event_engine.correlacionar_clusters', return_value=[])
-    @patch('core.event_engine.flush_outbox_pendientes', return_value=2)
+    @patch('core.agentes.event_engine.correlacionar_clusters', return_value=[])
+    @patch('core.agentes.event_engine.flush_outbox_pendientes', return_value=2)
     def test_celery_reintenta_el_lake_si_esta_prendido(self, flush, _clusters):
         out = correr_correlacion_territorial()
         flush.assert_called_once_with(limit=200)
         self.assertEqual(out['lake_flush'], 2)
 
     @override_settings(DATA_LAKE_ENABLED=False)
-    @patch('core.event_engine.correlacionar_clusters', return_value=[])
-    @patch('core.event_engine.flush_outbox_pendientes', return_value=9)
+    @patch('core.agentes.event_engine.correlacionar_clusters', return_value=[])
+    @patch('core.agentes.event_engine.flush_outbox_pendientes', return_value=9)
     def test_celery_no_flushea_si_esta_apagado(self, flush, _clusters):
         out = correr_correlacion_territorial()
         flush.assert_not_called()

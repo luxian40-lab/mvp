@@ -6,7 +6,7 @@ from core.analitica.clasificador_senales import (
     clasificar_consulta_territorial,
     precision_ejemplos_etiquetados,
 )
-from core.event_engine import correlacionar_clusters
+from core.agentes.event_engine import correlacionar_clusters
 from core.models import AlertaTerritorial, Cliente, Estudiante, SenalTerritorial
 from core.analitica.senal_shadow import procesar_senal_shadow_nat
 from core.analitica.taxonomia_senales import EJEMPLOS_ETIQUETADOS

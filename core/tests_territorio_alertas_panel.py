@@ -12,7 +12,7 @@ from core.analitica.alerta_territorial_ops import (
     etiqueta_territory_id,
     transicionar_alerta,
 )
-from core.event_engine import correlacionar_clusters, registrar_senal_territorial
+from core.agentes.event_engine import correlacionar_clusters, registrar_senal_territorial
 from core.models import AlertaTerritorial
 
 

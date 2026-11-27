@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from unittest.mock import MagicMock, patch
 
-from core.event_engine import correlacionar_clusters, publicar_evento, registrar_senal_territorial
+from core.agentes.event_engine import correlacionar_clusters, publicar_evento, registrar_senal_territorial
 from core.models import AlertaTerritorial, EventOutbox, SandboxCanalSesion, SenalTerritorial
 from core.sandbox_menu import (
     MODO_AGENTES,

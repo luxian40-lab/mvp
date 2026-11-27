@@ -62,7 +62,7 @@ def registrar_evento(
             from django.conf import settings as _settings
 
             if getattr(_settings, 'EVENT_ENGINE_EMIT_TELEMETRIA', True):
-                from core.event_engine import publicar_evento
+                from core.agentes.event_engine import publicar_evento
                 from core.analitica.territorio import obtener_territory_id_estudiante
 
                 tid = obtener_territory_id_estudiante(estudiante, persistir=True)
