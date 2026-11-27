@@ -1,3 +1,72 @@
+# Continuar eki — 27 de noviembre de 2026
+
+Handoff corto para la siguiente sesión. Este bloque **no borra** el historial de abajo (octubre). Solo dice dónde estamos hoy.
+
+## Riesgos si tocas otra cosa en paralelo
+
+- **No editar H4 / Bloque 6** mientras otra sesión trabaja en worktrees `b6_*` / `b6_partir` (partir handlers, retirar reexports). Chocarías commits y el freno.
+- **No enviar WhatsApp** a las mismas cohortes (Alitic L2, Lhaura L1, AgriCapital L3) si la otra sesión está en ops: duplicas mensajes.
+- **No desplegar** desde el IDE en `slice/bloque-1-bandeja` (árbol sucio y viejo). Deploy solo desde worktree limpio de `main` / `origin/main`.
+- **No inventar** la versión de producción: antes de un deploy nuevo, `eb status eki-prod-final` (el tip de git puede ir adelante del label en EB).
+
+Actualizar **solo este archivo** (opción C) no cambia código ni prod. El riesgo real es escribir mal “qué está en vivo” o pisar un edite concurrente del mismo doc.
+
+## Dónde vamos ahora (corte 27 nov ~01:00 Bogotá)
+
+### Tres líneas (producto)
+
+| Línea | Uso | Clientes que cuidamos |
+|---|---|---|
+| L1 principal | Menú, formación, asesoría | Lhaura vet (y resto completa) |
+| L2 solo cursos | Curso lineal por campaña | Alitic · Crea y Vende |
+| L3 registro | Registro → cursos del enlace | AgriCapital |
+
+Vendrán más líneas; cada una con su perfil. Una línea nueva = perfil nuevo, no un webhook nuevo. Detalle: `docs/PLAN_MODULARIDAD_EKI.md` §1.
+
+### Código en `origin/main` (tip al corte)
+
+- Tip: `3fe1df5c` — Bloque 6 / H4 (retarget tests tras retirar stubs; partida de `envio_comun`, `activo_menu`, `inscribir_curso`, etc.).
+- **E4, G4, G5, G6** ya en main; flags de comportamiento **apagados**.
+- **Bloque 2** (outbox, sleeps→Celery, dueños W1): código verde desde ~23 nov.
+- **G3 del integrar no se porta** (lo cubre el outbox del bloque 2).
+- Plan vivo modularidad: `docs/PLAN_MODULARIDAD_EKI.md` §4b. Plan maestro: `docs/PLAN_MAESTRO_ESTABILIZACION_EKI.md`.
+
+### Producción (último deploy **conocido** en sesiones; confirmar en EB)
+
+- Label reciente de producto L3: `main-diploma-l3-20261126-185956` (commits `57c11962` alta IMAGE/unique WABA + `5bc88378` diploma AgriCapital por L3 si plantilla aprobada ahí).
+- También en el camino reciente: habeas sin botones fuera de 24 h (`3040c346` / `main-habeas-ventana-…`), avance promedio portal solo “en curso”.
+- **Ojo:** el tip `3fe1df5c` de H4 puede **no** estar aún en las cajas. Antes de afirmar o desplegar: `eb status` en `eki-prod-final` y `eki-ai-workers`.
+- Correo semanal Andrés: `EKI_REPORTE_CLIENTES_EMAIL=andres@eki.com`; URL fija `/admin/novedades-eki/`.
+
+### Ops en curso (no mezclar con H4)
+
+- AgriCapital L3: diplomas, VIDEO9, quién no tocó Continuar, recordatorio UTILITY propuesto (sin enviar a ciegas).
+- Alitic / Lhaura: recordatorios y cierre de frios; envíos van **por la línea del cliente**.
+- Meta puede devolver `131049` (engagement): no es bug de eki.
+
+### Qué sigue (orden sano)
+
+1. Dejar terminar / fusionar **H4 paso 3** (partir piezas) sin tocar esos worktrees desde otra sesión.
+2. Ops L3/L1/L2 cuando H4 no esté a media fusión.
+3. **Bandeja** (bloque 1) desde `origin/main` **limpio** — no usar `slice/bloque-1-bandeja` del Escritorio (sucia y ~400 commits atrás).
+4. Ideas en cola (solo plan): “curso primero” tras registro L3; certificados HD; claridad del portal.
+
+### Dónde trabajar
+
+| Sitio | Estado | Uso |
+|---|---|---|
+| `C:\Users\luxia\eki_wt\docs-continuar` rama `docs/continuar-27nov` | limpio, solo este handoff | Editar CONTINUAR |
+| `C:\Users\luxia\eki_wt\b6_*` | H4 activo | No tocar en paralelo |
+| `C:\Users\luxia\eki_deploy_main` | a veces detrás de origin | Deploy cuando pidas |
+| Escritorio `eki_mvp` / `slice/bloque-1-bandeja` | sucio | No commit ni deploy |
+
+---
+
+# Historial (desde 25 / 30 de octubre de 2026)
+
+Lo de abajo es el handoff largo anterior. Sírvete del bloque de arriba para “dónde vamos”; el historial queda por si hace falta un rollback viejo.
+
+---
 # Continuar eki — 25 de octubre de 2026
 
 Handoff para la siguiente sesión. `main` es lo que está en producción.
