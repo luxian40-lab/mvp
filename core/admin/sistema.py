@@ -159,7 +159,7 @@ def tabs_bandeja(request):
     path = request.path or ''
     if not (path.startswith(str(ruta_candidata)) or path.startswith(str(ruta_conocimiento))):
         return []
-    from core.models_agentes import ConocimientoAgente
+    from core.agentes.models_agentes import ConocimientoAgente
 
     vista = getattr(request, 'eki_rev', None)
     if vista is None:

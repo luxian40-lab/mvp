@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 
 from core.agentes.conocimiento_agentes import bloque_conocimiento, capturar_sugerencia
 from core.models import Cliente, SandboxCanalSesion
-from core.models_agentes import ConocimientoAgente
+from core.agentes.models_agentes import ConocimientoAgente
 
 
 class ConocimientoAgenteTests(TestCase):

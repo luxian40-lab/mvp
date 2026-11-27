@@ -8,7 +8,7 @@ import re
 from django.conf import settings
 from django.core.cache import cache
 
-from core.models_agentes import (  # noqa: F401
+from core.agentes.models_agentes import (  # noqa: F401
     _CACHE_KEY,
     AGENTES,
     limpiar_cache_conocimiento,
@@ -53,7 +53,7 @@ def bloque_conocimiento(agente: str, cliente_id=None) -> str:
         return guardado
     from django.db.models import Q
 
-    from core.models_agentes import ConocimientoAgente
+    from core.agentes.models_agentes import ConocimientoAgente
 
     filas = ConocimientoAgente.objects.filter(
         estado=ConocimientoAgente.ESTADO_APROBADO,
@@ -107,7 +107,7 @@ def capturar_sugerencia(agente: str, pregunta: str, respuesta: str) -> None:
         return
     if random.randint(1, 100) > _porcentaje_captura():
         return
-    from core.models_agentes import ConocimientoAgente
+    from core.agentes.models_agentes import ConocimientoAgente
 
     if ConocimientoAgente.objects.filter(
         agente=agente,
@@ -139,7 +139,7 @@ _CODIGOS_CONOCIMIENTO = {
 
 def copiar_candidata_a_agentes(candidata, usuario) -> int:
     """Copia la respuesta ya revisada al conocimiento aprobado de cada agente elegido."""
-    from core.models_agentes import ConocimientoAgente
+    from core.agentes.models_agentes import ConocimientoAgente
 
     codigos = candidata.agentes or []
     if isinstance(codigos, str):

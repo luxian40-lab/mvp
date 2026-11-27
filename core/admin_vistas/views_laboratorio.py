@@ -17,7 +17,7 @@ from django.views.decorators.http import require_http_methods
 
 from core.admin.agentes_v2_textos import SIN_DATO
 from core.models import Cliente, ConversacionRAGCandidata, EventoIA
-from core.models_agentes import ConocimientoAgente, PruebaAgente
+from core.agentes.models_agentes import ConocimientoAgente, PruebaAgente
 from core.canal.planes_linea import PLAN_CHOICES
 
 AGENTES_LAB = PruebaAgente.AGENTE_CHOICES

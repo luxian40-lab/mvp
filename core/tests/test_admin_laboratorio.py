@@ -8,7 +8,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, ConversacionRAGCandidata, EventoIA, WhatsappLog
-from core.models_agentes import ConocimientoAgente, PruebaAgente
+from core.agentes.models_agentes import ConocimientoAgente, PruebaAgente
 
 
 @override_settings(SECURE_SSL_REDIRECT=False, ADMIN_AGENTES_V2=False)

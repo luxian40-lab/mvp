@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from core.agentes.conocimiento_agentes import bloque_conocimiento
 from core.models import ConversacionRAGCandidata
-from core.models_agentes import ConocimientoAgente
+from core.agentes.models_agentes import ConocimientoAgente
 
 
 def _candidata(tag, estado=ConversacionRAGCandidata.ESTADO_PENDIENTE):
