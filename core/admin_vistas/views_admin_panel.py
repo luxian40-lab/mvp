@@ -525,7 +525,7 @@ def _gasto_llm_panel() -> dict:
         from django.utils import timezone
 
         from core.models import Estudiante
-        from core.models_uso_llm import UsoLLM
+        from core.agentes.models_uso_llm import UsoLLM
         from core.presupuesto_llm import dia_bogota
 
         hoy = dia_bogota()

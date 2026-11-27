@@ -22,7 +22,7 @@ def _registrar_uso(modelo: str, texto: str, resp) -> None:
     """No tumba la respuesta si el ledger falla."""
     try:
         from core.conversacion.locks import telefono_hash
-        from core.models_uso_llm import UsoLLM
+        from core.agentes.models_uso_llm import UsoLLM
 
         ctx = _uso.get() or {}
         usage = getattr(resp, 'usage', None)

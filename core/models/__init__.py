@@ -113,7 +113,7 @@ from core.campanas.models_campana_meta import PlantillaMeta, TarjetaPlantillaMet
 from core.canal.models_meta_webhook import MetaWebhookEvento
 from core.curso.models_video import VideoEnlace, VideoView
 from core.models_agentes import ConocimientoAgente, PruebaAgente
-from core.models_uso_llm import UsoLLM
+from core.agentes.models_uso_llm import UsoLLM
 from core.lineas.modelo import LineaWhatsapp
 from core.conversacion.estado_linea import EstadoLinea
 

@@ -1,7 +1,7 @@
 """UsoLLM solo se consulta. El costo no se edita a mano."""
 from django.contrib import admin
 
-from core.models_uso_llm import UsoLLM
+from core.agentes.models_uso_llm import UsoLLM
 
 
 @admin.register(UsoLLM)
