@@ -11,7 +11,7 @@ from django.db import transaction
 from django.test import override_settings
 from django.utils import timezone
 
-from core.contexto_agro import actualizar_contexto_desde_mensaje, obtener_o_crear_contexto
+from core.agentes.contexto_agro import actualizar_contexto_desde_mensaje, obtener_o_crear_contexto
 from core.models import Cliente, ProductoCatalogo, SesionComercial
 from core.agentes.nat_diagnostico import es_consulta_diagnostico, siguiente_pregunta_diagnostico
 from core.agentes.nati import armar_system_prompt, obtener_contexto_productos
@@ -65,7 +65,7 @@ def run() -> None:
         _fail('no detecta "mancha" como consulta de diagnóstico')
     _ok('detecta síntoma "mancha"')
 
-    from core.contexto_agro import extraer_campos_desde_mensaje
+    from core.agentes.contexto_agro import extraer_campos_desde_mensaje
     campos0 = extraer_campos_desde_mensaje('tengo mancha en el tomate')
     if 'tomate' not in (campos0.get('cultivo') or '').lower():
         _fail(f'no extrajo cultivo tomate: {campos0}')
