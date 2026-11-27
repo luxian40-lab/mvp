@@ -6,7 +6,7 @@ from django.dispatch import receiver
 import logging
 
 from core.models import Curso, Modulo
-from core.base_conocimientos import actualizar_base_conocimientos
+from core.agentes.base_conocimientos import actualizar_base_conocimientos
 
 logger = logging.getLogger(__name__)
 

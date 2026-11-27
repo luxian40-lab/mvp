@@ -6,7 +6,7 @@ import logging
 import random
 from typing import Dict, List, Optional, Tuple
 from core.models import Estudiante, Modulo, ModuloCompletado
-from core.base_conocimientos import BaseConocimientos
+from core.agentes.base_conocimientos import BaseConocimientos
 
 logger = logging.getLogger(__name__)
 
