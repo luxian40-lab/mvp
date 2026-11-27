@@ -5,11 +5,14 @@ los tests parchean ahí.
 """
 from __future__ import annotations
 
+import importlib
 import logging
 
-from core.lineas.principal.cursos import _tiene_curso_abierto
-
 logger = logging.getLogger(__name__)
+
+
+def _cursos_generales():
+    return importlib.import_module('core.cursos_generales')
 
 
 def _menu():
@@ -32,7 +35,7 @@ def _olvidar_eleccion(telefono: str) -> None:
 
 def aplicar_ruta_catalogo(decision, sesion, body: str) -> bool:
     """True si el turno es del catálogo (ver, info, sí o otro)."""
-    from core.cursos_generales import payload_catalogo
+    payload_catalogo = _cursos_generales().payload_catalogo
     from core.lineas.principal.confirmar_curso import cuerpo_catalogo
 
     cuerpo = cuerpo_catalogo(decision.telefono_usuario, _linea(), body, sesion.modo)
@@ -58,7 +61,7 @@ def _curso_abierto(telefono: str, curso_id: int) -> bool:
 
 
 def _preguntar_curso(telefono: str, from_number: str, clave: str) -> None:
-    from core.cursos_generales import evaluar_catalogo
+    evaluar_catalogo = _cursos_generales().evaluar_catalogo
     from core.lineas.principal.confirmar_curso import BOTON_OTRO, BOTON_SI, ID_OTRO, recordar, texto_pregunta
     from core.lineas.variante import perfil_de
     from core.canal.planes_linea import resolver_plan
@@ -86,7 +89,7 @@ def _preguntar_curso(telefono: str, from_number: str, clave: str) -> None:
 
 def _interceptar_confirmacion(telefono: str, from_number: str, dato: dict) -> bool:
     """True si este turno ya respondió y no hay que inscribir."""
-    from core.cursos_generales import evaluar_catalogo
+    evaluar_catalogo = _cursos_generales().evaluar_catalogo
     from core.lineas.principal.confirmar_curso import decidir, leer, olvidar
     from core.lineas.variante import perfil_de
 
@@ -142,7 +145,9 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 
         if filas_agentes(telefono_usuario):
             botones.append(('asesoria', 'Asesoría'))
-    if not plan.incluye_cursos and _tiene_curso_abierto(telefono_usuario):
+    if not plan.incluye_cursos and importlib.import_module(
+        'core.lineas.principal.cursos',
+    )._tiene_curso_abierto(telefono_usuario):
         botones.append(('seguir', 'Seguir mi curso'))
     texto = _menu().texto_menu_plan(plan)
     if sandbox_via_meta():
@@ -163,13 +168,12 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     """De 2 a 10 cursos: carrusel. Más de 10: lista. Ver curso pide confirmar."""
     _olvidar_eleccion(telefono_usuario)
-    from core.cursos_generales import (
-        filas_de_tarjetas,
-        modo_catalogo,
-        paginas_carrusel,
-        paginas_lista,
-        tarjetas_catalogo,
-    )
+    _cg = _cursos_generales()
+    filas_de_tarjetas = _cg.filas_de_tarjetas
+    modo_catalogo = _cg.modo_catalogo
+    paginas_carrusel = _cg.paginas_carrusel
+    paginas_lista = _cg.paginas_lista
+    tarjetas_catalogo = _cg.tarjetas_catalogo
     from core.canal.sandbox_canal import (
         enviar_meta_botones,
         enviar_meta_carrusel,
@@ -241,12 +245,15 @@ def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
 
 
 def responder_catalogo_general(telefono_usuario: str, from_number: str, body: str) -> None:
-    from core.cursos_generales import inscribir_en_catalogo, item_catalogo, payload_catalogo
+    _cg = _cursos_generales()
+    inscribir_en_catalogo = _cg.inscribir_en_catalogo
+    item_catalogo = _cg.item_catalogo
+    payload_catalogo = _cg.payload_catalogo
 
     dato = payload_catalogo(body) or {}
     item = item_catalogo(dato.get('clave') or '')
     if item is None:
-        from core.cursos_generales import resolver_curso_menu
+        resolver_curso_menu = _cg.resolver_curso_menu
 
         curso_linea = resolver_curso_menu(dato.get('clave') or '', telefono_usuario)
         if curso_linea is not None:
@@ -259,7 +266,7 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         enviar_catalogo_formacion(telefono_usuario, from_number)
         return
     if dato.get('accion') == 'info':
-        from core.cursos_generales import _url_de_curso
+        _url_de_curso = _cursos_generales()._url_de_curso
         from core.canal.sandbox_canal import enviar_meta_url, sandbox_via_meta
 
         destino = str(item.get('url') or '') or _url_de_curso(item.get('nombre') or '')

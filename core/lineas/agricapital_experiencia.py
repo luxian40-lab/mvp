@@ -8,7 +8,14 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from core.lineas.registro_agricapital import es_cliente_agricapital
+import importlib
+
+
+def _es_cliente_agricapital(cliente_id):
+    return importlib.import_module('core.lineas.registro_agricapital').es_cliente_agricapital(
+        cliente_id,
+    )
+
 
 NOMBRE_FORMADOR = 'Formador'
 NOMBRE_COMPANERO = 'Compañero'
@@ -131,19 +138,19 @@ def _norm(texto: str) -> str:
 
 
 def estudiante_es_agricapital(estudiante) -> bool:
-    return es_cliente_agricapital(getattr(estudiante, 'cliente_id', None))
+    return _es_cliente_agricapital(getattr(estudiante, 'cliente_id', None))
 
 
 def cliente_es_agricapital(cliente) -> bool:
     if cliente is None:
         return False
-    return es_cliente_agricapital(getattr(cliente, 'pk', None))
+    return _es_cliente_agricapital(getattr(cliente, 'pk', None))
 
 
 def curso_es_agricapital(curso) -> bool:
     if curso is None:
         return False
-    return es_cliente_agricapital(getattr(curso, 'cliente_id', None))
+    return _es_cliente_agricapital(getattr(curso, 'cliente_id', None))
 
 
 def es_duda_media_agricapital(mensaje: str) -> bool:
@@ -204,8 +211,11 @@ def texto_tip_media_agricapital() -> str:
 
 
 def texto_no_entendi_agricapital() -> str:
-    from core.conversacion.avance_whatsapp import MARCADOR_BOTON_CONTINUEMOS
+    import importlib
 
+    MARCADOR_BOTON_CONTINUEMOS = importlib.import_module(
+        'core.conversacion.avance_whatsapp',
+    ).MARCADOR_BOTON_CONTINUEMOS
     return TEXTO_NO_ENTENDI + '\n\n' + MARCADOR_BOTON_CONTINUEMOS
 
 

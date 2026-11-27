@@ -67,15 +67,18 @@ def espera_continuar_post_reto(estudiante) -> bool:
 
 
 def texto_cuando_no_es_listo(estudiante, mensaje: str = '') -> str:
-    """Pausa en lección ACTIVO: tip/CTA o Compañero. Nunca «No entendí»."""
-    from core.lineas.agricapital_experiencia import estudiante_es_agricapital
-    from core.conversacion.turno_leccion import (
-        clasificar_mensaje_leccion,
-        responder_duda_en_leccion,
-        texto_tip_turno_leccion,
-        turno_leccion_companero_habilitado,
-        turno_leccion_tip_habilitado,
-    )
+    """Pausa en lección ACTIVO: tip/CTA, Compañero o TEXTO_NO_ENTENDI si tip off."""
+    import importlib
+
+    estudiante_es_agricapital = importlib.import_module(
+        'core.lineas.agricapital_experiencia',
+    ).estudiante_es_agricapital
+    _tl = importlib.import_module('core.conversacion.turno_leccion')
+    clasificar_mensaje_leccion = _tl.clasificar_mensaje_leccion
+    responder_duda_en_leccion = _tl.responder_duda_en_leccion
+    texto_tip_turno_leccion = _tl.texto_tip_turno_leccion
+    turno_leccion_companero_habilitado = _tl.turno_leccion_companero_habilitado
+    turno_leccion_tip_habilitado = _tl.turno_leccion_tip_habilitado
 
     if espera_continuar_post_reto(estudiante):
         if estudiante_es_agricapital(estudiante):
