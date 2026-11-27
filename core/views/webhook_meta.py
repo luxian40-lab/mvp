@@ -225,7 +225,7 @@ def _procesar_meta_webhook(payload):
                             defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}
                         )
 
-                        from ..security_handler import verificar_seguridad_completa
+                        from core.conversacion.security_handler import verificar_seguridad_completa
                         bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
                             estudiante,
                             text,

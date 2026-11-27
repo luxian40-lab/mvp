@@ -429,7 +429,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         # ============================================================
         
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data) - Legacy
-        from ..security_handler import verificar_seguridad_completa
+        from core.conversacion.security_handler import verificar_seguridad_completa
         if pqrs_atendido:
             bloqueado = True
             respuesta_seguridad = respuesta_pqrs
