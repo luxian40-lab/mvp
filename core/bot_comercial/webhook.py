@@ -901,7 +901,7 @@ def _despues_de_nat(post_data, respuesta: str) -> None:
 
 def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False):
     """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
-    from core.rag_comercial_manager import rag_comercial_manager
+    from core.agentes.rag_comercial_manager import rag_comercial_manager
 
     status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
     if status and status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:

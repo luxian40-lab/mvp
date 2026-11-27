@@ -77,7 +77,7 @@ def revisar_candidata(candidata, *, usuario, accion: str, respuesta_revisada: st
 def publicar_candidata_en_rag(candidata, *, usuario) -> dict[str, Any]:
     """Indexa la respuesta revisada en RAG comercial del cliente."""
     from core.models import ConversacionRAGCandidata, DocumentoRAGComercial
-    from core.rag_comercial_manager import rag_comercial_manager
+    from core.agentes.rag_comercial_manager import rag_comercial_manager
 
     texto = (candidata.respuesta_revisada or candidata.respuesta_nati or '').strip()
     if not texto:
@@ -127,7 +127,7 @@ def publicar_candidata_en_rag(candidata, *, usuario) -> dict[str, Any]:
 
 def calcular_salud_rag(cliente_id: int | None = None) -> dict[str, Any]:
     from core.models import ConversacionRAGCandidata, DocumentoRAGComercial
-    from core.rag_comercial_manager import rag_comercial_manager
+    from core.agentes.rag_comercial_manager import rag_comercial_manager
 
     docs_q = DocumentoRAGComercial.objects.all()
     if cliente_id:

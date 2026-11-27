@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from core.analitica.extractores_documento import _ocr_disponible
-        from core.rag_comercial_manager import rag_comercial_manager
+        from core.agentes.rag_comercial_manager import rag_comercial_manager
 
         cliente_id = options['cliente_id']
         limite = options['limite']

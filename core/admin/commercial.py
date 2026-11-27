@@ -1075,7 +1075,7 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
     @admin.action(description='🗑️ Eliminar del RAG comercial (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):
-        from core.rag_comercial_manager import rag_comercial_manager
+        from core.agentes.rag_comercial_manager import rag_comercial_manager
 
         for doc in queryset:
             rag_comercial_manager.eliminar_documento(doc.cliente_scope_id, doc.canal, doc.nombre)

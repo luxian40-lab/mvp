@@ -73,7 +73,7 @@ class KnowledgeStudioHitlTests(TestCase):
         self.assertEqual(c.estado, ConversacionRAGCandidata.ESTADO_APROBADA)
         self.assertEqual(c.revisado_por_id, self.user.id)
 
-    @patch('core.rag_comercial_manager.rag_comercial_manager')
+    @patch('core.agentes.rag_comercial_manager.rag_comercial_manager')
     def test_publicar_candidata(self, mock_rag):
         mock_rag.disponible = True
         mock_rag.procesar_texto.return_value = 3

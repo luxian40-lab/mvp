@@ -104,7 +104,7 @@ def _marcar_estado(item: BibliotecaConocimiento, *, estado: str, n_chunks: int =
 
 def indexar_item(item: BibliotecaConocimiento) -> int:
     """Indexa un ítem publicado en Chroma (RAG comercial)."""
-    from core.rag_comercial_manager import rag_comercial_manager
+    from core.agentes.rag_comercial_manager import rag_comercial_manager
 
     if item.estado_publicacion != 'publicado':
         _marcar_estado(item, estado='pendiente', error='')

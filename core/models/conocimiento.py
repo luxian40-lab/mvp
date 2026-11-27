@@ -289,7 +289,7 @@ class DocumentoRAGComercial(models.Model):
 
     def indexar(self):
         """Indexa este documento en el RAG comercial (aislado de cursos)."""
-        from core.rag_comercial_manager import rag_comercial_manager
+        from core.agentes.rag_comercial_manager import rag_comercial_manager
         from django.utils import timezone
 
         if not self.archivo:
