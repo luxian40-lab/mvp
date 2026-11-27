@@ -70,7 +70,7 @@ def extraer_texto_archivo(ruta: str) -> tuple[str, str]:
     if ext == '.txt':
         return _extraer_txt(ruta), 'txt'
     if ext in ('.xlsx', '.xlsm', '.xls'):
-        from core.rag_eki_multitenant import RAGClienteCurso
+        from core.agentes.rag_eki_multitenant import RAGClienteCurso
 
         return RAGClienteCurso._extraer_xlsx(ruta), 'xlsx'
     return '', f'no_soportado:{ext}'

@@ -120,7 +120,7 @@ def _extraer_texto_archivo_simple(ruta_archivo: str, *, xlsx_max_rows=None) -> s
             doc = Document(ruta_archivo)
             return "\n".join(p.text for p in doc.paragraphs)[:80000]
         if ext in ('.xlsx', '.xlsm'):
-            from core.rag_eki_multitenant import RAGClienteCurso
+            from core.agentes.rag_eki_multitenant import RAGClienteCurso
 
             mr = xlsx_max_rows if xlsx_max_rows is not None else None
             return (RAGClienteCurso._extraer_xlsx(ruta_archivo, max_rows=mr) or '').strip()[:120000]

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Flag global
 _CHROMADB_OK = False
 try:
-    from core.rag_eki_multitenant import RAGClienteCurso, CHROMADB_DISPONIBLE
+    from core.agentes.rag_eki_multitenant import RAGClienteCurso, CHROMADB_DISPONIBLE
     _CHROMADB_OK = CHROMADB_DISPONIBLE
 except Exception:
     _CHROMADB_OK = False
