@@ -83,7 +83,7 @@ class Command(BaseCommand):
             curso = prog.curso
         else:
             try:
-                from core.signals_conocimientos import curso_actualizado
+                from core.agentes.signals_conocimientos import curso_actualizado
                 post_save.disconnect(curso_actualizado, sender=Curso)
                 reconnect = True
             except Exception:

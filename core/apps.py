@@ -20,7 +20,7 @@ class CoreConfig(AppConfig):
         import core.certificados.signals_certificados  # Genera certificado al completar curso
         
         # Base de conocimientos para IAs
-        import core.signals_conocimientos  # Actualiza conocimientos cuando se modifican cursos
+        import core.agentes.signals_conocimientos  # Actualiza conocimientos cuando se modifican cursos
 
         # Telemetría Centro de Éxito (eventos de aprendizaje)
         import core.analitica.signals_telemetria

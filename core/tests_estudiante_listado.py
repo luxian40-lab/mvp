@@ -9,7 +9,7 @@ from django.test import Client, RequestFactory, SimpleTestCase, TestCase, overri
 from django.urls import reverse
 from django.utils import timezone
 
-from core.signals_conocimientos import curso_actualizado, modulo_actualizado
+from core.agentes.signals_conocimientos import curso_actualizado, modulo_actualizado
 
 from core.admin.estudiantes import (
     EstudianteAdmin,

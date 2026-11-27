@@ -26,7 +26,7 @@ from core.models import (
     ProgresoEstudiante,
     WhatsappLog,
 )
-from core.signals_conocimientos import curso_actualizado, modulo_actualizado
+from core.agentes.signals_conocimientos import curso_actualizado, modulo_actualizado
 
 
 def _consultas(cliente, url, params=None):

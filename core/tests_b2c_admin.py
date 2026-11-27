@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, Curso, Estudiante
-from core.signals_conocimientos import curso_actualizado
+from core.agentes.signals_conocimientos import curso_actualizado
 from studio.models import CuentaAula, OrdenItemStudio, OrdenStudio, PublicacionStudio
 
 

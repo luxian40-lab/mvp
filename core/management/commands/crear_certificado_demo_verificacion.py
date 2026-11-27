@@ -23,7 +23,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Evitar rebuild de base de conocimientos al crear curso demo
         try:
-            from core.signals_conocimientos import curso_actualizado
+            from core.agentes.signals_conocimientos import curso_actualizado
             post_save.disconnect(curso_actualizado, sender=Curso)
             reconnect = True
         except Exception:
