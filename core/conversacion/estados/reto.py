@@ -67,7 +67,7 @@ def manejar(contexto: Contexto) -> Respuesta:
         )
     elif evidencia_bytes and resultado_foto is None:
         # Foto recibida pero sin visión disponible: no castigar con 1/10.
-        from core.reto_evidencia import mensaje_evidencia_no_evaluable
+        from core.conversacion.reto_evidencia import mensaje_evidencia_no_evaluable
 
         texto_respuesta = mensaje_evidencia_no_evaluable()
     elif _mensaje_indica_listo(msg_body):
@@ -90,7 +90,7 @@ def _leer_evidencia_foto(evidencia_imagen_url, progreso_id, evidencia_imagen_typ
     if evidencia_imagen_url:
         from core.gamificacion.modo import get_modo_gamificacion
         from core.models import ProgresoEstudiante
-        from core.reto_evidencia import (
+        from core.conversacion.reto_evidencia import (
             descargar_media_twilio,
             evaluar_evidencia_foto,
             guardar_evidencia,

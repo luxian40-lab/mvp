@@ -200,7 +200,7 @@ def _procesar_twilio_webhook_cuerpo(post_data):
 
         es_audio = es_audio_inbound_twilio(num_media, media_type, media_url)
         # Imagen: puede ser evidencia de un reto de campo (se resuelve en esa rama).
-        from core.reto_evidencia import es_imagen_soportada
+        from core.conversacion.reto_evidencia import es_imagen_soportada
 
         evidencia_imagen_url = media_url if (num_media > 0 and es_imagen_soportada(media_type)) else ''
         evidencia_imagen_type = media_type if evidencia_imagen_url else ''

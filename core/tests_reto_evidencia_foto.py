@@ -74,11 +74,11 @@ class RetoEvidenciaFotoTests(TestCase):
         return ' '.join(bodies)
 
     @patch(
-        'core.reto_evidencia.evaluar_evidencia_foto',
+        'core.conversacion.reto_evidencia.evaluar_evidencia_foto',
         return_value=(8, 'Se observa cría salteada en el marco; tome muestra de 30 abejas.'),
     )
     @patch(
-        'core.reto_evidencia.descargar_media_twilio',
+        'core.conversacion.reto_evidencia.descargar_media_twilio',
         return_value=(FOTO_BYTES, 'image/jpeg'),
     )
     def test_foto_se_califica_y_no_pide_texto(self, _mock_dl, _mock_vision):
@@ -90,11 +90,11 @@ class RetoEvidenciaFotoTests(TestCase):
         self.assertEqual(self.est.estado_onboarding, 'completado')
 
     @patch(
-        'core.reto_evidencia.evaluar_evidencia_foto',
+        'core.conversacion.reto_evidencia.evaluar_evidencia_foto',
         return_value=(8, 'Evidencia válida.'),
     )
     @patch(
-        'core.reto_evidencia.descargar_media_twilio',
+        'core.conversacion.reto_evidencia.descargar_media_twilio',
         return_value=(FOTO_BYTES, 'image/jpeg'),
     )
     def test_foto_emite_evento_reto_respondido(self, _mock_dl, _mock_vision):
@@ -110,9 +110,9 @@ class RetoEvidenciaFotoTests(TestCase):
         self.assertEqual(ev.metadata.get('perfil_facilitador'), 'tecnicoagro')
         self.assertEqual(ev.curso_id, self.curso.id)
 
-    @patch('core.reto_evidencia.evaluar_evidencia_foto', return_value=None)
+    @patch('core.conversacion.reto_evidencia.evaluar_evidencia_foto', return_value=None)
     @patch(
-        'core.reto_evidencia.descargar_media_twilio',
+        'core.conversacion.reto_evidencia.descargar_media_twilio',
         return_value=(FOTO_BYTES, 'image/jpeg'),
     )
     def test_foto_sin_vision_no_castiga_al_estudiante(self, _mock_dl, _mock_vision):
@@ -123,15 +123,15 @@ class RetoEvidenciaFotoTests(TestCase):
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
 
     @patch(
-        'core.reto_evidencia.evaluar_evidencia_foto',
+        'core.conversacion.reto_evidencia.evaluar_evidencia_foto',
         return_value=(9, 'Buena evidencia.'),
     )
     @patch(
-        'core.reto_evidencia.descargar_media_twilio',
+        'core.conversacion.reto_evidencia.descargar_media_twilio',
         return_value=(FOTO_BYTES, 'image/jpeg'),
     )
     def test_foto_se_guarda_y_queda_en_el_evento(self, _mock_dl, _mock_vision):
-        with patch('core.reto_evidencia.guardar_evidencia', return_value='https://s3/ev.jpg'):
+        with patch('core.conversacion.reto_evidencia.guardar_evidencia', return_value='https://s3/ev.jpg'):
             self._post_foto()
 
         ev = EstudianteEventoAprendizaje.objects.filter(
