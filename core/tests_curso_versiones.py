@@ -388,6 +388,47 @@ class LecturaEntregaVersionadaTests(TestCase):
         self.assertEqual(texto_legacy_whatsapp(mod), 'contenido editado vivo')
 
     @override_settings(EKI_CURSO_VERSIONES=True)
+    def test_reenviar_modulo_legacy_lee_snap_no_vivo(self):
+        from core.conversacion.intents.continuar_leccion import _reenviar_modulo_actual
+        from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
+
+        curso = Curso.objects.create(nombre='Reenvio snap', descripcion='d', emoji='📚')
+        mod = Modulo.objects.create(
+            curso=curso,
+            numero=1,
+            titulo='Titulo v1',
+            descripcion='desc v1',
+            contenido='cuerpo v1',
+            modo_entrega=Modulo.MODO_ENTREGA_LEGACY,
+            publicado_wa=True,
+        )
+        v1 = publicar(curso, nota='v1')
+        est = Estudiante.objects.create(
+            nombre='Re', telefono='573009990205', cedula='CC990205', activo=True,
+        )
+        prog = ProgresoEstudiante.objects.create(
+            estudiante=est, curso=curso, curso_version=v1, modulo_actual=mod,
+        )
+        mod.titulo = 'Titulo vivo'
+        mod.descripcion = 'desc vivo'
+        mod.contenido = 'cuerpo vivo'
+        mod.save(update_fields=['titulo', 'descripcion', 'contenido'])
+
+        def _sin_video(_m):
+            return None
+
+        def _split(texto, max_chars=1300):
+            return [texto] if texto else []
+
+        txt = _reenviar_modulo_actual(
+            est, mod, prog, _sin_video, _split, lambda url: f'[MEDIA:{url}]',
+        )
+        self.assertIn('Titulo v1', txt)
+        self.assertIn('cuerpo v1', txt)
+        self.assertNotIn('Titulo vivo', txt)
+        self.assertNotIn('cuerpo vivo', txt)
+
+    @override_settings(EKI_CURSO_VERSIONES=True)
     def test_siguiente_modulo_respeta_snap_no_modulo_nuevo_vivo(self):
         from core.curso.modulo_publicacion import siguiente_modulo_publicado_wa
         from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante

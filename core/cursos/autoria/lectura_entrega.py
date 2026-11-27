@@ -97,6 +97,15 @@ def titulo_modulo_para_entrega(progreso, modulo) -> str:
     return getattr(modulo, 'titulo', None) or ''
 
 
+def descripcion_modulo_para_entrega(progreso, modulo) -> str:
+    """Descripción desde snapshot si hay cohorte versionada; si no, el vivo."""
+    snap = ensamblado_de_progreso(progreso)
+    fila = modulo_en_ensamblado(snap, getattr(modulo, 'id', None))
+    if fila is not None:
+        return fila.get('descripcion') or ''
+    return getattr(modulo, 'descripcion', None) or ''
+
+
 def contenido_paso_para_entrega(progreso, paso) -> str:
     """Contenido del paso desde snapshot si hay cohorte; si no, el vivo."""
     snap = ensamblado_de_progreso(progreso)

@@ -233,10 +233,19 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
     if not archivos_multimedia_c.exists() and video_url:
         primera_media_url_c = video_url
 
-    # Usar dividir_contenido_seguro para evitar exceder 1600 chars
-    contenido_c = modulo_actual.contenido or ''
+    from core.cursos.autoria.lectura_entrega import (
+        descripcion_modulo_para_entrega,
+        titulo_modulo_para_entrega,
+    )
+    from core.curso.module_steps import texto_legacy_whatsapp
+
+    contenido_c = texto_legacy_whatsapp(modulo_actual, progreso=progreso)
     chunks_c = dividir_contenido_seguro(contenido_c, max_chars=1300)
-    modulo_header_c = f"{progreso.curso.emoji} {progreso.curso.nombre}\n\nMódulo {modulo_actual.numero}: {modulo_actual.titulo}\n\n"
+    _titulo_ree = titulo_modulo_para_entrega(progreso, modulo_actual)
+    modulo_header_c = (
+        f"{progreso.curso.emoji} {progreso.curso.nombre}\n\n"
+        f"Módulo {modulo_actual.numero}: {_titulo_ree}\n\n"
+    )
     if chunks_c:
         respuesta = modulo_header_c + chunks_c[0]
         for chunk_c in chunks_c[1:]:
@@ -245,7 +254,7 @@ def _reenviar_modulo_actual(estudiante, modulo_actual, progreso, obtener_video_u
             else:
                 break
     else:
-        respuesta = modulo_header_c + (modulo_actual.descripcion or '')
+        respuesta = modulo_header_c + descripcion_modulo_para_entrega(progreso, modulo_actual)
     # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
 
     # NO embeber video en respuesta — enviar como parte separada DESPUÉS del texto
@@ -581,7 +590,10 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
     # v1.9.8i: No "completado" message — just flow to next content
     
     # Mensaje: Siguiente módulo CON multimedia embebida
-    from core.cursos.autoria.lectura_entrega import titulo_modulo_para_entrega
+    from core.cursos.autoria.lectura_entrega import (
+        descripcion_modulo_para_entrega,
+        titulo_modulo_para_entrega,
+    )
     from core.curso.module_steps import texto_legacy_whatsapp
     contenido_mod = texto_legacy_whatsapp(siguiente_modulo, progreso=progreso)
     chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
@@ -595,7 +607,7 @@ def _texto_siguiente_modulo(es_modulo_reto, estudiante, progreso, modulo_actual,
             else:
                 break
     else:
-        msg_modulo = modulo_header + (siguiente_modulo.descripcion or '')
+        msg_modulo = modulo_header + descripcion_modulo_para_entrega(progreso, siguiente_modulo)
     # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
     
     # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
