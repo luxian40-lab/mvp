@@ -472,18 +472,56 @@ def verificar_keyword_soporte(mensaje_texto):
     return False, None
 
 
-def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
+def _phone_id_para_pqrs(estudiante, phone_id=None) -> str:
+    """Línea Meta del turno PQRS.
+
+    Prioridad: argumento → ContextVar del webhook → última EstadoLinea → sandbox default.
+    No usar phone_id_de_salida() aquí: sin contexto ya cae a la principal y tapa
+    EstadoLinea (L2 → 131047 en el hilo async del agente).
+    """
+    from core.canal.sandbox_canal import phone_id_salida_explicito, sandbox_phone_id
+
+    pnid = (phone_id or phone_id_salida_explicito() or '').strip()
+    if pnid:
+        return pnid
+    pk = getattr(estudiante, 'pk', None)
+    if pk:
+        from core.conversacion.estado_linea import EstadoLinea
+
+        pnid = (
+            EstadoLinea.objects.filter(estudiante_id=pk)
+            .exclude(phone_id='')
+            .order_by('-actualizado_en')
+            .values_list('phone_id', flat=True)
+            .first()
+            or ''
+        ).strip()
+        if pnid:
+            return pnid
+    return (sandbox_phone_id() or '').strip()
+
+
+def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada, phone_id=None):
     """
     Procesa una solicitud de soporte:
     1. Guarda en BD
     2. Dispara agente PQRS (async) con contexto
     3. Acuse corto (el agente envía la respuesta real)
     Email a humanos solo si el agente escala.
+
+    phone_id: línea Meta del entrante. Si no viene, se captura del contexto del
+    turno (o EstadoLinea). El callback async debe reusar esa línea: si cae a la
+    principal tras un chat en L2, Meta responde 131047.
     
     Returns:
         str: Mensaje de respuesta para el usuario
     """
     logger.info(f"🆘 Procesando solicitud de soporte de {estudiante.nombre}")
+
+    from core.canal.sandbox_canal import salida_por_phone_id
+
+    # Capturar YA (el hilo async corre fuera del ContextVar del webhook).
+    pnid = _phone_id_para_pqrs(estudiante, phone_id)
     
     # 1. Crear registro en BD
     solicitud = SolicitudSoporte.objects.create(
@@ -497,9 +535,16 @@ def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
     try:
         from core.pqrs_agent import disparar_agente_pqrs_async
 
-        def _enviar_pqrs_whatsapp(est, texto):
+        def _enviar_pqrs_whatsapp(est, texto, _pnid=pnid):
             try:
-                enviar_whatsapp(est.telefono, texto)
+                from core.lineas.envio import enviar_meta
+
+                with salida_por_phone_id(_pnid):
+                    enviar_meta(
+                        est.telefono,
+                        texto,
+                        agente_evento='pqrs_agente',
+                    )
             except Exception:
                 logger.exception("[PQRS Agent] No se pudo enviar respuesta por WhatsApp")
 
