@@ -576,3 +576,15 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
         return _responder(intent, nombre_usuario, kwargs)
     
     return f"Hola {nombre_usuario}, ¿cómo te puedo ayudar con tu aprendizaje agropecuario? 🌱"
+
+
+def __getattr__(name: str):
+    """Reexport lazy: intents siguen importando checkpoint desde aquí sin arista estática."""
+    if name == 'evaluar_checkpoint_reto_ia':
+        import importlib
+
+        return importlib.import_module(
+            'core.curso.helpers_examenes',
+        ).evaluar_checkpoint_reto_ia
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+

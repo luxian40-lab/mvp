@@ -908,6 +908,11 @@ _PLANES_ATTRS = frozenset({
 })
 
 
+def normalizar_telefono_whatsapp(numero: str) -> str:
+    """Misma API que el import estático previo; lazy para no meter nati en el SCC."""
+    return importlib.import_module('core.agentes.nati').normalizar_telefono_whatsapp(numero)
+
+
 def __getattr__(name: str):
     if name in _PUERTAS_ATTRS:
         return getattr(importlib.import_module('core.conversacion.puertas'), name)
@@ -920,3 +925,4 @@ def __getattr__(name: str):
     if name in _PLANES_ATTRS:
         return getattr(importlib.import_module('core.canal.planes_linea'), name)
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
