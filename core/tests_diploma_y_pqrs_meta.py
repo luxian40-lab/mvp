@@ -99,6 +99,109 @@ class PqrsMetaTests(TestCase):
         self.assertFalse(solicitud.respuesta)
 
 
+class PqrsCallbackUsaLineaEntranteTests(TestCase):
+    """El agente PQRS async no debe caer a la línea principal tras un chat en L2 (131047)."""
+
+    def test_callback_async_conserva_phone_id_del_turno(self):
+        from core.canal.sandbox_canal import phone_id_de_salida, salida_por_phone_id
+        from core.conversacion.security_handler import procesar_solicitud_soporte
+        from core.models import Cliente, Estudiante
+
+        L2 = '1272340185973021'
+        cliente = Cliente.objects.create(
+            nombre='Coop L2 PQRS',
+            nit='900111333-1',
+            contacto_principal='Ops',
+            email='l2-pqrs@example.com',
+            telefono='573009990099',
+            activo=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Dainer Prueba',
+            telefono='573006891500',
+            cedula='9001113330',
+            cliente=cliente,
+            estado_chat='ACTIVO',
+            acepto_terminos=True,
+            activo=True,
+        )
+        callback = {}
+
+        def _capturar_async(solicitud, callback_envio_whatsapp=None):
+            callback['fn'] = callback_envio_whatsapp
+
+        visto = {}
+
+        def _fake_enviar(telefono, texto, **kwargs):
+            visto['phone_id'] = phone_id_de_salida()
+            visto['agente'] = kwargs.get('agente_evento')
+            return {'success': True, 'mensaje_id': 'wamid.PQRS'}
+
+        with salida_por_phone_id(L2):
+            with patch(
+                'core.pqrs_agent.disparar_agente_pqrs_async',
+                side_effect=_capturar_async,
+            ):
+                procesar_solicitud_soporte(est, 'quiero soporte', 'soporte')
+
+        self.assertIn('fn', callback)
+        with patch('core.lineas.envio.enviar_meta', side_effect=_fake_enviar):
+            callback['fn'](est, 'Respuesta del agente PQRS')
+        self.assertEqual(visto.get('phone_id'), L2)
+        self.assertEqual(visto.get('agente'), 'pqrs_agente')
+
+    def test_sin_contextvar_usa_estado_linea(self):
+        from core.canal.sandbox_canal import phone_id_de_salida
+        from core.conversacion.estado_linea import EstadoLinea
+        from core.conversacion.security_handler import procesar_solicitud_soporte
+        from core.models import Cliente, Estudiante
+
+        L2 = '1272340185973021'
+        cliente = Cliente.objects.create(
+            nombre='Coop L2 PQRS 2',
+            nit='900111334-1',
+            contacto_principal='Ops',
+            email='l2-pqrs2@example.com',
+            telefono='573009990098',
+            activo=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Dainer Linea',
+            telefono='573006891501',
+            cedula='9001113340',
+            cliente=cliente,
+            estado_chat='ACTIVO',
+            acepto_terminos=True,
+            activo=True,
+        )
+        EstadoLinea.objects.create(
+            estudiante=est,
+            phone_id=L2,
+            estado_chat='ACTIVO',
+            estado_onboarding='completado',
+        )
+        callback = {}
+
+        def _capturar_async(solicitud, callback_envio_whatsapp=None):
+            callback['fn'] = callback_envio_whatsapp
+
+        visto = {}
+
+        def _fake_enviar(telefono, texto, **kwargs):
+            visto['phone_id'] = phone_id_de_salida()
+            return {'success': True, 'mensaje_id': 'wamid.PQRS2'}
+
+        with patch(
+            'core.pqrs_agent.disparar_agente_pqrs_async',
+            side_effect=_capturar_async,
+        ):
+            procesar_solicitud_soporte(est, 'quiero soporte', 'soporte')
+
+        with patch('core.lineas.envio.enviar_meta', side_effect=_fake_enviar):
+            callback['fn'](est, 'Respuesta')
+        self.assertEqual(visto.get('phone_id'), L2)
+
+
 class PlantillaDiplomaMetaTests(SimpleTestCase):
     @override_settings(META_TEMPLATE_DIPLOMA='diploma_eki', META_TEMPLATE_DIPLOMA_IDIOMA='es')
     @patch('core.lineas.envio._post_graph', return_value={'success': True, 'mensaje_id': 'wamid.TPL'})
